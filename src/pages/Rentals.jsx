@@ -18,6 +18,7 @@ export default function Rentals() {
   const [isEditing, setIsEditing] = useState(false);
   const [isMobile, setIsMobile] = useState(window.innerWidth < 768);
   const [searchQuery, setSearchQuery] = useState('');
+  const [selectedRental, setSelectedRental] = useState(null);
   
   const [showSidebar, setShowSidebar] = useState(true);
   const [statusFilter, setStatusFilter] = useState('todos');
@@ -90,9 +91,24 @@ export default function Rentals() {
       setShowForm(true);
       setActiveFormTab('general');
     };
+    const onEdit = () => {
+      if (selectedRental) handleEdit(selectedRental);
+      else alert('Por favor, seleccione un alquiler primero.');
+    };
+    const onDelete = () => {
+      if (selectedRental) handleDelete(selectedRental.id || selectedRental.docId);
+      else alert('Por favor, seleccione un alquiler primero.');
+    };
+
     window.addEventListener('rentals:new', onNew);
-    return () => window.removeEventListener('rentals:new', onNew);
-  }, [initialFormState]);
+    window.addEventListener('rentals:edit', onEdit);
+    window.addEventListener('rentals:delete', onDelete);
+    return () => {
+      window.removeEventListener('rentals:new', onNew);
+      window.removeEventListener('rentals:edit', onEdit);
+      window.removeEventListener('rentals:delete', onDelete);
+    };
+  }, [initialFormState, selectedRental]);
 
   const handleSave = async () => {
     if (!formData.reference || !formData.propertyId) {
@@ -242,7 +258,7 @@ export default function Rentals() {
         )}
 
         {/* Table View */}
-        <div className="flex-1 flex flex-col bg-white overflow-hidden relative">
+        <div className="flex-1 flex flex-col bg-white overflow-hidden relative" onClick={() => setSelectedRental(null)}>
           {/* Header with Title and Search */}
           <div className="flex justify-between items-center px-4 py-2 border-b border-gray-200 bg-[#f8f9fa]">
             <div className="flex items-center space-x-3">
@@ -252,10 +268,6 @@ export default function Rentals() {
                 title={showSidebar ? "Ocultar panel" : "Mostrar panel"}
               >
                 <PanelLeft className="w-4 h-4" />
-              </button>
-              <button className="flex items-center space-x-1 px-3 py-1 bg-white border border-gray-300 rounded shadow-sm text-sm hover:bg-gray-50 text-indigo-700 font-medium" onClick={() => window.dispatchEvent(new CustomEvent('rentals:new'))} title="Nuevo Alquiler">
-                <Plus className="w-4 h-4" />
-                {!isMobile && <span>Nuevo Alquiler</span>}
               </button>
             </div>
             <div className="relative">
@@ -279,7 +291,6 @@ export default function Rentals() {
                   <th className="w-48">Inquilino</th>
                   <th className="w-32 text-right">Renta</th>
                   <th className="w-24 text-center">Estado</th>
-                  <th className="w-24 text-center">Acciones</th>
                 </tr>
               </thead>
               <tbody>
@@ -295,7 +306,12 @@ export default function Rentals() {
               const prop = properties.find(p => p.id === rental.propertyId);
               const cust = customers.find(c => c.id === rental.tenantId);
               return (
-                <tr key={rental.docId} onDoubleClick={() => handleEdit(rental)}>
+                <tr 
+                  key={rental.docId} 
+                  className={selectedRental?.docId === rental.docId ? 'selected' : ''}
+                  onClick={(e) => { e.stopPropagation(); setSelectedRental(rental); }}
+                  onDoubleClick={() => handleEdit(rental)}
+                >
                   <td>{rental._originalId || rental.reference || ''}</td>
                   <td>{prop ? prop.name : rental.propertyName || rental.propertyId || 'Desconocido'}</td>
                   <td>{rental.tenants?.length > 0 ? rental.tenants.map(t => t.name).join(', ') : (cust ? cust.name : 'Ninguno')}</td>
@@ -304,12 +320,6 @@ export default function Rentals() {
                     <span className={`px-2 py-0.5 rounded-full text-[10px] font-bold ${rental.status === 'activo' ? 'bg-green-100 text-green-700' : 'bg-red-100 text-red-700'}`}>
                       {rental.status?.toUpperCase()}
                     </span>
-                  </td>
-                  <td className="text-center">
-                    <div className="flex justify-center space-x-2">
-                      <button onClick={(e) => { e.stopPropagation(); handleEdit(rental); }} className="text-blue-600 hover:text-blue-800"><Edit className="w-4 h-4" /></button>
-                      <button onClick={(e) => { e.stopPropagation(); handleDelete(rental.id); }} className="text-red-600 hover:text-red-800"><Trash2 className="w-4 h-4" /></button>
-                    </div>
                   </td>
                 </tr>
               );
