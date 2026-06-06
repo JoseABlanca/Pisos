@@ -5,7 +5,7 @@ import { useAuth } from '../context/AuthContext';
 import Window from '../components/Window';
 import { 
   Check, X, Search, Plus, Trash2, Edit, Save, 
-  FileText, Building2, User, Key, Users
+  FileText, Building2, User, Key, Users, PanelLeft
 } from 'lucide-react';
 
 export default function Rentals() {
@@ -18,6 +18,10 @@ export default function Rentals() {
   const [isEditing, setIsEditing] = useState(false);
   const [isMobile, setIsMobile] = useState(window.innerWidth < 768);
   const [searchQuery, setSearchQuery] = useState('');
+  
+  const [showSidebar, setShowSidebar] = useState(true);
+  const [statusFilter, setStatusFilter] = useState('todos');
+  const [propertyFilter, setPropertyFilter] = useState([]);
   
   const [showModalSidebar, setShowModalSidebar] = useState(true);
   const [activeFormTab, setActiveFormTab] = useState('general');
@@ -53,7 +57,7 @@ export default function Rentals() {
     const unsubRentals = onSnapshot(
       query(collection(db, 'rentals'), where('userId', 'in', userIds)),
       (snap) => {
-        setRentals(snap.docs.map(d => ({ ...d.data(), id: d.id })));
+        setRentals(snap.docs.map(d => ({ ...d.data(), docId: d.id, _originalId: d.data().id })));
       }
     );
 
@@ -98,7 +102,7 @@ export default function Rentals() {
     
     try {
       const docRef = isEditing 
-        ? doc(db, 'rentals', formData.id)
+        ? doc(db, 'rentals', formData.docId)
         : doc(collection(db, 'rentals'));
         
       await setDoc(docRef, {
@@ -119,6 +123,7 @@ export default function Rentals() {
     if (window.confirm('¿Eliminar este alquiler?')) {
       try {
         await deleteDoc(doc(db, 'rentals', id));
+        if (isEditing && formData.docId === id) setShowForm(false);
       } catch (error) {
         console.error('Error deleting rental:', error);
       }
@@ -152,59 +157,158 @@ export default function Rentals() {
   );
 
   return (
-    <div className="h-full flex flex-col bg-[#c0c0c0]">
-      {/* Top Toolbar */}
-      <div className="flex items-center justify-between p-1 bg-[#d4d0c8] border-b border-[#808080] shadow-[0_1px_0_rgba(255,255,255,0.8)]">
-        <div className="flex items-center space-x-1">
-          <button className="win-btn" onClick={() => window.dispatchEvent(new CustomEvent('rentals:new'))} title="Nuevo Alquiler">
-            <Plus className="w-4 h-4 text-blue-800" />
-            {!isMobile && <span className="ml-1 text-[11px]">Nuevo</span>}
-          </button>
-        </div>
-        <div className="flex items-center relative">
-          <input 
-            type="text" 
-            placeholder="Buscar alquileres..." 
-            className="win-input pl-8 pr-2 py-1 w-48 text-[11px]"
-            value={searchQuery}
-            onChange={(e) => setSearchQuery(e.target.value)}
-          />
-          <Search className="w-3 h-3 text-gray-500 absolute left-2" />
-        </div>
-      </div>
+    <div className="w-full h-full bg-[#d4d0c8] flex flex-col p-1 overflow-hidden font-sans">
+      <div className="flex flex-row flex-1 overflow-hidden bg-white relative">
+        {/* Left Sidebar (Lista actual) */}
+        {showSidebar && (
+          <div className="w-64 bg-[#f0f4f9] border-r border-gray-200 flex flex-col shrink-0 transition-all">
+            <div className="bg-[#e4ebf5] border-b border-gray-200 p-2 text-[12px] font-bold text-slate-700 flex justify-between items-center">
+              <span>Lista actual</span>
+            </div>
+            <div className="p-4 text-[11px] space-y-4 flex-1 overflow-auto">
+              <div className="space-y-2 pb-4 border-b border-gray-300">
+                <label className="flex items-center space-x-2 cursor-pointer">
+                  <input 
+                    type="radio" 
+                    name="status" 
+                    checked={statusFilter === 'todos'} 
+                    onChange={() => setStatusFilter('todos')}
+                    className="text-indigo-600 focus:ring-indigo-500 cursor-pointer"
+                  />
+                  <span className={statusFilter === 'todos' ? 'text-indigo-700 font-medium' : 'text-slate-700'}>
+                    Todos los estados
+                  </span>
+                </label>
+                <label className="flex items-center space-x-2 cursor-pointer">
+                  <input 
+                    type="radio" 
+                    name="status" 
+                    checked={statusFilter === 'activo'} 
+                    onChange={() => setStatusFilter('activo')}
+                    className="text-indigo-600 focus:ring-indigo-500 cursor-pointer"
+                  />
+                  <span className={statusFilter === 'activo' ? 'text-indigo-700 font-medium' : 'text-slate-700'}>
+                    Mostrar activos
+                  </span>
+                </label>
+                <label className="flex items-center space-x-2 cursor-pointer">
+                  <input 
+                    type="radio" 
+                    name="status" 
+                    checked={statusFilter === 'inactivo'} 
+                    onChange={() => setStatusFilter('inactivo')}
+                    className="text-indigo-600 focus:ring-indigo-500 cursor-pointer"
+                  />
+                  <span className={statusFilter === 'inactivo' ? 'text-indigo-700 font-medium' : 'text-slate-700'}>
+                    Mostrar inactivos
+                  </span>
+                </label>
+              </div>
+              
+              <div className="space-y-2">
+                <label className="flex items-center space-x-2 cursor-pointer">
+                  <input 
+                    type="checkbox" 
+                    checked={propertyFilter.length === 0} 
+                    onChange={() => setPropertyFilter([])} 
+                    className="rounded text-indigo-600 focus:ring-indigo-500 cursor-pointer"
+                  />
+                  <span className={propertyFilter.length === 0 ? 'text-indigo-700 font-medium' : 'text-slate-700'}>
+                    Todas las propiedades
+                  </span>
+                </label>
+                {properties.map(p => (
+                  <label key={p.id} className="flex items-center space-x-2 cursor-pointer">
+                    <input 
+                      type="checkbox" 
+                      checked={propertyFilter.includes(p.name)} 
+                      onChange={(e) => {
+                        if (e.target.checked) {
+                          setPropertyFilter([...propertyFilter, p.name]);
+                        } else {
+                          setPropertyFilter(propertyFilter.filter(x => x !== p.name));
+                        }
+                      }}
+                      className="rounded text-indigo-600 focus:ring-indigo-500 cursor-pointer"
+                    />
+                    <span className={propertyFilter.includes(p.name) ? 'text-indigo-700 font-medium' : 'text-slate-700'}>
+                      Mostrar {p.name}
+                    </span>
+                  </label>
+                ))}
+              </div>
+            </div>
+          </div>
+        )}
 
-      {/* Main Table Area */}
-      <div className="flex-1 bg-white overflow-auto border-t border-[#808080] shadow-[inset_1px_1px_2px_rgba(0,0,0,0.1)]">
-        <table className="w-full text-[11px] border-collapse">
-          <thead className="bg-[#f0f0f0] sticky top-0 z-10 shadow-[0_1px_2px_rgba(0,0,0,0.1)]">
-            <tr>
-              <th className="border border-[#c0c0c0] p-1.5 text-left font-semibold">Ref.</th>
-              <th className="border border-[#c0c0c0] p-1.5 text-left font-semibold">Propiedad</th>
-              <th className="border border-[#c0c0c0] p-1.5 text-left font-semibold">Inquilino</th>
-              <th className="border border-[#c0c0c0] p-1.5 text-right font-semibold">Renta</th>
-              <th className="border border-[#c0c0c0] p-1.5 text-center font-semibold">Estado</th>
-              <th className="border border-[#c0c0c0] p-1.5 text-center font-semibold w-16">Acciones</th>
-            </tr>
-          </thead>
-          <tbody>
-            {rentals.filter(r => r.reference?.toLowerCase().includes(searchQuery.toLowerCase())).map((rental) => {
+        {/* Table View */}
+        <div className="flex-1 flex flex-col bg-white overflow-hidden relative">
+          {/* Header with Title and Search */}
+          <div className="flex justify-between items-center px-4 py-2 border-b border-gray-200 bg-[#f8f9fa]">
+            <div className="flex items-center space-x-3">
+              <button 
+                onClick={(e) => { e.stopPropagation(); setShowSidebar(!showSidebar); }}
+                className="p-1.5 hover:bg-gray-200 rounded text-gray-500 border border-transparent hover:border-gray-300"
+                title={showSidebar ? "Ocultar panel" : "Mostrar panel"}
+              >
+                <PanelLeft className="w-4 h-4" />
+              </button>
+              <button className="flex items-center space-x-1 px-3 py-1 bg-white border border-gray-300 rounded shadow-sm text-sm hover:bg-gray-50 text-indigo-700 font-medium" onClick={() => window.dispatchEvent(new CustomEvent('rentals:new'))} title="Nuevo Alquiler">
+                <Plus className="w-4 h-4" />
+                {!isMobile && <span>Nuevo Alquiler</span>}
+              </button>
+            </div>
+            <div className="relative">
+              <input 
+                type="text" 
+                placeholder="Buscar alquileres..." 
+                className="pl-2 pr-8 py-1 border-b border-gray-400 text-[12px] w-64 outline-none focus:border-blue-500 bg-transparent"
+                value={searchQuery}
+                onChange={(e) => setSearchQuery(e.target.value)}
+              />
+              <Search className="w-4 h-4 absolute right-1 top-1/2 -translate-y-1/2 text-gray-500" />
+            </div>
+          </div>
+
+          <div className="flex-1 overflow-auto bg-white">
+            <table className="clean-table">
+              <thead>
+                <tr className="sticky top-0 z-10">
+                  <th className="w-32">Ref.</th>
+                  <th className="w-48">Propiedad</th>
+                  <th className="w-48">Inquilino</th>
+                  <th className="w-32 text-right">Renta</th>
+                  <th className="w-24 text-center">Estado</th>
+                  <th className="w-24 text-center">Acciones</th>
+                </tr>
+              </thead>
+              <tbody>
+                {rentals.filter(r => {
+                  if (statusFilter !== 'todos' && (r.status || 'activo') !== statusFilter) return false;
+                  if (propertyFilter.length > 0) {
+                    const propName = properties.find(p => p.id === r.propertyId)?.name || 'Desconocido';
+                    if (!propertyFilter.includes(propName)) return false;
+                  }
+                  const matchSearch = (r._originalId || r.reference || '').toLowerCase().includes(searchQuery.toLowerCase());
+                  return matchSearch;
+                }).map((rental) => {
               const prop = properties.find(p => p.id === rental.propertyId);
               const cust = customers.find(c => c.id === rental.tenantId);
               return (
-                <tr key={rental.id} className="hover:bg-blue-50/50 cursor-pointer" onDoubleClick={() => handleEdit(rental)}>
-                  <td className="border border-[#e0e0e0] p-1.5">{rental.reference}</td>
-                  <td className="border border-[#e0e0e0] p-1.5">{prop ? prop.name : 'Desconocido'}</td>
-                  <td className="border border-[#e0e0e0] p-1.5">{cust ? cust.name : 'Ninguno'}</td>
-                  <td className="border border-[#e0e0e0] p-1.5 text-right">{Number(rental.rentAmount).toFixed(2)} €</td>
-                  <td className="border border-[#e0e0e0] p-1.5 text-center">
-                    <span className={`px-2 py-0.5 rounded-full text-[9px] font-bold ${rental.status === 'activo' ? 'bg-green-100 text-green-700' : 'bg-red-100 text-red-700'}`}>
+                <tr key={rental.docId} onDoubleClick={() => handleEdit(rental)}>
+                  <td>{rental._originalId || rental.reference || ''}</td>
+                  <td>{prop ? prop.name : rental.propertyName || rental.propertyId || 'Desconocido'}</td>
+                  <td>{rental.tenants?.length > 0 ? rental.tenants.map(t => t.name).join(', ') : (cust ? cust.name : 'Ninguno')}</td>
+                  <td className="text-right">{Number(rental.rentAmount || 0).toLocaleString('es-ES', { minimumFractionDigits: 2 })} €</td>
+                  <td className="text-center">
+                    <span className={`px-2 py-0.5 rounded-full text-[10px] font-bold ${rental.status === 'activo' ? 'bg-green-100 text-green-700' : 'bg-red-100 text-red-700'}`}>
                       {rental.status?.toUpperCase()}
                     </span>
                   </td>
-                  <td className="border border-[#e0e0e0] p-1.5 text-center">
+                  <td className="text-center">
                     <div className="flex justify-center space-x-2">
-                      <button onClick={(e) => { e.stopPropagation(); handleEdit(rental); }} className="text-blue-600 hover:text-blue-800"><Edit className="w-3.5 h-3.5" /></button>
-                      <button onClick={(e) => { e.stopPropagation(); handleDelete(rental.id); }} className="text-red-600 hover:text-red-800"><Trash2 className="w-3.5 h-3.5" /></button>
+                      <button onClick={(e) => { e.stopPropagation(); handleEdit(rental); }} className="text-blue-600 hover:text-blue-800"><Edit className="w-4 h-4" /></button>
+                      <button onClick={(e) => { e.stopPropagation(); handleDelete(rental.id); }} className="text-red-600 hover:text-red-800"><Trash2 className="w-4 h-4" /></button>
                     </div>
                   </td>
                 </tr>
@@ -212,14 +316,16 @@ export default function Rentals() {
             })}
             {rentals.length === 0 && (
               <tr>
-                <td colSpan="6" className="text-center p-8 text-gray-400 italic">No hay alquileres registrados</td>
+                <td colSpan="6" className="text-center py-20 text-slate-400 italic">No hay alquileres registrados</td>
               </tr>
             )}
           </tbody>
         </table>
       </div>
+    </div>
+  </div>
 
-      {/* Form Modal */}
+  {/* Form Modal */}
       {showForm && (
         <div className="fixed inset-0 bg-black/40 backdrop-blur-sm flex items-center justify-center z-50 p-2 sm:p-0">
           <Window 
