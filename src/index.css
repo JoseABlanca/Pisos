@@ -1,0 +1,261 @@
+@import "tailwindcss";
+
+@theme {
+  /* Contasol Premium Corporate Palette */
+  --color-primary: #3b6baf; /* Softer, medium Office/ContaSol blue */
+  --color-primary-container: #2f568e;
+  --color-secondary: #f3c21a; /* ContaSol Yellow */
+  --color-tertiary: #526075;
+  --color-success: #34a853;
+  
+  --color-background: #eef0f4; /* Light Grey Workspace Background */
+  --color-surface-lowest: #ffffff;
+  --color-surface-low: #f6f7f9; 
+  --color-surface-highest: #d8dee6;
+  --color-surface-bright: #ffffff;
+  
+  --color-on-surface: #1e293b;
+  --color-on-surface-variant: #475569;
+  --color-outline: #c4cdd5; /* Clean thin border */
+  --color-outline-variant: #e2e8f0;
+  --color-error: #dc2626;
+
+  --font-sans: "Inter", "Segoe UI", Tahoma, sans-serif;
+  --font-display: "Manrope", "Segoe UI", sans-serif;
+
+  --shadow-classic: 0 1px 2px rgba(0,0,0,0.05);
+  --shadow-ambient: 0 4px 10px rgba(0, 0, 0, 0.08);
+  --shadow-bevel: none;
+  --shadow-bevel-active: none;
+}
+
+
+@layer base {
+  body {
+    @apply bg-background text-on-surface font-sans antialiased;
+  }
+  
+  table {
+    zoom: var(--table-zoom, 1);
+  }
+
+  table thead th, table thead td {
+    background-color: #f8fafc !important;
+  }
+}
+
+@layer components {
+  /* Windows-style Bevel Border */
+  .win-bevel {
+    box-shadow: var(--shadow-bevel);
+    @apply bg-surface-low border-none;
+  }
+
+  .win-bevel-active {
+    box-shadow: var(--shadow-bevel-active);
+    @apply bg-surface-highest/20;
+  }
+
+  /* Classic Button Style - Standard Professional */
+  .btn-classic {
+    @apply px-4 py-1.5 bg-surface-low border-none text-on-surface text-xs font-semibold hover:bg-surface-lowest transition-all;
+    box-shadow: var(--shadow-bevel);
+  }
+
+  .btn-classic:active {
+    box-shadow: var(--shadow-bevel-active);
+    @apply bg-surface-highest/20;
+  }
+
+  /* Professional Data Grid */
+  .data-grid-header {
+    @apply bg-surface-highest/50 border-b border-outline-variant text-[10px] font-bold uppercase tracking-wider text-on-surface-variant px-4 py-2;
+  }
+
+  /* Ribbon Tabs */
+  .ribbon-tab {
+    @apply flex flex-col items-center justify-center px-4 py-2 cursor-pointer transition-all border-r border-outline/20 min-w-[100px] text-center hover:bg-slate-50;
+  }
+
+  .ribbon-tab-active {
+    @apply bg-slate-100 text-primary font-bold;
+  }
+
+  .ribbon-group {
+    @apply flex items-stretch border-r border-outline/30 px-2 my-1;
+  }
+
+  .menu-bar-item {
+    @apply px-4 py-1 text-[12px] tracking-tight cursor-default hover:bg-white/20 transition-colors text-white font-normal capitalize;
+  }
+
+  .menu-bar-item-active {
+    @apply bg-white text-slate-800 font-semibold;
+  }
+
+
+  /* Toolbar Icons Standard */
+  .toolbar-icon-classic {
+    @apply w-8 h-8 text-on-surface-variant mb-1;
+  }
+
+  /* Windows Window Styles */
+  .win-window {
+    @apply border border-outline bg-surface-bright rounded-md overflow-hidden;
+    box-shadow: var(--shadow-ambient);
+  }
+
+  .win-title-btn {
+    @apply w-6 h-6 bg-transparent flex items-center justify-center border-none text-white hover:bg-white/20 hover:text-white rounded transition-colors active:bg-white/30;
+  }
+
+  .win-input {
+    @apply px-2 py-1 bg-white border border-outline text-xs focus:outline-none focus:border-primary focus:ring-1 focus:ring-primary rounded-sm transition-all shadow-sm;
+  }
+
+  /* Sidebar and Table Layouts (Photo 2) */
+  .win-sidebar {
+    @apply w-[120px] bg-surface-low border-r border-outline flex flex-col p-2 space-y-1.5 shrink-0;
+  }
+
+  .btn-sidebar {
+    @apply w-full h-9 bg-surface-lowest border border-outline text-[10px] font-bold text-slate-700 hover:bg-primary hover:text-white hover:border-primary rounded transition-all flex items-center justify-center cursor-pointer shadow-sm;
+  }
+
+  .win-table-container {
+    @apply flex-1 bg-white overflow-auto border border-outline m-1 rounded-sm shadow-inner;
+  }
+
+  .win-table {
+    @apply w-full text-[11px] border-collapse bg-white;
+  }
+
+  .win-table th {
+    @apply bg-[#f8fafc] border-r border-b border-outline px-3 py-2 text-left font-bold text-slate-800 sticky top-0 uppercase tracking-tight text-[10px];
+    box-shadow: inset 0 -1px 0 rgba(0,0,0,0.03);
+  }
+
+  .win-table td {
+    @apply border-r border-b border-[#f1f3f5] px-3 py-1.5 whitespace-nowrap overflow-hidden text-ellipsis text-slate-600;
+  }
+
+  .win-table tr.selected {
+    @apply bg-[#e6f0fa] text-primary font-bold;
+  }
+
+  /* Clean Minimalist Table (Photo 2 / Photo 1 font style) */
+  .clean-table {
+    @apply w-full text-left text-[11px] whitespace-nowrap border-collapse bg-white;
+  }
+
+  .clean-table thead {
+    @apply sticky top-0 bg-[#f8fafc] z-10;
+    box-shadow: 0 1px 0 #e2e8f0, inset 0 -1px 0 rgba(0,0,0,0.03);
+  }
+
+  .clean-table th {
+    @apply px-3 py-2 font-normal border-r border-[#d1d5db] uppercase text-gray-700;
+  }
+
+  .clean-table th:last-child {
+    @apply border-r-0;
+  }
+
+  .clean-table tr {
+    @apply border-b border-gray-100;
+  }
+
+  .clean-table td {
+    @apply px-3 py-1.5 border-r border-gray-100 overflow-hidden text-ellipsis text-gray-800 uppercase;
+  }
+
+  .clean-table tr:hover {
+    @apply bg-slate-50 cursor-pointer transition-colors;
+  }
+
+  .clean-table tr.selected {
+    @apply bg-blue-50 text-blue-900;
+  }
+
+
+  /* Responsive Utilities */
+  @media (max-width: 768px) {
+    .win-sidebar {
+      @apply w-full h-auto flex-row overflow-x-auto space-y-0 space-x-1 border-r-0 border-b p-2;
+      box-shadow: none;
+    }
+    
+    .btn-sidebar {
+      @apply w-auto px-4 h-10;
+    }
+
+    .ribbon-tab {
+      @apply min-w-[80px] p-2;
+    }
+
+    .ribbon-tab svg {
+      @apply w-6 h-6;
+    }
+
+    .ribbon-tab span {
+      @apply text-[8px];
+    }
+
+    .menu-bar-item {
+      @apply px-2 py-2 text-[10px];
+    }
+  }
+
+  /* Responsive Form Utilities */
+  .win-form-row {
+    @apply flex flex-col sm:flex-row sm:items-center space-y-1 sm:space-y-0 sm:space-x-2 mb-1.5;
+  }
+
+  .win-form-label {
+    @apply w-full sm:w-36 shrink-0 sm:text-right sm:pr-3 text-left text-[11px] text-slate-700 font-bold sm:font-normal pb-0.5 sm:pb-0 truncate;
+  }
+}
+
+/* ==========================================
+   Contasol Aesthetic Color Overrides
+   Maps legacy retro colors dynamically
+   ========================================== */
+[class*="bg-[#d4d0c8]"] {
+  background-color: var(--color-surface-low) !important;
+}
+[class*="border-[#d4d0c8]"] {
+  border-color: var(--color-outline) !important;
+}
+[class*="bg-[#cbd5e0]"] {
+  background-color: var(--color-background) !important;
+}
+[class*="bg-[#4a5568]"] {
+  background-color: var(--color-primary) !important;
+}
+[class*="bg-[#a0aec0]"] {
+  background-color: var(--color-surface-low) !important;
+}
+[class*="border-[#718096]"] {
+  border-color: var(--color-outline) !important;
+}
+[class*="border-[#808080]"] {
+  border-color: var(--color-outline) !important;
+}
+[class*="bg-[#c0c0c0]"] {
+  background-color: var(--color-surface-highest) !important;
+}
+[class*="text-[#000080]"] {
+  color: var(--color-primary) !important;
+}
+[class*="bg-[#000080]"] {
+  background-color: var(--color-primary) !important;
+}
+[class*="from-[#000080]"] {
+  --tw-gradient-from: var(--color-primary) !important;
+  --tw-gradient-to: var(--color-primary-container) !important;
+  --tw-gradient-stops: var(--tw-gradient-from), var(--tw-gradient-to) !important;
+}
+[class*="to-[#1084d0]"] {
+  --tw-gradient-to: var(--color-primary-container) !important;
+}
+
