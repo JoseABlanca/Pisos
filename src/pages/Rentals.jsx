@@ -316,10 +316,8 @@ export default function Rentals() {
                   <td>{prop ? prop.name : rental.propertyName || rental.propertyId || 'Desconocido'}</td>
                   <td>{rental.tenants?.length > 0 ? rental.tenants.map(t => t.name).join(', ') : (cust ? cust.name : 'Ninguno')}</td>
                   <td className="text-right">{Number(rental.rentAmount || 0).toLocaleString('es-ES', { minimumFractionDigits: 2 })} €</td>
-                  <td className="text-center">
-                    <span className={`px-2 py-0.5 rounded-full text-[10px] font-bold ${rental.status === 'activo' ? 'bg-green-100 text-green-700' : 'bg-red-100 text-red-700'}`}>
-                      {rental.status?.toUpperCase()}
-                    </span>
+                  <td className="text-center uppercase">
+                    {rental.status || 'activo'}
                   </td>
                 </tr>
               );
