@@ -768,66 +768,111 @@ export default function RealEstate() {
     { id: 'Extracto', icon: ClipboardList }
   ];
 
-    const renderTabContent = () => {
-    return (
-      <div className="flex flex-col h-full gap-3 p-4 bg-white">
-        <h2 className="text-xl font-bold mb-4">Datos (Recuperación)</h2>
-        <div className="flex items-center space-x-2">
-          <label className="btn-classic px-4 py-2 bg-blue-100 hover:bg-blue-200 cursor-pointer rounded border border-blue-300">
-            Adjuntar Pago (Persistente)
-            <input
-              type="file"
-              className="hidden"
-              multiple
-              onChange={async (e) => {
-                const files = Array.from(e.target.files);
-                if (files.length > 0) {
-                  if (!formData.id) { alert("Guarde la propiedad primero."); return; }
-                  setIsUploading(true);
-                  try {
-                    const newDocs = [];
-                    for (const file of files) {
-                      const url = await uploadFileToStorage(file, user.uid, 'properties', formData.id, 'propertyDocs');
-                      newDocs.push({
-                        name: file.name,
-                        date: new Date().toISOString().split('T')[0],
-                        concept: '',
-                        url: url
-                      });
-                    }
-                    setFormData({ ...formData, propertyDocs: [...(formData.propertyDocs || []), ...newDocs] });
-                  } catch(err) {
-                    console.error(err);
-                  } finally { 
-                    setIsUploading(false); 
-                  }
-                }
-              }}
+  const renderTabContent = () => {
+    if (activeTab === 'Datos') {
+      return (
+        <div className="flex flex-col gap-4 p-4 max-w-2xl text-[13px] text-[#333] h-full overflow-y-auto">
+          <div className="flex flex-col gap-1">
+            <label className="font-bold text-[#4a5568]">Nombre de la Finca</label>
+            <input 
+              type="text" 
+              className="px-2 py-1.5 border border-[#888] bg-white w-full shadow-[inset_1px_1px_2px_rgba(0,0,0,0.1)] focus:outline-none focus:border-blue-500" 
+              value={formData.name || ''} 
+              onChange={e => setFormData({ ...formData, name: e.target.value })} 
             />
-          </label>
-        </div>
-        <div className="mt-4">
-          <table className="w-full text-left border-collapse">
-            <thead>
-              <tr>
-                <th className="border-b p-2">Documento</th>
-                <th className="border-b p-2">Fecha</th>
-                <th className="border-b p-2">Enlace</th>
-              </tr>
-            </thead>
-            <tbody>
-              {(formData.propertyDocs || []).map((doc, i) => (
-                <tr key={i}>
-                  <td className="border-b p-2">{doc.name}</td>
-                  <td className="border-b p-2">{doc.date}</td>
-                  <td className="border-b p-2">
-                    <a href={doc.url} target="_blank" rel="noreferrer" className="text-blue-500 underline">Ver</a>
-                  </td>
-                </tr>
+          </div>
+          
+          <div className="flex flex-col gap-1">
+            <label className="font-bold text-[#4a5568]">Dirección</label>
+            <input 
+              type="text" 
+              className="px-2 py-1.5 border border-[#888] bg-white w-full shadow-[inset_1px_1px_2px_rgba(0,0,0,0.1)] focus:outline-none focus:border-blue-500" 
+              value={formData.address || ''} 
+              onChange={e => setFormData({ ...formData, address: e.target.value })} 
+            />
+          </div>
+
+          <div className="flex flex-col gap-1">
+            <label className="font-bold text-[#4a5568]">País</label>
+            <input 
+              type="text" 
+              className="px-2 py-1.5 border border-[#888] bg-white w-full shadow-[inset_1px_1px_2px_rgba(0,0,0,0.1)] focus:outline-none focus:border-blue-500" 
+              value={formData.country || ''} 
+              onChange={e => setFormData({ ...formData, country: e.target.value })} 
+            />
+          </div>
+
+          <div className="flex flex-col gap-1">
+            <label className="font-bold text-[#4a5568]">Región/Provincia</label>
+            <input 
+              type="text" 
+              className="px-2 py-1.5 border border-[#888] bg-white w-full shadow-[inset_1px_1px_2px_rgba(0,0,0,0.1)] focus:outline-none focus:border-blue-500" 
+              value={formData.region || ''} 
+              onChange={e => setFormData({ ...formData, region: e.target.value })} 
+            />
+          </div>
+
+          <div className="flex flex-col gap-1">
+            <label className="font-bold text-[#4a5568]">Código Postal</label>
+            <input 
+              type="text" 
+              className="px-2 py-1.5 border border-[#888] bg-white w-48 shadow-[inset_1px_1px_2px_rgba(0,0,0,0.1)] focus:outline-none focus:border-blue-500" 
+              value={formData.cp || ''} 
+              onChange={e => setFormData({ ...formData, cp: e.target.value })} 
+            />
+          </div>
+
+          <div className="flex flex-col gap-1">
+            <label className="font-bold text-[#4a5568]">Ref. Catastral</label>
+            <input 
+              type="text" 
+              className="px-2 py-1.5 border border-[#888] bg-white w-full shadow-[inset_1px_1px_2px_rgba(0,0,0,0.1)] focus:outline-none focus:border-blue-500" 
+              value={formData.catastral || ''} 
+              onChange={e => setFormData({ ...formData, catastral: e.target.value })} 
+            />
+          </div>
+
+          <div className="flex flex-col gap-1">
+            <label className="font-bold text-[#4a5568]">Reg. Propiedad</label>
+            <input 
+              type="text" 
+              className="px-2 py-1.5 border border-[#888] bg-white w-full shadow-[inset_1px_1px_2px_rgba(0,0,0,0.1)] focus:outline-none focus:border-blue-500" 
+              placeholder="Tomo, Libro, Finca..."
+              value={formData.registry || ''} 
+              onChange={e => setFormData({ ...formData, registry: e.target.value })} 
+            />
+          </div>
+
+          <div className="flex flex-col gap-1">
+            <label className="font-bold text-[#4a5568]">Número de cuenta</label>
+            <input 
+              type="text" 
+              className="px-2 py-1.5 border border-[#888] bg-white w-full shadow-[inset_1px_1px_2px_rgba(0,0,0,0.1)] focus:outline-none focus:border-blue-500" 
+              value={formData.accountNumber || ''} 
+              onChange={e => setFormData({ ...formData, accountNumber: e.target.value })} 
+            />
+          </div>
+
+          <div className="flex flex-col gap-1">
+            <label className="font-bold text-[#4a5568]">Cuenta contable asociada</label>
+            <select 
+              className="px-2 py-1.5 border border-[#888] bg-white w-full shadow-[inset_1px_1px_2px_rgba(0,0,0,0.1)] focus:outline-none focus:border-blue-500"
+              value={formData.accountingAccount || ''}
+              onChange={e => setFormData({ ...formData, accountingAccount: e.target.value })}
+            >
+              <option value=""></option>
+              {availableAccounts.map(acc => (
+                <option key={acc.code} value={acc.code}>{acc.code} - {acc.name}</option>
               ))}
-            </tbody>
-          </table>
+            </select>
+          </div>
         </div>
+      );
+    }
+    
+    return (
+      <div className="flex justify-center items-center h-full text-slate-500">
+        Contenido de la pestaña {activeTab} (En desarrollo...)
       </div>
     );
   };

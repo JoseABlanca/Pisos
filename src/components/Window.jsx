@@ -199,7 +199,8 @@ export default function Window({ title, children, onClose, width = '800px', heig
         <div className="flex items-center space-x-2">
           {/* Menu Button / Icon */}
           <button 
-            onClick={(e) => { 
+            onPointerDown={(e) => { 
+               e.preventDefault();
                e.stopPropagation(); 
                if (onMenuClick) {
                  onMenuClick();

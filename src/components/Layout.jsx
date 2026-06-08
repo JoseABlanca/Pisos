@@ -763,7 +763,7 @@ export default function Layout() {
               <Settings className="w-4 h-4" />
             </button>
             <button 
-              onClick={logout}
+              onPointerDown={(e) => { e.preventDefault(); logout(); }}
               className="p-1 hover:bg-white/20 rounded transition-colors"
               title="Cerrar Sesión"
             >
