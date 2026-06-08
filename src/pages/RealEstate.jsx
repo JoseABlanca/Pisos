@@ -771,100 +771,106 @@ export default function RealEstate() {
   const renderTabContent = () => {
     if (activeTab === 'Datos') {
       return (
-        <div className="flex flex-col gap-4 p-4 max-w-2xl text-[13px] text-[#333] h-full overflow-y-auto">
-          <div className="flex flex-col gap-1">
-            <label className="font-bold text-[#4a5568]">Nombre de la Finca</label>
-            <input 
-              type="text" 
-              className="px-2 py-1.5 border border-[#888] bg-white w-full shadow-[inset_1px_1px_2px_rgba(0,0,0,0.1)] focus:outline-none focus:border-blue-500" 
-              value={formData.name || ''} 
-              onChange={e => setFormData({ ...formData, name: e.target.value })} 
-            />
-          </div>
-          
-          <div className="flex flex-col gap-1">
-            <label className="font-bold text-[#4a5568]">Dirección</label>
-            <input 
-              type="text" 
-              className="px-2 py-1.5 border border-[#888] bg-white w-full shadow-[inset_1px_1px_2px_rgba(0,0,0,0.1)] focus:outline-none focus:border-blue-500" 
-              value={formData.address || ''} 
-              onChange={e => setFormData({ ...formData, address: e.target.value })} 
-            />
+        <div className={`grid ${isMobile ? 'grid-cols-1' : 'grid-cols-2'} gap-6`}>
+          {/* Left Column */}
+          <div className="space-y-3">
+            <div className="space-y-1">
+              <label className="text-[10px] font-bold text-slate-700 uppercase">Nombre de la Finca:</label>
+              <input 
+                type="text" 
+                className="win-input w-full" 
+                value={formData.name || ''} 
+                onChange={e => setFormData({ ...formData, name: e.target.value })} 
+              />
+            </div>
+            
+            <div className="space-y-1">
+              <label className="text-[10px] font-bold text-slate-700 uppercase">Dirección:</label>
+              <input 
+                type="text" 
+                className="win-input w-full" 
+                value={formData.address || ''} 
+                onChange={e => setFormData({ ...formData, address: e.target.value })} 
+              />
+            </div>
+
+            <div className="space-y-1">
+              <label className="text-[10px] font-bold text-slate-700 uppercase">País:</label>
+              <input 
+                type="text" 
+                className="win-input w-full" 
+                value={formData.country || ''} 
+                onChange={e => setFormData({ ...formData, country: e.target.value })} 
+              />
+            </div>
+
+            <div className="space-y-1">
+              <label className="text-[10px] font-bold text-slate-700 uppercase">Región/Provincia:</label>
+              <input 
+                type="text" 
+                className="win-input w-full" 
+                value={formData.region || ''} 
+                onChange={e => setFormData({ ...formData, region: e.target.value })} 
+              />
+            </div>
+
+            <div className="space-y-1">
+              <label className="text-[10px] font-bold text-slate-700 uppercase">Código Postal:</label>
+              <input 
+                type="text" 
+                className="win-input w-full" 
+                value={formData.cp || ''} 
+                onChange={e => setFormData({ ...formData, cp: e.target.value })} 
+              />
+            </div>
           </div>
 
-          <div className="flex flex-col gap-1">
-            <label className="font-bold text-[#4a5568]">País</label>
-            <input 
-              type="text" 
-              className="px-2 py-1.5 border border-[#888] bg-white w-full shadow-[inset_1px_1px_2px_rgba(0,0,0,0.1)] focus:outline-none focus:border-blue-500" 
-              value={formData.country || ''} 
-              onChange={e => setFormData({ ...formData, country: e.target.value })} 
-            />
-          </div>
+          {/* Right Column */}
+          <div className="space-y-3">
+            <div className="space-y-1">
+              <label className="text-[10px] font-bold text-slate-700 uppercase">Ref. Catastral:</label>
+              <input 
+                type="text" 
+                className="win-input w-full" 
+                value={formData.catastral || ''} 
+                onChange={e => setFormData({ ...formData, catastral: e.target.value })} 
+              />
+            </div>
 
-          <div className="flex flex-col gap-1">
-            <label className="font-bold text-[#4a5568]">Región/Provincia</label>
-            <input 
-              type="text" 
-              className="px-2 py-1.5 border border-[#888] bg-white w-full shadow-[inset_1px_1px_2px_rgba(0,0,0,0.1)] focus:outline-none focus:border-blue-500" 
-              value={formData.region || ''} 
-              onChange={e => setFormData({ ...formData, region: e.target.value })} 
-            />
-          </div>
+            <div className="space-y-1">
+              <label className="text-[10px] font-bold text-slate-700 uppercase">Reg. Propiedad:</label>
+              <input 
+                type="text" 
+                className="win-input w-full" 
+                placeholder="Tomo, Libro, Finca..."
+                value={formData.registry || ''} 
+                onChange={e => setFormData({ ...formData, registry: e.target.value })} 
+              />
+            </div>
 
-          <div className="flex flex-col gap-1">
-            <label className="font-bold text-[#4a5568]">Código Postal</label>
-            <input 
-              type="text" 
-              className="px-2 py-1.5 border border-[#888] bg-white w-48 shadow-[inset_1px_1px_2px_rgba(0,0,0,0.1)] focus:outline-none focus:border-blue-500" 
-              value={formData.cp || ''} 
-              onChange={e => setFormData({ ...formData, cp: e.target.value })} 
-            />
-          </div>
+            <div className="space-y-1">
+              <label className="text-[10px] font-bold text-slate-700 uppercase">Número de cuenta:</label>
+              <input 
+                type="text" 
+                className="win-input w-full" 
+                value={formData.accountNumber || ''} 
+                onChange={e => setFormData({ ...formData, accountNumber: e.target.value })} 
+              />
+            </div>
 
-          <div className="flex flex-col gap-1">
-            <label className="font-bold text-[#4a5568]">Ref. Catastral</label>
-            <input 
-              type="text" 
-              className="px-2 py-1.5 border border-[#888] bg-white w-full shadow-[inset_1px_1px_2px_rgba(0,0,0,0.1)] focus:outline-none focus:border-blue-500" 
-              value={formData.catastral || ''} 
-              onChange={e => setFormData({ ...formData, catastral: e.target.value })} 
-            />
-          </div>
-
-          <div className="flex flex-col gap-1">
-            <label className="font-bold text-[#4a5568]">Reg. Propiedad</label>
-            <input 
-              type="text" 
-              className="px-2 py-1.5 border border-[#888] bg-white w-full shadow-[inset_1px_1px_2px_rgba(0,0,0,0.1)] focus:outline-none focus:border-blue-500" 
-              placeholder="Tomo, Libro, Finca..."
-              value={formData.registry || ''} 
-              onChange={e => setFormData({ ...formData, registry: e.target.value })} 
-            />
-          </div>
-
-          <div className="flex flex-col gap-1">
-            <label className="font-bold text-[#4a5568]">Número de cuenta</label>
-            <input 
-              type="text" 
-              className="px-2 py-1.5 border border-[#888] bg-white w-full shadow-[inset_1px_1px_2px_rgba(0,0,0,0.1)] focus:outline-none focus:border-blue-500" 
-              value={formData.accountNumber || ''} 
-              onChange={e => setFormData({ ...formData, accountNumber: e.target.value })} 
-            />
-          </div>
-
-          <div className="flex flex-col gap-1">
-            <label className="font-bold text-[#4a5568]">Cuenta contable asociada</label>
-            <select 
-              className="px-2 py-1.5 border border-[#888] bg-white w-full shadow-[inset_1px_1px_2px_rgba(0,0,0,0.1)] focus:outline-none focus:border-blue-500"
-              value={formData.accountingAccount || ''}
-              onChange={e => setFormData({ ...formData, accountingAccount: e.target.value })}
-            >
-              <option value=""></option>
-              {availableAccounts.map(acc => (
-                <option key={acc.code} value={acc.code}>{acc.code} - {acc.name}</option>
-              ))}
-            </select>
+            <div className="space-y-1">
+              <label className="text-[10px] font-bold text-slate-700 uppercase">Cuenta contable asociada:</label>
+              <select 
+                className="win-input w-full"
+                value={formData.accountingAccount || ''}
+                onChange={e => setFormData({ ...formData, accountingAccount: e.target.value })}
+              >
+                <option value=""></option>
+                {availableAccounts.map(acc => (
+                  <option key={acc.code} value={acc.code}>{acc.code} - {acc.name}</option>
+                ))}
+              </select>
+            </div>
           </div>
         </div>
       );
