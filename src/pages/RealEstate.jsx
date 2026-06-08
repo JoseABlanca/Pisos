@@ -859,11 +859,18 @@ export default function RealEstate() {
             </div>
 
             <div className="space-y-1">
-              <label className="text-[10px] font-bold text-slate-700 uppercase">Cuenta contable asociada:</label>
+              <label 
+                className="text-[10px] font-bold text-slate-700 uppercase cursor-help"
+                title="Doble clic en la caja de abajo para ir a la configuración de cuentas"
+              >
+                Cuenta contable asociada:
+              </label>
               <select 
-                className="win-input w-full"
+                className="win-input w-full cursor-pointer"
                 value={formData.accountingAccount || ''}
                 onChange={e => setFormData({ ...formData, accountingAccount: e.target.value })}
+                onDoubleClick={() => navigate('/accounts')}
+                title="Doble clic para añadir/editar cuentas"
               >
                 <option value=""></option>
                 {availableAccounts.map(acc => (
