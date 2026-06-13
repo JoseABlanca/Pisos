@@ -9,6 +9,8 @@ import ServiciosTab from '../components/ServiciosTab';
 import ComunidadTab from '../components/ComunidadTab';
 import PropietariosTab from '../components/PropietariosTab';
 import FinanzasTab from '../components/FinanzasTab';
+import ExtractoTab from '../components/ExtractoTab';
+import ClienteTab from '../components/ClienteTab';
 import { 
   Check, X, Search, Plus, Trash2, Edit, Save, Filter,
   Building2, User, Landmark, Zap, Users as UsersIcon,
@@ -937,6 +939,16 @@ export default function RealEstate() {
           isUploading={isUploading}
           setIsUploading={setIsUploading}
           availableAccounts={availableAccounts}
+        />
+      );
+    }
+
+    if (activeTab === 'Cliente') {
+      return (
+        <ClienteTab 
+          formData={formData} 
+          user={user} 
+          queryUserIds={queryUserIds}
         />
       );
     }
