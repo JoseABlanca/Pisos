@@ -16,9 +16,17 @@ export default function ServiciosTab({
 }) {
   const [selectedIndex, setSelectedIndex] = useState(null);
   const [showAccountsModal, setShowAccountsModal] = useState(false);
+  const [accountSearch, setAccountSearch] = useState('');
+  const [showDropdown, setShowDropdown] = useState(false);
 
   const services = formData.services || [];
   const selectedService = selectedIndex !== null ? services[selectedIndex] : null;
+
+  const getAccountDisplay = (code) => {
+    if (!code) return '';
+    const acc = (availableAccounts || []).find(a => a.code === code);
+    return acc ? `${acc.code} - ${acc.name}` : code;
+  };
 
   const handleAddService = () => {
     const newService = {
@@ -244,25 +252,63 @@ export default function ServiciosTab({
                   />
                 </div>
                 
-                <div className="space-y-1">
+                <div className="space-y-1 relative">
                   <label 
                     className="text-[10px] font-bold text-slate-700 uppercase cursor-help"
                     title="Doble clic en la caja de abajo para ir a la configuración de cuentas"
                   >
                     Cuenta Contable Asociada:
                   </label>
-                  <select 
-                    className="win-input w-full cursor-pointer"
-                    value={selectedService.accountingAccount || ''}
-                    onChange={e => updateServiceField(selectedIndex, 'accountingAccount', e.target.value)}
-                    onDoubleClick={() => setShowAccountsModal(true)}
-                    title="Doble clic para buscar o añadir una cuenta contable"
-                  >
-                    <option value=""></option>
-                    {(availableAccounts || []).map(acc => (
-                      <option key={acc.code} value={acc.code}>{acc.code} - {acc.name}</option>
-                    ))}
-                  </select>
+                  <div className="relative">
+                    <input 
+                      type="text"
+                      className="win-input w-full cursor-pointer"
+                      value={showDropdown ? accountSearch : getAccountDisplay(selectedService.accountingAccount)}
+                      onChange={e => {
+                        setAccountSearch(e.target.value);
+                        setShowDropdown(true);
+                      }}
+                      onClick={() => {
+                        setShowDropdown(true);
+                        setAccountSearch('');
+                      }}
+                      onBlur={() => setTimeout(() => setShowDropdown(false), 200)}
+                      onDoubleClick={() => setShowAccountsModal(true)}
+                      placeholder="Buscar o doble clic para añadir..."
+                      title="Doble clic para buscar o añadir una cuenta contable"
+                    />
+                    
+                    {showDropdown && (
+                      <div className="absolute z-50 w-full mt-1 bg-white border border-[#808080] shadow-lg max-h-48 overflow-y-auto">
+                        {(availableAccounts || [])
+                          .filter(acc => 
+                            !accountSearch || 
+                            acc.code.toLowerCase().includes(accountSearch.toLowerCase()) || 
+                            acc.name.toLowerCase().includes(accountSearch.toLowerCase())
+                          )
+                          .map(acc => (
+                            <div 
+                              key={acc.code}
+                              className="px-2 py-1 text-[11px] cursor-pointer hover:bg-[#316ac5] hover:text-white"
+                              onMouseDown={(e) => {
+                                e.preventDefault();
+                                updateServiceField(selectedIndex, 'accountingAccount', acc.code);
+                                setShowDropdown(false);
+                              }}
+                            >
+                              {acc.code} - {acc.name}
+                            </div>
+                        ))}
+                        {(availableAccounts || []).filter(acc => 
+                            !accountSearch || 
+                            acc.code.toLowerCase().includes(accountSearch.toLowerCase()) || 
+                            acc.name.toLowerCase().includes(accountSearch.toLowerCase())
+                        ).length === 0 && (
+                          <div className="px-2 py-1 text-[11px] text-gray-500 italic">No hay resultados</div>
+                        )}
+                      </div>
+                    )}
+                  </div>
                 </div>
 
                 <div className="space-y-1 flex flex-col justify-end">
