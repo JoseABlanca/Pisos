@@ -40,8 +40,8 @@ export default function PropietariosTab({ formData, setFormData, user, queryUser
     
     const newOwner = {
       partnerId: partner.id,
-      name: partner.type === 'company' ? partner.companyName : `${partner.firstName || ''} ${partner.lastName || ''}`.trim(),
-      nif: partner.nif || partner.cif || '',
+      name: partner.name || `${partner.firstName || ''} ${partner.lastName || ''}`.trim() || partner.companyName || 'Sin Nombre',
+      nif: partner.dni || partner.nif || partner.cif || '',
       percentage: parseFloat(percentage),
     };
 
@@ -97,8 +97,8 @@ export default function PropietariosTab({ formData, setFormData, user, queryUser
                 >
                   <option value="">-- Seleccionar --</option>
                   {availablePartners.map(p => {
-                    const name = p.type === 'company' ? p.companyName : `${p.firstName || ''} ${p.lastName || ''}`.trim();
-                    return <option key={p.id} value={p.id}>{name} {p.nif || p.cif ? `(${p.nif || p.cif})` : ''}</option>;
+                    const name = p.name || `${p.firstName || ''} ${p.lastName || ''}`.trim() || p.companyName || 'Sin Nombre';
+                    return <option key={p.id} value={p.id}>{name} {p.dni || p.nif || p.cif ? `(${p.dni || p.nif || p.cif})` : ''}</option>;
                   })}
                 </select>
               </div>
