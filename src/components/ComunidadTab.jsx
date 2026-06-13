@@ -20,11 +20,6 @@ export default function ComunidadTab({
   const [activeDropdown, setActiveDropdown] = useState(null);
   const [searchValue, setSearchValue] = useState('');
 
-  const [docFile, setDocFile] = useState(null);
-  const [docConcept, setDocConcept] = useState('');
-  const [docDate, setDocDate] = useState('');
-  const [docAmount, setDocAmount] = useState('');
-
   // Ensure community object exists
   const community = formData.community || {};
   const derramas = community.derramas || [];
@@ -62,12 +57,6 @@ export default function ComunidadTab({
     const file = e.target.files[0];
     if (!file || !user || !formData.id) return;
 
-    if (!docConcept) {
-      alert("Por favor, introduce el concepto del documento antes de subirlo.");
-      e.target.value = '';
-      return;
-    }
-
     setIsUploading(true);
     try {
       const path = `properties/${formData.id}/community/${Date.now()}_${file.name}`;
@@ -79,9 +68,9 @@ export default function ComunidadTab({
         url,
         type: file.type,
         path,
-        concept: docConcept,
-        date: docDate || new Date().toISOString().split('T')[0],
-        amount: docAmount,
+        concept: 'Nuevo Documento',
+        date: new Date().toISOString().split('T')[0],
+        amount: '',
         uploadedAt: new Date().toISOString()
       };
 
@@ -94,10 +83,6 @@ export default function ComunidadTab({
       }));
 
       // Reset form
-      setDocFile(null);
-      setDocConcept('');
-      setDocDate('');
-      setDocAmount('');
       e.target.value = '';
 
     } catch (error) {
@@ -363,65 +348,57 @@ export default function ComunidadTab({
             </div>
             
             {/* Upload form */}
-            <div className="p-2 border-b border-[#808080] bg-[#f0f0f0] shrink-0">
-              <div className="grid grid-cols-1 md:grid-cols-3 gap-2 mb-2">
-                <div className="space-y-1">
-                  <label className="text-[10px] font-bold text-slate-700 uppercase">Concepto <span className="text-red-500">*</span></label>
-                  <input 
-                    type="text" 
-                    className="win-input w-full" 
-                    value={docConcept}
-                    onChange={e => setDocConcept(e.target.value)}
-                    placeholder="Ej: Recibo Enero, Acta Reunión..."
-                  />
-                </div>
-                <div className="space-y-1">
-                  <label className="text-[10px] font-bold text-slate-700 uppercase">Fecha</label>
-                  <input 
-                    type="date" 
-                    className="win-input w-full" 
-                    value={docDate}
-                    onChange={e => setDocDate(e.target.value)}
-                  />
-                </div>
-                <div className="space-y-1">
-                  <label className="text-[10px] font-bold text-slate-700 uppercase">Cantidad (€)</label>
-                  <input 
-                    type="number" 
-                    className="win-input w-full text-right" 
-                    value={docAmount}
-                    onChange={e => setDocAmount(e.target.value)}
-                    placeholder="0.00"
-                  />
-                </div>
-              </div>
-              
-              <div className="flex items-center space-x-2">
-                <input 
-                  type="file" 
-                  id="community-file-upload"
-                  className="hidden" 
-                  onChange={handleFileUpload}
-                  disabled={isUploading || !formData.id}
-                />
-                <label 
-                  htmlFor="community-file-upload" 
-                  className={`btn-classic px-4 py-1 text-[11px] font-bold flex items-center shrink-0 ${(!formData.id || isUploading || !docConcept) ? 'opacity-50 cursor-not-allowed' : 'cursor-pointer'}`}
-                >
-                  <Upload className="w-3 h-3 mr-2" />
-                  {isUploading ? 'Subiendo...' : 'Seleccionar Archivo'}
-                </label>
-                {!formData.id && (
-                  <span className="text-[10px] text-red-600 font-bold ml-2">
-                    Guarda la propiedad primero
-                  </span>
-                )}
-                {!docConcept && formData.id && (
-                  <span className="text-[10px] text-orange-600 font-bold ml-2">
-                    Indica un concepto primero
-                  </span>
-                )}
-              </div>
+            <div className="p-2 border-b border-[#808080] bg-[#f0f0f0] shrink-0 flex items-center space-x-2">
+              <input 
+                type="file" 
+                id="community-file-upload"
+                className="hidden" 
+                onChange={handleFileUpload}
+                disabled={isUploading || !formData.id}
+              />
+              <label 
+                htmlFor="community-file-upload" 
+                className={`btn-classic px-4 py-1 text-[11px] font-bold flex items-center shrink-0 ${(!formData.id || isUploading) ? 'opacity-50 cursor-not-allowed' : 'cursor-pointer'}`}
+                title="Sube un archivo y crea el registro asociado"
+              >
+                <Upload className="w-3 h-3 mr-2" />
+                {isUploading ? 'Subiendo...' : 'Subir Archivo'}
+              </label>
+
+              <button
+                onClick={() => {
+                  const newDoc = {
+                    id: Date.now().toString(),
+                    name: null,
+                    url: null,
+                    type: null,
+                    path: null,
+                    concept: 'Nuevo Registro Manual',
+                    date: new Date().toISOString().split('T')[0],
+                    amount: '',
+                    uploadedAt: new Date().toISOString()
+                  };
+                  setFormData(prev => ({
+                    ...prev,
+                    community: {
+                      ...(prev.community || {}),
+                      documents: [...(prev.community?.documents || []), newDoc]
+                    }
+                  }));
+                }}
+                className={`btn-classic px-4 py-1 text-[11px] font-bold flex items-center shrink-0 ${!formData.id ? 'opacity-50 cursor-not-allowed' : 'cursor-pointer'}`}
+                disabled={!formData.id}
+                title="Añade una línea al expediente sin subir ningún archivo"
+              >
+                <FileText className="w-3 h-3 mr-2" />
+                Añadir Registro Manual
+              </button>
+
+              {!formData.id && (
+                <span className="text-[10px] text-red-600 font-bold ml-2">
+                  Guarda la propiedad primero
+                </span>
+              )}
             </div>
 
             {/* Documents Table */}
@@ -481,13 +458,17 @@ export default function ComunidadTab({
                           />
                         </td>
                         <td className="text-center">
-                          <button 
-                            onClick={() => setPreviewDocument({ url: doc.url, type: doc.type, name: doc.name })}
-                            className="text-blue-600 hover:text-blue-800"
-                            title="Ver documento"
-                          >
-                            <Eye className="w-4 h-4 mx-auto" />
-                          </button>
+                          {doc.url ? (
+                            <button 
+                              onClick={() => setPreviewDocument({ url: doc.url, type: doc.type, name: doc.name })}
+                              className="text-blue-600 hover:text-blue-800"
+                              title="Ver documento"
+                            >
+                              <Eye className="w-4 h-4 mx-auto" />
+                            </button>
+                          ) : (
+                            <span className="text-[10px] text-slate-400 italic">Sin doc</span>
+                          )}
                         </td>
                       </tr>
                     ))
