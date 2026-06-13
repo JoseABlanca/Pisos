@@ -139,7 +139,7 @@ export default function HipotecaTab({
           onClick={() => setActiveSubTab('docs')}
           className={`px-4 py-2 text-[11px] font-bold flex items-center gap-2 border-r border-[#a0a0a0] ${activeSubTab === 'docs' ? 'bg-white text-blue-800 border-b-2 border-b-blue-500' : 'text-slate-600 hover:bg-[#e0e0e0]'}`}
         >
-          <FolderOpen className="w-3 h-3" /> Expediente Digital
+          <FolderOpen className="w-3 h-3" /> Documentos
         </button>
         <button
           onClick={() => setActiveSubTab('amortizacion')}
@@ -314,7 +314,7 @@ export default function HipotecaTab({
         {activeSubTab === 'docs' && (
           <div className="h-full flex flex-col">
             <div className="flex justify-between items-center mb-4">
-              <h3 className="text-[12px] font-bold text-slate-800 uppercase italic">Expediente Digital</h3>
+              <h3 className="text-[12px] font-bold text-slate-800 uppercase italic">Documentos</h3>
               <div className="relative">
                 <input
                   type="file"
