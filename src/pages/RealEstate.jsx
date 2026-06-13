@@ -950,6 +950,7 @@ export default function RealEstate() {
           formData={formData} 
           setFormData={setFormData} 
           user={user} 
+          queryUserIds={queryUserIds}
         />
       );
     }

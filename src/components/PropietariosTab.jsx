@@ -3,7 +3,7 @@ import { Users, Plus, Trash2, BarChart2, AlertCircle } from 'lucide-react';
 import { db } from '../firebase/config';
 import { collection, query, where, onSnapshot } from 'firebase/firestore';
 
-export default function PropietariosTab({ formData, setFormData, user }) {
+export default function PropietariosTab({ formData, setFormData, user, queryUserIds }) {
   const [availablePartners, setAvailablePartners] = useState([]);
   const [selectedPartnerId, setSelectedPartnerId] = useState('');
   const [percentage, setPercentage] = useState('');
@@ -13,7 +13,7 @@ export default function PropietariosTab({ formData, setFormData, user }) {
 
   useEffect(() => {
     if (!user || !user.uid) return;
-    const q = query(collection(db, 'partners'), where('userId', '==', user.uid));
+    const q = query(collection(db, 'partners'), where('userId', 'in', queryUserIds?.length > 0 ? queryUserIds : [user.uid]));
     const unsubscribe = onSnapshot(q, (snapshot) => {
       const p = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }));
       setAvailablePartners(p);
