@@ -22,7 +22,13 @@ export const uploadFileToStorage = async (file, userId, module, itemId, folder =
   const storageRef = ref(storage, path);
   
   try {
-    const snapshot = await uploadBytes(storageRef, file);
+    const uploadPromise = uploadBytes(storageRef, file);
+    // Timeout of 20 seconds to prevent indefinite hang if Firebase Storage is not provisioned
+    const timeoutPromise = new Promise((_, reject) => 
+      setTimeout(() => reject(new Error('Tiempo de espera agotado al subir archivo. Verifica que Firebase Storage esté activado en la consola.')), 20000)
+    );
+    
+    const snapshot = await Promise.race([uploadPromise, timeoutPromise]);
     const downloadURL = await getDownloadURL(snapshot.ref);
     return downloadURL;
   } catch (error) {

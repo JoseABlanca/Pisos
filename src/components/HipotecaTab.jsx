@@ -14,7 +14,8 @@ export default function HipotecaTab({
   const [activeSubTab, setActiveSubTab] = useState('datos'); // datos, docs, amortizacion
 
   const handleFileUpload = async (e) => {
-    const files = Array.from(e.target.files);
+    const inputTarget = e.target;
+    const files = Array.from(inputTarget.files);
     if (!files.length || !user || !formData.id) return;
 
     setIsUploading(true);
@@ -42,7 +43,9 @@ export default function HipotecaTab({
       alert('Error al subir el documento: ' + error.message);
     } finally {
       setIsUploading(false);
-      e.target.value = ''; // Reset input
+      if (inputTarget) {
+        inputTarget.value = ''; // Reset input safely
+      }
     }
   };
 
