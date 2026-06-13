@@ -59,15 +59,13 @@ export default function ComunidadTab({
 
     setIsUploading(true);
     try {
-      const path = `properties/${formData.id}/community/${Date.now()}_${file.name}`;
-      const url = await uploadFileToStorage(path, file);
+      const url = await uploadFileToStorage(file, user.uid, 'properties', formData.id, 'community');
       
       const newDoc = {
         id: Date.now().toString(),
         name: file.name,
         url,
         type: file.type,
-        path,
         concept: 'Nuevo Documento',
         date: new Date().toISOString().split('T')[0],
         amount: '',
@@ -82,14 +80,38 @@ export default function ComunidadTab({
         }
       }));
 
-      // Reset form
       e.target.value = '';
-
     } catch (error) {
       console.error("Error al subir documento:", error);
       alert("Error al subir el documento: " + error.message);
     } finally {
       setIsUploading(false);
+    }
+  };
+
+  const handleRowFileUpload = async (e, docId) => {
+    const file = e.target.files[0];
+    if (!file || !user || !formData.id) return;
+
+    setIsUploading(true);
+    try {
+      const url = await uploadFileToStorage(file, user.uid, 'properties', formData.id, 'community');
+      
+      setFormData(prev => ({
+        ...prev,
+        community: {
+          ...(prev.community || {}),
+          documents: (prev.community.documents || []).map(d => 
+            d.id === docId ? { ...d, url, name: file.name, type: file.type, uploadedAt: new Date().toISOString() } : d
+          )
+        }
+      }));
+    } catch (error) {
+      console.error("Error al subir documento para la fila:", error);
+      alert("Error al subir el documento: " + error.message);
+    } finally {
+      setIsUploading(false);
+      e.target.value = '';
     }
   };
 
@@ -467,7 +489,22 @@ export default function ComunidadTab({
                               <Eye className="w-4 h-4 mx-auto" />
                             </button>
                           ) : (
-                            <span className="text-[10px] text-slate-400 italic">Sin doc</span>
+                            <div className="flex justify-center">
+                              <input 
+                                type="file" 
+                                id={`row-file-upload-${doc.id}`}
+                                className="hidden" 
+                                onChange={(e) => handleRowFileUpload(e, doc.id)}
+                                disabled={isUploading || !formData.id}
+                              />
+                              <label 
+                                htmlFor={`row-file-upload-${doc.id}`}
+                                className="cursor-pointer text-blue-600 hover:text-blue-800"
+                                title="Subir documento a este registro"
+                              >
+                                <Upload className="w-3.5 h-3.5 mx-auto" />
+                              </label>
+                            </div>
                           )}
                         </td>
                       </tr>
