@@ -11,7 +11,7 @@ export default function FinanzasTab({ formData, setFormData, rentals, user, setP
   const adquisitionExpenses = Array.isArray(formData.adquisitionExpenses) ? formData.adquisitionExpenses : [];
 
   const handleAddExpense = () => {
-    const newExpense = { concept: '', amount: '' };
+    const newExpense = { date: '', concept: '', amount: '' };
     setFormData(prev => ({
       ...prev,
       adquisitionExpenses: [...(prev.adquisitionExpenses || []), newExpense]
@@ -134,6 +134,7 @@ export default function FinanzasTab({ formData, setFormData, rentals, user, setP
                 <table className="clean-table w-full">
                   <thead>
                     <tr>
+                      <th className="w-28 text-center">Fecha</th>
                       <th>Concepto</th>
                       <th className="w-28 text-right">Cantidad (€)</th>
                       <th className="w-16 text-center">Documento</th>
@@ -143,13 +144,21 @@ export default function FinanzasTab({ formData, setFormData, rentals, user, setP
                   <tbody>
                     {adquisitionExpenses.length === 0 ? (
                       <tr>
-                        <td colSpan="4" className="text-center text-slate-500 py-4 italic text-[11px]">
+                        <td colSpan="5" className="text-center text-slate-500 py-4 italic text-[11px]">
                           No hay gastos añadidos
                         </td>
                       </tr>
                     ) : (
                       adquisitionExpenses.map((exp, idx) => (
                         <tr key={idx}>
+                          <td className="p-0 w-28">
+                            <input 
+                              type="date"
+                              value={exp.date || ''}
+                              onChange={(e) => updateExpense(idx, 'date', e.target.value)}
+                              className="win-input w-full bg-transparent border-transparent hover:border-gray-300 focus:bg-white text-[11px] px-1 m-0 h-[22px] text-center"
+                            />
+                          </td>
                           <td className="p-0">
                             <input 
                               type="text"
@@ -203,7 +212,7 @@ export default function FinanzasTab({ formData, setFormData, rentals, user, setP
                   </tbody>
                   <tfoot>
                     <tr className="bg-slate-50 font-bold border-t-2 border-[#808080]">
-                      <td className="text-[11px] text-[#000080] uppercase py-1">Total Gastos</td>
+                      <td colSpan="2" className="text-[11px] text-[#000080] uppercase py-1 text-right pr-4">Total Gastos</td>
                       <td className="text-right text-[11px] text-[#000080] py-1">{totalAdquisitionExpenses.toFixed(2)} €</td>
                       <td colSpan="2"></td>
                     </tr>
