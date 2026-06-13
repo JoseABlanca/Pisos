@@ -958,6 +958,8 @@ export default function RealEstate() {
           formData={formData} 
           setFormData={setFormData} 
           rentals={rentals}
+          user={user}
+          setPreviewDocument={setPreviewDocument}
         />
       );
     }
