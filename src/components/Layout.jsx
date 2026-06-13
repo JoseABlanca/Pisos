@@ -417,10 +417,7 @@ export default function Layout() {
         { id: 'cp', name: 'CP' }
       ]},
       { group: 'OTROS', items: [
-        { id: 'notes', name: 'Notas' },
-        { id: 'debe', name: 'Debe' },
-        { id: 'haber', name: 'Haber' },
-        { id: 'saldo', name: 'Saldo' }
+        { id: 'notes', name: 'Notas' }
       ]}
     ],
     'Activos': [

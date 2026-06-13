@@ -96,7 +96,7 @@ export default function Customers() {
     ];
   });
 
-  const DEFAULT_COLUMNS = ['id', 'name', 'address', 'status', 'debe', 'haber', 'saldo'];
+  const DEFAULT_COLUMNS = ['id', 'name', 'address', 'status'];
   const [visibleColumns, setVisibleColumns] = useState(DEFAULT_COLUMNS);
 
   useEffect(() => {
@@ -476,9 +476,6 @@ export default function Customers() {
                   {visibleColumns.includes('city') && <th className="w-32">POBLACIÓN</th>}
                   {visibleColumns.includes('cp') && <th className="w-24">CP</th>}
                   {visibleColumns.includes('status') && <th className="w-24">ESTADO</th>}
-                  {visibleColumns.includes('debe') && <th className="w-24 text-right">DEBE</th>}
-                  {visibleColumns.includes('haber') && <th className="w-24 text-right">HABER</th>}
-                  {visibleColumns.includes('saldo') && <th className="w-24 text-right">SALDO</th>}
                   {visibleColumns.includes('notes') && <th className="w-48">NOTAS</th>}
                 </tr>
               </thead>
@@ -499,9 +496,6 @@ export default function Customers() {
                     {visibleColumns.includes('city') && <td>{c.city}</td>}
                     {visibleColumns.includes('cp') && <td>{c.cp}</td>}
                     {visibleColumns.includes('status') && <td>{c.status || 'activo'}</td>}
-                    {visibleColumns.includes('debe') && <td className="text-right">0,00</td>}
-                    {visibleColumns.includes('haber') && <td className="text-right">0,00</td>}
-                    {visibleColumns.includes('saldo') && <td className="text-right">0,00</td>}
                     {visibleColumns.includes('notes') && <td>{c.notes}</td>}
                   </tr>
                 ))}
