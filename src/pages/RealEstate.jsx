@@ -8,6 +8,7 @@ import TaxTab from '../components/TaxTab';
 import ExtractoTab from '../components/ExtractoTab';
 import HipotecaTab from '../components/HipotecaTab';
 import ServiciosTab from '../components/ServiciosTab';
+import ComunidadTab from '../components/ComunidadTab';
 import { 
   Check, X, Search, Plus, Trash2, Edit, Save, Filter,
   Building2, User, Landmark, Zap, Users as UsersIcon,
@@ -914,6 +915,21 @@ export default function RealEstate() {
     if (activeTab === 'Servicios') {
       return (
         <ServiciosTab 
+          formData={formData} 
+          setFormData={setFormData} 
+          user={user} 
+          isMobile={isMobile} 
+          setPreviewDocument={setPreviewDocument}
+          isUploading={isUploading}
+          setIsUploading={setIsUploading}
+          availableAccounts={availableAccounts}
+        />
+      );
+    }
+
+    if (activeTab === 'Comunidad') {
+      return (
+        <ComunidadTab 
           formData={formData} 
           setFormData={setFormData} 
           user={user} 
