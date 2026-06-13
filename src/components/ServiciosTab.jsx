@@ -1,6 +1,8 @@
 import React, { useState } from 'react';
 import { Upload, Trash2, Eye, FileText, Plus, Zap, Droplet, Wifi, Shield, Package, Power } from 'lucide-react';
 import { uploadFileToStorage } from '../utils/storageUtils';
+import Window from './Window';
+import Accounts from '../pages/Accounts';
 
 export default function ServiciosTab({ 
   formData, 
@@ -13,6 +15,7 @@ export default function ServiciosTab({
   availableAccounts
 }) {
   const [selectedIndex, setSelectedIndex] = useState(null);
+  const [showAccountsModal, setShowAccountsModal] = useState(false);
 
   const services = formData.services || [];
   const selectedService = selectedIndex !== null ? services[selectedIndex] : null;
@@ -252,8 +255,8 @@ export default function ServiciosTab({
                     className="win-input w-full cursor-pointer"
                     value={selectedService.accountingAccount || ''}
                     onChange={e => updateServiceField(selectedIndex, 'accountingAccount', e.target.value)}
-                    onDoubleClick={() => window.open('/accounts', '_blank', 'width=800,height=600')}
-                    title="Doble clic para añadir/editar cuentas en una ventana nueva"
+                    onDoubleClick={() => setShowAccountsModal(true)}
+                    title="Doble clic para buscar o añadir una cuenta contable"
                   >
                     <option value=""></option>
                     {(availableAccounts || []).map(acc => (
@@ -358,6 +361,40 @@ export default function ServiciosTab({
           </div>
         )}
       </div>
+
+      {/* Accounts Modal */}
+      {showAccountsModal && (
+        <div className="fixed inset-0 bg-black/40 backdrop-blur-sm flex items-center justify-center z-[70]">
+          <Window 
+            title="Configuración de Cuentas Contables"
+            width={isMobile ? "100%" : "900px"}
+            initialPos={{ x: isMobile ? 0 : 50, y: isMobile ? 0 : 20 }}
+            onClose={() => setShowAccountsModal(false)}
+          >
+            <div className="bg-[#d4d0c8] flex flex-col h-[600px]">
+              <div className="flex-1 overflow-auto p-1">
+                <div className="bg-white border border-[#808080] shadow-[1px_1px_0px_#000] min-h-full h-full relative">
+                  <Accounts 
+                    isModal={true} 
+                    onAccountSelect={(code) => {
+                      updateServiceField(selectedIndex, 'accountingAccount', code);
+                      setShowAccountsModal(false);
+                    }} 
+                  />
+                </div>
+              </div>
+              <div className="flex justify-end gap-2 shrink-0 pt-2 pb-1 pr-1 bg-[#d4d0c8] border-t border-[#808080]">
+                <button 
+                  className="px-6 py-1 border border-gray-400 bg-gray-100 hover:bg-gray-200 shadow-sm text-[11px] font-bold uppercase" 
+                  onClick={() => setShowAccountsModal(false)}
+                >
+                  Cerrar
+                </button>
+              </div>
+            </div>
+          </Window>
+        </div>
+      )}
     </div>
   );
 }
