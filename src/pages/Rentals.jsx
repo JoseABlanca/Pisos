@@ -20,6 +20,39 @@ export default function Rentals() {
   const [searchQuery, setSearchQuery] = useState('');
   const [selectedRental, setSelectedRental] = useState(null);
   
+  const DEFAULT_COLUMNS = ['id', 'propertyDisplay', 'tenantDisplay', 'rent', 'status'];
+  const [visibleColumns, setVisibleColumns] = useState(() => {
+    const saved = localStorage.getItem('rentals_columns');
+    if (saved) {
+      try { return JSON.parse(saved); } catch (e) { return DEFAULT_COLUMNS; }
+    }
+    return DEFAULT_COLUMNS;
+  });
+
+  useEffect(() => {
+    localStorage.setItem('rentals_columns', JSON.stringify(visibleColumns));
+    window.dispatchEvent(new CustomEvent('sync-columns', { detail: { tab: 'Alquileres', columns: visibleColumns } }));
+  }, [visibleColumns]);
+
+  useEffect(() => {
+    const handleToggleColumn = (e) => {
+      const colId = e.detail.columnId;
+      setVisibleColumns(prev => {
+        if (prev.includes(colId)) return prev.filter(c => c !== colId);
+        return [...prev, colId];
+      });
+    };
+    const requestSync = () => {
+      window.dispatchEvent(new CustomEvent('sync-columns', { detail: { tab: 'Alquileres', columns: visibleColumns } }));
+    };
+    window.addEventListener('toggle-column', handleToggleColumn);
+    window.addEventListener('request-sync-columns', requestSync);
+    return () => {
+      window.removeEventListener('toggle-column', handleToggleColumn);
+      window.removeEventListener('request-sync-columns', requestSync);
+    };
+  }, [visibleColumns]);
+
   const [showSidebar, setShowSidebar] = useState(true);
   const [statusFilter, setStatusFilter] = useState('todos');
   const [propertyFilter, setPropertyFilter] = useState([]);
@@ -286,11 +319,15 @@ export default function Rentals() {
             <table className="clean-table">
               <thead>
                 <tr className="sticky top-0 z-10">
-                  <th className="w-32">Ref.</th>
-                  <th className="w-48">Propiedad</th>
-                  <th className="w-48">Inquilino</th>
-                  <th className="w-32 text-right">Renta</th>
-                  <th className="w-24 text-center">Estado</th>
+                  {visibleColumns.includes('id') && <th className="w-32">Ref. / ID</th>}
+                  {visibleColumns.includes('propertyDisplay') && <th className="w-48">Propiedad</th>}
+                  {visibleColumns.includes('tenantDisplay') && <th className="w-48">Inquilino</th>}
+                  {visibleColumns.includes('startDate') && <th className="w-32 text-center">Inicio</th>}
+                  {visibleColumns.includes('endDate') && <th className="w-32 text-center">Fin</th>}
+                  {visibleColumns.includes('deposit') && <th className="w-32 text-right">Fianza</th>}
+                  {visibleColumns.includes('rent') && <th className="w-32 text-right">Renta</th>}
+                  {visibleColumns.includes('paymentMethod') && <th className="w-32">Forma Pago</th>}
+                  {visibleColumns.includes('status') && <th className="w-24 text-center">Estado</th>}
                 </tr>
               </thead>
               <tbody>
@@ -312,13 +349,15 @@ export default function Rentals() {
                   onClick={(e) => { e.stopPropagation(); setSelectedRental(rental); }}
                   onDoubleClick={() => handleEdit(rental)}
                 >
-                  <td>{rental._originalId || rental.reference || ''}</td>
-                  <td>{prop ? prop.name : rental.propertyName || rental.propertyId || 'Desconocido'}</td>
-                  <td>{rental.tenants?.length > 0 ? rental.tenants.map(t => t.name).join(', ') : (cust ? cust.name : 'Ninguno')}</td>
-                  <td className="text-right">{Number(rental.rentAmount || 0).toLocaleString('es-ES', { minimumFractionDigits: 2 })} €</td>
-                  <td className="text-center uppercase">
-                    {rental.status || 'activo'}
-                  </td>
+                  {visibleColumns.includes('id') && <td>{rental._originalId || rental.reference || ''}</td>}
+                  {visibleColumns.includes('propertyDisplay') && <td>{prop ? prop.name : rental.propertyName || rental.propertyId || 'Desconocido'}</td>}
+                  {visibleColumns.includes('tenantDisplay') && <td>{rental.tenants?.length > 0 ? rental.tenants.map(t => t.name).join(', ') : (cust ? cust.name : 'Ninguno')}</td>}
+                  {visibleColumns.includes('startDate') && <td className="text-center">{rental.startDate || '-'}</td>}
+                  {visibleColumns.includes('endDate') && <td className="text-center">{rental.endDate || '-'}</td>}
+                  {visibleColumns.includes('deposit') && <td className="text-right">{Number(rental.depositAmount || 0).toLocaleString('es-ES', { minimumFractionDigits: 2 })} €</td>}
+                  {visibleColumns.includes('rent') && <td className="text-right">{Number(rental.rentAmount || 0).toLocaleString('es-ES', { minimumFractionDigits: 2 })} €</td>}
+                  {visibleColumns.includes('paymentMethod') && <td>{rental.paymentPeriod || '-'}</td>}
+                  {visibleColumns.includes('status') && <td className="text-center uppercase">{rental.status || 'activo'}</td>}
                 </tr>
               );
             })}

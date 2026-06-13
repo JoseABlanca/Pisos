@@ -584,7 +584,6 @@ export default function Layout() {
       {
         group: 'Acciones',
         items: [
-          { name: 'Filtrar', action: 'customer:filter', path: '/customers', customIcon: 'Filtrar' },
           { name: 'Añadir columna', action: 'customer:columns', path: '/customers', customIcon: 'AddColumn' },
           { name: 'Exportar', action: 'customer:export', path: '/customers', customIcon: 'Exportar' }
         ]
@@ -602,7 +601,6 @@ export default function Layout() {
       {
         group: 'Acciones',
         items: [
-          { name: 'Filtrar', action: 'real-estate:filter', path: '/real-estate', customIcon: 'Filtrar' },
           { name: 'Añadir columna', action: 'real-estate:columns', path: '/real-estate', customIcon: 'AddColumn' },
           { name: 'Exportar', action: 'real-estate:export', path: '/real-estate', customIcon: 'Exportar' }
         ]
@@ -620,7 +618,6 @@ export default function Layout() {
       {
         group: 'Acciones',
         items: [
-          { name: 'Filtrar', action: 'rentals:filter', path: '/rentals', customIcon: 'Filtrar' },
           { name: 'Añadir columna', action: 'rentals:columns', path: '/rentals', customIcon: 'AddColumn' },
           { name: 'Exportar', action: 'rentals:export', path: '/rentals', customIcon: 'Exportar' }
         ]
@@ -638,7 +635,6 @@ export default function Layout() {
       {
         group: 'Acciones',
         items: [
-          { name: 'Filtrar', action: 'partner:filter', path: '/partners', customIcon: 'Filtrar' },
           { name: 'Añadir columna', action: 'partner:columns', path: '/partners', customIcon: 'AddColumn' },
           { name: 'Exportar', action: 'partner:export', path: '/partners', customIcon: 'Exportar' }
         ]
