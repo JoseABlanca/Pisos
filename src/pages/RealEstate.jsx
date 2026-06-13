@@ -4,12 +4,11 @@ import { db } from '../firebase/config';
 import { collection, query, where, getDocs, onSnapshot, doc, setDoc, deleteDoc, enableNetwork, disableNetwork } from 'firebase/firestore';
 import { useAuth } from '../context/AuthContext';
 import Window from '../components/Window';
-import TaxTab from '../components/TaxTab';
-import ExtractoTab from '../components/ExtractoTab';
 import HipotecaTab from '../components/HipotecaTab';
 import ServiciosTab from '../components/ServiciosTab';
 import ComunidadTab from '../components/ComunidadTab';
 import PropietariosTab from '../components/PropietariosTab';
+import FinanzasTab from '../components/FinanzasTab';
 import { 
   Check, X, Search, Plus, Trash2, Edit, Save, Filter,
   Building2, User, Landmark, Zap, Users as UsersIcon,
@@ -780,9 +779,7 @@ export default function RealEstate() {
     { id: 'Comunidad', icon: UsersIcon },
     { id: 'Reformas', icon: Wrench },
     { id: 'Propietarios', icon: UserCircle },
-    { id: 'Finanzas', icon: PieChart },
-    { id: 'Impuestos', icon: Receipt },
-    { id: 'Extracto', icon: ClipboardList }
+    { id: 'Finanzas', icon: PieChart }
   ];
 
   const renderTabContent = () => {
@@ -951,6 +948,16 @@ export default function RealEstate() {
           setFormData={setFormData} 
           user={user} 
           queryUserIds={queryUserIds}
+        />
+      );
+    }
+
+    if (activeTab === 'Finanzas') {
+      return (
+        <FinanzasTab 
+          formData={formData} 
+          setFormData={setFormData} 
+          rentals={rentals}
         />
       );
     }
