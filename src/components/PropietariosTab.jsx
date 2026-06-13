@@ -74,6 +74,19 @@ export default function PropietariosTab({ formData, setFormData, user, queryUser
     return owners.reduce((acc, curr) => acc + (parseFloat(curr.percentage) || 0), 0);
   }, [owners]);
 
+  // Financial calculations
+  const { totalCapitalAndExpenses, theoreticalSalePrice } = useMemo(() => {
+    const adquisitionExpenses = Array.isArray(formData.adquisitionExpenses) ? formData.adquisitionExpenses : [];
+    const totalExpenses = adquisitionExpenses.reduce((sum, exp) => sum + (parseFloat(exp.amount) || 0), 0);
+    const investedCapital = parseFloat(formData.investedCapital) || 0;
+    const salePrice = parseFloat(formData.theoreticalSalePrice) || 0;
+    
+    return {
+      totalCapitalAndExpenses: investedCapital + totalExpenses,
+      theoreticalSalePrice: salePrice
+    };
+  }, [formData.adquisitionExpenses, formData.investedCapital, formData.theoreticalSalePrice]);
+
   return (
     <div className="flex flex-col h-full bg-[#d4d0c8]">
       <div className="flex-1 overflow-auto p-4 flex flex-col gap-4">
@@ -189,8 +202,8 @@ export default function PropietariosTab({ formData, setFormData, user, queryUser
                   <tr>
                     <th>Propietario</th>
                     <th className="w-24 text-right">%</th>
-                    <th className="w-32 text-right">Métrica 1 (Placeholder)</th>
-                    <th className="w-32 text-right">Métrica 2 (Placeholder)</th>
+                    <th className="w-32 text-right">Cap. + Gastos</th>
+                    <th className="w-32 text-right">Precio Teór. Venta</th>
                   </tr>
                 </thead>
                 <tbody>
@@ -205,8 +218,8 @@ export default function PropietariosTab({ formData, setFormData, user, queryUser
                       <tr key={`metrics-${owner.partnerId}`}>
                         <td className="font-bold text-[11px]">{owner.name}</td>
                         <td className="text-right text-[11px] text-[#000080] font-bold">{owner.percentage}%</td>
-                        <td className="text-right text-[11px] italic text-slate-400">0.00 €</td>
-                        <td className="text-right text-[11px] italic text-slate-400">0.00 €</td>
+                        <td className="text-right text-[11px] italic text-slate-400">{(totalCapitalAndExpenses * (owner.percentage / 100)).toFixed(2)} €</td>
+                        <td className="text-right text-[11px] italic text-slate-400">{(theoreticalSalePrice * (owner.percentage / 100)).toFixed(2)} €</td>
                       </tr>
                     ))
                   )}
@@ -216,8 +229,8 @@ export default function PropietariosTab({ formData, setFormData, user, queryUser
                     <tr className="bg-slate-50 font-bold border-t-2 border-[#808080]">
                       <td className="text-[11px] text-[#000080] uppercase">TOTALES</td>
                       <td className="text-right text-[11px] text-[#000080]">{totalPercentage.toFixed(2)}%</td>
-                      <td className="text-right text-[11px] text-[#000080]">0.00 €</td>
-                      <td className="text-right text-[11px] text-[#000080]">0.00 €</td>
+                      <td className="text-right text-[11px] text-[#000080]">{(totalCapitalAndExpenses * (totalPercentage / 100)).toFixed(2)} €</td>
+                      <td className="text-right text-[11px] text-[#000080]">{(theoreticalSalePrice * (totalPercentage / 100)).toFixed(2)} €</td>
                     </tr>
                   )}
                 </tfoot>
