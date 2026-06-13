@@ -727,7 +727,8 @@ export default function RealEstate() {
     const rentRealBase = equity + mortgagePending;
     const rentReal = rentRealBase > 0 ? (realGain / rentRealBase) * 100 : 0;
 
-    const ownersCalculations = formData.owners.map(owner => {
+    const ownersList = formData.owners || [];
+    const ownersCalculations = ownersList.map(owner => {
       const perc = (parseFloat(owner.percentage) || 0) / 100;
       return {
         ...owner,
@@ -740,7 +741,7 @@ export default function RealEstate() {
       };
     });
 
-    const ownersTotalPercentage = formData.owners.reduce((acc, o) => acc + (parseFloat(o.percentage) || 0), 0);
+    const ownersTotalPercentage = ownersList.reduce((acc, o) => acc + (parseFloat(o.percentage) || 0), 0);
     
     const ownersTotals = ownersCalculations.reduce((acc, o) => ({
       investment: acc.investment + o.investment,
