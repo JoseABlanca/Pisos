@@ -66,7 +66,7 @@ export default function FinanzasTab({ formData, setFormData, rentals, user, setP
     if (activeSubTab === 'Datos') {
       return (
         <div className="flex flex-col gap-4 p-4 flex-1 overflow-auto bg-[#d4d0c8]">
-          <div className="grid grid-cols-4 gap-4">
+          <div className="space-y-4 max-w-sm">
             <div className="space-y-1">
               <label className="text-[10px] font-bold text-slate-700 uppercase">Fecha de compra:</label>
               <input 
