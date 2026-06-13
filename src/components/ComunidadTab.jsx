@@ -120,6 +120,18 @@ export default function ComunidadTab({
     }
   };
 
+  const updateDocument = (docId, field, value) => {
+    setFormData(prev => ({
+      ...prev,
+      community: {
+        ...(prev.community || {}),
+        documents: (prev.community.documents || []).map(d => 
+          d.id === docId ? { ...d, [field]: value } : d
+        )
+      }
+    }));
+  };
+
   const calculateRemainingDays = (endDate) => {
     if (!endDate) return '-';
     const end = new Date(endDate);
@@ -202,7 +214,7 @@ export default function ComunidadTab({
         <div className="w-full flex flex-col gap-4">
           
           {/* Datos Comunidad */}
-          <div className="bg-white border border-[#808080] shadow-[1px_1px_0px_#000] p-3 flex flex-col space-y-3">
+          <div className="flex flex-col space-y-3">
             <h3 className="text-[11px] font-bold text-[#000080] border-b border-[#000080] pb-1 uppercase">Datos Principales</h3>
             
             <div className="space-y-1">
@@ -277,7 +289,7 @@ export default function ComunidadTab({
 
           {/* Derramas Section */}
           {community.hasSpecialLevy && (
-            <div className="bg-white border border-[#808080] shadow-[1px_1px_0px_#000] p-3 flex flex-col space-y-3">
+            <div className="flex flex-col space-y-3 mt-2">
               <div className="flex justify-between items-center border-b border-orange-600 pb-1">
                 <h3 className="text-[11px] font-bold text-orange-600 uppercase">Derramas</h3>
                 <button 
@@ -344,7 +356,7 @@ export default function ComunidadTab({
 
         {/* Bottom Section: Expediente Digital */}
         <div className="w-full flex flex-col h-full min-h-[300px]">
-          <div className="bg-white border border-[#808080] shadow-[1px_1px_0px_#000] flex flex-col h-full">
+          <div className="flex flex-col h-full pt-4">
             <div className="bg-[#cbd5e0] font-bold p-1 border-b border-[#808080] shrink-0 text-[11px] uppercase flex items-center">
               <FileText className="w-3 h-3 mr-1" />
               Expediente Digital Comunidad
@@ -443,9 +455,31 @@ export default function ComunidadTab({
                             <Trash2 className="w-3.5 h-3.5" />
                           </button>
                         </td>
-                        <td className="font-bold text-[11px]">{doc.concept}</td>
-                        <td className="text-center text-[11px]">{doc.date ? new Date(doc.date).toLocaleDateString() : '-'}</td>
-                        <td className="text-right text-[11px]">{doc.amount ? `${parseFloat(doc.amount).toFixed(2)} €` : '-'}</td>
+                        <td className="p-0">
+                          <input 
+                            type="text"
+                            value={doc.concept || ''}
+                            onChange={(e) => updateDocument(doc.id, 'concept', e.target.value)}
+                            className="win-input w-full bg-transparent border-transparent hover:border-gray-300 focus:bg-white text-[11px] font-bold px-1 m-0 h-[22px]"
+                          />
+                        </td>
+                        <td className="text-center w-28 p-0">
+                          <input 
+                            type="date"
+                            value={doc.date ? doc.date.split('T')[0] : ''}
+                            onChange={(e) => updateDocument(doc.id, 'date', e.target.value)}
+                            className="win-input w-full bg-transparent border-transparent hover:border-gray-300 focus:bg-white text-[11px] text-center px-1 m-0 h-[22px]"
+                          />
+                        </td>
+                        <td className="text-right w-24 p-0">
+                          <input 
+                            type="number"
+                            value={doc.amount || ''}
+                            onChange={(e) => updateDocument(doc.id, 'amount', e.target.value)}
+                            className="win-input w-full bg-transparent border-transparent hover:border-gray-300 focus:bg-white text-[11px] text-right px-1 m-0 h-[22px]"
+                            placeholder="0.00"
+                          />
+                        </td>
                         <td className="text-center">
                           <button 
                             onClick={() => setPreviewDocument({ url: doc.url, type: doc.type, name: doc.name })}
