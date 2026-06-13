@@ -923,6 +923,7 @@ export default function RealEstate() {
           setPreviewDocument={setPreviewDocument}
           isUploading={isUploading}
           setIsUploading={setIsUploading}
+          availableAccounts={availableAccounts}
         />
       );
     }
