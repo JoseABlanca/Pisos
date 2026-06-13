@@ -727,7 +727,7 @@ export default function RealEstate() {
     const rentRealBase = equity + mortgagePending;
     const rentReal = rentRealBase > 0 ? (realGain / rentRealBase) * 100 : 0;
 
-    const ownersList = formData.owners || [];
+    const ownersList = Array.isArray(formData.owners) ? formData.owners : [];
     const ownersCalculations = ownersList.map(owner => {
       const perc = (parseFloat(owner.percentage) || 0) / 100;
       return {

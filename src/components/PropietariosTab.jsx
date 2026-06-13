@@ -8,11 +8,11 @@ export default function PropietariosTab({ formData, setFormData, user }) {
   const [selectedPartnerId, setSelectedPartnerId] = useState('');
   const [percentage, setPercentage] = useState('');
 
-  // Ensure owners array exists
-  const owners = formData.owners || [];
+  // Ensure owners array exists safely
+  const owners = Array.isArray(formData.owners) ? formData.owners : [];
 
   useEffect(() => {
-    if (!user) return;
+    if (!user || !user.uid) return;
     const q = query(collection(db, 'partners'), where('userId', '==', user.uid));
     const unsubscribe = onSnapshot(q, (snapshot) => {
       const p = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }));
@@ -71,7 +71,7 @@ export default function PropietariosTab({ formData, setFormData, user }) {
   };
 
   const totalPercentage = useMemo(() => {
-    return owners.reduce((acc, curr) => acc + (curr.percentage || 0), 0);
+    return owners.reduce((acc, curr) => acc + (parseFloat(curr.percentage) || 0), 0);
   }, [owners]);
 
   return (
