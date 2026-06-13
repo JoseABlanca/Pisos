@@ -242,20 +242,18 @@ export default function ServiciosTab({
                 </div>
                 
                 <div className="space-y-1">
-                  <div className="flex justify-between items-center">
-                    <label className="text-[10px] font-bold text-slate-700 uppercase">Cuenta Contable:</label>
-                    <button 
-                      className="text-[10px] text-blue-600 hover:text-blue-800 font-bold underline cursor-pointer"
-                      onClick={() => window.open('/accounts', '_blank', 'width=800,height=600')}
-                      title="Abrir configuración de cuentas en una ventana nueva"
-                    >
-                      Añadir/Editar cuenta
-                    </button>
-                  </div>
+                  <label 
+                    className="text-[10px] font-bold text-slate-700 uppercase cursor-help"
+                    title="Doble clic en la caja de abajo para ir a la configuración de cuentas"
+                  >
+                    Cuenta Contable Asociada:
+                  </label>
                   <select 
-                    className="win-input w-full"
+                    className="win-input w-full cursor-pointer"
                     value={selectedService.accountingAccount || ''}
                     onChange={e => updateServiceField(selectedIndex, 'accountingAccount', e.target.value)}
+                    onDoubleClick={() => window.open('/accounts', '_blank', 'width=800,height=600')}
+                    title="Doble clic para añadir/editar cuentas en una ventana nueva"
                   >
                     <option value=""></option>
                     {(availableAccounts || []).map(acc => (
