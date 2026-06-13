@@ -196,17 +196,10 @@ export default function ComunidadTab({
 
   return (
     <div className="flex flex-col h-full bg-[#d4d0c8]">
-      
-      {/* Header */}
-      <div className="bg-[#000080] text-white p-2 flex items-center space-x-2 shrink-0">
-        <Users className="w-5 h-5" />
-        <span className="font-bold text-[13px] uppercase tracking-wide">Comunidad de Propietarios</span>
-      </div>
-
-      <div className="flex-1 overflow-auto p-4 flex flex-col md:flex-row gap-4">
+      <div className="flex-1 overflow-auto p-4 flex flex-col gap-4">
         
-        {/* Left Column: Data & Derramas */}
-        <div className="w-full md:w-[45%] flex flex-col gap-4">
+        {/* Top Section: Data & Derramas */}
+        <div className="w-full flex flex-col gap-4">
           
           {/* Datos Comunidad */}
           <div className="bg-white border border-[#808080] shadow-[1px_1px_0px_#000] p-3 flex flex-col space-y-3">
@@ -349,8 +342,8 @@ export default function ComunidadTab({
 
         </div>
 
-        {/* Right Column: Expediente Digital */}
-        <div className="w-full md:w-[55%] flex flex-col h-full min-h-[300px]">
+        {/* Bottom Section: Expediente Digital */}
+        <div className="w-full flex flex-col h-full min-h-[300px]">
           <div className="bg-white border border-[#808080] shadow-[1px_1px_0px_#000] flex flex-col h-full">
             <div className="bg-[#cbd5e0] font-bold p-1 border-b border-[#808080] shrink-0 text-[11px] uppercase flex items-center">
               <FileText className="w-3 h-3 mr-1" />
