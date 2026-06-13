@@ -481,13 +481,31 @@ export default function ComunidadTab({
                         </td>
                         <td className="text-center">
                           {doc.url ? (
-                            <button 
-                              onClick={() => setPreviewDocument({ url: doc.url, type: doc.type, name: doc.name })}
-                              className="text-blue-600 hover:text-blue-800"
-                              title="Ver documento"
-                            >
-                              <Eye className="w-4 h-4 mx-auto" />
-                            </button>
+                            <div className="flex justify-center items-center space-x-2">
+                              <button 
+                                onClick={() => setPreviewDocument({ url: doc.url, type: doc.type, name: doc.name })}
+                                className="text-blue-600 hover:text-blue-800"
+                                title="Ver documento"
+                              >
+                                <Eye className="w-4 h-4" />
+                              </button>
+                              <div className="flex items-center">
+                                <input 
+                                  type="file" 
+                                  id={`row-file-replace-${doc.id}`}
+                                  className="hidden" 
+                                  onChange={(e) => handleRowFileUpload(e, doc.id)}
+                                  disabled={isUploading || !formData.id}
+                                />
+                                <label 
+                                  htmlFor={`row-file-replace-${doc.id}`}
+                                  className="cursor-pointer text-orange-500 hover:text-orange-700 m-0 leading-none"
+                                  title="Reemplazar documento"
+                                >
+                                  <Upload className="w-4 h-4" />
+                                </label>
+                              </div>
+                            </div>
                           ) : (
                             <div className="flex justify-center">
                               <input 
