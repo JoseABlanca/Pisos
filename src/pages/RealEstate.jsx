@@ -688,20 +688,18 @@ export default function RealEstate() {
 
   useEffect(() => {
     if (!user) return;
-    const fetchAccounts = async () => {
-      try {
-        const q = query(collection(db, 'accounts'), where('userId', 'in', queryUserIds?.length > 0 ? queryUserIds : [user.uid]));
-        const querySnapshot = await getDocs(q);
-        const accountsData = querySnapshot.docs
-          .map(doc => doc.data())
-          .filter(acc => acc.code && acc.code.length >= 4)
-          .sort((a, b) => a.code.localeCompare(b.code));
-        setAvailableAccounts(accountsData);
-      } catch (error) {
-        console.error("Error fetching accounts:", error);
-      }
-    };
-  }, [user]);
+    const q = query(collection(db, 'accounts'), where('userId', 'in', queryUserIds?.length > 0 ? queryUserIds : [user.uid]));
+    const unsubscribe = onSnapshot(q, (querySnapshot) => {
+      const accountsData = querySnapshot.docs
+        .map(doc => doc.data())
+        .filter(acc => acc.code && acc.code.length >= 4)
+        .sort((a, b) => a.code.localeCompare(b.code));
+      setAvailableAccounts(accountsData);
+    }, (error) => {
+      console.error("Error fetching accounts realtime:", error);
+    });
+    return () => unsubscribe();
+  }, [user, queryUserIds]);
 
   const financialMetrics = useMemo(() => {
     const totalAcquisitionExp = (formData.financials.acquisitionExpenses || []).reduce((acc, exp) => acc + (parseFloat(exp.amount) || 0), 0);
