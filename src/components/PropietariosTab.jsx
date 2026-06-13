@@ -222,7 +222,7 @@ export default function PropietariosTab({ formData, setFormData, user, queryUser
                         <td className="text-right text-[11px] text-[#000080] font-bold">{owner.percentage}%</td>
                         <td className="text-right text-[11px] italic text-slate-400">{(totalCapitalAndExpenses * (owner.percentage / 100)).toFixed(2)} €</td>
                         <td className="text-right text-[11px] italic text-slate-400">{(theoreticalSalePrice * (owner.percentage / 100)).toFixed(2)} €</td>
-                        <td className={`text-right text-[11px] font-bold ${neto >= 0 ? 'text-green-600' : 'text-red-600'}`}>{(neto * (owner.percentage / 100)).toFixed(2)} €</td>
+                        <td className="text-right text-[11px] italic text-slate-400">{(neto * (owner.percentage / 100)).toFixed(2)} €</td>
                       </tr>
                     ))
                   )}
@@ -234,7 +234,7 @@ export default function PropietariosTab({ formData, setFormData, user, queryUser
                       <td className="text-right text-[11px] text-[#000080]">{totalPercentage.toFixed(2)}%</td>
                       <td className="text-right text-[11px] text-[#000080]">{(totalCapitalAndExpenses * (totalPercentage / 100)).toFixed(2)} €</td>
                       <td className="text-right text-[11px] text-[#000080]">{(theoreticalSalePrice * (totalPercentage / 100)).toFixed(2)} €</td>
-                      <td className={`text-right text-[11px] ${neto >= 0 ? 'text-green-600' : 'text-red-600'}`}>{(neto * (totalPercentage / 100)).toFixed(2)} €</td>
+                      <td className="text-right text-[11px] text-[#000080]">{(neto * (totalPercentage / 100)).toFixed(2)} €</td>
                     </tr>
                   )}
                 </tfoot>
