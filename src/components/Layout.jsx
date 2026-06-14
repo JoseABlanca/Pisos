@@ -550,13 +550,18 @@ export default function Layout() {
       {
         group: 'Consultas',
         items: [
-          { name: 'Diario de\nmovimientos', path: '/journal-list', customIcon: 'DiarioMov' },
-          { name: 'Extracto de\nmovimientos', path: '/account-statement', customIcon: 'ExtractoMov' }
+          { name: 'Diario de\nmovimientos', path: '/journal-list', customIcon: 'DiarioMov' }
         ]
       }
     ],
     'Mayor': [
-      { group: 'Mayor', items: [{ name: 'Mayor', path: '/ledger', icon: Library }] }
+      { group: 'Mayor', items: [{ name: 'Mayor', path: '/ledger', icon: Library }] },
+      {
+        group: 'Consultas',
+        items: [
+          { name: 'Extracto de\nmovimientos', path: '/account-statement', customIcon: 'ExtractoMov' }
+        ]
+      }
     ],
     'Sumas y saldos': [
       { 
