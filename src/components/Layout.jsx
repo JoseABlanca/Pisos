@@ -555,12 +555,12 @@ export default function Layout() {
       }
     ],
     'Mayor': [
-      { group: 'Mayor', items: [{ name: 'Mayor', path: '/ledger', icon: Library }] },
-      {
-        group: 'Consultas',
+      { 
+        group: 'Mayor', 
         items: [
+          { name: 'Mayor', path: '/ledger', icon: Library },
           { name: 'Extracto de\nmovimientos', path: '/account-statement', customIcon: 'ExtractoMov' }
-        ]
+        ] 
       }
     ],
     'Sumas y saldos': [
