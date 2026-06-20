@@ -98,6 +98,7 @@ export default function Customers() {
 
   const DEFAULT_COLUMNS = ['id', 'name', 'address', 'status'];
   const [visibleColumns, setVisibleColumns] = useState(DEFAULT_COLUMNS);
+  const [rentals, setRentals] = useState([]);
 
   useEffect(() => {
     window.dispatchEvent(new CustomEvent('sync-columns', { detail: { tab: 'Clientes', columns: visibleColumns } }));
@@ -127,8 +128,19 @@ export default function Customers() {
       },
       (err) => console.error("Customers snapshot error:", err)
     );
-    return () => unsub();
-  }, [user]);
+    
+    const unsubRentals = onSnapshot(
+      query(collection(db, 'rentals'), where('userId', 'in', queryUserIds?.length > 0 ? queryUserIds : [user.uid])),
+      (snap) => {
+        setRentals(snap.docs.map(d => ({ ...d.data(), id: d.id })));
+      }
+    );
+
+    return () => {
+      unsub();
+      unsubRentals();
+    };
+  }, [user, queryUserIds]);
 
   const saveCustomerToCloud = async (customer) => {
     if (!user) {
@@ -671,12 +683,19 @@ export default function Customers() {
                       <p className="font-bold text-blue-800">Información adicional del cliente</p>
                       <div className="grid grid-cols-2 gap-4">
                         <div className="p-2 border border-slate-200">
-                          <label className="block mb-1">Zona comercial:</label>
-                          <select className="win-input w-full"><option>Nacional</option></select>
-                        </div>
-                        <div className="p-2 border border-slate-200">
-                          <label className="block mb-1">Idioma:</label>
-                          <select className="win-input w-full"><option>Español</option></select>
+                          <label className="block mb-1">Referencia de alquiler:</label>
+                          <select 
+                            className="win-input w-full"
+                            value={formData.rentalReference || ''}
+                            onChange={(e) => setFormData({...formData, rentalReference: e.target.value})}
+                          >
+                            <option value="">-- Seleccionar Referencia --</option>
+                            {rentals.map(r => (
+                              <option key={r.id} value={r.reference || r.id}>
+                                {r.reference || '(Sin ref)'} - {availableProperties.find(p => p.id === r.propertyId)?.name || 'Propiedad desconocida'}
+                              </option>
+                            ))}
+                          </select>
                         </div>
                       </div>
                     </div>
