@@ -123,6 +123,18 @@ export default function FinanzasTab({ formData, setFormData, rentals, user, setP
               </div>
             </div>
             <div className="space-y-1">
+              <label className="text-[10px] font-bold text-slate-700 uppercase" title="Suma de Capital Aportado, Gastos de Adquisición y Reformas Capitalizables">Total Inversión:</label>
+              <div className="relative">
+                <input 
+                  type="text" 
+                  className="win-input w-full text-right pr-6 bg-blue-50 text-blue-900 font-bold cursor-not-allowed" 
+                  value={((parseFloat(formData.investedCapital) || 0) + totalCapitalizedReforms + totalAdquisitionExpenses).toLocaleString('es-ES', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+                  readOnly 
+                />
+                <span className="absolute right-2 top-1/2 -translate-y-1/2 text-[11px] text-blue-900 font-bold">€</span>
+              </div>
+            </div>
+            <div className="space-y-1">
               <label className="text-[10px] font-bold text-slate-700 uppercase">Precio teórico de venta:</label>
               <div className="relative">
                 <input 
