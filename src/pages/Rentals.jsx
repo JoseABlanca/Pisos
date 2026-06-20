@@ -19,6 +19,8 @@ export default function Rentals() {
   const [isMobile, setIsMobile] = useState(window.innerWidth < 768);
   const [searchQuery, setSearchQuery] = useState('');
   const [selectedRental, setSelectedRental] = useState(null);
+  const [previewDocument, setPreviewDocument] = useState(null);
+  const [dragOverZone, setDragOverZone] = useState(null);
   
   const DEFAULT_COLUMNS = ['id', 'propertyDisplay', 'tenantDisplay', 'rent', 'status'];
   const [visibleColumns, setVisibleColumns] = useState(() => {
@@ -195,6 +197,7 @@ export default function Rentals() {
 
   const formTabs = [
     { id: 'general', name: 'Datos Generales', icon: FileText },
+    { id: 'docs', name: 'Documentos', icon: FileText },
     { id: 'ingresos', name: 'Ingresos / Facturación', icon: Building2 },
     { id: 'gastos', name: 'Gastos Asociados', icon: Key }
   ];
@@ -788,6 +791,116 @@ export default function Rentals() {
                       </div>
                     )}
 
+                    {activeFormTab === 'docs' && (
+                      <div className="flex flex-col h-full">
+                        <div className="flex justify-end mb-2 relative">
+                          <input 
+                            type="file" 
+                            id="file-upload-rentals" 
+                            multiple 
+                            accept=".pdf,.doc,.docx,.xls,.xlsx,.jpg,.jpeg,.png"
+                            className="hidden"
+                            onChange={(e) => {
+                              if (e.target.files && e.target.files.length > 0) {
+                                const newDocs = Array.from(e.target.files).map(file => ({
+                                  name: file.name,
+                                  type: file.type || file.name.split('.').pop().toUpperCase() + ' Document',
+                                  date: new Date().toLocaleDateString('es-ES'),
+                                  size: (file.size / (1024 * 1024)).toFixed(2) + ' MB',
+                                  url: URL.createObjectURL(file)
+                                }));
+                                setFormData({
+                                  ...formData,
+                                  documents: [...(formData.documents || []), ...newDocs]
+                                });
+                              }
+                              e.target.value = null; // reset input
+                            }}
+                          />
+                          <label 
+                            htmlFor="file-upload-rentals" 
+                            className="btn-classic px-3 h-5 text-[10px] flex items-center cursor-pointer"
+                          >
+                            <Plus className="w-3 h-3 mr-1" /> Adjuntar
+                          </label>
+                        </div>
+                        <div 
+                          className={`flex-1 overflow-auto border border-[#808080] transition-colors duration-200 ${dragOverZone === 'rentalDocs' ? 'bg-blue-50 border-blue-400 ring-2 ring-blue-200 ring-inset' : ''}`}
+                          onDragOver={(e) => { e.preventDefault(); setDragOverZone('rentalDocs'); }}
+                          onDragLeave={() => setDragOverZone(null)}
+                          onDrop={(e) => {
+                            e.preventDefault();
+                            setDragOverZone(null);
+                            const files = Array.from(e.dataTransfer.files);
+                            if (files.length > 0) {
+                              const newDocs = files.map(file => ({
+                                name: file.name,
+                                type: file.type || file.name.split('.').pop().toUpperCase() + ' Document',
+                                date: new Date().toLocaleDateString('es-ES'),
+                                size: (file.size / (1024 * 1024)).toFixed(2) + ' MB',
+                                url: URL.createObjectURL(file)
+                              }));
+                              setFormData({
+                                ...formData,
+                                documents: [...(formData.documents || []), ...newDocs]
+                              });
+                            }
+                          }}
+                        >
+                          <table className="win-table min-w-full">
+                          <thead>
+                            <tr>
+                              <th>Nombre del Archivo</th>
+                              <th>Tipo</th>
+                              <th>Fecha</th>
+                              <th>Tamaño</th>
+                              <th className="w-8"></th>
+                            </tr>
+                          </thead>
+                          <tbody>
+                            {(formData.documents || []).length === 0 ? (
+                              <tr>
+                                <td colSpan="5" className="text-center text-slate-500 italic py-4">No hay documentos adjuntos</td>
+                              </tr>
+                            ) : (
+                              (formData.documents || []).map((doc, idx) => (
+                                <tr key={idx}>
+                                  <td>
+                                    {doc.url ? (
+                                      <span 
+                                        className="text-blue-600 underline cursor-pointer hover:text-blue-800"
+                                        onClick={() => setPreviewDocument(doc)}
+                                      >
+                                        {doc.name}
+                                      </span>
+                                    ) : (
+                                      doc.name
+                                    )}
+                                  </td>
+                                  <td>{doc.type}</td>
+                                  <td>{doc.date}</td>
+                                  <td>{doc.size}</td>
+                                  <td className="text-center">
+                                    <button 
+                                      className="p-0.5 hover:bg-slate-200"
+                                      onClick={() => {
+                                        const newDocs = [...formData.documents];
+                                        newDocs.splice(idx, 1);
+                                        setFormData({...formData, documents: newDocs});
+                                      }}
+                                    >
+                                      <Trash2 className="w-3 h-3 text-red-600" />
+                                    </button>
+                                  </td>
+                                </tr>
+                              ))
+                            )}
+                          </tbody>
+                        </table>
+                      </div>
+                    </div>
+                  )}
+
                     {activeFormTab === 'ingresos' && (
                       <div className="space-y-4 max-w-xl">
                         <div className="space-y-1">
@@ -819,6 +932,50 @@ export default function Rentals() {
                 <div className="flex justify-end gap-2 shrink-0 pt-2 pb-1 pr-1 bg-[#d4d0c8] border-t border-[#808080]">
                   <button className="px-6 py-1 border border-gray-400 bg-gray-100 hover:bg-gray-200 shadow-sm text-[11px] font-bold uppercase" onClick={handleSave}>Aceptar</button>
                   <button className="px-6 py-1 border border-gray-400 bg-gray-100 hover:bg-gray-200 shadow-sm text-[11px] font-bold uppercase" onClick={() => setShowForm(false)}>Cancelar</button>
+                </div>
+              </div>
+            </div>
+          </Window>
+        </div>
+      )}
+
+      {/* Preview Modal */}
+      {previewDocument && (
+        <div className="fixed inset-0 bg-black/40 backdrop-blur-sm flex items-center justify-center z-[60]">
+          <Window 
+            title={`Vista Previa: ${previewDocument.name}`}
+            width="800px"
+            height="600px"
+            initialPos={{ x: 100, y: 50 }}
+            onClose={() => setPreviewDocument(null)}
+          >
+            <div className="bg-[#d4d0c8] p-1 h-full flex flex-col min-h-0">
+              <div className="flex-1 bg-white border border-[#808080] border-t-0 p-1 win-bevel overflow-hidden flex flex-col">
+                <div className="bg-[#cbd5e0] font-bold p-1 mb-1 uppercase text-[10px] border-b border-[#808080] shrink-0">
+                  Previsualización
+                </div>
+                <div className="flex-1 overflow-auto bg-slate-100 flex items-center justify-center relative">
+                  {(previewDocument.type?.toLowerCase().includes('pdf') || previewDocument.name.toLowerCase().endsWith('.pdf')) ? (
+                    <iframe 
+                      src={previewDocument.url} 
+                      className="absolute inset-0 w-full h-full border-none" 
+                      title={previewDocument.name} 
+                    />
+                  ) : (previewDocument.type?.toLowerCase().includes('image') || previewDocument.name.toLowerCase().match(/\.(jpg|jpeg|png)$/)) ? (
+                    <img 
+                      src={previewDocument.url} 
+                      alt={previewDocument.name} 
+                      className="max-w-full max-h-full object-contain" 
+                    />
+                  ) : (
+                    <div className="text-slate-500 font-bold p-10 text-center flex flex-col items-center">
+                      <FileText className="w-16 h-16 text-slate-300 mb-4" />
+                      Vista previa no disponible en el navegador para este tipo de archivo.<br/>
+                      <a href={previewDocument.url} download={previewDocument.name} className="text-blue-600 underline mt-2 block">
+                        Haz clic aquí para descargarlo manualmente
+                      </a>
+                    </div>
+                  )}
                 </div>
               </div>
             </div>
