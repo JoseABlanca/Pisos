@@ -500,6 +500,7 @@ export default function Layout() {
     'Contabilidad',
     'Inversiones inmobiliarias',
     'Informes',
+    'Impuestos',
     'Herramientas',
     'Ayuda'
   ];
@@ -508,6 +509,7 @@ export default function Layout() {
     'Contabilidad': ['Cuentas contables', 'Diario', 'Mayor', 'Sumas y saldos'],
     'Inversiones inmobiliarias': ['Activos', 'Propietarios', 'Clientes', 'Alquileres'],
     'Informes': ['Reportes', 'Dashboard'],
+    'Impuestos': ['Panel de Impuestos'],
     'Herramientas': ['Calculadora'],
     'Ayuda': ['Manual', 'Soporte']
   };
@@ -523,6 +525,7 @@ export default function Layout() {
     'Propietarios': '/partners',
     'Reportes': '/reports',
     'Dashboard': '/dashboard',
+    'Panel de Impuestos': '#',
     'Calculadora': '#',
     'Manual': '#',
     'Soporte': '#'
