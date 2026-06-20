@@ -391,14 +391,13 @@ export default function Rentals() {
                       <button 
                         key={tab.id}
                         onClick={() => { setActiveFormTab(tab.id); if (isMobile) setShowModalSidebar(false); }}
-                        className={`w-full text-left px-4 py-2.5 text-[12px] transition-colors border-y flex items-center space-x-2 ${
+                        className={`w-full text-left px-4 py-2.5 text-[12px] transition-colors border-y ${
                           activeFormTab === tab.id 
                             ? 'bg-[#c0c0c0] text-black border-[#a0a0a0] shadow-[inset_0px_1px_1px_rgba(0,0,0,0.1)] font-semibold' 
                             : 'bg-white text-slate-700 border-transparent hover:bg-[#f8f8f8]'
                         }`}
                       >
-                        <tab.icon className={`w-3.5 h-3.5 ${activeFormTab === tab.id ? 'text-black' : 'text-slate-500'}`} />
-                        <span>{tab.name}</span>
+                        {tab.name}
                       </button>
                     ))}
                   </div>
