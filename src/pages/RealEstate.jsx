@@ -15,7 +15,7 @@ import {
   Check, X, Search, Plus, Trash2, Edit, Save, Filter,
   Building2, User, Landmark, Zap, Users as UsersIcon,
   Download, Building, UserCircle, FileText, Wrench, ClipboardList,
-  PieChart, Receipt, ChevronLeft, ChevronRight, PanelLeft
+  PieChart, Receipt, ChevronLeft, ChevronRight, PanelLeft, Upload, Eye
 } from 'lucide-react';
 import { handleExportFormat } from '../utils/exportUtils';
 import { uploadFileToStorage } from '../utils/storageUtils';
@@ -773,6 +773,55 @@ export default function RealEstate() {
     };
   }, [formData]);
 
+  const handleAssetFileUpload = async (e) => {
+    const files = Array.from(e.target.files);
+    if (!files.length || !user || !formData.id) return;
+
+    setIsUploading(true);
+    try {
+      const newDocs = [];
+      for (const file of files) {
+        const url = await uploadFileToStorage(file, user.uid, 'properties', formData.id, 'docs');
+        newDocs.push({
+          id: Date.now() + Math.random().toString(36).substring(7),
+          name: file.name,
+          concept: '',
+          date: new Date().toISOString().split('T')[0],
+          url,
+          type: file.type || 'application/octet-stream',
+          uploadedAt: new Date().toISOString()
+        });
+      }
+
+      setFormData(prev => ({
+        ...prev,
+        docs: [...(prev.docs || []), ...newDocs]
+      }));
+    } catch (error) {
+      console.error('Error uploading document:', error);
+      alert('Error al subir el documento: ' + error.message);
+    } finally {
+      setIsUploading(false);
+      e.target.value = '';
+    }
+  };
+
+  const updateAssetDocument = (docId, field, value) => {
+    setFormData(prev => ({
+      ...prev,
+      docs: (prev.docs || []).map(d => d.id === docId ? { ...d, [field]: value } : d)
+    }));
+  };
+
+  const deleteAssetDocument = (docId) => {
+    if (window.confirm('¿Estás seguro de que deseas eliminar este documento?')) {
+      setFormData(prev => ({
+        ...prev,
+        docs: (prev.docs || []).filter(d => d.id !== docId)
+      }));
+    }
+  };
+
   const tabs = [
     { id: 'Datos', icon: Building2 },
     { id: 'Cliente', icon: User },
@@ -787,7 +836,8 @@ export default function RealEstate() {
   const renderTabContent = () => {
     if (activeTab === 'Datos') {
       return (
-        <div className={`grid ${isMobile ? 'grid-cols-1' : 'grid-cols-2'} gap-6`}>
+        <div className="flex flex-col gap-6">
+          <div className={`grid ${isMobile ? 'grid-cols-1' : 'grid-cols-2'} gap-6`}>
           {/* Left Column */}
           <div className="space-y-3">
             <div className="space-y-1">
@@ -896,6 +946,87 @@ export default function RealEstate() {
             </div>
           </div>
         </div>
+
+        {/* Expediente Digital del Activo */}
+        <div className="flex-1 flex flex-col bg-slate-50 border border-gray-200 rounded-md">
+          <div className="p-4 border-b border-gray-200 flex justify-between items-center bg-white rounded-t-md">
+            <h3 className="text-[12px] font-bold text-slate-800 uppercase italic">Documentos ({formData.name || 'Activo'})</h3>
+            <div className="relative">
+              <input
+                type="file"
+                multiple
+                id="asset-doc-upload"
+                className="hidden"
+                onChange={handleAssetFileUpload}
+                disabled={isUploading}
+              />
+              <label 
+                htmlFor="asset-doc-upload" 
+                className={`btn-classic flex items-center space-x-1 px-3 py-1 cursor-pointer ${isUploading ? 'opacity-50 pointer-events-none' : ''}`}
+              >
+                <Upload className="w-4 h-4" />
+                <span className="text-[11px] font-bold">{isUploading ? 'Subiendo...' : 'Subir Documento'}</span>
+              </label>
+            </div>
+          </div>
+
+          <div className="flex-1 bg-white overflow-hidden flex flex-col min-h-[200px] rounded-b-md">
+            <div className="bg-[#f0f0f0] grid grid-cols-12 gap-2 p-2 border-b border-[#808080] text-[10px] font-bold uppercase">
+              <div className="col-span-4">Documento</div>
+              <div className="col-span-4">Concepto</div>
+              <div className="col-span-2">Fecha</div>
+              <div className="col-span-2 text-center">Acción</div>
+            </div>
+            <div className="flex-1 overflow-auto p-2 space-y-2">
+              {(!formData.docs || formData.docs.length === 0) ? (
+                <div className="text-center text-slate-400 italic py-8 text-[11px]">No hay documentos asociados a este activo.</div>
+              ) : (
+                formData.docs.map((doc) => (
+                  <div key={doc.id} className="grid grid-cols-12 gap-2 items-center text-[11px] border-b border-slate-100 pb-2">
+                    <div className="col-span-4 flex items-center space-x-2 truncate">
+                      <FileText className="w-4 h-4 text-slate-400 shrink-0" />
+                      <span className="truncate" title={doc.name}>{doc.name}</span>
+                    </div>
+                    <div className="col-span-4">
+                      <input
+                        type="text"
+                        className="win-input w-full text-[11px]"
+                        value={doc.concept || ''}
+                        onChange={(e) => updateAssetDocument(doc.id, 'concept', e.target.value)}
+                        placeholder="Ej. Escritura, IBI, Plano..."
+                      />
+                    </div>
+                    <div className="col-span-2">
+                      <input
+                        type="date"
+                        className="win-input w-full text-[11px]"
+                        value={doc.date || ''}
+                        onChange={(e) => updateAssetDocument(doc.id, 'date', e.target.value)}
+                      />
+                    </div>
+                    <div className="col-span-2 flex justify-center space-x-2">
+                      <button 
+                        className="p-1 hover:bg-blue-50 text-blue-600 rounded"
+                        onClick={() => setPreviewDocument(doc)}
+                        title="Previsualizar"
+                      >
+                        <Eye className="w-4 h-4" />
+                      </button>
+                      <button 
+                        className="p-1 hover:bg-red-50 text-red-600 rounded"
+                        onClick={() => deleteAssetDocument(doc.id)}
+                        title="Eliminar"
+                      >
+                        <Trash2 className="w-4 h-4" />
+                      </button>
+                    </div>
+                  </div>
+                ))
+              )}
+            </div>
+          </div>
+        </div>
+      </div>
       );
     }
     
