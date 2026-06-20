@@ -601,6 +601,63 @@ export default function Rentals() {
                             )}
                           </table>
                         </div>
+
+                        {/* Reparto a Propietarios */}
+                        {(() => {
+                          const selectedProp = properties.find(p => p.id === formData.propertyId);
+                          const propOwners = selectedProp?.owners || [];
+                          if (!formData.propertyId || propOwners.length === 0) return null;
+
+                          const rentEq = (formData.paymentPeriod === 'anual' ? formData.rentAmount / 12 : (formData.paymentPeriod === 'trimestral' ? formData.rentAmount / 3 : formData.rentAmount)) || 0;
+                          const expEq = (formData.expenses || []).reduce((sum, exp) => {
+                            let monthly = exp.amount || 0;
+                            if (exp.period === 'anual') monthly = monthly / 12;
+                            else if (exp.period === 'trimestral') monthly = monthly / 3;
+                            return sum + monthly;
+                          }, 0) || 0;
+                          const netEq = rentEq - expEq;
+
+                          return (
+                            <div className="mt-6 border-t border-[#a0a0a0] pt-4">
+                              <h3 className="text-[11px] font-bold text-slate-800 uppercase mb-2">Ingreso Neto de Propietarios</h3>
+                              <table className="w-full text-[11px] border-collapse bg-white border border-gray-300">
+                                <thead className="bg-[#e0e0e0]">
+                                  <tr>
+                                    <th className="border border-gray-300 p-1.5 text-left">Propietario</th>
+                                    <th className="border border-gray-300 p-1.5 text-right w-24">% Propiedad</th>
+                                    <th className="border border-gray-300 p-1.5 text-right w-32">Ingreso Neto / Mes</th>
+                                  </tr>
+                                </thead>
+                                <tbody>
+                                  {propOwners.map((owner, idx) => {
+                                    const perc = parseFloat(owner.percentage) || 0;
+                                    const ownerNet = netEq * (perc / 100);
+                                    return (
+                                      <tr key={idx}>
+                                        <td className="border border-gray-300 p-1.5">{owner.name || 'Desconocido'}</td>
+                                        <td className="border border-gray-300 p-1.5 text-right">{perc.toFixed(2)}%</td>
+                                        <td className={`border border-gray-300 p-1.5 text-right font-semibold ${ownerNet >= 0 ? 'text-green-700' : 'text-red-600'}`}>
+                                          {ownerNet.toLocaleString('es-ES', { minimumFractionDigits: 2, maximumFractionDigits: 2 })} €
+                                        </td>
+                                      </tr>
+                                    );
+                                  })}
+                                </tbody>
+                                <tfoot className="bg-[#f0f0f0] font-bold">
+                                  <tr>
+                                    <td className="border border-gray-300 p-1.5 text-right" colSpan="2">
+                                      Total Activo:
+                                    </td>
+                                    <td className={`border border-gray-300 p-1.5 text-right ${netEq >= 0 ? 'text-green-700' : 'text-red-600'}`}>
+                                      {netEq.toLocaleString('es-ES', { minimumFractionDigits: 2, maximumFractionDigits: 2 })} €
+                                    </td>
+                                  </tr>
+                                </tfoot>
+                              </table>
+                            </div>
+                          );
+                        })()}
+
                       </div>
                     )}
 
