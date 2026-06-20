@@ -377,15 +377,6 @@ export default function ReformasTab({
                   )}
                 </tbody>
               </table>
-              
-              <div className="mt-6 p-4 bg-blue-50 border border-blue-200 rounded-md">
-                <h5 className="font-bold text-[12px] text-blue-800 mb-2">¿Cómo se lee el Saldo Final?</h5>
-                <ul className="text-[11px] text-blue-900 space-y-1 list-disc list-inside">
-                  <li>Un saldo <strong>positivo (verde)</strong> indica que el propietario ha pagado de más y el resto de propietarios le deben dinero.</li>
-                  <li>Un saldo <strong>negativo (rojo)</strong> indica que el propietario ha pagado menos de su parte y debe compensar al resto.</li>
-                  <li>Un saldo <strong>0,00 €</strong> indica que el propietario está en paz.</li>
-                </ul>
-              </div>
             </div>
           </div>
         )}
