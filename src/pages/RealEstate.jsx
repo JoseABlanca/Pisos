@@ -1211,19 +1211,15 @@ export default function RealEstate() {
                 Agrupado (Lectura)
               </button>
             </div>
-            <div className="flex-1 overflow-hidden relative">
+            <div className="flex-1 overflow-hidden flex flex-col">
               {finanzasSubTab === 'principal' && (
-                <div className="absolute inset-0">
-                  <FinanzasTab formData={formData} setFormData={setFormData} rentals={rentals} user={user} setPreviewDocument={setPreviewDocument} />
-                </div>
+                <FinanzasTab formData={formData} setFormData={setFormData} rentals={rentals} user={user} setPreviewDocument={setPreviewDocument} />
               )}
               {finanzasSubTab === 'accesorio' && (
-                <div className="absolute inset-0">
-                  <FinanzasTab formData={accessoryFormData} setFormData={setAccessoryFormData} rentals={rentals} user={user} setPreviewDocument={setPreviewDocument} />
-                </div>
+                <FinanzasTab formData={accessoryFormData} setFormData={setAccessoryFormData} rentals={rentals} user={user} setPreviewDocument={setPreviewDocument} />
               )}
               {finanzasSubTab === 'agrupado' && (
-                <div className="absolute inset-0 pointer-events-none opacity-80">
+                <div className="flex-1 pointer-events-none opacity-80 flex flex-col">
                   <FinanzasTab formData={combinedFormData} setFormData={() => {}} rentals={rentals} user={user} setPreviewDocument={setPreviewDocument} />
                 </div>
               )}
