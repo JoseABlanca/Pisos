@@ -994,7 +994,7 @@ export default function Layout() {
 
       <main className="flex-1 overflow-auto relative bg-white m-1">
         <div className="h-full">
-          <Outlet context={{ tableZoom, setTableZoom }} />
+          <Outlet context={{ tableZoom, setTableZoom, taxYear }} />
         </div>
       </main>
 

@@ -12,7 +12,6 @@ import FinanzasTab from '../components/FinanzasTab';
 import ExtractoTab from '../components/ExtractoTab';
 import ClienteTab from '../components/ClienteTab';
 import ReformasTab from '../components/ReformasTab';
-import TaxesExtractModal from '../components/TaxesExtractModal';
 import { 
   Check, X, Search, Plus, Trash2, Edit, Save, Filter,
   Building2, User, Landmark, Zap, Users as UsersIcon,
@@ -112,21 +111,11 @@ export default function RealEstate() {
       const format = e.detail?.format || 'csv';
       handleExportFormat(properties, 'Activos', format);
     };
-    const onTaxesExtract = (e) => {
-      if (selectedProperty) {
-        setTaxesExtractYear(e.detail?.year || new Date().getFullYear());
-        setShowTaxesExtract(true);
-      } else {
-        alert('Por favor, selecciona un activo de la tabla primero.');
-      }
-    };
-
     window.addEventListener('real-estate:new', onNew);
     window.addEventListener('real-estate:edit', onEdit);
     window.addEventListener('real-estate:delete', onDelete);
     window.addEventListener('real-estate:filter', onFilter);
     window.addEventListener('real-estate:export', onExport);
-    window.addEventListener('taxes:extract', onTaxesExtract);
 
     return () => {
       window.removeEventListener('real-estate:new', onNew);
@@ -134,14 +123,11 @@ export default function RealEstate() {
       window.removeEventListener('real-estate:delete', onDelete);
       window.removeEventListener('real-estate:filter', onFilter);
       window.removeEventListener('real-estate:export', onExport);
-      window.removeEventListener('taxes:extract', onTaxesExtract);
     };
   }, [selectedProperty, filterColumn, filterOperator, filterValue]);
 
   const [selectedTenantIndex, setSelectedTenantIndex] = useState(null);
   const [previewDocument, setPreviewDocument] = useState(null);
-  const [showTaxesExtract, setShowTaxesExtract] = useState(false);
-  const [taxesExtractYear, setTaxesExtractYear] = useState(new Date().getFullYear());
   const [activeMortgageTab, setActiveMortgageTab] = useState('docs');
   const [activeCommunitySubTab, setActiveCommunitySubTab] = useState('payments');
   const [selectedServiceIndex, setSelectedServiceIndex] = useState(null);
@@ -1369,14 +1355,6 @@ export default function RealEstate() {
           </Window>
         </div>
       )}
-      
-      <TaxesExtractModal 
-        isOpen={showTaxesExtract}
-        onClose={() => setShowTaxesExtract(false)}
-        property={selectedProperty}
-        year={taxesExtractYear}
-        rentals={rentals}
-      />
     </div>
   );
 }
