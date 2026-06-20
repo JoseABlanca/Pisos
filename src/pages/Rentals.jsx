@@ -469,13 +469,6 @@ export default function Rentals() {
                                 <input type="date" className="win-input w-full" value={formData.endDate || ''} onChange={e => setFormData({...formData, endDate: e.target.value})} />
                               </div>
                             </div>
-                            <div className="space-y-1">
-                              <label className="text-[10px] font-bold text-slate-700 uppercase">Inquilino Ppal:</label>
-                              <select className="win-input w-full" value={formData.tenantId} onChange={e => setFormData({...formData, tenantId: e.target.value})}>
-                                <option value="">-- Sin Inquilino --</option>
-                                {customers.map(c => <option key={c.id} value={c.id}>{c.name}</option>)}
-                              </select>
-                            </div>
                             <div className="grid grid-cols-2 gap-4 pt-2">
                               <div className="space-y-1">
                                 <label className="text-[10px] font-bold text-slate-700 uppercase">Renta (€):</label>
