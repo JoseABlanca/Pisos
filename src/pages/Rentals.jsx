@@ -530,60 +530,70 @@ export default function Rentals() {
                                 </tr>
                               </thead>
                               <tbody>
-                                {(formData.rooms || []).map((room, idx) => (
-                                  <tr key={room.id}>
-                                    <td className="border border-gray-300 p-1">
-                                      <input 
-                                        type="text" 
-                                        className="w-full px-1 py-0.5 outline-none" 
-                                        placeholder="Ej: Hab. Principal"
-                                        value={room.name}
-                                        onChange={(e) => {
-                                          const newRooms = [...formData.rooms];
-                                          newRooms[idx].name = e.target.value;
-                                          setFormData({...formData, rooms: newRooms});
-                                        }}
-                                      />
-                                    </td>
-                                    <td className="border border-gray-300 p-1">
-                                      <select 
-                                        className="w-full px-1 py-0.5 outline-none bg-transparent"
-                                        value={room.tenantId || ''}
-                                        onChange={(e) => {
-                                          const newRooms = [...formData.rooms];
-                                          newRooms[idx].tenantId = e.target.value;
-                                          setFormData({...formData, rooms: newRooms});
-                                        }}
-                                      >
-                                        <option value="">-- Inquilino --</option>
-                                        {customers.map(c => <option key={c.id} value={c.id}>{c.name || `${c.firstName || ''} ${c.lastName || ''}`.trim() || c.companyName}</option>)}
-                                      </select>
-                                    </td>
-                                    <td className="border border-gray-300 p-1">
-                                      <input 
-                                        type="number" 
-                                        className="w-full px-1 py-0.5 outline-none text-right" 
-                                        value={room.amount}
-                                        onChange={(e) => {
-                                          const newRooms = [...formData.rooms];
-                                          newRooms[idx].amount = Number(e.target.value);
-                                          setFormData({...formData, rooms: newRooms});
-                                        }}
-                                      />
-                                    </td>
-                                    <td className="border border-gray-300 p-1 text-center">
-                                      <button 
-                                        onClick={() => {
-                                          const newRooms = formData.rooms.filter(r => r.id !== room.id);
-                                          setFormData({...formData, rooms: newRooms});
-                                        }}
-                                        className="text-red-500 hover:bg-red-50 p-1 rounded"
-                                      >
-                                        <Trash2 className="w-3 h-3" />
-                                      </button>
-                                    </td>
-                                  </tr>
-                                ))}
+                                {(() => {
+                                  const selectedProp = properties.find(p => p.id === formData.propertyId);
+                                  const propKey = selectedProp ? (selectedProp.name || selectedProp.address) : '';
+                                  const validCustomers = customers.filter(c => {
+                                    if (!propKey) return true;
+                                    const cFloors = Array.isArray(c.floors) ? c.floors : (c.floor ? c.floor.split(', ') : []);
+                                    return cFloors.includes(propKey);
+                                  });
+                                  
+                                  return (formData.rooms || []).map((room, idx) => (
+                                    <tr key={room.id}>
+                                      <td className="border border-gray-300 p-1">
+                                        <input 
+                                          type="text" 
+                                          className="w-full px-1 py-0.5 outline-none" 
+                                          placeholder="Ej: Hab. Principal"
+                                          value={room.name}
+                                          onChange={(e) => {
+                                            const newRooms = [...formData.rooms];
+                                            newRooms[idx].name = e.target.value;
+                                            setFormData({...formData, rooms: newRooms});
+                                          }}
+                                        />
+                                      </td>
+                                      <td className="border border-gray-300 p-1">
+                                        <select 
+                                          className="w-full px-1 py-0.5 outline-none bg-transparent"
+                                          value={room.tenantId || ''}
+                                          onChange={(e) => {
+                                            const newRooms = [...formData.rooms];
+                                            newRooms[idx].tenantId = e.target.value;
+                                            setFormData({...formData, rooms: newRooms});
+                                          }}
+                                        >
+                                          <option value="">-- Inquilino --</option>
+                                          {validCustomers.map(c => <option key={c.id} value={c.id}>{c.name || `${c.firstName || ''} ${c.lastName || ''}`.trim() || c.companyName}</option>)}
+                                        </select>
+                                      </td>
+                                      <td className="border border-gray-300 p-1">
+                                        <input 
+                                          type="number" 
+                                          className="w-full px-1 py-0.5 outline-none text-right" 
+                                          value={room.amount}
+                                          onChange={(e) => {
+                                            const newRooms = [...formData.rooms];
+                                            newRooms[idx].amount = Number(e.target.value);
+                                            setFormData({...formData, rooms: newRooms});
+                                          }}
+                                        />
+                                      </td>
+                                      <td className="border border-gray-300 p-1 text-center">
+                                        <button 
+                                          onClick={() => {
+                                            const newRooms = formData.rooms.filter(r => r.id !== room.id);
+                                            setFormData({...formData, rooms: newRooms});
+                                          }}
+                                          className="text-red-500 hover:bg-red-50 p-1 rounded"
+                                        >
+                                          <Trash2 className="w-3 h-3" />
+                                        </button>
+                                      </td>
+                                    </tr>
+                                  ));
+                                })()}
                                 {(!formData.rooms || formData.rooms.length === 0) && (
                                   <tr>
                                     <td colSpan="4" className="border border-gray-300 p-4 text-center text-gray-500 italic">
