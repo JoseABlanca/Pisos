@@ -453,6 +453,7 @@ export default function Rentals() {
                               <option value="vivienda habitual">Vivienda habitual</option>
                               <option value="uso distinto de vivienda">Uso distinto de vivienda</option>
                               <option value="alquiler por habitaciones">Alquiler por habitaciones</option>
+                              <option value="parking">Parking</option>
                             </select>
                           </div>
                           <div className="space-y-1">
