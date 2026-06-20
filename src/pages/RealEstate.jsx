@@ -1312,7 +1312,7 @@ export default function RealEstate() {
             onClose={() => setShowForm(false)}
             onMenuClick={() => setShowSidebar(!showSidebar)}
           >
-            <div className="flex h-[800px] bg-[#d4d0c8] relative">
+            <div className="flex flex-1 h-full min-h-0 bg-[#d4d0c8] relative">
               {/* Sidebar - shown when showSidebar=true on both mobile and desktop */}
               {showSidebar && (
                 <div className={`bg-[#f0f0f0] border-r border-[#808080] shrink-0 overflow-y-auto p-2 flex flex-col shadow-[inset_-1px_0_0_rgba(0,0,0,0.1)] ${isMobile ? 'absolute inset-y-0 left-0 z-30 w-56' : 'w-56'}`}>
