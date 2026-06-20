@@ -526,7 +526,7 @@ export default function Layout() {
     'Propietarios': '/partners',
     'Reportes': '/reports',
     'Dashboard': '/dashboard',
-    'Total': '#',
+    'Total': '/taxes-total',
     'Inversiones inmobiliarias': '/taxes-real-estate',
     'Calculadora': '#',
     'Manual': '#',
@@ -970,10 +970,19 @@ export default function Layout() {
 
       {dropdownConfig?.type === 'taxes-year' && (
         <div 
-          className="fixed bg-white border border-gray-300 shadow-lg rounded z-[100] py-1 w-24 flex flex-col text-[12px] max-h-64 overflow-y-auto" 
+          className="fixed bg-white border border-gray-300 shadow-lg rounded z-[100] py-1 w-32 flex flex-col text-[12px] max-h-64 overflow-y-auto" 
           style={{ top: dropdownConfig.rect.top + 4, left: dropdownConfig.rect.left }}
           onMouseDown={e => e.stopPropagation()}
         >
+           <div 
+             className={`px-3 py-1.5 hover:bg-gray-100 cursor-pointer text-center border-b border-gray-200 ${taxYear === 'Todas' ? 'font-bold bg-blue-50 text-blue-700' : ''}`} 
+             onClick={() => { 
+               setTaxYear('Todas'); 
+               setDropdownConfig(null); 
+             }}
+           >
+             Todas las fechas
+           </div>
            {[...Array(10)].map((_, i) => {
              const year = new Date().getFullYear() - i + 1;
              return (

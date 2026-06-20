@@ -14,6 +14,7 @@ import ResetPassword from './pages/ResetPassword';
 import Customers from './pages/Customers';
 import RealEstate from './pages/RealEstate';
 import TaxesRealEstate from './pages/TaxesRealEstate';
+import TaxesTotal from './pages/TaxesTotal';
 import Partners from './pages/Partners';
 import Rentals from './pages/Rentals';
 import Ledger from './pages/Ledger';
@@ -46,6 +47,7 @@ function App() {
             <Route path="customers" element={<Customers />} />
             <Route path="real-estate" element={<RealEstate />} />
             <Route path="taxes-real-estate" element={<TaxesRealEstate />} />
+            <Route path="taxes-total" element={<TaxesTotal />} />
             <Route path="rentals" element={<Rentals />} />
             <Route path="partners" element={<Partners />} />
             <Route path="ledger" element={<Ledger />} />

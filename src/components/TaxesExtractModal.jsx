@@ -12,6 +12,17 @@ export default function TaxesExtractModal({ isOpen, onClose, property, year, ren
     return () => window.removeEventListener('resize', handleResize);
   }, []);
 
+  const yearsOwned = useMemo(() => {
+    if (year !== 'Todas') return 1;
+    if (!property || !property.finAcquisitionDate) return 1;
+    const currentYear = new Date().getFullYear();
+    const acqYear = parseInt(property.finAcquisitionDate.substring(0, 4), 10);
+    if (!isNaN(acqYear) && acqYear <= currentYear) {
+      return currentYear - acqYear + 1;
+    }
+    return 1;
+  }, [property, year]);
+
   // Basic calculation logic based on current year
   // Ingresos
   const totalIngresos = useMemo(() => {
@@ -19,18 +30,18 @@ export default function TaxesExtractModal({ isOpen, onClose, property, year, ren
     const propertyRentals = rentals.filter(r => r.propertyId === property.id);
     let total = 0;
     propertyRentals.forEach(r => {
-      total += (parseFloat(r.rentAmount) || 0) * 12; // simplified estimate
+      total += (parseFloat(r.rentAmount) || 0) * 12 * yearsOwned; // simplified estimate
     });
     return total;
-  }, [property, rentals, year]);
+  }, [property, rentals, year, yearsOwned]);
 
   // Gastos
   const totalGastos = useMemo(() => {
     if (!property) return 0;
     let total = 0;
-    if (property.communityFee) total += parseFloat(property.communityFee) * 12;
+    if (property.communityFee) total += parseFloat(property.communityFee) * 12 * yearsOwned;
     return total;
-  }, [property, year]);
+  }, [property, year, yearsOwned]);
 
   // Amortizaciones
   const totalAmortizaciones = useMemo(() => {
@@ -39,8 +50,8 @@ export default function TaxesExtractModal({ isOpen, onClose, property, year, ren
     const acquisitionCosts = parseFloat(property.finAcquisitionCosts) || 0;
     const agentFees = parseFloat(property.finAgentFees) || 0;
     const baseValue = purchasePrice + acquisitionCosts + agentFees;
-    return baseValue * 0.03;
-  }, [property]);
+    return baseValue * 0.03 * yearsOwned;
+  }, [property, yearsOwned]);
 
   if (!isOpen || !property) return null;
 

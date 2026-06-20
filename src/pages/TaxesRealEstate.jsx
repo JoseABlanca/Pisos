@@ -37,23 +37,37 @@ export default function TaxesRealEstate() {
   // Compute values for each property
   const computedProperties = useMemo(() => {
     return properties.map(p => {
+      // Calculate years multiplier
+      const currentYear = new Date().getFullYear();
+      let yearsOwned = 1;
+      if (taxYear === 'Todas') {
+        if (p.finAcquisitionDate) {
+          const acqYear = parseInt(p.finAcquisitionDate.substring(0, 4), 10);
+          if (!isNaN(acqYear) && acqYear <= currentYear) {
+            yearsOwned = currentYear - acqYear + 1;
+          } else {
+             yearsOwned = 1; // Fallback
+          }
+        }
+      }
+
       // Ingresos
       const propertyRentals = rentals.filter(r => r.propertyId === p.id);
       let ingresos = 0;
       propertyRentals.forEach(r => {
-        ingresos += (parseFloat(r.rentAmount) || 0) * 12;
+        ingresos += (parseFloat(r.rentAmount) || 0) * 12 * yearsOwned;
       });
 
       // Gastos
       let gastos = 0;
-      if (p.communityFee) gastos += parseFloat(p.communityFee) * 12;
+      if (p.communityFee) gastos += parseFloat(p.communityFee) * 12 * yearsOwned;
 
       // Amortización
       const purchasePrice = parseFloat(p.finPurchasePrice) || 0;
       const acquisitionCosts = parseFloat(p.finAcquisitionCosts) || 0;
       const agentFees = parseFloat(p.finAgentFees) || 0;
       const baseValue = purchasePrice + acquisitionCosts + agentFees;
-      const amortizacion = baseValue * 0.03;
+      const amortizacion = baseValue * 0.03 * yearsOwned;
 
       // Beneficio Neto
       const beneficioNeto = ingresos - gastos - amortizacion;
