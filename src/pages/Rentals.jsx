@@ -498,12 +498,13 @@ export default function Rentals() {
                             <input type="number" className="win-input w-full text-right" value={formData.rentAmount || ''} onChange={e => setFormData({...formData, rentAmount: e.target.value})} />
                             {(() => {
                               const rentEq = (formData.paymentPeriod === 'anual' ? formData.rentAmount / 12 : (formData.paymentPeriod === 'trimestral' ? formData.rentAmount / 3 : formData.rentAmount)) || 0;
-                              const expEq = (formData.expenses || []).reduce((sum, exp) => {
-                                let monthly = exp.amount || 0;
-                                if (exp.period === 'anual') monthly = monthly / 12;
-                                else if (exp.period === 'trimestral') monthly = monthly / 3;
-                                return sum + monthly;
-                              }, 0) || 0;
+                                const expEq = (formData.expenses || []).reduce((sum, exp) => {
+                                  if (exp.includeInSum === false) return sum;
+                                  let monthly = exp.amount || 0;
+                                  if (exp.period === 'anual') monthly = monthly / 12;
+                                  else if (exp.period === 'trimestral') monthly = monthly / 3;
+                                  return sum + monthly;
+                                }, 0) || 0;
                               const netEq = rentEq - expEq;
                               return (
                                 <div className="text-[10px] text-right italic pt-1">
@@ -652,7 +653,7 @@ export default function Rentals() {
                           <div className="flex justify-between items-center mb-2">
                             <h3 className="text-[11px] font-bold text-slate-800 uppercase">Gastos Asociados</h3>
                             <button 
-                              onClick={() => setFormData({...formData, expenses: [...(formData.expenses || []), { id: Date.now().toString(), concept: '', amount: 0, period: 'mensual' }]})}
+                              onClick={() => setFormData({...formData, expenses: [...(formData.expenses || []), { id: Date.now().toString(), concept: '', amount: 0, period: 'mensual', includeInSum: true }]})}
                               className="flex items-center space-x-1 px-2 py-1 bg-[#e0e0e0] border border-gray-400 hover:bg-[#d0d0d0] text-[10px] font-bold"
                             >
                               <Plus className="w-3 h-3" />
@@ -666,6 +667,7 @@ export default function Rentals() {
                                 <th className="border border-gray-300 p-1.5 text-left">Concepto</th>
                                 <th className="border border-gray-300 p-1.5 text-right w-24">Importe (€)</th>
                                 <th className="border border-gray-300 p-1.5 text-center w-28">Periodicidad</th>
+                                <th className="border border-gray-300 p-1.5 text-center w-16">Sumar</th>
                                 <th className="border border-gray-300 p-1.5 text-center w-10"></th>
                               </tr>
                             </thead>
@@ -713,6 +715,19 @@ export default function Rentals() {
                                     </select>
                                   </td>
                                   <td className="border border-gray-300 p-1 text-center">
+                                    <input 
+                                      type="checkbox"
+                                      className="form-checkbox h-3 w-3 text-blue-600 rounded border-slate-300 cursor-pointer"
+                                      checked={exp.includeInSum !== false}
+                                      onChange={(e) => {
+                                        const newExp = [...formData.expenses];
+                                        newExp[idx].includeInSum = e.target.checked;
+                                        setFormData({...formData, expenses: newExp});
+                                      }}
+                                      title="Incluir en el sumatorio neto"
+                                    />
+                                  </td>
+                                  <td className="border border-gray-300 p-1 text-center">
                                     <button 
                                       onClick={() => {
                                         const newExp = formData.expenses.filter(e => e.id !== exp.id);
@@ -727,7 +742,7 @@ export default function Rentals() {
                               ))}
                               {(!formData.expenses || formData.expenses.length === 0) && (
                                 <tr>
-                                  <td colSpan="4" className="border border-gray-300 p-4 text-center text-gray-500 italic">
+                                  <td colSpan="5" className="border border-gray-300 p-4 text-center text-gray-500 italic">
                                     No hay gastos registrados
                                   </td>
                                 </tr>
@@ -736,11 +751,12 @@ export default function Rentals() {
                             {formData.expenses && formData.expenses.length > 0 && (
                               <tfoot className="bg-[#e8e8e8] font-bold">
                                 <tr>
-                                  <td className="border border-gray-300 p-1.5 text-right" colSpan="2">
+                                  <td className="border border-gray-300 p-1.5 text-right" colSpan="3">
                                     Total Gastos / Mes:
                                   </td>
                                   <td className="border border-gray-300 p-1.5 text-right pr-2" colSpan="2">
                                     {formData.expenses.reduce((sum, exp) => {
+                                      if (exp.includeInSum === false) return sum;
                                       let monthly = exp.amount || 0;
                                       if (exp.period === 'anual') monthly = monthly / 12;
                                       else if (exp.period === 'trimestral') monthly = monthly / 3;
