@@ -72,7 +72,8 @@ export default function Rentals() {
     paymentPeriod: 'mensual',
     incomeAccountId: '',
     expenseAccountId: '',
-    notes: ''
+    notes: '',
+    expenses: []
   };
 
   const [formData, setFormData] = useState(initialFormState);
@@ -473,6 +474,11 @@ export default function Rentals() {
                               <div className="space-y-1">
                                 <label className="text-[10px] font-bold text-slate-700 uppercase">Renta (€):</label>
                                 <input type="number" className="win-input w-full text-right" value={formData.rentAmount || ''} onChange={e => setFormData({...formData, rentAmount: e.target.value})} />
+                                {formData.paymentPeriod && formData.paymentPeriod !== 'mensual' && formData.rentAmount > 0 && (
+                                  <div className="text-[10px] text-gray-500 text-right italic">
+                                    Equivale a {(formData.paymentPeriod === 'anual' ? formData.rentAmount / 12 : formData.rentAmount / 3).toLocaleString('es-ES', { minimumFractionDigits: 2, maximumFractionDigits: 2 })} € / mes
+                                  </div>
+                                )}
                               </div>
                               <div className="space-y-1">
                                 <label className="text-[10px] font-bold text-slate-700 uppercase">Fianza (€):</label>
@@ -488,6 +494,112 @@ export default function Rentals() {
                               </select>
                             </div>
                           </div>
+                        </div>
+
+                        {/* Gastos Asociados */}
+                        <div className="mt-6 border-t border-[#a0a0a0] pt-4">
+                          <div className="flex justify-between items-center mb-2">
+                            <h3 className="text-[11px] font-bold text-slate-800 uppercase">Gastos Asociados</h3>
+                            <button 
+                              onClick={() => setFormData({...formData, expenses: [...(formData.expenses || []), { id: Date.now().toString(), concept: '', amount: 0, period: 'mensual' }]})}
+                              className="flex items-center space-x-1 px-2 py-1 bg-[#e0e0e0] border border-gray-400 hover:bg-[#d0d0d0] text-[10px] font-bold"
+                            >
+                              <Plus className="w-3 h-3" />
+                              <span>Añadir Gasto</span>
+                            </button>
+                          </div>
+                          
+                          <table className="w-full text-[11px] border-collapse bg-white border border-gray-300">
+                            <thead className="bg-[#f0f0f0]">
+                              <tr>
+                                <th className="border border-gray-300 p-1.5 text-left">Concepto</th>
+                                <th className="border border-gray-300 p-1.5 text-right w-24">Importe (€)</th>
+                                <th className="border border-gray-300 p-1.5 text-center w-28">Periodicidad</th>
+                                <th className="border border-gray-300 p-1.5 text-center w-10"></th>
+                              </tr>
+                            </thead>
+                            <tbody>
+                              {(formData.expenses || []).map((exp, idx) => (
+                                <tr key={exp.id}>
+                                  <td className="border border-gray-300 p-1">
+                                    <input 
+                                      type="text" 
+                                      className="w-full px-1 py-0.5 outline-none" 
+                                      placeholder="Ej: Comunidad"
+                                      value={exp.concept}
+                                      onChange={(e) => {
+                                        const newExp = [...formData.expenses];
+                                        newExp[idx].concept = e.target.value;
+                                        setFormData({...formData, expenses: newExp});
+                                      }}
+                                    />
+                                  </td>
+                                  <td className="border border-gray-300 p-1">
+                                    <input 
+                                      type="number" 
+                                      className="w-full px-1 py-0.5 outline-none text-right" 
+                                      value={exp.amount}
+                                      onChange={(e) => {
+                                        const newExp = [...formData.expenses];
+                                        newExp[idx].amount = Number(e.target.value);
+                                        setFormData({...formData, expenses: newExp});
+                                      }}
+                                    />
+                                  </td>
+                                  <td className="border border-gray-300 p-1">
+                                    <select 
+                                      className="w-full px-1 py-0.5 outline-none text-center bg-transparent"
+                                      value={exp.period}
+                                      onChange={(e) => {
+                                        const newExp = [...formData.expenses];
+                                        newExp[idx].period = e.target.value;
+                                        setFormData({...formData, expenses: newExp});
+                                      }}
+                                    >
+                                      <option value="mensual">Mensual</option>
+                                      <option value="trimestral">Trimestral</option>
+                                      <option value="anual">Anual</option>
+                                    </select>
+                                  </td>
+                                  <td className="border border-gray-300 p-1 text-center">
+                                    <button 
+                                      onClick={() => {
+                                        const newExp = formData.expenses.filter(e => e.id !== exp.id);
+                                        setFormData({...formData, expenses: newExp});
+                                      }}
+                                      className="text-red-500 hover:bg-red-50 p-1 rounded"
+                                    >
+                                      <Trash2 className="w-3 h-3" />
+                                    </button>
+                                  </td>
+                                </tr>
+                              ))}
+                              {(!formData.expenses || formData.expenses.length === 0) && (
+                                <tr>
+                                  <td colSpan="4" className="border border-gray-300 p-4 text-center text-gray-500 italic">
+                                    No hay gastos registrados
+                                  </td>
+                                </tr>
+                              )}
+                            </tbody>
+                            {formData.expenses && formData.expenses.length > 0 && (
+                              <tfoot className="bg-[#e8e8e8] font-bold">
+                                <tr>
+                                  <td className="border border-gray-300 p-1.5 text-right" colSpan="2">
+                                    Total Gastos / Mes:
+                                  </td>
+                                  <td className="border border-gray-300 p-1.5 text-right pr-2" colSpan="2">
+                                    {formData.expenses.reduce((sum, exp) => {
+                                      let monthly = exp.amount || 0;
+                                      if (exp.period === 'anual') monthly = monthly / 12;
+                                      else if (exp.period === 'trimestral') monthly = monthly / 3;
+                                      return sum + monthly;
+                                    }, 0).toLocaleString('es-ES', { minimumFractionDigits: 2, maximumFractionDigits: 2 })} €
+                                  </td>
+                                </tr>
+                              </tfoot>
+                            )}
+                          </table>
                         </div>
                       </div>
                     )}
