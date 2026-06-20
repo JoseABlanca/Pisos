@@ -11,6 +11,7 @@ import PropietariosTab from '../components/PropietariosTab';
 import FinanzasTab from '../components/FinanzasTab';
 import ExtractoTab from '../components/ExtractoTab';
 import ClienteTab from '../components/ClienteTab';
+import ReformasTab from '../components/ReformasTab';
 import { 
   Check, X, Search, Plus, Trash2, Edit, Save, Filter,
   Building2, User, Landmark, Zap, Users as UsersIcon,
@@ -1102,6 +1103,18 @@ export default function RealEstate() {
           setFormData={setFormData} 
           rentals={rentals}
           user={user}
+          setPreviewDocument={setPreviewDocument}
+        />
+      );
+    }
+    if (activeTab === 'Reformas') {
+      return (
+        <ReformasTab 
+          formData={formData} 
+          setFormData={setFormData} 
+          user={user} 
+          isUploading={isUploading}
+          setIsUploading={setIsUploading}
           setPreviewDocument={setPreviewDocument}
         />
       );
