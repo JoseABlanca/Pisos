@@ -874,6 +874,23 @@ export default function RealEstate() {
     }
   };
 
+  const combinedFormData = useMemo(() => {
+    if (!accessoryFormData) return formData;
+    return {
+      ...formData,
+      investedCapital: (parseFloat(formData.investedCapital) || 0) + (parseFloat(accessoryFormData.investedCapital) || 0),
+      theoreticalSalePrice: (parseFloat(formData.theoreticalSalePrice) || 0) + (parseFloat(accessoryFormData.theoreticalSalePrice) || 0),
+      adquisitionExpenses: [
+        ...(Array.isArray(formData.adquisitionExpenses) ? formData.adquisitionExpenses : []),
+        ...(Array.isArray(accessoryFormData.adquisitionExpenses) ? accessoryFormData.adquisitionExpenses : [])
+      ],
+      reforms: [
+        ...(Array.isArray(formData.reforms) ? formData.reforms : []),
+        ...(Array.isArray(accessoryFormData.reforms) ? accessoryFormData.reforms : [])
+      ]
+    };
+  }, [formData, accessoryFormData]);
+
   const tabs = [
     { id: 'Datos', icon: Building2 },
     { id: 'Cliente', icon: User },
@@ -1158,23 +1175,6 @@ export default function RealEstate() {
         />
       );
     }
-
-    const combinedFormData = useMemo(() => {
-      if (!accessoryFormData) return formData;
-      return {
-        ...formData,
-        investedCapital: (parseFloat(formData.investedCapital) || 0) + (parseFloat(accessoryFormData.investedCapital) || 0),
-        theoreticalSalePrice: (parseFloat(formData.theoreticalSalePrice) || 0) + (parseFloat(accessoryFormData.theoreticalSalePrice) || 0),
-        adquisitionExpenses: [
-          ...(Array.isArray(formData.adquisitionExpenses) ? formData.adquisitionExpenses : []),
-          ...(Array.isArray(accessoryFormData.adquisitionExpenses) ? accessoryFormData.adquisitionExpenses : [])
-        ],
-        reforms: [
-          ...(Array.isArray(formData.reforms) ? formData.reforms : []),
-          ...(Array.isArray(accessoryFormData.reforms) ? accessoryFormData.reforms : [])
-        ]
-      };
-    }, [formData, accessoryFormData]);
 
     if (activeTab === 'Propietarios') {
       return (
