@@ -684,14 +684,15 @@ export default function RealEstate() {
       const activeTenantsNames = activeRentalsForP.flatMap(r => {
         const names = [];
         if (Array.isArray(r.tenants)) {
-          r.tenants.forEach(t => names.push(t.name));
+          r.tenants.forEach(t => names.push((t.name || '').trim()));
         }
         if (Array.isArray(r.tenantIds)) {
           r.tenantIds.forEach(tId => {
             const cust = availableCustomers.find(c => c.id === tId);
             if (cust) names.push(`${cust.name} ${cust.lastName || ''}`.trim());
           });
-        } else if (r.tenantId) {
+        }
+        if (r.tenantId) {
           const cust = availableCustomers.find(c => c.id === r.tenantId);
           if (cust) names.push(`${cust.name} ${cust.lastName || ''}`.trim());
         }
