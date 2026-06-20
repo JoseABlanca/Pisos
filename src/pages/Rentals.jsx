@@ -157,8 +157,12 @@ export default function Rentals() {
         ? doc(db, 'rentals', formData.docId)
         : doc(collection(db, 'rentals'));
         
+      const cleanFormData = JSON.parse(JSON.stringify(formData));
+      delete cleanFormData.docId;
+      delete cleanFormData._originalId;
+        
       await setDoc(docRef, {
-        ...formData,
+        ...cleanFormData,
         userId: user.uid,
         updatedAt: new Date().toISOString(),
         ...(isEditing ? {} : { createdAt: new Date().toISOString() })
