@@ -665,7 +665,7 @@ export default function Rentals() {
                                     className={`px-3 py-1.5 text-[11px] font-bold rounded-t-sm border-t border-x transition-colors ${activeRoomTab === idx ? 'bg-white text-[#000080] border-gray-300 border-b-white -mb-[1px] z-10' : 'bg-gray-100 text-gray-500 border-transparent hover:bg-gray-200'}`}
                                   >
                                     <div className="flex items-center gap-1.5">
-                                      <span className={`w-2 h-2 rounded-full ${room.isActive !== false ? 'bg-green-500' : 'bg-gray-400'}`} title={room.isActive !== false ? 'Activa' : 'Inactiva'}></span>
+                                      <span className={`w-2 h-2 rounded-full ${room.isActive !== false ? 'bg-[#000080]' : 'bg-gray-400'}`} title={room.isActive !== false ? 'Activa' : 'Inactiva'}></span>
                                       {room.name || `Habitación ${idx + 1}`}
                                     </div>
                                   </button>
@@ -701,7 +701,7 @@ export default function Rentals() {
                                             setFormData({...formData, rooms: newRooms});
                                           }}
                                         />
-                                        Activa para Sumas
+                                        Activo
                                       </label>
                                       <button 
                                         onClick={() => {
