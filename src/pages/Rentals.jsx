@@ -66,6 +66,7 @@ export default function Rentals() {
     reference: '',
     propertyId: '',
     tenantId: '',
+    tenantIds: [],
     status: 'activo',
     rentalType: 'vivienda habitual',
     duration: 'fijo',
@@ -435,20 +436,61 @@ export default function Rentals() {
                             </select>
                           </div>
                           <div className="space-y-1">
-                            <label className="text-[10px] font-bold text-slate-700 uppercase">Inquilino:</label>
-                            <select className="win-input w-full" value={formData.tenantId || ''} onChange={e => setFormData({...formData, tenantId: e.target.value})}>
-                              <option value="">-- Seleccionar Inquilino --</option>
-                              {(() => {
-                                const selectedProp = properties.find(p => p.id === formData.propertyId);
-                                const propKey = selectedProp ? (selectedProp.name || selectedProp.address) : '';
-                                const validCustomers = customers.filter(c => {
-                                  if (!propKey) return true;
-                                  const cFloors = Array.isArray(c.floors) ? c.floors : (c.floor ? c.floor.split(', ') : []);
-                                  return cFloors.includes(propKey);
-                                });
-                                return validCustomers.map(c => <option key={c.id} value={c.id}>{c.name} {c.lastName || ''}</option>);
-                              })()}
-                            </select>
+                            <label className="text-[10px] font-bold text-slate-700 uppercase">Inquilinos:</label>
+                            {(() => {
+                              const selectedProp = properties.find(p => p.id === formData.propertyId);
+                              const propKey = selectedProp ? (selectedProp.name || selectedProp.address) : '';
+                              const validCustomers = customers.filter(c => {
+                                if (!propKey) return true;
+                                const cFloors = Array.isArray(c.floors) ? c.floors : (c.floor ? c.floor.split(', ') : []);
+                                return cFloors.includes(propKey);
+                              });
+                              const currentTenants = formData.tenantIds || (formData.tenantId ? [formData.tenantId] : []);
+                              
+                              return (
+                                <div className="space-y-2">
+                                  <select 
+                                    className="win-input w-full" 
+                                    value="" 
+                                    onChange={e => {
+                                      if (!e.target.value) return;
+                                      const newId = e.target.value;
+                                      if (!currentTenants.includes(newId)) {
+                                        setFormData({...formData, tenantIds: [...currentTenants, newId], tenantId: currentTenants.length === 0 ? newId : formData.tenantId});
+                                      }
+                                    }}
+                                  >
+                                    <option value="">-- Añadir Inquilino --</option>
+                                    {validCustomers.filter(c => !currentTenants.includes(c.id)).map(c => (
+                                      <option key={c.id} value={c.id}>{c.name} {c.lastName || ''}</option>
+                                    ))}
+                                  </select>
+                                  
+                                  {currentTenants.length > 0 && (
+                                    <div className="flex flex-wrap gap-2 pt-1">
+                                      {currentTenants.map(tId => {
+                                        const cust = customers.find(c => c.id === tId);
+                                        return (
+                                          <div key={tId} className="flex items-center space-x-1 bg-white border border-gray-400 px-2 py-1 text-[10px] shadow-[1px_1px_0px_#808080]">
+                                            <span className="font-bold text-blue-800">{cust ? `${cust.name} ${cust.lastName || ''}` : tId}</span>
+                                            <button 
+                                              type="button"
+                                              onClick={() => {
+                                                const newTenants = currentTenants.filter(id => id !== tId);
+                                                setFormData({...formData, tenantIds: newTenants, tenantId: newTenants[0] || ''});
+                                              }}
+                                              className="text-red-500 hover:bg-red-50 p-0.5 rounded ml-1"
+                                            >
+                                              <X className="w-3 h-3" />
+                                            </button>
+                                          </div>
+                                        );
+                                      })}
+                                    </div>
+                                  )}
+                                </div>
+                              );
+                            })()}
                           </div>
                           <div className="space-y-1">
                             <label className="text-[10px] font-bold text-slate-700 uppercase">Referencia:</label>
