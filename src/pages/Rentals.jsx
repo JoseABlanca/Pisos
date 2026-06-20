@@ -63,6 +63,7 @@ export default function Rentals() {
   
   const [showModalSidebar, setShowModalSidebar] = useState(true);
   const [activeFormTab, setActiveFormTab] = useState('general');
+  const [activeRoomTab, setActiveRoomTab] = useState(0);
 
   const initialFormState = {
     reference: '',
@@ -167,8 +168,8 @@ export default function Rentals() {
       delete cleanFormData._originalId;
       
       if (cleanFormData.rentalType === 'alquiler por habitaciones' && Array.isArray(cleanFormData.rooms)) {
-        cleanFormData.rentAmount = cleanFormData.rooms.reduce((sum, r) => sum + (Number(r.amount) || 0), 0);
-        cleanFormData.depositAmount = cleanFormData.rooms.reduce((sum, r) => sum + (Number(r.depositAmount) || 0), 0);
+        cleanFormData.rentAmount = cleanFormData.rooms.reduce((sum, r) => sum + (r.isActive !== false ? (Number(r.amount) || 0) : 0), 0);
+        cleanFormData.depositAmount = cleanFormData.rooms.reduce((sum, r) => sum + (r.isActive !== false ? (Number(r.depositAmount) || 0) : 0), 0);
       }
         
       await setDoc(docRef, {
@@ -589,8 +590,8 @@ export default function Rentals() {
                           ) : (
                             <>
                               {(() => {
-                                const totalRent = (formData.rooms || []).reduce((sum, r) => sum + (Number(r.amount) || 0), 0);
-                                const totalDep = (formData.rooms || []).reduce((sum, r) => sum + (Number(r.depositAmount) || 0), 0);
+                                const totalRent = (formData.rooms || []).reduce((sum, r) => sum + (r.isActive !== false ? (Number(r.amount) || 0) : 0), 0);
+                                const totalDep = (formData.rooms || []).reduce((sum, r) => sum + (r.isActive !== false ? (Number(r.depositAmount) || 0) : 0), 0);
                                 const rentEq = (formData.paymentPeriod === 'anual' ? totalRent / 12 : (formData.paymentPeriod === 'trimestral' ? totalRent / 3 : totalRent)) || 0;
                                 const expEq = (formData.expenses || []).reduce((sum, exp) => {
                                   if (exp.includeInSum === false) return sum;
@@ -654,8 +655,31 @@ export default function Rentals() {
                               </button>
                             </div>
                             
-                            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                              {(() => {
+                            <div className="flex flex-col gap-2">
+                              {/* TABS HEADER */}
+                              <div className="flex flex-wrap gap-1 border-b border-gray-300 pb-0">
+                                {(formData.rooms || []).map((room, idx) => (
+                                  <button
+                                    key={room.id}
+                                    onClick={(e) => { e.preventDefault(); setActiveRoomTab(idx); }}
+                                    className={`px-3 py-1.5 text-[11px] font-bold rounded-t-sm border-t border-x transition-colors ${activeRoomTab === idx ? 'bg-white text-[#000080] border-gray-300 border-b-white -mb-[1px] z-10' : 'bg-gray-100 text-gray-500 border-transparent hover:bg-gray-200'}`}
+                                  >
+                                    <div className="flex items-center gap-1.5">
+                                      <span className={`w-2 h-2 rounded-full ${room.isActive !== false ? 'bg-green-500' : 'bg-gray-400'}`} title={room.isActive !== false ? 'Activa' : 'Inactiva'}></span>
+                                      {room.name || `Habitación ${idx + 1}`}
+                                    </div>
+                                  </button>
+                                ))}
+                                {(!formData.rooms || formData.rooms.length === 0) && (
+                                  <div className="text-[11px] text-gray-500 italic p-2">No hay habitaciones registradas. Haz clic en "Añadir Habitación" para empezar.</div>
+                                )}
+                              </div>
+                              
+                              {/* TAB CONTENT */}
+                              {formData.rooms && formData.rooms.length > 0 && (() => {
+                                const activeIdx = activeRoomTab < formData.rooms.length ? activeRoomTab : 0;
+                                const room = formData.rooms[activeIdx];
+                                const idx = activeIdx;
                                 const selectedProp = properties.find(p => p.id === formData.propertyId);
                                 const propKey = selectedProp ? (selectedProp.name || selectedProp.address) : '';
                                 const validCustomers = customers.filter(c => {
@@ -663,25 +687,40 @@ export default function Rentals() {
                                   const cFloors = Array.isArray(c.floors) ? c.floors : (c.floor ? c.floor.split(', ') : []);
                                   return cFloors.includes(propKey);
                                 });
-                                
-                                return (formData.rooms || []).map((room, idx) => (
-                                  <div key={room.id} className="bg-[#f8f8f8] border border-gray-400 p-3 shadow-[2px_2px_0px_rgba(0,0,0,0.1)] flex flex-col space-y-3 relative">
-                                    <button 
-                                      onClick={() => {
-                                        const newRooms = formData.rooms.filter(r => r.id !== room.id);
-                                        setFormData({...formData, rooms: newRooms});
-                                      }}
-                                      className="absolute top-2 right-2 text-red-500 hover:bg-red-100 p-1 rounded"
-                                      title="Eliminar habitación"
-                                    >
-                                      <Trash2 className="w-3 h-3" />
-                                    </button>
+
+                                return (
+                                  <div key={room.id} className="bg-white border border-gray-300 p-4 shadow-[2px_2px_0px_rgba(0,0,0,0.1)] flex flex-col space-y-4 relative">
+                                    <div className="absolute top-2 right-2 flex gap-2">
+                                      <label className="flex items-center gap-1 text-[10px] font-bold text-slate-600 bg-slate-100 px-2 py-1 rounded border border-slate-300 cursor-pointer hover:bg-slate-200">
+                                        <input 
+                                          type="checkbox" 
+                                          checked={room.isActive !== false}
+                                          onChange={(e) => {
+                                            const newRooms = [...formData.rooms];
+                                            newRooms[idx].isActive = e.target.checked;
+                                            setFormData({...formData, rooms: newRooms});
+                                          }}
+                                        />
+                                        Activa para Sumas
+                                      </label>
+                                      <button 
+                                        onClick={() => {
+                                          const newRooms = formData.rooms.filter(r => r.id !== room.id);
+                                          setFormData({...formData, rooms: newRooms});
+                                          setActiveRoomTab(Math.max(0, activeIdx - 1));
+                                        }}
+                                        className="text-red-500 hover:bg-red-100 p-1 rounded border border-transparent hover:border-red-300"
+                                        title="Eliminar habitación"
+                                      >
+                                        <Trash2 className="w-4 h-4" />
+                                      </button>
+                                    </div>
                                     
-                                    <div className="space-y-1 w-11/12">
-                                      <label className="text-[9px] font-bold text-slate-500 uppercase">Nombre / Identificador:</label>
+                                    <div className="space-y-1 w-3/4">
+                                      <label className="text-[10px] font-bold text-slate-500 uppercase">Nombre / Identificador:</label>
                                       <input 
                                         type="text" 
-                                        className="win-input w-full font-bold" 
+                                        className="win-input w-full font-bold text-[12px]" 
                                         placeholder="Ej: Hab. Principal"
                                         value={room.name}
                                         onChange={(e) => {
@@ -692,9 +731,9 @@ export default function Rentals() {
                                       />
                                     </div>
                                     
-                                    <div className="grid grid-cols-2 gap-2">
+                                    <div className="grid grid-cols-2 gap-4">
                                       <div className="space-y-1">
-                                        <label className="text-[9px] font-bold text-slate-500 uppercase">Estado:</label>
+                                        <label className="text-[10px] font-bold text-slate-500 uppercase">Estado actual:</label>
                                         <select 
                                           className="win-input w-full"
                                           value={room.status || 'libre'}
@@ -711,7 +750,7 @@ export default function Rentals() {
                                       </div>
                                       
                                       <div className="space-y-1">
-                                        <label className="text-[9px] font-bold text-slate-500 uppercase">Duración:</label>
+                                        <label className="text-[10px] font-bold text-slate-500 uppercase">Duración contrato:</label>
                                         <select 
                                           className="win-input w-full"
                                           value={room.duration || 'fijo'}
@@ -728,7 +767,7 @@ export default function Rentals() {
                                     </div>
 
                                     <div className="space-y-1">
-                                      <label className="text-[9px] font-bold text-slate-500 uppercase">Inquilino:</label>
+                                      <label className="text-[10px] font-bold text-slate-500 uppercase">Inquilino Asignado:</label>
                                       <div className="flex items-center gap-1">
                                         <select 
                                           className="win-input w-full"
@@ -751,18 +790,18 @@ export default function Rentals() {
                                             className="text-blue-600 hover:text-blue-800 p-1 bg-slate-200 border border-slate-400 shrink-0"
                                             title="Ir a ficha de cliente"
                                           >
-                                            <User className="w-3 h-3" />
+                                            <User className="w-4 h-4" />
                                           </button>
                                         )}
                                       </div>
                                     </div>
                                     
-                                    <div className="grid grid-cols-2 gap-2">
+                                    <div className="grid grid-cols-2 gap-4">
                                       <div className="space-y-1">
-                                        <label className="text-[9px] font-bold text-slate-500 uppercase">Inicio:</label>
+                                        <label className="text-[10px] font-bold text-slate-500 uppercase">Fecha Inicio:</label>
                                         <input 
                                           type="date" 
-                                          className="win-input w-full text-[10px]" 
+                                          className="win-input w-full text-[11px]" 
                                           value={room.startDate || ''}
                                           onChange={(e) => {
                                             const newRooms = [...formData.rooms];
@@ -772,10 +811,10 @@ export default function Rentals() {
                                         />
                                       </div>
                                       <div className="space-y-1">
-                                        <label className="text-[9px] font-bold text-slate-500 uppercase">Fin:</label>
+                                        <label className="text-[10px] font-bold text-slate-500 uppercase">Fecha Fin:</label>
                                         <input 
                                           type="date" 
-                                          className="win-input w-full text-[10px]" 
+                                          className="win-input w-full text-[11px]" 
                                           value={room.endDate || ''}
                                           disabled={room.duration === 'abierto'}
                                           onChange={(e) => {
@@ -787,12 +826,12 @@ export default function Rentals() {
                                       </div>
                                     </div>
 
-                                    <div className="grid grid-cols-2 gap-2 border-t border-gray-300 pt-2 mt-2">
+                                    <div className="grid grid-cols-2 gap-4 border-t border-gray-300 pt-3 mt-1 bg-blue-50/30 p-2 -mx-4 -mb-4">
                                       <div className="space-y-1">
-                                        <label className="text-[9px] font-bold text-slate-500 uppercase">Renta (€):</label>
+                                        <label className="text-[10px] font-bold text-[#000080] uppercase">Renta Mensual (€):</label>
                                         <input 
                                           type="number" 
-                                          className="win-input w-full text-right" 
+                                          className="win-input w-full text-right font-bold text-[#000080]" 
                                           value={room.amount}
                                           onChange={(e) => {
                                             const newRooms = [...formData.rooms];
@@ -802,10 +841,10 @@ export default function Rentals() {
                                         />
                                       </div>
                                       <div className="space-y-1">
-                                        <label className="text-[9px] font-bold text-slate-500 uppercase">Fianza (€):</label>
+                                        <label className="text-[10px] font-bold text-[#000080] uppercase">Fianza (€):</label>
                                         <input 
                                           type="number" 
-                                          className="win-input w-full text-right" 
+                                          className="win-input w-full text-right font-bold text-[#000080]" 
                                           value={room.depositAmount || ''}
                                           onChange={(e) => {
                                             const newRooms = [...formData.rooms];
@@ -817,14 +856,8 @@ export default function Rentals() {
                                     </div>
 
                                   </div>
-                                ));
+                                );
                               })()}
-                              
-                              {(!formData.rooms || formData.rooms.length === 0) && (
-                                <div className="col-span-1 md:col-span-2 p-8 text-center text-gray-500 italic bg-white border border-gray-300">
-                                  No hay habitaciones registradas. Haz clic en "Añadir Habitación" para empezar.
-                                </div>
-                              )}
                             </div>
                           </div>
                         )}
