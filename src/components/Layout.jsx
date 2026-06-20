@@ -526,7 +526,7 @@ export default function Layout() {
     'Reportes': '/reports',
     'Dashboard': '/dashboard',
     'Total': '#',
-    'Inversiones inmobiliarias': '#',
+    'Inversiones inmobiliarias': '/taxes-real-estate',
     'Calculadora': '#',
     'Manual': '#',
     'Soporte': '#'

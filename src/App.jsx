@@ -44,6 +44,7 @@ function App() {
             <Route path="settings" element={<Settings />} />
             <Route path="customers" element={<Customers />} />
             <Route path="real-estate" element={<RealEstate />} />
+            <Route path="taxes-real-estate" element={<RealEstate />} />
             <Route path="rentals" element={<Rentals />} />
             <Route path="partners" element={<Partners />} />
             <Route path="ledger" element={<Ledger />} />
