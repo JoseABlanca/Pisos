@@ -435,6 +435,26 @@ export default function Rentals() {
                             </select>
                           </div>
                           <div className="space-y-1">
+                            <label className="text-[10px] font-bold text-slate-700 uppercase">Inquilino:</label>
+                            <select className="win-input w-full" value={formData.tenantId || ''} onChange={e => setFormData({...formData, tenantId: e.target.value})}>
+                              <option value="">-- Seleccionar Inquilino --</option>
+                              {(() => {
+                                const selectedProp = properties.find(p => p.id === formData.propertyId);
+                                const propKey = selectedProp ? (selectedProp.name || selectedProp.address) : '';
+                                const validCustomers = customers.filter(c => {
+                                  if (!propKey) return true;
+                                  const cFloors = Array.isArray(c.floors) ? c.floors : (c.floor ? c.floor.split(', ') : []);
+                                  return cFloors.includes(propKey);
+                                });
+                                return validCustomers.map(c => <option key={c.id} value={c.id}>{c.name} {c.lastName || ''}</option>);
+                              })()}
+                            </select>
+                          </div>
+                          <div className="space-y-1">
+                            <label className="text-[10px] font-bold text-slate-700 uppercase">Referencia:</label>
+                            <input type="text" className="win-input w-full" value={formData.reference || ''} onChange={e => setFormData({...formData, reference: e.target.value})} placeholder="Ref. de contrato (opcional)" />
+                          </div>
+                          <div className="space-y-1">
                             <label className="text-[10px] font-bold text-slate-700 uppercase">Estado:</label>
                             <div className="flex items-center space-x-4 pt-1">
                               <label className="flex items-center space-x-1 cursor-pointer">
