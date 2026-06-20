@@ -158,9 +158,9 @@ export default function ReformasTab({
           <table className="w-full text-left text-[11px]">
             <thead className="bg-[#e5e7eb] sticky top-0 border-b border-[#a0a0a0] z-10">
               <tr>
+                <th className="p-2 font-bold uppercase w-[40px] text-center">Sel.</th>
                 <th className="p-2 font-bold uppercase w-[150px]">Fecha</th>
                 <th className="p-2 font-bold uppercase min-w-[200px]">Concepto</th>
-                <th className="p-2 font-bold uppercase w-[120px]">Importe Presupuestado (€)</th>
                 <th className="p-2 font-bold uppercase w-[120px]">Total Gastos (€)</th>
                 <th className="p-2 font-bold uppercase w-[100px] text-center">Capitalizar</th>
                 <th className="p-2 font-bold uppercase w-[60px] text-center">Borrar</th>
@@ -178,6 +178,15 @@ export default function ReformasTab({
                     className={`border-b border-slate-200 cursor-pointer ${selectedIndex === idx ? 'bg-blue-100' : 'hover:bg-slate-50'}`}
                     onClick={() => setSelectedIndex(idx)}
                   >
+                    <td className="p-2 text-center" onClick={(e) => { e.stopPropagation(); setSelectedIndex(idx); }}>
+                      <input 
+                        type="radio" 
+                        name="selectedReform"
+                        className="w-4 h-4 text-blue-600 cursor-pointer"
+                        checked={selectedIndex === idx}
+                        onChange={() => setSelectedIndex(idx)}
+                      />
+                    </td>
                     <td className="p-2" onClick={(e) => e.stopPropagation()}>
                       <input 
                         type="date" 
@@ -202,17 +211,14 @@ export default function ReformasTab({
                     <td className="p-2" onClick={(e) => e.stopPropagation()}>
                       <input 
                         type="number" 
-                        className="win-input w-full text-[11px] text-right" 
-                        value={reform.amount || ''}
+                        className="win-input w-full text-[11px] text-right text-[#000080] font-bold" 
+                        value={reform.amount !== undefined && reform.amount !== '' ? reform.amount : (reform.expenses || []).reduce((acc, curr) => acc + (parseFloat(curr.amount) || 0), 0)}
                         placeholder="0.00"
                         onChange={e => updateReformField(idx, 'amount', e.target.value)}
                         onFocus={() => setSelectedIndex(idx)}
                         onClick={() => setSelectedIndex(idx)}
-                        title="Importe total estimado o presupuestado"
+                        title="Puedes modificarlo a mano o dejarlo vacío para sumar los gastos automáticamente"
                       />
-                    </td>
-                    <td className="p-2 text-right text-[#000080] font-bold" onClick={(e) => { e.stopPropagation(); setSelectedIndex(idx); }}>
-                      {(reform.expenses || []).reduce((acc, curr) => acc + (parseFloat(curr.amount) || 0), 0).toLocaleString('es-ES', { style: 'currency', currency: 'EUR' })}
                     </td>
                     <td className="p-2 text-center" onClick={(e) => e.stopPropagation()}>
                       <input 
