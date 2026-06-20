@@ -177,6 +177,7 @@ export default function Window({ title, children, onClose, width = '800px', heig
         top: isMobile ? '0' : `${pos.y}px`,
         width: isMobile ? '100%' : `${size.width}px`,
         height: isMobile ? '100%' : (size.height ? `${size.height}px` : 'auto'),
+        maxHeight: (isMaximized || isMobile) ? '100%' : '90vh',
         zIndex: isDragging || isResizing ? 1000 : 100,
       }}
       className={`win-window flex flex-col shadow-lg border-2 border-[#808080] bg-white select-none ${className}`}

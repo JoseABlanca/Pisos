@@ -147,8 +147,8 @@ export default function Rentals() {
   }, [initialFormState, selectedRental]);
 
   const handleSave = async () => {
-    if (!formData.reference || !formData.propertyId) {
-      alert('Referencia y Propiedad son obligatorios.');
+    if (!formData.propertyId) {
+      alert('La Propiedad es obligatoria.');
       return;
     }
     
