@@ -115,17 +115,17 @@ export default function TaxesRealEstate() {
                       ${isSelected ? 'bg-blue-100 text-blue-900' : 'hover:bg-blue-50/50'}`}
                   >
                     <td className="p-2 text-center text-gray-500">{p.id.slice(0,5)}</td>
-                    <td className="p-2 font-bold">{p.name || p.address}</td>
-                    <td className="p-2 text-right text-green-700">
+                    <td className="p-2">{p.name || p.address}</td>
+                    <td className="p-2 text-right">
                       {p.ingresos.toLocaleString('es-ES', { style: 'currency', currency: 'EUR' })}
                     </td>
-                    <td className="p-2 text-right text-red-600">
+                    <td className="p-2 text-right">
                       {p.gastos.toLocaleString('es-ES', { style: 'currency', currency: 'EUR' })}
                     </td>
-                    <td className="p-2 text-right text-blue-600">
+                    <td className="p-2 text-right">
                       {p.amortizacion.toLocaleString('es-ES', { style: 'currency', currency: 'EUR' })}
                     </td>
-                    <td className={`p-2 text-right font-bold ${p.beneficioNeto >= 0 ? 'text-green-700' : 'text-red-600'}`}>
+                    <td className="p-2 text-right">
                       {p.beneficioNeto.toLocaleString('es-ES', { style: 'currency', currency: 'EUR' })}
                     </td>
                   </tr>
