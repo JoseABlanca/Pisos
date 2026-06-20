@@ -340,17 +340,20 @@ export default function RealEstate() {
       insurance: 'Seguros Hogar'
     };
     for (const [key, val] of Object.entries(servicesData)) {
-      if (val?.cia || val?.ref) {
+      if (val?.cia || val?.ref || val?.company || val?.type) {
         mapped.push({
-          type: mapping[key] || 'Otro',
-          company: val.cia || '',
-          contract: val.ref || '',
-          amount: '',
-          date: '',
-          doc: '',
-          docUrl: '',
-          active: true,
-          invoices: []
+          id: val.id || Date.now() + Math.random().toString(36).substring(7),
+          type: val.type || mapping[key] || 'Otro',
+          company: val.company || val.cia || '',
+          contract: val.contract || val.ref || '',
+          amount: val.amount || '',
+          date: val.date || '',
+          doc: val.doc || '',
+          docUrl: val.docUrl || '',
+          active: val.active !== undefined ? val.active : true,
+          invoices: val.invoices || [],
+          docs: val.docs || [],
+          accountingAccount: val.accountingAccount || ''
         });
       }
     }
