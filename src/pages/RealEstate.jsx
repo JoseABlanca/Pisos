@@ -680,9 +680,30 @@ export default function RealEstate() {
     return filteredProperties.map(p => {
       const activeRentalsForP = rentals.filter(r => r.propertyId === p.id && r.status === 'activo');
       const calculatedRentForP = activeRentalsForP.reduce((sum, r) => sum + (parseFloat(r.rentAmount) || 0), 0);
-      const activeTenantsNames = activeRentalsForP.flatMap(r => (r.tenants || []).map(t => t.name)).filter(Boolean);
+      
+      const activeTenantsNames = activeRentalsForP.flatMap(r => {
+        const names = [];
+        if (Array.isArray(r.tenants)) {
+          r.tenants.forEach(t => names.push(t.name));
+        }
+        if (r.tenantId) {
+          const cust = availableCustomers.find(c => c.id === r.tenantId);
+          if (cust) names.push(`${cust.name} ${cust.lastName || ''}`.trim());
+        }
+        if (Array.isArray(r.rooms)) {
+          r.rooms.forEach(room => {
+            if (room.tenantId) {
+              const cust = availableCustomers.find(c => c.id === room.tenantId);
+              if (cust) names.push(`${cust.name} ${cust.lastName || ''}`.trim());
+            }
+          });
+        }
+        return names;
+      }).filter(Boolean);
+      
       const uniqueActiveTenantsNames = [...new Set(activeTenantsNames)];
       const tenantDisplay = uniqueActiveTenantsNames.join(', ') || '(Sin inquilino)';
+      
       return {
         ...p,
         tenantDisplay,
@@ -690,7 +711,7 @@ export default function RealEstate() {
         rentVal: calculatedRentForP
       };
     });
-  }, [filteredProperties, rentals]);
+  }, [filteredProperties, rentals, availableCustomers]);
 
   useEffect(() => {
     if (!user) return;
