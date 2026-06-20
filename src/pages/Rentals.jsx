@@ -1,4 +1,5 @@
 import { useState, useEffect } from 'react';
+import { useNavigate } from 'react-router-dom';
 import { db } from '../firebase/config';
 import { collection, query, where, onSnapshot, doc, setDoc, deleteDoc } from 'firebase/firestore';
 import { useAuth } from '../context/AuthContext';
@@ -10,6 +11,7 @@ import {
 
 export default function Rentals() {
   const { user, queryUserIds } = useAuth();
+  const navigate = useNavigate();
   const [rentals, setRentals] = useState([]);
   const [properties, setProperties] = useState([]);
   const [customers, setCustomers] = useState([]);
@@ -472,7 +474,17 @@ export default function Rentals() {
                                         const cust = customers.find(c => c.id === tId);
                                         return (
                                           <div key={tId} className="flex items-center space-x-1 bg-white border border-gray-400 px-2 py-1 text-[10px] shadow-[1px_1px_0px_#808080]">
-                                            <span className="font-bold text-blue-800">{cust ? `${cust.name} ${cust.lastName || ''}` : tId}</span>
+                                            <span 
+                                              className="font-bold text-blue-800 cursor-pointer hover:underline"
+                                              onClick={() => {
+                                                if (cust) {
+                                                  navigate(`/clientes?editName=${encodeURIComponent(cust.name)}`);
+                                                }
+                                              }}
+                                              title="Ver ficha del cliente"
+                                            >
+                                              {cust ? `${cust.name} ${cust.lastName || ''}` : tId}
+                                            </span>
                                             <button 
                                               type="button"
                                               onClick={() => {
