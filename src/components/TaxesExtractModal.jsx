@@ -1,8 +1,11 @@
 import { useState, useMemo } from 'react';
-import { X, Check } from 'lucide-react';
+import Window from './Window';
+import { useMediaQuery } from '../hooks/useMediaQuery';
 
 export default function TaxesExtractModal({ isOpen, onClose, property, year, rentals = [] }) {
   const [activeTab, setActiveTab] = useState('Ingresos');
+  const [showSidebar, setShowSidebar] = useState(true);
+  const isMobile = useMediaQuery('(max-width: 768px)');
 
   // Basic calculation logic based on current year
   // Ingresos
@@ -39,128 +42,142 @@ export default function TaxesExtractModal({ isOpen, onClose, property, year, ren
   const tabs = ['Ingresos', 'Gastos', 'Amortizaciones'];
 
   return (
-    <div className="fixed inset-0 bg-black/50 z-[200] flex items-center justify-center p-4">
-      <div className="bg-[#f0f0f0] border-2 border-white border-r-gray-400 border-b-gray-400 w-full max-w-3xl flex flex-col font-sans shadow-2xl overflow-hidden">
-        
-        {/* Header */}
-        <div className="bg-gradient-to-r from-[#0b3b80] to-[#1e5eb0] text-white px-3 py-1.5 flex justify-between items-center cursor-move select-none shrink-0">
-          <div className="flex items-center space-x-2">
-            <span className="font-bold text-[13px] tracking-wide">
-              Extracto Fiscal {year} - {property.name || property.id}
-            </span>
+    <div className="fixed inset-0 bg-black/40 backdrop-blur-sm flex items-center justify-center z-50">
+      <Window 
+        title={`Extracto Fiscal ${year} - ${property.name || property.id}`}
+        width={isMobile ? "100%" : "1200px"}
+        initialPos={{ x: isMobile ? 0 : 50, y: isMobile ? 0 : 20 }}
+        onClose={onClose}
+        onMenuClick={() => setShowSidebar(!showSidebar)}
+      >
+        <div className="flex h-[800px] bg-[#d4d0c8] relative">
+          
+          {/* Sidebar */}
+          {showSidebar && (
+            <div className={`bg-[#f0f0f0] border-r border-[#808080] shrink-0 overflow-y-auto p-2 flex flex-col shadow-[inset_-1px_0_0_rgba(0,0,0,0.1)] ${isMobile ? 'absolute inset-y-0 left-0 z-30 w-56' : 'w-56'}`}>
+              <div className="bg-white border border-[#a0a0a0] flex flex-col">
+                {tabs.map((tab) => (
+                  <button
+                    key={tab}
+                    onClick={() => { setActiveTab(tab); if (isMobile) setShowSidebar(false); }}
+                    className={`w-full text-left px-4 py-2.5 text-[12px] transition-colors border-y ${
+                      activeTab === tab
+                        ? 'bg-[#c0c0c0] text-black border-[#a0a0a0] shadow-[inset_0px_1px_1px_rgba(0,0,0,0.1)] font-semibold'
+                        : 'bg-white text-slate-700 border-transparent hover:bg-[#f8f8f8]'
+                    }`}
+                  >
+                    {tab}
+                  </button>
+                ))}
+              </div>
+            </div>
+          )}
+
+          {/* Mobile backdrop to close sidebar */}
+          {isMobile && showSidebar && (
+            <div className="absolute inset-0 z-20 bg-black/30" onClick={() => setShowSidebar(false)} />
+          )}
+
+          {/* Tab Content Container */}
+          <div className="flex-1 bg-[#d4d0c8] flex flex-col relative overflow-hidden">
+            <div className="flex-1 overflow-auto bg-[#d4d0c8] p-3">
+              <div className="bg-[#d4d0c8] border border-white shadow-[1px_1px_0px_#000] p-4 min-h-full">
+                
+                {/* INGRESOS */}
+                {activeTab === 'Ingresos' && (
+                  <div className="space-y-4">
+                    <h3 className="text-sm font-bold text-gray-800 border-b border-gray-400 pb-1 mb-4 uppercase">Ingresos de Alquiler</h3>
+                    <p className="text-xs text-gray-600 mb-4 font-sans">Estimación basada en contratos activos.</p>
+                    
+                    <table className="clean-table w-full">
+                      <thead>
+                        <tr>
+                          <th className="p-2 font-bold uppercase text-left">Concepto</th>
+                          <th className="p-2 font-bold uppercase text-right w-48">Importe</th>
+                        </tr>
+                      </thead>
+                      <tbody>
+                        <tr>
+                          <td className="p-2 font-sans">Rentas facturadas en {year}</td>
+                          <td className="p-2 text-right font-sans">{totalIngresos.toLocaleString('es-ES', { style: 'currency', currency: 'EUR' })}</td>
+                        </tr>
+                        <tr className="bg-gray-100 font-bold border-t border-gray-300">
+                          <td className="p-2 text-right uppercase">Total Ingresos:</td>
+                          <td className="p-2 text-right text-green-700">{totalIngresos.toLocaleString('es-ES', { style: 'currency', currency: 'EUR' })}</td>
+                        </tr>
+                      </tbody>
+                    </table>
+                  </div>
+                )}
+
+                {/* GASTOS */}
+                {activeTab === 'Gastos' && (
+                  <div className="space-y-4">
+                    <h3 className="text-sm font-bold text-gray-800 border-b border-gray-400 pb-1 mb-4 uppercase">Gastos Deducibles</h3>
+                    
+                    <table className="clean-table w-full">
+                      <thead>
+                        <tr>
+                          <th className="p-2 font-bold uppercase text-left">Concepto</th>
+                          <th className="p-2 font-bold uppercase text-right w-48">Importe</th>
+                        </tr>
+                      </thead>
+                      <tbody>
+                        <tr>
+                          <td className="p-2 font-sans">Comunidad de Propietarios ({year})</td>
+                          <td className="p-2 text-right font-sans">{totalGastos.toLocaleString('es-ES', { style: 'currency', currency: 'EUR' })}</td>
+                        </tr>
+                        <tr className="bg-gray-100 font-bold border-t border-gray-300">
+                          <td className="p-2 text-right uppercase">Total Gastos:</td>
+                          <td className="p-2 text-right text-red-600">{totalGastos.toLocaleString('es-ES', { style: 'currency', currency: 'EUR' })}</td>
+                        </tr>
+                      </tbody>
+                    </table>
+                  </div>
+                )}
+
+                {/* AMORTIZACIONES */}
+                {activeTab === 'Amortizaciones' && (
+                  <div className="space-y-4">
+                    <h3 className="text-sm font-bold text-gray-800 border-b border-gray-400 pb-1 mb-4 uppercase">Amortización del Inmueble</h3>
+                    <p className="text-xs text-gray-600 mb-4 font-sans">Se aplica un 3% sobre el valor de adquisición estimado.</p>
+                    
+                    <table className="clean-table w-full">
+                      <thead>
+                        <tr>
+                          <th className="p-2 font-bold uppercase text-left">Concepto</th>
+                          <th className="p-2 font-bold uppercase text-right w-48">Importe</th>
+                        </tr>
+                      </thead>
+                      <tbody>
+                        <tr>
+                          <td className="p-2 font-sans">Amortización anual ({year})</td>
+                          <td className="p-2 text-right font-sans">{totalAmortizaciones.toLocaleString('es-ES', { style: 'currency', currency: 'EUR' })}</td>
+                        </tr>
+                        <tr className="bg-gray-100 font-bold border-t border-gray-300">
+                          <td className="p-2 text-right uppercase">Total Amortización:</td>
+                          <td className="p-2 text-right text-blue-700">{totalAmortizaciones.toLocaleString('es-ES', { style: 'currency', currency: 'EUR' })}</td>
+                        </tr>
+                      </tbody>
+                    </table>
+                  </div>
+                )}
+
+              </div>
+            </div>
+
+            {/* Action Buttons */}
+            <div className="flex justify-end gap-2 shrink-0 pt-2 pb-1 pr-1 bg-[#d4d0c8] border-t border-[#808080]">
+              <button 
+                className="px-6 py-1 border border-gray-400 bg-gray-100 hover:bg-gray-200 shadow-sm text-[11px] font-bold uppercase" 
+                onClick={onClose}
+              >
+                Aceptar
+              </button>
+            </div>
           </div>
-          <button onClick={onClose} className="hover:bg-red-500 hover:text-white text-gray-200 transition-colors p-0.5 rounded">
-            <X className="w-4 h-4" />
-          </button>
         </div>
-
-        {/* Tabs */}
-        <div className="flex space-x-1 px-2 pt-2 bg-[#d4d0c8] border-b border-gray-400 shrink-0">
-          {tabs.map(tab => (
-            <button
-              key={tab}
-              onClick={() => setActiveTab(tab)}
-              className={`px-4 py-1.5 text-[11px] font-bold uppercase transition-all rounded-t-md border border-b-0
-                ${activeTab === tab 
-                  ? 'bg-white border-gray-400 text-[#0b3b80] shadow-[0_-2px_4px_rgba(0,0,0,0.1)] relative z-10 -mb-[1px]' 
-                  : 'bg-[#e4e4e4] border-gray-300 text-gray-600 hover:bg-[#f0f0f0]'}`}
-            >
-              {tab}
-            </button>
-          ))}
-        </div>
-
-        {/* Content */}
-        <div className="bg-white flex-1 p-4 overflow-y-auto min-h-[300px]">
-          {activeTab === 'Ingresos' && (
-            <div className="space-y-4">
-              <h3 className="text-sm font-bold text-gray-800 border-b pb-1">Ingresos de Alquiler</h3>
-              <p className="text-xs text-gray-600 mb-4">Estimación basada en contratos activos.</p>
-              
-              <table className="clean-table">
-                <thead>
-                  <tr>
-                    <th className="p-2 font-bold uppercase">Concepto</th>
-                    <th className="p-2 font-bold uppercase text-right">Importe</th>
-                  </tr>
-                </thead>
-                <tbody>
-                  <tr>
-                    <td className="p-2">Rentas facturadas en {year}</td>
-                    <td className="p-2 text-right">{totalIngresos.toLocaleString('es-ES', { style: 'currency', currency: 'EUR' })}</td>
-                  </tr>
-                  <tr className="bg-gray-100 font-bold">
-                    <td className="p-2 text-right">Total Ingresos:</td>
-                    <td className="p-2 text-right text-green-700">{totalIngresos.toLocaleString('es-ES', { style: 'currency', currency: 'EUR' })}</td>
-                  </tr>
-                </tbody>
-              </table>
-            </div>
-          )}
-
-          {activeTab === 'Gastos' && (
-            <div className="space-y-4">
-              <h3 className="text-sm font-bold text-gray-800 border-b pb-1">Gastos Deducibles</h3>
-              
-              <table className="clean-table">
-                <thead>
-                  <tr>
-                    <th className="p-2 font-bold uppercase">Concepto</th>
-                    <th className="p-2 font-bold uppercase text-right">Importe</th>
-                  </tr>
-                </thead>
-                <tbody>
-                  <tr>
-                    <td className="p-2">Comunidad de Propietarios ({year})</td>
-                    <td className="p-2 text-right">{totalGastos.toLocaleString('es-ES', { style: 'currency', currency: 'EUR' })}</td>
-                  </tr>
-                  <tr className="bg-gray-100 font-bold">
-                    <td className="p-2 text-right">Total Gastos:</td>
-                    <td className="p-2 text-right text-red-600">{totalGastos.toLocaleString('es-ES', { style: 'currency', currency: 'EUR' })}</td>
-                  </tr>
-                </tbody>
-              </table>
-            </div>
-          )}
-
-          {activeTab === 'Amortizaciones' && (
-            <div className="space-y-4">
-              <h3 className="text-sm font-bold text-gray-800 border-b pb-1">Amortización del Inmueble</h3>
-              <p className="text-xs text-gray-600 mb-4">Se aplica un 3% sobre el valor de adquisición estimado.</p>
-              
-              <table className="clean-table">
-                <thead>
-                  <tr>
-                    <th className="p-2 font-bold uppercase">Concepto</th>
-                    <th className="p-2 font-bold uppercase text-right">Importe</th>
-                  </tr>
-                </thead>
-                <tbody>
-                  <tr>
-                    <td className="p-2">Amortización anual ({year})</td>
-                    <td className="p-2 text-right">{totalAmortizaciones.toLocaleString('es-ES', { style: 'currency', currency: 'EUR' })}</td>
-                  </tr>
-                  <tr className="bg-gray-100 font-bold">
-                    <td className="p-2 text-right">Total Amortización:</td>
-                    <td className="p-2 text-right text-blue-700">{totalAmortizaciones.toLocaleString('es-ES', { style: 'currency', currency: 'EUR' })}</td>
-                  </tr>
-                </tbody>
-              </table>
-            </div>
-          )}
-        </div>
-        
-        {/* Footer */}
-        <div className="bg-[#f0f0f0] border-t border-gray-300 p-3 flex justify-end shrink-0">
-          <button 
-            className="btn-classic flex items-center space-x-1"
-            onClick={onClose}
-          >
-            <Check className="w-4 h-4" /> <span>Aceptar</span>
-          </button>
-        </div>
-
-      </div>
+      </Window>
     </div>
   );
 }
