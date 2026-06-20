@@ -596,6 +596,14 @@ export default function Layout() {
         ]
       }
     ],
+    'Total': [
+      {
+        group: 'Impuestos',
+        items: [
+          { name: `Fecha\n(${taxYear})`, action: 'taxes:year-dropdown', icon: Calendar }
+        ]
+      }
+    ],
     'Inversiones inmobiliarias': [
       {
         group: 'Impuestos',
