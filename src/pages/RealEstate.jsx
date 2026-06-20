@@ -137,6 +137,8 @@ export default function RealEstate() {
   const [activeTableFilters, setActiveTableFilters] = useState({});
   const [openFilterMenu, setOpenFilterMenu] = useState(null);
   const [showOnlyActiveServices, setShowOnlyActiveServices] = useState(false);
+  const [finanzasSubTab, setFinanzasSubTab] = useState('principal');
+  const [accessoryFormData, setAccessoryFormData] = useState(null);
 
   const DEFAULT_COLUMNS = ['id', 'name', 'address', 'cp', 'tenantDisplay', 'rentTotal'];
   const [visibleColumns, setVisibleColumns] = useState(DEFAULT_COLUMNS);
@@ -428,6 +430,7 @@ export default function RealEstate() {
     id: '',
     name: '',
     address: '',
+    accessoryPropertyId: '',
     country: '',
     region: '',
     cp: '',
@@ -594,6 +597,14 @@ export default function RealEstate() {
       },
       taxes: selectedProperty.taxes || []
     });
+    setFinanzasSubTab('principal');
+    if (selectedProperty.accessoryPropertyId) {
+      // Find the accessory property from properties list
+      const acc = properties.find(p => p.id === selectedProperty.accessoryPropertyId);
+      setAccessoryFormData(acc ? { ...acc } : null);
+    } else {
+      setAccessoryFormData(null);
+    }
     setIsEditing(true);
     setShowForm(true);
   };
@@ -611,17 +622,28 @@ export default function RealEstate() {
     try {
       if (isEditing) {
         updatedProperty = { ...formData, monthlyRent: calculatedMonthlyRent.toString() };
-        setProperties(properties.map(p => p.id === formData.id ? updatedProperty : p));
+        let newProps = properties.map(p => p.id === formData.id ? updatedProperty : p);
+        if (accessoryFormData && accessoryFormData.id) {
+          newProps = newProps.map(p => p.id === accessoryFormData.id ? accessoryFormData : p);
+        }
+        setProperties(newProps);
       } else {
         const newId = formData.id && !properties.find(p => p.id === formData.id) 
           ? formData.id 
           : doc(collection(db, 'properties')).id;
         updatedProperty = { ...formData, id: newId, monthlyRent: calculatedMonthlyRent.toString() };
-        setProperties([...properties, updatedProperty]);
+        let newProps = [...properties, updatedProperty];
+        if (accessoryFormData && accessoryFormData.id) {
+          newProps = newProps.map(p => p.id === accessoryFormData.id ? accessoryFormData : p);
+        }
+        setProperties(newProps);
       }
       
       console.log("Attempting to save property:", updatedProperty);
       await savePropertyToCloud(updatedProperty);
+      if (accessoryFormData && accessoryFormData.id) {
+        await savePropertyToCloud(accessoryFormData);
+      }
       console.log("Property saved successfully");
       setShowForm(false);
     } catch (error) {
@@ -879,6 +901,29 @@ export default function RealEstate() {
                 onChange={e => setFormData({ ...formData, name: e.target.value })} 
               />
             </div>
+
+            <div className="space-y-1">
+              <label className="text-[10px] font-bold text-slate-700 uppercase">Activo Accesorio (Opcional):</label>
+              <select
+                className="win-input w-full"
+                value={formData.accessoryPropertyId || ''}
+                onChange={e => {
+                  const val = e.target.value;
+                  setFormData({ ...formData, accessoryPropertyId: val });
+                  if (val) {
+                    const acc = properties.find(p => p.id === val);
+                    setAccessoryFormData(acc ? { ...acc } : null);
+                  } else {
+                    setAccessoryFormData(null);
+                  }
+                }}
+              >
+                <option value="">-- Ninguno --</option>
+                {properties.filter(p => p.id !== formData.id).map(p => (
+                  <option key={p.id} value={p.id}>{p.name}</option>
+                ))}
+              </select>
+            </div>
             
             <div className="space-y-1">
               <label className="text-[10px] font-bold text-slate-700 uppercase">Dirección:</label>
@@ -1114,10 +1159,27 @@ export default function RealEstate() {
       );
     }
 
+    const combinedFormData = useMemo(() => {
+      if (!accessoryFormData) return formData;
+      return {
+        ...formData,
+        investedCapital: (parseFloat(formData.investedCapital) || 0) + (parseFloat(accessoryFormData.investedCapital) || 0),
+        theoreticalSalePrice: (parseFloat(formData.theoreticalSalePrice) || 0) + (parseFloat(accessoryFormData.theoreticalSalePrice) || 0),
+        adquisitionExpenses: [
+          ...(Array.isArray(formData.adquisitionExpenses) ? formData.adquisitionExpenses : []),
+          ...(Array.isArray(accessoryFormData.adquisitionExpenses) ? accessoryFormData.adquisitionExpenses : [])
+        ],
+        reforms: [
+          ...(Array.isArray(formData.reforms) ? formData.reforms : []),
+          ...(Array.isArray(accessoryFormData.reforms) ? accessoryFormData.reforms : [])
+        ]
+      };
+    }, [formData, accessoryFormData]);
+
     if (activeTab === 'Propietarios') {
       return (
         <PropietariosTab 
-          formData={formData} 
+          formData={accessoryFormData ? combinedFormData : formData} 
           setFormData={setFormData} 
           user={user} 
           queryUserIds={queryUserIds}
@@ -1126,6 +1188,50 @@ export default function RealEstate() {
     }
 
     if (activeTab === 'Finanzas') {
+      if (accessoryFormData) {
+        return (
+          <div className="flex flex-col h-full bg-white">
+            <div className="flex bg-slate-100 border-b border-gray-300 p-2 gap-2">
+              <button 
+                className={`px-4 py-1 text-xs font-bold rounded ${finanzasSubTab === 'principal' ? 'bg-[#000080] text-white' : 'bg-white border border-gray-300 text-slate-700'}`}
+                onClick={() => setFinanzasSubTab('principal')}
+              >
+                Principal
+              </button>
+              <button 
+                className={`px-4 py-1 text-xs font-bold rounded ${finanzasSubTab === 'accesorio' ? 'bg-[#000080] text-white' : 'bg-white border border-gray-300 text-slate-700'}`}
+                onClick={() => setFinanzasSubTab('accesorio')}
+              >
+                Accesorio
+              </button>
+              <button 
+                className={`px-4 py-1 text-xs font-bold rounded ${finanzasSubTab === 'agrupado' ? 'bg-[#000080] text-white' : 'bg-white border border-gray-300 text-slate-700'}`}
+                onClick={() => setFinanzasSubTab('agrupado')}
+              >
+                Agrupado (Lectura)
+              </button>
+            </div>
+            <div className="flex-1 overflow-hidden relative">
+              {finanzasSubTab === 'principal' && (
+                <div className="absolute inset-0">
+                  <FinanzasTab formData={formData} setFormData={setFormData} rentals={rentals} user={user} setPreviewDocument={setPreviewDocument} />
+                </div>
+              )}
+              {finanzasSubTab === 'accesorio' && (
+                <div className="absolute inset-0">
+                  <FinanzasTab formData={accessoryFormData} setFormData={setAccessoryFormData} rentals={rentals} user={user} setPreviewDocument={setPreviewDocument} />
+                </div>
+              )}
+              {finanzasSubTab === 'agrupado' && (
+                <div className="absolute inset-0 pointer-events-none opacity-80">
+                  <FinanzasTab formData={combinedFormData} setFormData={() => {}} rentals={rentals} user={user} setPreviewDocument={setPreviewDocument} />
+                </div>
+              )}
+            </div>
+          </div>
+        );
+      }
+
       return (
         <FinanzasTab 
           formData={formData} 
