@@ -308,6 +308,7 @@ export default function Layout() {
   const [dropdownOpen, setDropdownOpen] = useState(false);
   const [showRibbon, setShowRibbon] = useState(true);
   const [dropdownConfig, setDropdownConfig] = useState(null);
+  const [taxYear, setTaxYear] = useState(new Date().getFullYear());
   const [activeColumns, setActiveColumns] = useState({});
   const [tableZoom, setTableZoom] = useState(1);
 
@@ -595,6 +596,15 @@ export default function Layout() {
         ]
       }
     ],
+    'Inversiones inmobiliarias': [
+      {
+        group: 'Impuestos',
+        items: [
+          { name: `Fecha\n(${taxYear})`, action: 'taxes:year-dropdown', icon: Calendar },
+          { name: 'Extracto', action: 'taxes:extract', icon: FileText }
+        ]
+      }
+    ],
     'Activos': [
       { 
         group: 'Mantenimiento', 
@@ -824,6 +834,11 @@ export default function Layout() {
                           setDropdownConfig(prev => prev?.type === 'dash-cont' ? null : { type: 'dash-cont', action: item.action, rect: { top: rect.bottom, left: rect.left } });
                         } else if (item.action === 'dashboard:inversiones') {
                           setDropdownConfig(prev => prev?.type === 'dash-inv' ? null : { type: 'dash-inv', action: item.action, rect: { top: rect.bottom, left: rect.left } });
+                        } else if (item.action === 'taxes:year-dropdown') {
+                          setDropdownConfig(prev => prev?.type === 'taxes-year' ? null : { type: 'taxes-year', action: item.action, rect: { top: rect.bottom, left: rect.left } });
+                        } else if (item.action === 'taxes:extract') {
+                          e.preventDefault();
+                          window.dispatchEvent(new CustomEvent('taxes:extract', { detail: { year: taxYear } }));
                         } else if (item.action) {
                           e.preventDefault();
                           window.dispatchEvent(new CustomEvent(item.action));
@@ -950,6 +965,30 @@ export default function Layout() {
                {re.name || re.address || re.id}
              </div>
            ))}
+        </div>
+      )}
+
+      {dropdownConfig?.type === 'taxes-year' && (
+        <div 
+          className="fixed bg-white border border-gray-300 shadow-lg rounded z-[100] py-1 w-24 flex flex-col text-[12px] max-h-64 overflow-y-auto" 
+          style={{ top: dropdownConfig.rect.top + 4, left: dropdownConfig.rect.left }}
+          onMouseDown={e => e.stopPropagation()}
+        >
+           {[...Array(10)].map((_, i) => {
+             const year = new Date().getFullYear() - i + 1;
+             return (
+               <div 
+                 key={year} 
+                 className={`px-3 py-1.5 hover:bg-gray-100 cursor-pointer text-center ${taxYear === year ? 'font-bold bg-blue-50 text-blue-700' : ''}`} 
+                 onClick={() => { 
+                   setTaxYear(year); 
+                   setDropdownConfig(null); 
+                 }}
+               >
+                 {year}
+               </div>
+             );
+           })}
         </div>
       )}
 
