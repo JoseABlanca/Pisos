@@ -162,7 +162,7 @@ export default function ReformasTab({
                 <th className="p-2 font-bold uppercase w-[150px]">Fecha</th>
                 <th className="p-2 font-bold uppercase min-w-[200px]">Concepto</th>
                 <th className="p-2 font-bold uppercase w-[120px]">Total Gastos (€)</th>
-                <th className="p-2 font-bold uppercase w-[100px] text-center">Capitalizar</th>
+                <th className="p-2 font-bold uppercase w-[120px] text-right">Total Cap. (€)</th>
                 <th className="p-2 font-bold uppercase w-[60px] text-center">Borrar</th>
               </tr>
             </thead>
@@ -220,15 +220,8 @@ export default function ReformasTab({
                         title="Puedes modificarlo a mano o dejarlo vacío para sumar los gastos automáticamente"
                       />
                     </td>
-                    <td className="p-2 text-center" onClick={(e) => e.stopPropagation()}>
-                      <input 
-                        type="checkbox" 
-                        className="form-checkbox h-4 w-4 text-blue-600 rounded cursor-pointer"
-                        checked={reform.capitalize || false}
-                        onChange={e => updateReformField(idx, 'capitalize', e.target.checked)}
-                        onFocus={() => setSelectedIndex(idx)}
-                        onClick={() => setSelectedIndex(idx)}
-                      />
+                    <td className="p-2 text-right text-green-700 font-bold" onClick={(e) => { e.stopPropagation(); setSelectedIndex(idx); }}>
+                      {(reform.expenses || []).reduce((acc, curr) => acc + (curr.capitalize ? (parseFloat(curr.amount) || 0) : 0), 0).toLocaleString('es-ES', { style: 'currency', currency: 'EUR' })}
                     </td>
                     <td className="p-2 flex justify-center" onClick={(e) => e.stopPropagation()}>
                       <button 
@@ -282,6 +275,7 @@ export default function ReformasTab({
                     <th className="p-2 font-bold uppercase min-w-[150px]">Concepto</th>
                     <th className="p-2 font-bold uppercase w-[100px]">Importe (€)</th>
                     <th className="p-2 font-bold uppercase w-[150px]">Pagado Por</th>
+                    <th className="p-2 font-bold uppercase w-[80px] text-center">Capitalizar</th>
                     <th className="p-2 font-bold uppercase w-[150px]">Documento</th>
                     <th className="p-2 font-bold uppercase w-[60px] text-center">Acción</th>
                   </tr>
@@ -308,6 +302,14 @@ export default function ReformasTab({
                               <option key={o.partnerId} value={o.partnerId}>{o.name}</option>
                             ))}
                           </select>
+                        </td>
+                        <td className="p-2 text-center">
+                          <input 
+                            type="checkbox" 
+                            className="form-checkbox h-4 w-4 text-blue-600 rounded cursor-pointer"
+                            checked={exp.capitalize || false}
+                            onChange={e => updateExpense(idx, 'capitalize', e.target.checked)}
+                          />
                         </td>
                         <td className="p-2">
                           {exp.doc ? (

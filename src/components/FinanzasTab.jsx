@@ -41,13 +41,10 @@ export default function FinanzasTab({ formData, setFormData, rentals, user, setP
   const totalCapitalizedReforms = useMemo(() => {
     const reforms = formData.reforms || [];
     return reforms.reduce((sum, reform) => {
-      if (reform.capitalize) {
-        const amount = reform.amount !== undefined && reform.amount !== '' 
-          ? parseFloat(reform.amount) 
-          : (reform.expenses || []).reduce((expSum, exp) => expSum + (parseFloat(exp.amount) || 0), 0);
-        return sum + (amount || 0);
-      }
-      return sum;
+      const capitalizedExpensesSum = (reform.expenses || []).reduce((expSum, exp) => {
+        return expSum + (exp.capitalize ? (parseFloat(exp.amount) || 0) : 0);
+      }, 0);
+      return sum + capitalizedExpensesSum;
     }, 0);
   }, [formData.reforms]);
 
