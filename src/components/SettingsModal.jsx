@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { Settings, LayoutDashboard, Link2 } from 'lucide-react';
+import { Settings, LayoutDashboard } from 'lucide-react';
 import { db, auth } from '../firebase/config';
 import { doc, getDoc, setDoc } from 'firebase/firestore';
 import { useAuth } from '../context/AuthContext';
@@ -17,10 +17,6 @@ export default function SettingsModal({ isOpen, onClose, realEstates }) {
     inversiones_todos: '',
   });
   const [saving, setSaving] = useState(false);
-  const [linkEmail, setLinkEmail] = useState('');
-  const [linkPassword, setLinkPassword] = useState('');
-  const [linking, setLinking] = useState(false);
-  const [linkedAccounts, setLinkedAccounts] = useState([]);
 
   useEffect(() => {
     if (!isOpen || !user) return;
@@ -31,9 +27,6 @@ export default function SettingsModal({ isOpen, onClose, realEstates }) {
         const data = docSnap.data();
         if (data.dashboard_urls) {
           setDashConfig(prev => ({ ...prev, ...data.dashboard_urls }));
-        }
-        if (data.linkedAccounts) {
-          setLinkedAccounts(data.linkedAccounts);
         }
       }
     }
@@ -60,59 +53,12 @@ export default function SettingsModal({ isOpen, onClose, realEstates }) {
     setDashConfig(prev => ({ ...prev, [key]: value }));
   };
 
-  const handleLinkAccount = async (e) => {
-    e.preventDefault();
-    if (!linkEmail || !linkPassword) return;
-    setLinking(true);
-    try {
-      const res = await fetch(`https://identitytoolkit.googleapis.com/v1/accounts:signInWithPassword?key=${auth.app.options.apiKey}`, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ email: linkEmail, password: linkPassword, returnSecureToken: true })
-      });
-      const data = await res.json();
-      
-      if (!res.ok) {
-        throw new Error(data.error.message || 'Error al vincular');
-      }
-
-      const linkedUid = data.localId;
-      if (linkedUid === user.uid) {
-        alert('No puedes vincular tu propia cuenta.');
-        setLinking(false);
-        return;
-      }
-      
-      if (linkedAccounts.includes(linkedUid)) {
-        alert('Esta cuenta ya está vinculada.');
-        setLinking(false);
-        return;
-      }
-
-      const newLinkedAccounts = [...linkedAccounts, linkedUid];
-      await setDoc(doc(db, 'users', user.uid), {
-        linkedAccounts: newLinkedAccounts,
-        updatedAt: new Date()
-      }, { merge: true });
-      
-      setLinkedAccounts(newLinkedAccounts);
-      setLinkEmail('');
-      setLinkPassword('');
-      alert('¡Cuenta vinculada correctamente! Ahora podrás ver sus datos en la aplicación.');
-
-    } catch (err) {
-      console.error(err);
-      alert('Error al vincular: Verifica el email y la contraseña.');
-    }
-    setLinking(false);
-  };
 
   if (!isOpen) return null;
 
   const headerContent = {
     general: { icon: <Settings className="w-8 h-8 text-slate-600" />, text: "Gestiona las opciones generales." },
-    dashboard: { icon: <LayoutDashboard className="w-8 h-8 text-slate-600" />, text: "Gestiona las URLs de los distintos Dashboards." },
-    vinculaciones: { icon: <Link2 className="w-8 h-8 text-slate-600" />, text: "Gestiona las cuentas contables vinculadas." }
+    dashboard: { icon: <LayoutDashboard className="w-8 h-8 text-slate-600" />, text: "Gestiona las URLs de los distintos Dashboards." }
   };
 
   return (
@@ -141,12 +87,6 @@ export default function SettingsModal({ isOpen, onClose, realEstates }) {
                   onClick={() => setActiveTab('dashboard')}
                 >
                   Dashboard URLs
-                </button>
-                <button 
-                  className={`text-left px-4 py-2 hover:bg-[#e8e8e8] ${activeTab === 'vinculaciones' ? 'bg-[#d0d0d0]' : ''}`}
-                  onClick={() => setActiveTab('vinculaciones')}
-                >
-                  Vinculaciones
                 </button>
               </div>
             )}
@@ -222,54 +162,6 @@ export default function SettingsModal({ isOpen, onClose, realEstates }) {
                   </form>
                 )}
 
-                {activeTab === 'vinculaciones' && (
-                  <div className="space-y-4">
-                    <div className="bg-[#eeeeee] p-1.5 font-semibold text-slate-700 border border-gray-300 border-b-0">
-                      Vincular Nueva Cuenta
-                    </div>
-                    <form onSubmit={handleLinkAccount} className="border border-gray-300 bg-white p-4 space-y-4">
-                      <div className="grid grid-cols-[100px_1fr] items-center gap-4">
-                        <label className="text-right">Email:</label>
-                        <input type="email" required value={linkEmail} onChange={e => setLinkEmail(e.target.value)} className="border border-gray-400 px-2 py-1 w-full" />
-                      </div>
-                      <div className="grid grid-cols-[100px_1fr] items-center gap-4">
-                        <label className="text-right">Contraseña:</label>
-                        <input type="password" required value={linkPassword} onChange={e => setLinkPassword(e.target.value)} className="border border-gray-400 px-2 py-1 w-full" />
-                      </div>
-                      <div className="flex justify-end gap-2 mt-2">
-                        <button type="submit" disabled={linking} className="px-4 py-1 border border-gray-400 bg-gray-100 hover:bg-gray-200">
-                          {linking ? 'Verificando...' : 'Nueva'}
-                        </button>
-                      </div>
-                    </form>
-
-                    <div className="bg-[#eeeeee] p-1.5 font-semibold text-slate-700 border border-gray-300 border-b-0 mt-6">
-                      Cuentas Vinculadas
-                    </div>
-                    <div className="border border-gray-300 bg-white p-4 min-h-[150px]">
-                      {linkedAccounts.length === 0 ? (
-                        <p className="text-gray-500 italic">No tienes cuentas vinculadas.</p>
-                      ) : (
-                        <table className="w-full text-left border-collapse">
-                          <thead>
-                            <tr className="border-b border-gray-300 bg-[#f0f0f0]">
-                              <th className="p-2 font-semibold">UID DE CUENTA</th>
-                              <th className="p-2 font-semibold w-24 text-center">ESTADO</th>
-                            </tr>
-                          </thead>
-                          <tbody>
-                            {linkedAccounts.map((uid, idx) => (
-                              <tr key={idx} className="border-b border-gray-200 hover:bg-gray-50">
-                                <td className="p-2">{uid}</td>
-                                <td className="p-2 text-center"><span className="text-green-700 bg-green-100 px-2 py-0.5 rounded">Activa</span></td>
-                              </tr>
-                            ))}
-                          </tbody>
-                        </table>
-                      )}
-                    </div>
-                  </div>
-                )}
               </div>
             </div>
           </div>
