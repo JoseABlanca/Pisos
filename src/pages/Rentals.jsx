@@ -381,6 +381,7 @@ export default function Rentals() {
           <Window 
             title={isEditing ? `Editar Alquiler: ${formData.reference || formData.id || 'Nuevo'}` : "Nuevo Alquiler"} 
             width={isMobile ? "100%" : "900px"}
+            height={isMobile ? "100%" : "700px"}
             initialPos={{ x: isMobile ? 0 : 100, y: isMobile ? 0 : 50 }}
             onClose={() => setShowForm(false)}
             onMenuClick={() => setShowModalSidebar(!showModalSidebar)}

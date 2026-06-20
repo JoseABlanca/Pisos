@@ -1306,8 +1306,9 @@ export default function RealEstate() {
       {showForm && (
         <div className="fixed inset-0 bg-black/40 backdrop-blur-sm flex items-center justify-center z-50">
           <Window 
-            title={isEditing ? "Editar Activo Inmobiliario" : "Nuevo Activo Inmobiliario"} 
-            width={isMobile ? "100%" : "1200px"}
+            title={isEditing ? `Editar Activo: ${formData.reference || formData.id || 'Nuevo'}` : "Nuevo Activo"} 
+            width={isMobile ? "100%" : "1000px"}
+            height={isMobile ? "100%" : "700px"}
             initialPos={{ x: isMobile ? 0 : 50, y: isMobile ? 0 : 20 }}
             onClose={() => setShowForm(false)}
             onMenuClick={() => setShowSidebar(!showSidebar)}
