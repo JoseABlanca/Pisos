@@ -65,7 +65,7 @@ export default function FinanzasTab({ formData, setFormData, rentals, user, setP
   const renderSubTab = () => {
     if (activeSubTab === 'Datos') {
       return (
-        <div className="flex flex-col gap-4 p-4 flex-1 overflow-auto bg-[#d4d0c8]">
+        <div className="flex flex-col gap-4 p-4 flex-1 overflow-auto bg-white">
           <div className="space-y-4 max-w-sm">
             <div className="space-y-1">
               <label className="text-[10px] font-bold text-slate-700 uppercase">Fecha de compra:</label>
@@ -227,7 +227,7 @@ export default function FinanzasTab({ formData, setFormData, rentals, user, setP
 
     if (activeSubTab === 'Métricas') {
       return (
-        <div className="flex justify-center items-center h-full bg-[#d4d0c8] text-slate-500">
+        <div className="flex justify-center items-center h-full bg-white text-slate-500">
           <div className="flex flex-col items-center gap-2">
             <BarChart2 className="w-8 h-8 opacity-50" />
             <p>Sección de Métricas Financieras (En desarrollo...)</p>
@@ -252,17 +252,17 @@ export default function FinanzasTab({ formData, setFormData, rentals, user, setP
   ];
 
   return (
-    <div className="flex flex-col h-full bg-[#d4d0c8] overflow-hidden">
+    <div className="flex flex-col h-full bg-white overflow-hidden">
       {/* Sub-navigation bar */}
-      <div className="bg-[#e0ded8] border-b border-[#a0a0a0] flex px-2 pt-2 gap-1">
+      <div className="bg-white border-b border-gray-200 flex px-2 pt-2 gap-1">
         {subTabs.map(tab => (
           <button
             key={tab.id}
             onClick={() => setActiveSubTab(tab.id)}
-            className={`px-4 py-1.5 text-[11px] border-t border-x rounded-t-sm transition-colors ${
+            className={`px-4 py-1.5 text-[12px] font-medium border-t border-x rounded-t-sm transition-colors ${
               activeSubTab === tab.id
-                ? 'bg-[#d4d0c8] border-[#a0a0a0] font-bold text-black border-b-[#d4d0c8] -mb-[1px] shadow-[inset_0_1px_0_rgba(255,255,255,0.8)]'
-                : 'bg-[#c0c0c0] border-transparent text-gray-700 hover:bg-[#d0d0d0]'
+                ? 'bg-white border-gray-200 text-blue-600 border-b-white -mb-[1px] relative z-10'
+                : 'bg-gray-50 border-transparent text-gray-500 hover:bg-gray-100'
             }`}
           >
             {tab.label}
@@ -271,7 +271,7 @@ export default function FinanzasTab({ formData, setFormData, rentals, user, setP
       </div>
       
       {/* Main Content Area */}
-      <div className="flex-1 relative border-t border-[#a0a0a0]">
+      <div className="flex-1 relative">
         {renderSubTab()}
       </div>
     </div>
