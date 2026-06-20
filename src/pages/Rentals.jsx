@@ -416,83 +416,70 @@ export default function Rentals() {
                     
                     {activeFormTab === 'general' && (
                       <div className="flex flex-col gap-6">
-                        <div className={`grid ${isMobile ? 'grid-cols-1' : 'grid-cols-2'} gap-6`}>
-                          <div className="space-y-3">
-                            <div className="space-y-1">
-                              <label className="text-[10px] font-bold text-slate-700 uppercase">Propiedad:</label>
-                              <select className="win-input w-full" value={formData.propertyId} onChange={e => setFormData({...formData, propertyId: e.target.value})}>
-                                <option value="">-- Seleccionar Propiedad --</option>
-                                {properties.map(p => <option key={p.id} value={p.id}>{p.name}</option>)}
-                              </select>
-                            </div>
-                            <div className="space-y-1">
-                              <label className="text-[10px] font-bold text-slate-700 uppercase">Estado:</label>
-                              <div className="flex items-center space-x-4 pt-1">
-                                <label className="flex items-center space-x-1 cursor-pointer">
-                                  <input type="radio" name="status" value="activo" checked={formData.status === 'activo'} onChange={e => setFormData({...formData, status: e.target.value})} />
-                                  <span className="text-[12px]">Activo</span>
-                                </label>
-                                <label className="flex items-center space-x-1 cursor-pointer">
-                                  <input type="radio" name="status" value="inactivo" checked={formData.status === 'inactivo'} onChange={e => setFormData({...formData, status: e.target.value})} />
-                                  <span className="text-[12px]">Inactivo</span>
-                                </label>
-                              </div>
-                            </div>
-                            <div className="space-y-1">
-                              <label className="text-[10px] font-bold text-slate-700 uppercase">Referencia:</label>
-                              <input type="text" className="win-input w-full" value={formData.reference || ''} onChange={e => setFormData({...formData, reference: e.target.value})} />
-                            </div>
-                            <div className="space-y-1">
-                              <label className="text-[10px] font-bold text-slate-700 uppercase">Tipo Alquiler:</label>
-                              <select className="win-input w-full" value={formData.rentalType || 'vivienda habitual'} onChange={e => setFormData({...formData, rentalType: e.target.value})}>
-                                <option value="vivienda habitual">Vivienda habitual</option>
-                                <option value="uso distinto de vivienda">Uso distinto de vivienda</option>
-                                <option value="alquiler por habitaciones">Alquiler por habitaciones</option>
-                              </select>
-                            </div>
-                            <div className="space-y-1">
-                              <label className="text-[10px] font-bold text-slate-700 uppercase">Duración:</label>
-                              <select className="win-input w-full" value={formData.duration || 'fijo'} onChange={e => setFormData({...formData, duration: e.target.value})}>
-                                <option value="fijo">Fijo</option>
-                                <option value="abierto">Abierto</option>
-                              </select>
+                        <div className="flex flex-col gap-3 max-w-md">
+                          <div className="space-y-1">
+                            <label className="text-[10px] font-bold text-slate-700 uppercase">Propiedad:</label>
+                            <select className="win-input w-full" value={formData.propertyId} onChange={e => setFormData({...formData, propertyId: e.target.value})}>
+                              <option value="">-- Seleccionar Propiedad --</option>
+                              {properties.map(p => <option key={p.id} value={p.id}>{p.name}</option>)}
+                            </select>
+                          </div>
+                          <div className="space-y-1">
+                            <label className="text-[10px] font-bold text-slate-700 uppercase">Estado:</label>
+                            <div className="flex items-center space-x-4 pt-1">
+                              <label className="flex items-center space-x-1 cursor-pointer">
+                                <input type="radio" name="status" value="activo" checked={formData.status === 'activo'} onChange={e => setFormData({...formData, status: e.target.value})} />
+                                <span className="text-[12px]">Activo</span>
+                              </label>
+                              <label className="flex items-center space-x-1 cursor-pointer">
+                                <input type="radio" name="status" value="inactivo" checked={formData.status === 'inactivo'} onChange={e => setFormData({...formData, status: e.target.value})} />
+                                <span className="text-[12px]">Inactivo</span>
+                              </label>
                             </div>
                           </div>
-
-                          <div className="space-y-3">
-                            <div className="grid grid-cols-2 gap-4">
-                              <div className="space-y-1">
-                                <label className="text-[10px] font-bold text-slate-700 uppercase">Inicio:</label>
-                                <input type="date" className="win-input w-full" value={formData.startDate || ''} onChange={e => setFormData({...formData, startDate: e.target.value})} />
+                          <div className="space-y-1">
+                            <label className="text-[10px] font-bold text-slate-700 uppercase">Tipo Alquiler:</label>
+                            <select className="win-input w-full" value={formData.rentalType || 'vivienda habitual'} onChange={e => setFormData({...formData, rentalType: e.target.value})}>
+                              <option value="vivienda habitual">Vivienda habitual</option>
+                              <option value="uso distinto de vivienda">Uso distinto de vivienda</option>
+                              <option value="alquiler por habitaciones">Alquiler por habitaciones</option>
+                            </select>
+                          </div>
+                          <div className="space-y-1">
+                            <label className="text-[10px] font-bold text-slate-700 uppercase">Duración:</label>
+                            <select className="win-input w-full" value={formData.duration || 'fijo'} onChange={e => setFormData({...formData, duration: e.target.value})}>
+                              <option value="fijo">Fijo</option>
+                              <option value="abierto">Abierto</option>
+                            </select>
+                          </div>
+                          <div className="space-y-1">
+                            <label className="text-[10px] font-bold text-slate-700 uppercase">Inicio:</label>
+                            <input type="date" className="win-input w-full" value={formData.startDate || ''} onChange={e => setFormData({...formData, startDate: e.target.value})} />
+                          </div>
+                          <div className="space-y-1">
+                            <label className="text-[10px] font-bold text-slate-700 uppercase">Fin:</label>
+                            <input type="date" className="win-input w-full" value={formData.endDate || ''} onChange={e => setFormData({...formData, endDate: e.target.value})} />
+                          </div>
+                          <div className="space-y-1">
+                            <label className="text-[10px] font-bold text-slate-700 uppercase">Renta (€):</label>
+                            <input type="number" className="win-input w-full text-right" value={formData.rentAmount || ''} onChange={e => setFormData({...formData, rentAmount: e.target.value})} />
+                            {formData.paymentPeriod && formData.paymentPeriod !== 'mensual' && formData.rentAmount > 0 && (
+                              <div className="text-[10px] text-gray-500 text-right italic">
+                                Equivale a {(formData.paymentPeriod === 'anual' ? formData.rentAmount / 12 : formData.rentAmount / 3).toLocaleString('es-ES', { minimumFractionDigits: 2, maximumFractionDigits: 2 })} € / mes
                               </div>
-                              <div className="space-y-1">
-                                <label className="text-[10px] font-bold text-slate-700 uppercase">Fin:</label>
-                                <input type="date" className="win-input w-full" value={formData.endDate || ''} onChange={e => setFormData({...formData, endDate: e.target.value})} />
-                              </div>
-                            </div>
-                            <div className="grid grid-cols-2 gap-4 pt-2">
-                              <div className="space-y-1">
-                                <label className="text-[10px] font-bold text-slate-700 uppercase">Renta (€):</label>
-                                <input type="number" className="win-input w-full text-right" value={formData.rentAmount || ''} onChange={e => setFormData({...formData, rentAmount: e.target.value})} />
-                                {formData.paymentPeriod && formData.paymentPeriod !== 'mensual' && formData.rentAmount > 0 && (
-                                  <div className="text-[10px] text-gray-500 text-right italic">
-                                    Equivale a {(formData.paymentPeriod === 'anual' ? formData.rentAmount / 12 : formData.rentAmount / 3).toLocaleString('es-ES', { minimumFractionDigits: 2, maximumFractionDigits: 2 })} € / mes
-                                  </div>
-                                )}
-                              </div>
-                              <div className="space-y-1">
-                                <label className="text-[10px] font-bold text-slate-700 uppercase">Fianza (€):</label>
-                                <input type="number" className="win-input w-full text-right" value={formData.depositAmount || ''} onChange={e => setFormData({...formData, depositAmount: e.target.value})} />
-                              </div>
-                            </div>
-                            <div className="space-y-1">
-                              <label className="text-[10px] font-bold text-slate-700 uppercase">Periodo de Pago:</label>
-                              <select className="win-input w-full" value={formData.paymentPeriod || 'mensual'} onChange={e => setFormData({...formData, paymentPeriod: e.target.value})}>
-                                <option value="mensual">Mensual</option>
-                                <option value="trimestral">Trimestral</option>
-                                <option value="anual">Anual</option>
-                              </select>
-                            </div>
+                            )}
+                          </div>
+                          <div className="space-y-1">
+                            <label className="text-[10px] font-bold text-slate-700 uppercase">Fianza (€):</label>
+                            <input type="number" className="win-input w-full text-right" value={formData.depositAmount || ''} onChange={e => setFormData({...formData, depositAmount: e.target.value})} />
+                          </div>
+                          <div className="space-y-1">
+                            <label className="text-[10px] font-bold text-slate-700 uppercase">Periodo de Pago:</label>
+                            <select className="win-input w-full" value={formData.paymentPeriod || 'mensual'} onChange={e => setFormData({...formData, paymentPeriod: e.target.value})}>
+                              <option value="mensual">Mensual</option>
+                              <option value="trimestral">Trimestral</option>
+                              <option value="anual">Anual</option>
+                            </select>
                           </div>
                         </div>
 
