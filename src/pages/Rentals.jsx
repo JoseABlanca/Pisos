@@ -374,31 +374,27 @@ export default function Rentals() {
 
   {/* Form Modal */}
       {showForm && (
-        <div className="fixed inset-0 bg-black/40 backdrop-blur-sm flex items-center justify-center z-50 p-2 sm:p-0">
+        <div className="fixed inset-0 bg-black/40 backdrop-blur-sm flex items-center justify-center z-50">
           <Window 
-            title={isEditing ? `Editar Alquiler: ${formData.reference}` : "Nuevo Alquiler"} 
-            width={isMobile ? "100%" : "850px"}
-            height={isMobile ? "100%" : "600px"}
+            title={isEditing ? `Editar Alquiler: ${formData.reference || formData.id || 'Nuevo'}` : "Nuevo Alquiler"} 
+            width={isMobile ? "100%" : "900px"}
             initialPos={{ x: isMobile ? 0 : 100, y: isMobile ? 0 : 50 }}
             onClose={() => setShowForm(false)}
             onMenuClick={() => setShowModalSidebar(!showModalSidebar)}
           >
-            <div className="flex h-[550px] bg-[#d4d0c8] relative">
+            <div className="flex h-[600px] bg-[#d4d0c8] relative">
               {/* Sidebar */}
               {showModalSidebar && (
-                <div className={`bg-[#f0f0f0] border-r border-[#808080] shrink-0 overflow-y-auto flex flex-col shadow-[inset_-1px_0_0_rgba(0,0,0,0.1)] ${isMobile ? 'absolute inset-y-0 left-0 z-30 w-56' : 'w-56'}`}>
-                  <div className="bg-[#4a69bd] text-white text-[10px] font-bold px-2 py-1 flex justify-between items-center">
-                    <span>SECCIONES</span>
-                  </div>
-                  <div className="flex flex-col">
+                <div className={`bg-[#f0f0f0] border-r border-[#808080] shrink-0 overflow-y-auto p-2 flex flex-col shadow-[inset_-1px_0_0_rgba(0,0,0,0.1)] ${isMobile ? 'absolute inset-y-0 left-0 z-30 w-56' : 'w-56'}`}>
+                  <div className="bg-white border border-[#a0a0a0] flex flex-col">
                     {formTabs.map(tab => (
                       <button 
                         key={tab.id}
                         onClick={() => { setActiveFormTab(tab.id); if (isMobile) setShowModalSidebar(false); }}
-                        className={`w-full flex items-center space-x-2 text-left px-4 py-2.5 text-[11px] transition-colors border-b border-[#d0d0d0] ${
+                        className={`w-full text-left px-4 py-2.5 text-[12px] transition-colors border-y flex items-center space-x-2 ${
                           activeFormTab === tab.id 
-                            ? 'bg-[#c0c0c0] text-black shadow-[inset_0px_1px_1px_rgba(0,0,0,0.1)] font-bold' 
-                            : 'bg-[#e8e8e8] text-slate-700 hover:bg-[#d8d8d8]'
+                            ? 'bg-[#c0c0c0] text-black border-[#a0a0a0] shadow-[inset_0px_1px_1px_rgba(0,0,0,0.1)] font-semibold' 
+                            : 'bg-white text-slate-700 border-transparent hover:bg-[#f8f8f8]'
                         }`}
                       >
                         <tab.icon className={`w-3.5 h-3.5 ${activeFormTab === tab.id ? 'text-black' : 'text-slate-500'}`} />
@@ -416,93 +412,99 @@ export default function Rentals() {
               {/* Main Content Area */}
               <div className="flex-1 bg-[#d4d0c8] flex flex-col relative overflow-hidden">
                 <div className="flex-1 overflow-auto bg-[#d4d0c8] p-3">
-                  <div className="bg-[#d4d0c8] border border-white shadow-[1px_1px_0px_#000] p-4 min-h-full space-y-4">
+                  <div className="bg-[#d4d0c8] border border-white shadow-[1px_1px_0px_#000] p-4 min-h-full">
                     
                     {activeFormTab === 'general' && (
-                      <div className="space-y-4">
-                        <div className="bg-[#4a69bd] text-white px-2 py-1 font-bold text-[11px] shadow-[inset_1px_1px_0px_rgba(255,255,255,0.3)]">
-                          INFORMACIÓN BÁSICA
-                        </div>
-                        <div className="win-form-row">
-                          <label className="win-form-label">Propiedad:</label>
-                          <select className="win-input flex-1 min-w-0" value={formData.propertyId} onChange={e => setFormData({...formData, propertyId: e.target.value})}>
-                            <option value="">-- Seleccionar Propiedad --</option>
-                            {properties.map(p => <option key={p.id} value={p.id}>{p.name}</option>)}
-                          </select>
-                        </div>
-                        <div className="win-form-row">
-                          <label className="win-form-label">Estado:</label>
-                          <div className="flex-1 flex items-center space-x-4 min-w-0">
-                            <label className="flex items-center space-x-1 cursor-pointer">
-                              <input type="radio" name="status" value="activo" checked={formData.status === 'activo'} onChange={e => setFormData({...formData, status: e.target.value})} />
-                              <span className="text-[11px]">Activo</span>
-                            </label>
-                            <label className="flex items-center space-x-1 cursor-pointer">
-                              <input type="radio" name="status" value="inactivo" checked={formData.status === 'inactivo'} onChange={e => setFormData({...formData, status: e.target.value})} />
-                              <span className="text-[11px]">Inactivo</span>
-                            </label>
+                      <div className="flex flex-col gap-6">
+                        <div className={`grid ${isMobile ? 'grid-cols-1' : 'grid-cols-2'} gap-6`}>
+                          <div className="space-y-3">
+                            <div className="space-y-1">
+                              <label className="text-[10px] font-bold text-slate-700 uppercase">Propiedad:</label>
+                              <select className="win-input w-full" value={formData.propertyId} onChange={e => setFormData({...formData, propertyId: e.target.value})}>
+                                <option value="">-- Seleccionar Propiedad --</option>
+                                {properties.map(p => <option key={p.id} value={p.id}>{p.name}</option>)}
+                              </select>
+                            </div>
+                            <div className="space-y-1">
+                              <label className="text-[10px] font-bold text-slate-700 uppercase">Estado:</label>
+                              <div className="flex items-center space-x-4 pt-1">
+                                <label className="flex items-center space-x-1 cursor-pointer">
+                                  <input type="radio" name="status" value="activo" checked={formData.status === 'activo'} onChange={e => setFormData({...formData, status: e.target.value})} />
+                                  <span className="text-[12px]">Activo</span>
+                                </label>
+                                <label className="flex items-center space-x-1 cursor-pointer">
+                                  <input type="radio" name="status" value="inactivo" checked={formData.status === 'inactivo'} onChange={e => setFormData({...formData, status: e.target.value})} />
+                                  <span className="text-[12px]">Inactivo</span>
+                                </label>
+                              </div>
+                            </div>
+                            <div className="space-y-1">
+                              <label className="text-[10px] font-bold text-slate-700 uppercase">Referencia:</label>
+                              <input type="text" className="win-input w-full" value={formData.reference || ''} onChange={e => setFormData({...formData, reference: e.target.value})} />
+                            </div>
+                            <div className="space-y-1">
+                              <label className="text-[10px] font-bold text-slate-700 uppercase">Tipo Alquiler:</label>
+                              <select className="win-input w-full" value={formData.rentalType || 'vivienda habitual'} onChange={e => setFormData({...formData, rentalType: e.target.value})}>
+                                <option value="vivienda habitual">Vivienda habitual</option>
+                                <option value="uso distinto de vivienda">Uso distinto de vivienda</option>
+                                <option value="alquiler por habitaciones">Alquiler por habitaciones</option>
+                              </select>
+                            </div>
+                            <div className="space-y-1">
+                              <label className="text-[10px] font-bold text-slate-700 uppercase">Duración:</label>
+                              <select className="win-input w-full" value={formData.duration || 'fijo'} onChange={e => setFormData({...formData, duration: e.target.value})}>
+                                <option value="fijo">Fijo</option>
+                                <option value="abierto">Abierto</option>
+                              </select>
+                            </div>
                           </div>
-                        </div>
-                        <div className="win-form-row">
-                          <label className="win-form-label">Referencia:</label>
-                          <input type="text" className="win-input flex-1 min-w-0" value={formData.reference} onChange={e => setFormData({...formData, reference: e.target.value})} />
-                        </div>
-                        <div className="win-form-row">
-                          <label className="win-form-label">Tipo Alquiler:</label>
-                          <select className="win-input flex-1 min-w-0" value={formData.rentalType || 'vivienda habitual'} onChange={e => setFormData({...formData, rentalType: e.target.value})}>
-                            <option value="vivienda habitual">Vivienda habitual</option>
-                            <option value="uso distinto de vivienda">Uso distinto de vivienda</option>
-                            <option value="alquiler por habitaciones">Alquiler por habitaciones</option>
-                          </select>
-                        </div>
-                        <div className="win-form-row">
-                          <label className="win-form-label">Duración:</label>
-                          <select className="win-input flex-1 min-w-0" value={formData.duration || 'fijo'} onChange={e => setFormData({...formData, duration: e.target.value})}>
-                            <option value="fijo">Fijo</option>
-                            <option value="abierto">Abierto</option>
-                          </select>
-                        </div>
-                        <div className="flex flex-col sm:flex-row gap-4">
-                          <div className="win-form-row flex-1">
-                            <label className="win-form-label">Inicio:</label>
-                            <input type="date" className="win-input flex-1 min-w-0" value={formData.startDate || ''} onChange={e => setFormData({...formData, startDate: e.target.value})} />
-                          </div>
-                          <div className="win-form-row flex-1">
-                            <label className="win-form-label">Fin:</label>
-                            <input type="date" className="win-input flex-1 min-w-0" value={formData.endDate || ''} onChange={e => setFormData({...formData, endDate: e.target.value})} />
-                          </div>
-                        </div>
-                        <div className="win-form-row mt-4">
-                          <label className="win-form-label">Inquilino Ppal:</label>
-                          <select className="win-input flex-1 min-w-0" value={formData.tenantId} onChange={e => setFormData({...formData, tenantId: e.target.value})}>
-                            <option value="">-- Sin Inquilino --</option>
-                            {customers.map(c => <option key={c.id} value={c.id}>{c.name}</option>)}
-                          </select>
-                        </div>
 
-                        <div className="bg-[#4a69bd] text-white px-2 py-1 font-bold text-[11px] shadow-[inset_1px_1px_0px_rgba(255,255,255,0.3)] mt-6">
-                          CONDICIONES ECONÓMICAS
-                        </div>
-                        <div className="flex flex-col sm:flex-row gap-4">
-                          <div className="win-form-row flex-1">
-                            <label className="win-form-label">Renta (€):</label>
-                            <input type="number" className="win-input flex-1 min-w-0 text-right" value={formData.rentAmount} onChange={e => setFormData({...formData, rentAmount: e.target.value})} />
-                          </div>
-                          <div className="win-form-row flex-1">
-                            <label className="win-form-label">Fianza (€):</label>
-                            <input type="number" className="win-input flex-1 min-w-0 text-right" value={formData.depositAmount} onChange={e => setFormData({...formData, depositAmount: e.target.value})} />
+                          <div className="space-y-3">
+                            <div className="grid grid-cols-2 gap-4">
+                              <div className="space-y-1">
+                                <label className="text-[10px] font-bold text-slate-700 uppercase">Inicio:</label>
+                                <input type="date" className="win-input w-full" value={formData.startDate || ''} onChange={e => setFormData({...formData, startDate: e.target.value})} />
+                              </div>
+                              <div className="space-y-1">
+                                <label className="text-[10px] font-bold text-slate-700 uppercase">Fin:</label>
+                                <input type="date" className="win-input w-full" value={formData.endDate || ''} onChange={e => setFormData({...formData, endDate: e.target.value})} />
+                              </div>
+                            </div>
+                            <div className="space-y-1">
+                              <label className="text-[10px] font-bold text-slate-700 uppercase">Inquilino Ppal:</label>
+                              <select className="win-input w-full" value={formData.tenantId} onChange={e => setFormData({...formData, tenantId: e.target.value})}>
+                                <option value="">-- Sin Inquilino --</option>
+                                {customers.map(c => <option key={c.id} value={c.id}>{c.name}</option>)}
+                              </select>
+                            </div>
+                            <div className="grid grid-cols-2 gap-4 pt-2">
+                              <div className="space-y-1">
+                                <label className="text-[10px] font-bold text-slate-700 uppercase">Renta (€):</label>
+                                <input type="number" className="win-input w-full text-right" value={formData.rentAmount || ''} onChange={e => setFormData({...formData, rentAmount: e.target.value})} />
+                              </div>
+                              <div className="space-y-1">
+                                <label className="text-[10px] font-bold text-slate-700 uppercase">Fianza (€):</label>
+                                <input type="number" className="win-input w-full text-right" value={formData.depositAmount || ''} onChange={e => setFormData({...formData, depositAmount: e.target.value})} />
+                              </div>
+                            </div>
+                            <div className="space-y-1">
+                              <label className="text-[10px] font-bold text-slate-700 uppercase">Periodo de Pago:</label>
+                              <select className="win-input w-full" value={formData.paymentPeriod || 'mensual'} onChange={e => setFormData({...formData, paymentPeriod: e.target.value})}>
+                                <option value="mensual">Mensual</option>
+                                <option value="trimestral">Trimestral</option>
+                                <option value="anual">Anual</option>
+                              </select>
+                            </div>
                           </div>
                         </div>
                       </div>
                     )}
 
                     {activeFormTab === 'ingresos' && (
-                      <div className="space-y-4">
-                        <div className="bg-[#4a69bd] text-white px-2 py-1 font-bold text-[11px] shadow-[inset_1px_1px_0px_rgba(255,255,255,0.3)]">
-                          CONFIGURACIÓN DE INGRESOS
-                        </div>
-                        <div className="p-3 bg-[#e8e8e8] border border-gray-400">
-                          <p className="text-[10px] text-gray-600 mb-3">
+                      <div className="space-y-4 max-w-xl">
+                        <div className="space-y-1">
+                          <label className="text-[10px] font-bold text-slate-700 uppercase">Cuenta de Ingresos:</label>
+                          <p className="text-[11px] text-gray-600 mb-2">
                             Selecciona la cuenta contable donde se registrarán los ingresos de este alquiler (por ejemplo: 7050000 Ingresos por Arrendamientos).
                           </p>
                           {renderAccountSelector('incomeAccountId', 'Cuenta Ingresos')}
@@ -511,12 +513,10 @@ export default function Rentals() {
                     )}
 
                     {activeFormTab === 'gastos' && (
-                      <div className="space-y-4">
-                        <div className="bg-[#4a69bd] text-white px-2 py-1 font-bold text-[11px] shadow-[inset_1px_1px_0px_rgba(255,255,255,0.3)]">
-                          CONFIGURACIÓN DE GASTOS
-                        </div>
-                        <div className="p-3 bg-[#e8e8e8] border border-gray-400">
-                          <p className="text-[10px] text-gray-600 mb-3">
+                      <div className="space-y-4 max-w-xl">
+                        <div className="space-y-1">
+                          <label className="text-[10px] font-bold text-slate-700 uppercase">Cuenta de Gastos:</label>
+                          <p className="text-[11px] text-gray-600 mb-2">
                             Selecciona la cuenta contable predeterminada para los gastos asociados a este alquiler.
                           </p>
                           {renderAccountSelector('expenseAccountId', 'Cuenta Gastos')}
