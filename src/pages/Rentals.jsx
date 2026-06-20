@@ -73,7 +73,9 @@ export default function Rentals() {
     incomeAccountId: '',
     expenseAccountId: '',
     notes: '',
-    expenses: []
+    expenses: [],
+    actualizaIpc: false,
+    rooms: []
   };
 
   const [formData, setFormData] = useState(initialFormState);
@@ -456,18 +458,35 @@ export default function Rentals() {
                             <label className="text-[10px] font-bold text-slate-700 uppercase">Inicio:</label>
                             <input type="date" className="win-input w-full" value={formData.startDate || ''} onChange={e => setFormData({...formData, startDate: e.target.value})} />
                           </div>
-                          <div className="space-y-1">
-                            <label className="text-[10px] font-bold text-slate-700 uppercase">Fin:</label>
-                            <input type="date" className="win-input w-full" value={formData.endDate || ''} onChange={e => setFormData({...formData, endDate: e.target.value})} />
-                          </div>
+                          {formData.duration !== 'abierto' && (
+                            <div className="space-y-1">
+                              <label className="text-[10px] font-bold text-slate-700 uppercase">Fin:</label>
+                              <input type="date" className="win-input w-full" value={formData.endDate || ''} onChange={e => setFormData({...formData, endDate: e.target.value})} />
+                            </div>
+                          )}
                           <div className="space-y-1">
                             <label className="text-[10px] font-bold text-slate-700 uppercase">Renta (€):</label>
                             <input type="number" className="win-input w-full text-right" value={formData.rentAmount || ''} onChange={e => setFormData({...formData, rentAmount: e.target.value})} />
-                            {formData.paymentPeriod && formData.paymentPeriod !== 'mensual' && formData.rentAmount > 0 && (
-                              <div className="text-[10px] text-gray-500 text-right italic">
-                                Equivale a {(formData.paymentPeriod === 'anual' ? formData.rentAmount / 12 : formData.rentAmount / 3).toLocaleString('es-ES', { minimumFractionDigits: 2, maximumFractionDigits: 2 })} € / mes
-                              </div>
-                            )}
+                            {(() => {
+                              const rentEq = (formData.paymentPeriod === 'anual' ? formData.rentAmount / 12 : (formData.paymentPeriod === 'trimestral' ? formData.rentAmount / 3 : formData.rentAmount)) || 0;
+                              const expEq = (formData.expenses || []).reduce((sum, exp) => {
+                                let monthly = exp.amount || 0;
+                                if (exp.period === 'anual') monthly = monthly / 12;
+                                else if (exp.period === 'trimestral') monthly = monthly / 3;
+                                return sum + monthly;
+                              }, 0) || 0;
+                              const netEq = rentEq - expEq;
+                              return (
+                                <div className="text-[10px] text-right italic pt-1">
+                                  {formData.paymentPeriod !== 'mensual' && formData.rentAmount > 0 && (
+                                    <span className="block text-gray-500">Equivale a {rentEq.toLocaleString('es-ES', { minimumFractionDigits: 2, maximumFractionDigits: 2 })} € / mes</span>
+                                  )}
+                                  <span className={`block font-bold mt-1 ${netEq >= 0 ? 'text-green-700' : 'text-red-600'}`}>
+                                    Neto (tras gastos): {netEq.toLocaleString('es-ES', { minimumFractionDigits: 2, maximumFractionDigits: 2 })} € / mes
+                                  </span>
+                                </div>
+                              );
+                            })()}
                           </div>
                           <div className="space-y-1">
                             <label className="text-[10px] font-bold text-slate-700 uppercase">Fianza (€):</label>
@@ -481,7 +500,113 @@ export default function Rentals() {
                               <option value="anual">Anual</option>
                             </select>
                           </div>
+                          <div className="space-y-1 pt-2">
+                            <label className="flex items-center space-x-2 cursor-pointer">
+                              <input type="checkbox" checked={formData.actualizaIpc || false} onChange={e => setFormData({...formData, actualizaIpc: e.target.checked})} />
+                              <span className="text-[10px] font-bold text-slate-700 uppercase">Se actualiza por IPC</span>
+                            </label>
+                          </div>
                         </div>
+
+                        {formData.rentalType === 'alquiler por habitaciones' && (
+                          <div className="mt-2 border-t border-[#a0a0a0] pt-4">
+                            <div className="flex justify-between items-center mb-2">
+                              <h3 className="text-[11px] font-bold text-slate-800 uppercase">Habitaciones</h3>
+                              <button 
+                                onClick={() => setFormData({...formData, rooms: [...(formData.rooms || []), { id: Date.now().toString(), name: '', tenantId: '', amount: 0 }]})}
+                                className="flex items-center space-x-1 px-2 py-1 bg-[#e0e0e0] border border-gray-400 hover:bg-[#d0d0d0] text-[10px] font-bold"
+                              >
+                                <Plus className="w-3 h-3" />
+                                <span>Añadir Habitación</span>
+                              </button>
+                            </div>
+                            <table className="w-full text-[11px] border-collapse bg-white border border-gray-300">
+                              <thead className="bg-[#f0f0f0]">
+                                <tr>
+                                  <th className="border border-gray-300 p-1.5 text-left">Habitación</th>
+                                  <th className="border border-gray-300 p-1.5 text-left">Inquilino</th>
+                                  <th className="border border-gray-300 p-1.5 text-right w-24">Importe (€)</th>
+                                  <th className="border border-gray-300 p-1.5 text-center w-10"></th>
+                                </tr>
+                              </thead>
+                              <tbody>
+                                {(formData.rooms || []).map((room, idx) => (
+                                  <tr key={room.id}>
+                                    <td className="border border-gray-300 p-1">
+                                      <input 
+                                        type="text" 
+                                        className="w-full px-1 py-0.5 outline-none" 
+                                        placeholder="Ej: Hab. Principal"
+                                        value={room.name}
+                                        onChange={(e) => {
+                                          const newRooms = [...formData.rooms];
+                                          newRooms[idx].name = e.target.value;
+                                          setFormData({...formData, rooms: newRooms});
+                                        }}
+                                      />
+                                    </td>
+                                    <td className="border border-gray-300 p-1">
+                                      <select 
+                                        className="w-full px-1 py-0.5 outline-none bg-transparent"
+                                        value={room.tenantId || ''}
+                                        onChange={(e) => {
+                                          const newRooms = [...formData.rooms];
+                                          newRooms[idx].tenantId = e.target.value;
+                                          setFormData({...formData, rooms: newRooms});
+                                        }}
+                                      >
+                                        <option value="">-- Inquilino --</option>
+                                        {customers.map(c => <option key={c.id} value={c.id}>{c.name || `${c.firstName || ''} ${c.lastName || ''}`.trim() || c.companyName}</option>)}
+                                      </select>
+                                    </td>
+                                    <td className="border border-gray-300 p-1">
+                                      <input 
+                                        type="number" 
+                                        className="w-full px-1 py-0.5 outline-none text-right" 
+                                        value={room.amount}
+                                        onChange={(e) => {
+                                          const newRooms = [...formData.rooms];
+                                          newRooms[idx].amount = Number(e.target.value);
+                                          setFormData({...formData, rooms: newRooms});
+                                        }}
+                                      />
+                                    </td>
+                                    <td className="border border-gray-300 p-1 text-center">
+                                      <button 
+                                        onClick={() => {
+                                          const newRooms = formData.rooms.filter(r => r.id !== room.id);
+                                          setFormData({...formData, rooms: newRooms});
+                                        }}
+                                        className="text-red-500 hover:bg-red-50 p-1 rounded"
+                                      >
+                                        <Trash2 className="w-3 h-3" />
+                                      </button>
+                                    </td>
+                                  </tr>
+                                ))}
+                                {(!formData.rooms || formData.rooms.length === 0) && (
+                                  <tr>
+                                    <td colSpan="4" className="border border-gray-300 p-4 text-center text-gray-500 italic">
+                                      No hay habitaciones registradas
+                                    </td>
+                                  </tr>
+                                )}
+                              </tbody>
+                              {formData.rooms && formData.rooms.length > 0 && (
+                                <tfoot className="bg-[#e8e8e8] font-bold">
+                                  <tr>
+                                    <td className="border border-gray-300 p-1.5 text-right" colSpan="2">
+                                      Total Habitaciones:
+                                    </td>
+                                    <td className="border border-gray-300 p-1.5 text-right pr-2" colSpan="2">
+                                      {formData.rooms.reduce((sum, room) => sum + (Number(room.amount) || 0), 0).toLocaleString('es-ES', { minimumFractionDigits: 2, maximumFractionDigits: 2 })} €
+                                    </td>
+                                  </tr>
+                                </tfoot>
+                              )}
+                            </table>
+                          </div>
+                        )}
 
                         {/* Gastos Asociados */}
                         <div className="mt-6 border-t border-[#a0a0a0] pt-4">
