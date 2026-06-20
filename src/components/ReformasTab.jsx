@@ -161,6 +161,7 @@ export default function ReformasTab({
                 <th className="p-2 font-bold uppercase w-[150px]">Fecha</th>
                 <th className="p-2 font-bold uppercase min-w-[200px]">Concepto</th>
                 <th className="p-2 font-bold uppercase w-[120px]">Importe Presupuestado (€)</th>
+                <th className="p-2 font-bold uppercase w-[120px]">Total Gastos (€)</th>
                 <th className="p-2 font-bold uppercase w-[100px] text-center">Capitalizar</th>
                 <th className="p-2 font-bold uppercase w-[60px] text-center">Borrar</th>
               </tr>
@@ -168,7 +169,7 @@ export default function ReformasTab({
             <tbody>
               {reforms.length === 0 ? (
                 <tr>
-                  <td colSpan="5" className="text-center p-8 text-slate-400 italic">No hay reformas registradas. Haz clic en "Añadir Reforma" para empezar.</td>
+                  <td colSpan="6" className="text-center p-8 text-slate-400 italic">No hay reformas registradas. Haz clic en "Añadir Reforma" para empezar.</td>
                 </tr>
               ) : (
                 reforms.map((reform, idx) => (
@@ -209,6 +210,9 @@ export default function ReformasTab({
                         onClick={() => setSelectedIndex(idx)}
                         title="Importe total estimado o presupuestado"
                       />
+                    </td>
+                    <td className="p-2 text-right text-[#000080] font-bold" onClick={(e) => { e.stopPropagation(); setSelectedIndex(idx); }}>
+                      {(reform.expenses || []).reduce((acc, curr) => acc + (parseFloat(curr.amount) || 0), 0).toLocaleString('es-ES', { style: 'currency', currency: 'EUR' })}
                     </td>
                     <td className="p-2 text-center" onClick={(e) => e.stopPropagation()}>
                       <input 
