@@ -38,6 +38,19 @@ export default function FinanzasTab({ formData, setFormData, rentals, user, setP
     return adquisitionExpenses.reduce((sum, exp) => sum + (parseFloat(exp.amount) || 0), 0);
   }, [adquisitionExpenses]);
 
+  const totalCapitalizedReforms = useMemo(() => {
+    const reforms = formData.reforms || [];
+    return reforms.reduce((sum, reform) => {
+      if (reform.capitalize) {
+        const amount = reform.amount !== undefined && reform.amount !== '' 
+          ? parseFloat(reform.amount) 
+          : (reform.expenses || []).reduce((expSum, exp) => expSum + (parseFloat(exp.amount) || 0), 0);
+        return sum + (amount || 0);
+      }
+      return sum;
+    }, 0);
+  }, [formData.reforms]);
+
   const handleRowFileUpload = async (e, idx) => {
     const file = e.target.files[0];
     if (!file || !user || !formData.id) return;
@@ -96,6 +109,18 @@ export default function FinanzasTab({ formData, setFormData, rentals, user, setP
                   className="win-input w-full text-right pr-6" 
                   value={formData.investedCapital || ''} 
                   onChange={e => setFormData({ ...formData, investedCapital: e.target.value })} 
+                />
+                <span className="absolute right-2 top-1/2 -translate-y-1/2 text-[11px] text-gray-500">€</span>
+              </div>
+            </div>
+            <div className="space-y-1">
+              <label className="text-[10px] font-bold text-slate-700 uppercase" title="Suma automática de las reformas marcadas para capitalizar">Total reformas capitalizable:</label>
+              <div className="relative">
+                <input 
+                  type="text" 
+                  className="win-input w-full text-right pr-6 bg-slate-50 text-slate-500 cursor-not-allowed" 
+                  value={totalCapitalizedReforms.toLocaleString('es-ES', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+                  readOnly 
                 />
                 <span className="absolute right-2 top-1/2 -translate-y-1/2 text-[11px] text-gray-500">€</span>
               </div>
