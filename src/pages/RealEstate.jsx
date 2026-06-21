@@ -1,5 +1,5 @@
 import { useState, useEffect, useMemo, useCallback } from 'react';
-import { Search, Download, Trash2, X, FileArchive, FileText } from 'lucide-react';
+import { Search, Download, Trash2, X, FileArchive, FileText, Building2, User, Landmark, Zap, Users as UsersIcon, Wrench, UserCircle, PieChart } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
 import { db } from '../firebase/config';
 import { collection, query, where, getDocs, onSnapshot, doc, setDoc, deleteDoc, enableNetwork, disableNetwork } from 'firebase/firestore';
