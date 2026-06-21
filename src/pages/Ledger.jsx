@@ -26,6 +26,15 @@ export default function Ledger({ initialMode }) {
   const [timelineFilter, setTimelineFilter] = useState(null);
   const [showZeroBalance, setShowZeroBalance] = useState(true);
 
+  // Sync with prop
+  useEffect(() => {
+    if (initialMode) {
+      setViewMode(initialMode);
+    } else {
+      setViewMode('summary');
+    }
+  }, [initialMode]);
+
   // 1. Load accounts
   useEffect(() => {
     if (!user) return;
@@ -477,14 +486,6 @@ export default function Ledger({ initialMode }) {
   }
 
   // Summary View
-  useEffect(() => {
-    if (initialMode) {
-      setViewMode(initialMode);
-    } else {
-      setViewMode('summary');
-    }
-  }, [initialMode]);
-
   return (
     <div className="w-full h-full bg-[#d4d0c8] flex flex-col p-1 overflow-hidden font-sans">
       {/* Ribbon Bar */}
