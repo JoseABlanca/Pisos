@@ -19,6 +19,8 @@ export default function Rentals() {
   const [rentals, setRentals] = useState([]);
   const [properties, setProperties] = useState([]);
   const [customers, setCustomers] = useState([]);
+  const [tenants, setTenants] = useState([]);
+  const [cebes, setCebes] = useState([]);
   
   const [showForm, setShowForm] = useState(false);
   const [isEditing, setIsEditing] = useState(false);
@@ -52,7 +54,9 @@ export default function Rentals() {
     depositAmount: 0,
     paymentPeriod: 'mensual',
     incomeAccountId: '',
+    incomeCebeId: '',
     expenseAccountId: '',
+    expenseCebeId: '',
     notes: '',
     expenses: [],
     actualizaIpc: false,
@@ -93,10 +97,26 @@ export default function Rentals() {
       }
     );
 
+    const unsubTenants = onSnapshot(
+      query(collection(db, 'partners'), where('userId', 'in', userIds)),
+      (snap) => {
+        setTenants(snap.docs.map(d => ({ ...d.data(), id: d.id })));
+      }
+    );
+
+    const unsubCebes = onSnapshot(
+      query(collection(db, 'analytical_centers'), where('userId', 'in', userIds), where('type', '==', 'cebe')),
+      (snap) => {
+        setCebes(snap.docs.map(d => ({ ...d.data(), id: d.id })));
+      }
+    );
+
     return () => {
       unsubRentals();
       unsubProps();
       unsubCusts();
+      unsubTenants();
+      unsubCebes();
     };
   }, [user, queryUserIds]);
 
@@ -196,6 +216,20 @@ export default function Rentals() {
         value={formData[field]} 
         onChange={(e) => setFormData({...formData, [field]: e.target.value})} 
       />
+    </div>
+  );
+
+  const renderCebeSelector = (field, label) => (
+    <div className="win-form-row">
+      <label className="win-form-label">{label}:</label>
+      <select 
+        className="win-input flex-1 min-w-0" 
+        value={formData[field]} 
+        onChange={(e) => setFormData({...formData, [field]: e.target.value})}
+      >
+        <option value="">-- Seleccionar CEBE --</option>
+        {cebes.map(c => <option key={c.id} value={c.code}>{c.code} - {c.name}</option>)}
+      </select>
     </div>
   );
 
@@ -1198,6 +1232,13 @@ export default function Rentals() {
                           </p>
                           {renderAccountSelector('incomeAccountId', 'Cuenta Ingresos')}
                         </div>
+                        <div className="space-y-1">
+                          <label className="text-[10px] font-bold text-slate-700 uppercase">CEBE Asociado (Ingresos):</label>
+                          <p className="text-[11px] text-gray-600 mb-2">
+                            Selecciona el CEBE al que se imputarán los ingresos de este alquiler.
+                          </p>
+                          {renderCebeSelector('incomeCebeId', 'CEBE Ingresos')}
+                        </div>
                       </div>
                     )}
 
@@ -1209,6 +1250,13 @@ export default function Rentals() {
                             Selecciona la cuenta contable predeterminada para los gastos asociados a este alquiler.
                           </p>
                           {renderAccountSelector('expenseAccountId', 'Cuenta Gastos')}
+                        </div>
+                        <div className="space-y-1">
+                          <label className="text-[10px] font-bold text-slate-700 uppercase">CEBE Asociado (Gastos):</label>
+                          <p className="text-[11px] text-gray-600 mb-2">
+                            Selecciona el CEBE al que se imputarán los gastos fijos de este alquiler.
+                          </p>
+                          {renderCebeSelector('expenseCebeId', 'CEBE Gastos')}
                         </div>
                       </div>
                     )}

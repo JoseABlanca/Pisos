@@ -91,6 +91,7 @@ export default function RealEstate() {
   const [isEditing, setIsEditing] = useState(false);
   const [activeTab, setActiveTab] = useState('Datos');
   const [availableAccounts, setAvailableAccounts] = useState([]);
+  const [cebes, setCebes] = useState([]);
 
   useEffect(() => {
     const onNew = () => handleNew();
@@ -148,7 +149,8 @@ export default function RealEstate() {
           active: val.active !== undefined ? val.active : true,
           invoices: val.invoices || [],
           docs: val.docs || [],
-          accountingAccount: val.accountingAccount || ''
+          accountingAccount: val.accountingAccount || '',
+          cebe: val.cebe || ''
         });
       }
     }
@@ -224,6 +226,7 @@ export default function RealEstate() {
     registry: '',
     accountNumber: '',
     accountingAccount: '',
+    cebe: '',
     m2: '',
     rooms: '',
     baths: '',
@@ -293,6 +296,7 @@ export default function RealEstate() {
       registry: '',
       accountNumber: '',
       accountingAccount: '',
+      cebe: '',
       m2: '',
       rooms: '',
       baths: '',
@@ -529,7 +533,14 @@ export default function RealEstate() {
     }, (error) => {
       console.error("Error fetching accounts realtime:", error);
     });
-    return () => unsubscribe();
+    
+    const qCebes = query(collection(db, 'analytical_centers'), where('userId', 'in', queryUserIds?.length > 0 ? queryUserIds : [user.uid]), where('type', '==', 'cebe'));
+    const unsubCebes = onSnapshot(qCebes, (snap) => setCebes(snap.docs.map(d => ({ ...d.data(), id: d.id }))));
+
+    return () => {
+      unsubscribe();
+      unsubCebes();
+    };
   }, [user, queryUserIds]);
 
   const handleAssetFileUpload = async (e) => {
@@ -673,6 +684,15 @@ export default function RealEstate() {
                 <option value=""></option>
                 {availableAccounts.map(acc => (
                   <option key={acc.code} value={acc.code}>{acc.code} - {acc.name}</option>
+                ))}
+              </select>
+            </div>
+            <div className="space-y-1">
+              <label className="text-[10px] font-bold text-slate-700 uppercase">CEBE Asociado:</label>
+              <select className="win-input w-full cursor-pointer" value={formData.cebe || ''} onChange={e => setFormData({ ...formData, cebe: e.target.value })}>
+                <option value=""></option>
+                {cebes.map(c => (
+                  <option key={c.id} value={c.code}>{c.code} - {c.name}</option>
                 ))}
               </select>
             </div>
