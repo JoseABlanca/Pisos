@@ -118,9 +118,9 @@ export default function RealEstate() {
   const [finanzasSubTab, setFinanzasSubTab] = useState('principal');
   const [accessoryFormData, setAccessoryFormData] = useState(null);
 
-  const { activeTableFilters, applyTableFilters, clearAllFilters, TableHeaderWithFilter, renderFilterMenu, openFilterMenu, setOpenFilterMenu } = useTableFilters();
   const DEFAULT_COLUMNS = ['id', 'name', 'address', 'cp', 'tenantDisplay', 'rentTotal'];
-  const { visibleColumns, toggleColumn } = useTableColumns('properties', DEFAULT_COLUMNS);
+  const { visibleColumns, toggleColumn, columnWidths, updateColumnWidth } = useTableColumns('properties', DEFAULT_COLUMNS);
+  const { activeTableFilters, applyTableFilters, clearAllFilters, TableHeaderWithFilter, renderFilterMenu, openFilterMenu, setOpenFilterMenu } = useTableFilters({ columnWidths, updateColumnWidth });
 
   const transformServices = (servicesData) => {
     if (Array.isArray(servicesData)) return servicesData;

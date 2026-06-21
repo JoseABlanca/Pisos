@@ -28,10 +28,9 @@ export default function Rentals() {
   const [previewDocument, setPreviewDocument] = useState(null);
   const [dragOverZone, setDragOverZone] = useState(null);
   
-  const { activeTableFilters, applyTableFilters, clearAllFilters, TableHeaderWithFilter, renderFilterMenu, openFilterMenu, setOpenFilterMenu } = useTableFilters();
-
   const DEFAULT_COLUMNS = ['id', 'propertyDisplay', 'tenantDisplay', 'rent', 'status'];
-  const { visibleColumns, toggleColumn } = useTableColumns('rentals', DEFAULT_COLUMNS);
+  const { visibleColumns, toggleColumn, columnWidths, updateColumnWidth } = useTableColumns('rentals', DEFAULT_COLUMNS);
+  const { activeTableFilters, applyTableFilters, clearAllFilters, TableHeaderWithFilter, renderFilterMenu, openFilterMenu, setOpenFilterMenu } = useTableFilters({ columnWidths, updateColumnWidth });
 
   const [showSidebar, setShowSidebar] = useState(true);
   const [statusFilter, setStatusFilter] = useState('todos');

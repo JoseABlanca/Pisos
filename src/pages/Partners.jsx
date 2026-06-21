@@ -136,9 +136,9 @@ export default function Partners() {
     }
   };
 
-  const { activeTableFilters, applyTableFilters, clearAllFilters, TableHeaderWithFilter, renderFilterMenu, openFilterMenu, setOpenFilterMenu } = useTableFilters();
   const DEFAULT_COLUMNS = ['dni', 'name', 'email', 'phone', 'status'];
-  const { visibleColumns, toggleColumn } = useTableColumns('partners', DEFAULT_COLUMNS);
+  const { visibleColumns, toggleColumn, columnWidths, updateColumnWidth } = useTableColumns('partners', DEFAULT_COLUMNS);
+  const { activeTableFilters, applyTableFilters, clearAllFilters, TableHeaderWithFilter, renderFilterMenu, openFilterMenu, setOpenFilterMenu } = useTableFilters({ columnWidths, updateColumnWidth });
 
   const [formData, setFormData] = useState({
     id: '',

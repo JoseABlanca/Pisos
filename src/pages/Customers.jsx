@@ -98,10 +98,9 @@ export default function Customers() {
       { id: 'C00005', name: 'Juan Pérez García', address: 'C/ Ejemplo 1', dni: '12345678Z', phone: '+34 600 000 000', email: 'juan.perez@email.com', cp: '28001', floor: '1', status: 'activo' }
     ];
   });
-  const { activeTableFilters, applyTableFilters, clearAllFilters, TableHeaderWithFilter, renderFilterMenu, openFilterMenu, setOpenFilterMenu } = useTableFilters();
-
   const DEFAULT_COLUMNS = ['id', 'name', 'address', 'status'];
-  const { visibleColumns, toggleColumn } = useTableColumns('customers', DEFAULT_COLUMNS);
+  const { visibleColumns, toggleColumn, columnWidths, updateColumnWidth } = useTableColumns('customers', DEFAULT_COLUMNS);
+  const { activeTableFilters, applyTableFilters, clearAllFilters, TableHeaderWithFilter, renderFilterMenu, openFilterMenu, setOpenFilterMenu } = useTableFilters({ columnWidths, updateColumnWidth });
   const [rentals, setRentals] = useState([]);
 
   useEffect(() => {

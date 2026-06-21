@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { Filter, X } from 'lucide-react';
 
-export const useTableFilters = () => {
+export const useTableFilters = ({ columnWidths = {}, updateColumnWidth = null } = {}) => {
   const [activeTableFilters, setActiveTableFilters] = useState({});
   const [openFilterMenu, setOpenFilterMenu] = useState(null);
   const [filterSearch, setFilterSearch] = useState('');
@@ -103,12 +103,48 @@ export const useTableFilters = () => {
     // It's active if it's NOT undefined (meaning some specific selection or empty array)
     const isActive = filterState !== undefined;
     
+    const [localWidth, setLocalWidth] = useState(null);
+
+    useEffect(() => {
+      if (columnWidths[columnKey]) {
+        setLocalWidth(columnWidths[columnKey]);
+      }
+    }, [columnWidths, columnKey]);
+
+    const width = localWidth || columnWidths[columnKey] || null;
+    const style = width ? { width: `${width}px`, minWidth: `${width}px`, maxWidth: `${width}px` } : {};
+
+    const handleMouseDown = (e) => {
+      e.preventDefault();
+      e.stopPropagation();
+      const startX = e.clientX;
+      const th = e.currentTarget.parentElement;
+      const startWidth = th.offsetWidth;
+
+      const handleMouseMove = (moveEvent) => {
+        const newWidth = Math.max(30, startWidth + (moveEvent.clientX - startX));
+        setLocalWidth(newWidth);
+      };
+
+      const handleMouseUp = (upEvent) => {
+        document.removeEventListener('mousemove', handleMouseMove);
+        document.removeEventListener('mouseup', handleMouseUp);
+        const finalWidth = Math.max(30, startWidth + (upEvent.clientX - startX));
+        if (updateColumnWidth) {
+          updateColumnWidth(columnKey, finalWidth);
+        }
+      };
+
+      document.addEventListener('mousemove', handleMouseMove);
+      document.addEventListener('mouseup', handleMouseUp);
+    };
+    
     return (
-      <th className={`${className} group relative`}>
-        <div className="flex items-center justify-between">
-          <span>{label}</span>
+      <th className={`${className} group relative`} style={style}>
+        <div className="flex items-center justify-between h-full">
+          <span className="truncate flex-1 pr-1">{label}</span>
           <button 
-            className={`p-0.5 rounded-sm hover:bg-slate-300 transition-colors filter-btn ${isActive ? 'bg-blue-100 text-blue-700' : 'text-slate-400'}`}
+            className={`p-0.5 rounded-sm hover:bg-slate-300 transition-colors filter-btn flex-shrink-0 mr-1 ${isActive ? 'bg-blue-100 text-blue-700' : 'text-slate-400'}`}
             onClick={(e) => {
               e.stopPropagation();
               const rect = e.currentTarget.getBoundingClientRect();
@@ -125,6 +161,10 @@ export const useTableFilters = () => {
             <Filter className={`w-3 h-3 ${isActive ? 'fill-blue-200' : ''}`} />
           </button>
         </div>
+        <div 
+          className="absolute right-0 top-0 bottom-0 w-1 cursor-col-resize hover:bg-blue-400 z-10"
+          onMouseDown={handleMouseDown}
+        />
       </th>
     );
   };
