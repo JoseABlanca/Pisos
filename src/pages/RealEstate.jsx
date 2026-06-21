@@ -10,16 +10,10 @@ import ComunidadTab from '../components/ComunidadTab';
 import PropietariosTab from '../components/PropietariosTab';
 import FinanzasTab from '../components/FinanzasTab';
 import ExtractoTab from '../components/ExtractoTab';
-import ClienteTab from '../components/ClienteTab';
-import ReformasTab from '../components/ReformasTab';
-import { 
-  Check, X, Search, Plus, Trash2, Edit, Save, Filter,
-  Building2, User, Landmark, Zap, Users as UsersIcon,
-  Download, Building, UserCircle, FileText, Wrench, ClipboardList,
-  PieChart, Receipt, ChevronLeft, ChevronRight, PanelLeft, Upload, Eye
-} from 'lucide-react';
-import { handleExportFormat } from '../utils/exportUtils';
 import { uploadFileToStorage } from '../utils/storageUtils';
+import { useTableColumns } from '../hooks/useTableColumns';
+import { useTableFilters } from '../hooks/useTableFilters';
+import { exportToPDF } from '../utils/pdfExport';
 import ZoomControl from '../components/ZoomControl';
 import { DEFAULT_PROPERTIES } from '../utils/defaultData';
 
@@ -33,15 +27,12 @@ export default function RealEstate() {
   const [isUploading, setIsUploading] = useState(false);
   const [statusFilter, setStatusFilter] = useState('todos');
 
-
-
   useEffect(() => {
     const handleResize = () => setIsMobile(window.innerWidth < 768);
     window.addEventListener('resize', handleResize);
     return () => window.removeEventListener('resize', handleResize);
   }, []);
 
-  // Force Firestore reconnection when app returns from background (mobile fix)
   useEffect(() => {
     const handleVisibilityChange = async () => {
       if (document.visibilityState === 'visible') {
@@ -94,37 +85,23 @@ export default function RealEstate() {
   }, [user, refreshKey]);
   const [selectedProperty, setSelectedProperty] = useState(null);
   const [isEditing, setIsEditing] = useState(false);
-  const [searchQuery, setSearchQuery] = useState('');
   const [activeTab, setActiveTab] = useState('Datos');
   const [availableAccounts, setAvailableAccounts] = useState([]);
-  const [filterColumn, setFilterColumn] = useState('name');
-  const [filterOperator, setFilterOperator] = useState('contains');
-  const [filterValue, setFilterValue] = useState('');
-  const [isFilterActive, setIsFilterActive] = useState(false);
 
   useEffect(() => {
     const onNew = () => handleNew();
     const onEdit = () => handleEdit();
     const onDelete = () => handleDelete();
-    const onFilter = () => handleFilter();
-    const onExport = (e) => {
-      const format = e.detail?.format || 'csv';
-      handleExportFormat(properties, 'Activos', format);
-    };
     window.addEventListener('real-estate:new', onNew);
     window.addEventListener('real-estate:edit', onEdit);
     window.addEventListener('real-estate:delete', onDelete);
-    window.addEventListener('real-estate:filter', onFilter);
-    window.addEventListener('real-estate:export', onExport);
 
     return () => {
       window.removeEventListener('real-estate:new', onNew);
       window.removeEventListener('real-estate:edit', onEdit);
       window.removeEventListener('real-estate:delete', onDelete);
-      window.removeEventListener('real-estate:filter', onFilter);
-      window.removeEventListener('real-estate:export', onExport);
     };
-  }, [selectedProperty, filterColumn, filterOperator, filterValue]);
+  }, [selectedProperty]);
 
   const [selectedTenantIndex, setSelectedTenantIndex] = useState(null);
   const [previewDocument, setPreviewDocument] = useState(null);
@@ -133,202 +110,42 @@ export default function RealEstate() {
   const [selectedServiceIndex, setSelectedServiceIndex] = useState(null);
   const [selectedReformIndex, setSelectedReformIndex] = useState(null);
   const [dragOverZone, setDragOverZone] = useState(null);
-  const [filterSearch, setFilterSearch] = useState('');
-  const [activeTableFilters, setActiveTableFilters] = useState({});
-  const [openFilterMenu, setOpenFilterMenu] = useState(null);
   const [showOnlyActiveServices, setShowOnlyActiveServices] = useState(false);
   const [finanzasSubTab, setFinanzasSubTab] = useState('principal');
   const [accessoryFormData, setAccessoryFormData] = useState(null);
 
+  const { activeTableFilters, applyTableFilters, clearAllFilters, TableHeaderWithFilter, renderFilterMenu, openFilterMenu, setOpenFilterMenu } = useTableFilters();
   const DEFAULT_COLUMNS = ['id', 'name', 'address', 'cp', 'tenantDisplay', 'rentTotal'];
-  const [visibleColumns, setVisibleColumns] = useState(DEFAULT_COLUMNS);
+  const { visibleColumns, toggleColumn } = useTableColumns('properties', DEFAULT_COLUMNS);
 
-  useEffect(() => {
-    window.dispatchEvent(new CustomEvent('sync-columns', { detail: { tab: 'Activos', columns: visibleColumns } }));
-  }, [visibleColumns]);
+  const [filterColumn, setFilterColumn] = useState('name');
+  const [filterOperator, setFilterOperator] = useState('contains');
+  const [filterValue, setFilterValue] = useState('');
+  const [isFilterActive, setIsFilterActive] = useState(false);
 
-  useEffect(() => {
-    const handleToggleColumn = (e) => {
-      const colId = e.detail.columnId;
-      setVisibleColumns(prev => {
-        if (prev.includes(colId)) return prev.filter(c => c !== colId);
-        return [...prev, colId];
-      });
-    };
+  const filteredProperties = properties.filter(p => {
+    if (statusFilter !== 'todos' && (p.status || 'activo') !== statusFilter) return false;
+    if (!isFilterActive && !filterValue) return true;
     
-    const handleRequestSync = () => {
-      window.dispatchEvent(new CustomEvent('sync-columns', { detail: { tab: 'Activos', columns: visibleColumns } }));
-    };
+    let val = String(p[filterColumn] || '').toLowerCase();
+    if (filterColumn === 'tenants' && Array.isArray(p.tenants)) {
+      val = p.tenants.map(t => t.name === 'OTRO' ? t.customName : t.name).join(' ').toLowerCase();
+    }
+    const searchVal = filterValue.toLowerCase();
 
-    window.addEventListener('toggle-column', handleToggleColumn);
-    window.addEventListener('request-sync-columns', handleRequestSync);
-    
-    return () => {
-      window.removeEventListener('toggle-column', handleToggleColumn);
-      window.removeEventListener('request-sync-columns', handleRequestSync);
-    };
-  }, [visibleColumns]);
+    switch (filterOperator) {
+      case '=': return val === searchVal;
+      case '<': return val < searchVal;
+      case '>': return val > searchVal;
+      case '<=': return val <= searchVal;
+      case '>=': return val >= searchVal;
+      case '<>': return val !== searchVal;
+      case 'contains': 
+      default:
+        return val.includes(searchVal);
+    }
+  });
 
-  // Helper filter functions
-  const getUniqueValues = (data, columnKey) => {
-    if (!data || !Array.isArray(data)) return [];
-    const values = data.map(item => {
-      const val = item[columnKey];
-      return val === null || val === undefined ? '(Vacío)' : String(val);
-    });
-    return [...new Set(values)].sort((a, b) => a.localeCompare(b, undefined, { numeric: true, sensitivity: 'base' }));
-  };
-
-  const applyTableFilters = (data, tableId) => {
-    if (!data || !Array.isArray(data)) return [];
-    const filters = activeTableFilters[tableId];
-    if (!filters) return data;
-
-    return data.filter(item => {
-      return Object.entries(filters).every(([columnKey, selectedValues]) => {
-        if (!selectedValues || selectedValues.length === 0) return true;
-        const itemVal = item[columnKey] === null || item[columnKey] === undefined ? '(Vacío)' : String(item[columnKey]);
-        return selectedValues.includes(itemVal);
-      });
-    });
-  };
-
-  const handleToggleFilterValue = (tableId, columnKey, value) => {
-    setActiveTableFilters(prev => {
-      const tableFilters = prev[tableId] || {};
-      const columnFilters = tableFilters[columnKey] || [];
-      const newColumnFilters = columnFilters.includes(value)
-        ? columnFilters.filter(v => v !== value)
-        : [...columnFilters, value];
-      
-      return {
-        ...prev,
-        [tableId]: {
-          ...tableFilters,
-          [columnKey]: newColumnFilters
-        }
-      };
-    });
-  };
-
-  const handleSelectAllFilters = (tableId, columnKey, allValues, select) => {
-    setActiveTableFilters(prev => {
-      const tableFilters = prev[tableId] || {};
-      return {
-        ...prev,
-        [tableId]: {
-          ...tableFilters,
-          [columnKey]: select ? allValues : []
-        }
-      };
-    });
-  };
-
-  const renderFilterMenu = () => {
-    if (!openFilterMenu) return null;
-    const { tableId, columnKey, x, y, data } = openFilterMenu;
-    const allValues = getUniqueValues(data, columnKey);
-    const selectedValues = (activeTableFilters[tableId] || {})[columnKey] || [];
-    
-    const filteredValues = allValues.filter(val => 
-      val.toLowerCase().includes(filterSearch.toLowerCase())
-    );
-
-    return (
-      <div 
-        className="fixed z-[100] bg-[#d4d0c8] border border-white shadow-[2px_2px_5px_rgba(0,0,0,0.3)] min-w-[180px] flex flex-col font-sans"
-        style={{ left: Math.min(x, window.innerWidth - 200), top: Math.min(y, window.innerHeight - 300) }}
-      >
-        <div className="bg-[#4a69bd] text-white text-[10px] px-2 py-1 font-bold flex justify-between items-center">
-          <span>Filtro: {columnKey}</span>
-          <button onClick={() => setOpenFilterMenu(null)} className="hover:bg-red-500 px-1"><X className="w-3 h-3" /></button>
-        </div>
-        
-        <div className="p-2 space-y-2">
-          <div className="relative">
-            <input 
-              type="text" 
-              className="win-input w-full pl-7 pr-2 h-6 text-[10px]" 
-              placeholder="Buscar..."
-              value={filterSearch}
-              onChange={(e) => setFilterSearch(e.target.value)}
-              autoFocus
-            />
-            <Search className="w-3 h-3 absolute left-2 top-1.5 text-slate-400" />
-          </div>
-
-          <div className="flex space-x-1">
-            <button 
-              className="btn-classic flex-1 py-0.5 text-[9px]"
-              onClick={() => handleSelectAllFilters(tableId, columnKey, allValues, true)}
-            >
-              Seleccionar Todo
-            </button>
-            <button 
-              className="btn-classic flex-1 py-0.5 text-[9px]"
-              onClick={() => handleSelectAllFilters(tableId, columnKey, allValues, false)}
-            >
-              Borrar Todo
-            </button>
-          </div>
-
-          <div className="max-h-40 overflow-y-auto border border-[#808080] bg-white p-1">
-            {filteredValues.map(val => (
-              <label key={val} className="flex items-center space-x-2 hover:bg-[#0a246a] hover:text-white px-1 cursor-pointer py-0.5 group">
-                <input 
-                  type="checkbox" 
-                  className="w-3 h-3"
-                  checked={selectedValues.includes(val) || selectedValues.length === 0}
-                  onChange={() => handleToggleFilterValue(tableId, columnKey, val)}
-                />
-                <span className="text-[10px] truncate">{val}</span>
-              </label>
-            ))}
-          </div>
-        </div>
-        
-        <div className="p-1 border-t border-white flex justify-end">
-          <button 
-            className="btn-classic px-4 py-0.5 text-[10px] font-bold"
-            onClick={() => setOpenFilterMenu(null)}
-          >
-            Cerrar
-          </button>
-        </div>
-      </div>
-    );
-  };
-
-  const TableHeaderWithFilter = ({ label, columnKey, data, tableId, className = "" }) => {
-    const isActive = (activeTableFilters[tableId] || {})[columnKey]?.length > 0;
-    
-    return (
-      <th className={`${className} group relative`}>
-        <div className="flex items-center justify-between">
-          <span>{label}</span>
-          <button 
-            className={`p-0.5 rounded-sm hover:bg-slate-300 transition-colors ${isActive ? 'bg-blue-100 text-blue-700' : 'text-slate-400'}`}
-            onClick={(e) => {
-              e.stopPropagation();
-              const rect = e.currentTarget.getBoundingClientRect();
-              setOpenFilterMenu({
-                tableId,
-                columnKey,
-                x: rect.left,
-                y: rect.bottom + 2,
-                data
-              });
-              setFilterSearch('');
-            }}
-          >
-            <Filter className={`w-3 h-3 ${isActive ? 'fill-blue-200' : ''}`} />
-          </button>
-        </div>
-      </th>
-    );
-  };
-
-  // Transformador para migrar datos antiguos del objeto de servicios al nuevo array dinámico:
   const transformServices = (servicesData) => {
     if (Array.isArray(servicesData)) return servicesData;
     if (!servicesData || typeof servicesData !== 'object') return [];
@@ -384,7 +201,6 @@ export default function RealEstate() {
           const data = d.data();
           return { ...data, id: data.id || d.id };
         });
-        console.log("Syncing properties from cloud. Count:", cloudData.length);
         setProperties(cloudData);
         localStorage.setItem('app_properties', JSON.stringify(cloudData));
       },
@@ -393,16 +209,11 @@ export default function RealEstate() {
     return () => unsub();
   }, [user, refreshKey]);
 
-  // Handle saving to cloud
   const savePropertyToCloud = async (property) => {
     if (!user) return;
     try {
-      // Use the property.id as document name if it exists, otherwise Firestore will generate one
       const docId = property.id || doc(collection(db, 'properties')).id;
-      
-      // Remove any undefined values which cause Firestore to fail silently
       const cleanProperty = JSON.parse(JSON.stringify(property));
-      
       await setDoc(doc(db, 'properties', docId), {
         ...cleanProperty,
         id: docId,
@@ -412,7 +223,7 @@ export default function RealEstate() {
     } catch (error) {
       console.error("Error saving property to cloud:", error);
       alert("Error crítico al guardar en Firebase: " + error.message);
-      throw error; // Rethrow to let handleSave know it failed
+      throw error;
     }
   };
 
@@ -424,7 +235,6 @@ export default function RealEstate() {
       console.error("Error deleting property from cloud:", error);
     }
   };
-
 
   const [formData, setFormData] = useState({
     id: '',
@@ -567,7 +377,6 @@ export default function RealEstate() {
     setSelectedTenantIndex(null);
     setSelectedServiceIndex(null);
     
-    // Transform/Migrate data
     setFormData({ 
       ...selectedProperty,
       services: transformServices(selectedProperty.services),
@@ -599,7 +408,6 @@ export default function RealEstate() {
     });
     setFinanzasSubTab('principal');
     if (selectedProperty.accessoryPropertyId) {
-      // Find the accessory property from properties list
       const acc = properties.find(p => p.id === selectedProperty.accessoryPropertyId);
       setAccessoryFormData(acc ? { ...acc } : null);
     } else {
@@ -639,12 +447,10 @@ export default function RealEstate() {
         setProperties(newProps);
       }
       
-      console.log("Attempting to save property:", updatedProperty);
       await savePropertyToCloud(updatedProperty);
       if (accessoryFormData && accessoryFormData.id) {
         await savePropertyToCloud(accessoryFormData);
       }
-      console.log("Property saved successfully");
       setShowForm(false);
     } catch (error) {
       console.error("Error saving property:", error);
@@ -660,43 +466,6 @@ export default function RealEstate() {
       setSelectedProperty(null);
     }
   };
-
-  const handleFilter = () => {
-    setIsFilterActive(true);
-  };
-
-  const handleClear = () => {
-    setFilterValue('');
-    setFilterOperator('contains');
-    setIsFilterActive(false);
-    setActiveTableFilters({});
-    setFilterSearch('');
-  };
-
-  const filteredProperties = properties.filter(p => {
-    // Status filter - assuming property has a status field, if not default to 'activo'
-    if (statusFilter !== 'todos' && (p.status || 'activo') !== statusFilter) return false;
-
-    if (!isFilterActive && !filterValue) return true;
-    
-    let val = String(p[filterColumn] || '').toLowerCase();
-    if (filterColumn === 'tenants' && Array.isArray(p.tenants)) {
-      val = p.tenants.map(t => t.name === 'OTRO' ? t.customName : t.name).join(' ').toLowerCase();
-    }
-    const searchVal = filterValue.toLowerCase();
-
-    switch (filterOperator) {
-      case '=': return val === searchVal;
-      case '<': return val < searchVal;
-      case '>': return val > searchVal;
-      case '<=': return val <= searchVal;
-      case '>=': return val >= searchVal;
-      case '<>': return val !== searchVal;
-      case 'contains': 
-      default:
-        return val.includes(searchVal);
-    }
-  });
 
   const propertiesWithCalculatedRentals = useMemo(() => {
     return filteredProperties.map(p => {
@@ -718,14 +487,6 @@ export default function RealEstate() {
           const cust = availableCustomers.find(c => c.id === r.tenantId);
           if (cust) names.push(`${cust.name} ${cust.lastName || ''}`.trim());
         }
-        if (Array.isArray(r.rooms)) {
-          r.rooms.forEach(room => {
-            if (room.tenantId) {
-              const cust = availableCustomers.find(c => c.id === room.tenantId);
-              if (cust) names.push(`${cust.name} ${cust.lastName || ''}`.trim());
-            }
-          });
-        }
         return names;
       }).filter(Boolean);
       
@@ -736,7 +497,18 @@ export default function RealEstate() {
         ...p,
         tenantDisplay,
         rentTotal: calculatedRentForP.toFixed(2) + ' €',
-        rentVal: calculatedRentForP
+        rentVal: calculatedRentForP,
+        communityAdmin: p.community?.admin,
+        communityAdminEmail: p.community?.adminEmail,
+        communityAdminPhone: p.community?.adminPhone,
+        communityFee: p.community?.fee,
+        communityPaymentDay: p.community?.paymentDay,
+        finAcquisitionDate: p.financials?.acquisitionDate,
+        finPurchasePrice: p.financials?.purchasePrice,
+        finAcquisitionCosts: p.financials?.acquisitionCosts,
+        finAgentFees: p.financials?.agentFees,
+        finCurrentValue: p.financials?.currentValue,
+        finSalePrice: p.financials?.salePrice
       };
     });
   }, [filteredProperties, rentals, availableCustomers]);
@@ -755,75 +527,6 @@ export default function RealEstate() {
     });
     return () => unsubscribe();
   }, [user, queryUserIds]);
-
-  const financialMetrics = useMemo(() => {
-    const totalAcquisitionExp = (formData.financials.acquisitionExpenses || []).reduce((acc, exp) => acc + (parseFloat(exp.amount) || 0), 0);
-    const totalReforms = (formData.reforms || []).reduce((acc, ref) => {
-      const invoiced = (ref.invoices || []).reduce((sum, inv) => sum + (parseFloat(inv.amount) || 0), 0);
-      const refAmount = ref.amount !== undefined && ref.amount !== null && ref.amount !== '' ? parseFloat(ref.amount) : invoiced;
-      return acc + (isNaN(refAmount) ? 0 : refAmount);
-    }, 0);
-    const purchasePrice = parseFloat(formData.financials.purchasePrice) || 0;
-    const agentFees = parseFloat(formData.financials.agentFees) || 0;
-    const totalInvestment = purchasePrice + totalAcquisitionExp + agentFees + totalReforms;
-    const currentValue = parseFloat(formData.financials.currentValue) || 0;
-    const mortgage = parseFloat(formData.loanAmount) || 0;
-    const equity = totalInvestment - mortgage;
-    const netProfit = currentValue - equity;
-    const grossProfit = currentValue - totalInvestment;
-    const mortgagePending = parseFloat(formData.mortgagePending) || 0;
-    const realGain = netProfit - mortgagePending;
-    
-    const roi = totalInvestment > 0 ? (grossProfit / totalInvestment) * 100 : 0;
-    const roe = equity > 0 ? (netProfit / equity) * 100 : 0;
-    
-    const rentRealBase = equity + mortgagePending;
-    const rentReal = rentRealBase > 0 ? (realGain / rentRealBase) * 100 : 0;
-
-    const ownersList = Array.isArray(formData.owners) ? formData.owners : [];
-    const ownersCalculations = ownersList.map(owner => {
-      const perc = (parseFloat(owner.percentage) || 0) / 100;
-      return {
-        ...owner,
-        investment: totalInvestment * perc,
-        equity: equity * perc,
-        currentVal: currentValue * perc,
-        profit: netProfit * perc,
-        mortgagePending: mortgagePending * perc,
-        realGain: (netProfit * perc) - (mortgagePending * perc)
-      };
-    });
-
-    const ownersTotalPercentage = ownersList.reduce((acc, o) => acc + (parseFloat(o.percentage) || 0), 0);
-    
-    const ownersTotals = ownersCalculations.reduce((acc, o) => ({
-      investment: acc.investment + o.investment,
-      equity: acc.equity + o.equity,
-      currentVal: acc.currentVal + o.currentVal,
-      profit: acc.profit + o.profit,
-      mortgagePending: acc.mortgagePending + o.mortgagePending,
-      realGain: acc.realGain + o.realGain
-    }), { investment: 0, equity: 0, currentVal: 0, profit: 0, mortgagePending: 0, realGain: 0 });
-
-    return {
-      totalAcquisitionExp,
-      totalReforms,
-      totalInvestment,
-      currentValue,
-      mortgage,
-      equity,
-      netProfit,
-      grossProfit,
-      mortgagePending,
-      realGain,
-      roi,
-      roe,
-      rentReal,
-      ownersCalculations,
-      ownersTotalPercentage,
-      ownersTotals
-    };
-  }, [formData]);
 
   const handleAssetFileUpload = async (e) => {
     const files = Array.from(e.target.files);
@@ -907,24 +610,14 @@ export default function RealEstate() {
       return (
         <div className="flex flex-col gap-6">
           <div className={`grid ${isMobile ? 'grid-cols-1' : 'grid-cols-2'} gap-6`}>
-          {/* Left Column */}
           <div className="space-y-3">
             <div className="space-y-1">
               <label className="text-[10px] font-bold text-slate-700 uppercase">Nombre de la Finca:</label>
-              <input 
-                type="text" 
-                className="win-input w-full" 
-                value={formData.name || ''} 
-                onChange={e => setFormData({ ...formData, name: e.target.value })} 
-              />
+              <input type="text" className="win-input w-full" value={formData.name || ''} onChange={e => setFormData({ ...formData, name: e.target.value })} />
             </div>
-
             <div className="space-y-1">
               <label className="text-[10px] font-bold text-slate-700 uppercase">Activo Accesorio (Opcional):</label>
-              <select
-                className="win-input w-full"
-                value={formData.accessoryPropertyId || ''}
-                onChange={e => {
+              <select className="win-input w-full" value={formData.accessoryPropertyId || ''} onChange={e => {
                   const val = e.target.value;
                   setFormData({ ...formData, accessoryPropertyId: val });
                   if (val) {
@@ -933,103 +626,46 @@ export default function RealEstate() {
                   } else {
                     setAccessoryFormData(null);
                   }
-                }}
-              >
+                }}>
                 <option value="">-- Ninguno --</option>
                 {properties.filter(p => p.id !== formData.id).map(p => (
                   <option key={p.id} value={p.id}>{p.name}</option>
                 ))}
               </select>
             </div>
-            
             <div className="space-y-1">
               <label className="text-[10px] font-bold text-slate-700 uppercase">Dirección:</label>
-              <input 
-                type="text" 
-                className="win-input w-full" 
-                value={formData.address || ''} 
-                onChange={e => setFormData({ ...formData, address: e.target.value })} 
-              />
+              <input type="text" className="win-input w-full" value={formData.address || ''} onChange={e => setFormData({ ...formData, address: e.target.value })} />
             </div>
-
             <div className="space-y-1">
               <label className="text-[10px] font-bold text-slate-700 uppercase">País:</label>
-              <input 
-                type="text" 
-                className="win-input w-full" 
-                value={formData.country || ''} 
-                onChange={e => setFormData({ ...formData, country: e.target.value })} 
-              />
+              <input type="text" className="win-input w-full" value={formData.country || ''} onChange={e => setFormData({ ...formData, country: e.target.value })} />
             </div>
-
             <div className="space-y-1">
               <label className="text-[10px] font-bold text-slate-700 uppercase">Región/Provincia:</label>
-              <input 
-                type="text" 
-                className="win-input w-full" 
-                value={formData.region || ''} 
-                onChange={e => setFormData({ ...formData, region: e.target.value })} 
-              />
+              <input type="text" className="win-input w-full" value={formData.region || ''} onChange={e => setFormData({ ...formData, region: e.target.value })} />
             </div>
-
             <div className="space-y-1">
               <label className="text-[10px] font-bold text-slate-700 uppercase">Código Postal:</label>
-              <input 
-                type="text" 
-                className="win-input w-full" 
-                value={formData.cp || ''} 
-                onChange={e => setFormData({ ...formData, cp: e.target.value })} 
-              />
+              <input type="text" className="win-input w-full" value={formData.cp || ''} onChange={e => setFormData({ ...formData, cp: e.target.value })} />
             </div>
           </div>
-
-          {/* Right Column */}
           <div className="space-y-3">
             <div className="space-y-1">
               <label className="text-[10px] font-bold text-slate-700 uppercase">Ref. Catastral:</label>
-              <input 
-                type="text" 
-                className="win-input w-full" 
-                value={formData.catastral || ''} 
-                onChange={e => setFormData({ ...formData, catastral: e.target.value })} 
-              />
+              <input type="text" className="win-input w-full" value={formData.catastral || ''} onChange={e => setFormData({ ...formData, catastral: e.target.value })} />
             </div>
-
             <div className="space-y-1">
               <label className="text-[10px] font-bold text-slate-700 uppercase">Reg. Propiedad:</label>
-              <input 
-                type="text" 
-                className="win-input w-full" 
-                placeholder="Tomo, Libro, Finca..."
-                value={formData.registry || ''} 
-                onChange={e => setFormData({ ...formData, registry: e.target.value })} 
-              />
+              <input type="text" className="win-input w-full" placeholder="Tomo, Libro, Finca..." value={formData.registry || ''} onChange={e => setFormData({ ...formData, registry: e.target.value })} />
             </div>
-
             <div className="space-y-1">
               <label className="text-[10px] font-bold text-slate-700 uppercase">Número de cuenta:</label>
-              <input 
-                type="text" 
-                className="win-input w-full" 
-                value={formData.accountNumber || ''} 
-                onChange={e => setFormData({ ...formData, accountNumber: e.target.value })} 
-              />
+              <input type="text" className="win-input w-full" value={formData.accountNumber || ''} onChange={e => setFormData({ ...formData, accountNumber: e.target.value })} />
             </div>
-
             <div className="space-y-1">
-              <label 
-                className="text-[10px] font-bold text-slate-700 uppercase cursor-help"
-                title="Doble clic en la caja de abajo para ir a la configuración de cuentas"
-              >
-                Cuenta contable asociada:
-              </label>
-              <select 
-                className="win-input w-full cursor-pointer"
-                value={formData.accountingAccount || ''}
-                onChange={e => setFormData({ ...formData, accountingAccount: e.target.value })}
-                onDoubleClick={() => navigate('/accounts')}
-                title="Doble clic para añadir/editar cuentas"
-              >
+              <label className="text-[10px] font-bold text-slate-700 uppercase" title="Doble clic en la caja de abajo para ir a la configuración de cuentas">Cuenta contable asociada:</label>
+              <select className="win-input w-full cursor-pointer" value={formData.accountingAccount || ''} onChange={e => setFormData({ ...formData, accountingAccount: e.target.value })} onDoubleClick={() => navigate('/accounts')} title="Doble clic para añadir/editar cuentas">
                 <option value=""></option>
                 {availableAccounts.map(acc => (
                   <option key={acc.code} value={acc.code}>{acc.code} - {acc.name}</option>
@@ -1038,30 +674,17 @@ export default function RealEstate() {
             </div>
           </div>
         </div>
-
-        {/* Expediente Digital del Activo */}
         <div className="flex-1 flex flex-col bg-slate-50 border border-gray-200 rounded-md">
           <div className="p-4 border-b border-gray-200 flex justify-between items-center bg-white rounded-t-md">
             <h3 className="text-[12px] font-bold text-slate-800 uppercase italic">Documentos ({formData.name || 'Activo'})</h3>
             <div className="relative">
-              <input
-                type="file"
-                multiple
-                id="asset-doc-upload"
-                className="hidden"
-                onChange={handleAssetFileUpload}
-                disabled={isUploading}
-              />
-              <label 
-                htmlFor="asset-doc-upload" 
-                className={`btn-classic flex items-center space-x-1 px-3 py-1 cursor-pointer ${isUploading ? 'opacity-50 pointer-events-none' : ''}`}
-              >
-                <Upload className="w-4 h-4" />
+              <input type="file" multiple id="asset-doc-upload" className="hidden" onChange={handleAssetFileUpload} disabled={isUploading} />
+              <label htmlFor="asset-doc-upload" className={`btn-classic flex items-center space-x-1 px-3 py-1 cursor-pointer ${isUploading ? 'opacity-50 pointer-events-none' : ''}`}>
+                <FileArchive className="w-4 h-4" />
                 <span className="text-[11px] font-bold">{isUploading ? 'Subiendo...' : 'Subir Documento'}</span>
               </label>
             </div>
           </div>
-
           <div className="flex-1 bg-white overflow-hidden flex flex-col min-h-[200px] rounded-b-md">
             <div className="bg-[#f0f0f0] grid grid-cols-12 gap-2 p-2 border-b border-[#808080] text-[10px] font-bold uppercase">
               <div className="col-span-4">Documento</div>
@@ -1080,37 +703,14 @@ export default function RealEstate() {
                       <span className="truncate" title={doc.name}>{doc.name}</span>
                     </div>
                     <div className="col-span-4">
-                      <input
-                        type="text"
-                        className="win-input w-full text-[11px]"
-                        value={doc.concept || ''}
-                        onChange={(e) => updateAssetDocument(doc.id, 'concept', e.target.value)}
-                        placeholder="Ej. Escritura, IBI, Plano..."
-                      />
+                      <input type="text" className="win-input w-full text-[11px]" value={doc.concept || ''} onChange={(e) => updateAssetDocument(doc.id, 'concept', e.target.value)} placeholder="Ej. Escritura, IBI, Plano..." />
                     </div>
                     <div className="col-span-2">
-                      <input
-                        type="date"
-                        className="win-input w-full text-[11px]"
-                        value={doc.date || ''}
-                        onChange={(e) => updateAssetDocument(doc.id, 'date', e.target.value)}
-                      />
+                      <input type="date" className="win-input w-full text-[11px]" value={doc.date || ''} onChange={(e) => updateAssetDocument(doc.id, 'date', e.target.value)} />
                     </div>
                     <div className="col-span-2 flex justify-center space-x-2">
-                      <button 
-                        className="p-1 hover:bg-blue-50 text-blue-600 rounded"
-                        onClick={() => setPreviewDocument(doc)}
-                        title="Previsualizar"
-                      >
-                        <Eye className="w-4 h-4" />
-                      </button>
-                      <button 
-                        className="p-1 hover:bg-red-50 text-red-600 rounded"
-                        onClick={() => deleteAssetDocument(doc.id)}
-                        title="Eliminar"
-                      >
-                        <Trash2 className="w-4 h-4" />
-                      </button>
+                      <button className="p-1 hover:bg-blue-50 text-blue-600 rounded" onClick={() => setPreviewDocument(doc)} title="Previsualizar"><Eye className="w-4 h-4" /></button>
+                      <button className="p-1 hover:bg-red-50 text-red-600 rounded" onClick={() => deleteAssetDocument(doc.id)} title="Eliminar"><Trash2 className="w-4 h-4" /></button>
                     </div>
                   </div>
                 ))
@@ -1122,170 +722,82 @@ export default function RealEstate() {
       );
     }
     
-    if (activeTab === 'Hipoteca') {
-      return (
-        <HipotecaTab 
-          formData={formData} 
-          setFormData={setFormData} 
-          user={user} 
-          isMobile={isMobile} 
-          setPreviewDocument={setPreviewDocument}
-          isUploading={isUploading}
-          setIsUploading={setIsUploading}
-        />
-      );
-    }
-
-    if (activeTab === 'Servicios') {
-      return (
-        <ServiciosTab 
-          formData={formData} 
-          setFormData={setFormData} 
-          user={user} 
-          isMobile={isMobile} 
-          setPreviewDocument={setPreviewDocument}
-          isUploading={isUploading}
-          setIsUploading={setIsUploading}
-          availableAccounts={availableAccounts}
-        />
-      );
-    }
-
-    if (activeTab === 'Comunidad') {
-      return (
-        <ComunidadTab 
-          formData={formData} 
-          setFormData={setFormData} 
-          user={user} 
-          isMobile={isMobile} 
-          setPreviewDocument={setPreviewDocument}
-          isUploading={isUploading}
-          setIsUploading={setIsUploading}
-          availableAccounts={availableAccounts}
-        />
-      );
-    }
-
-    if (activeTab === 'Cliente') {
-      return (
-        <ClienteTab 
-          formData={formData} 
-          user={user} 
-          queryUserIds={queryUserIds}
-        />
-      );
-    }
-
-    if (activeTab === 'Propietarios') {
-      return (
-        <PropietariosTab 
-          formData={accessoryFormData ? combinedFormData : formData} 
-          setFormData={setFormData} 
-          user={user} 
-          queryUserIds={queryUserIds}
-        />
-      );
-    }
-
+    if (activeTab === 'Hipoteca') return <HipotecaTab formData={formData} setFormData={setFormData} user={user} isMobile={isMobile} setPreviewDocument={setPreviewDocument} isUploading={isUploading} setIsUploading={setIsUploading} />;
+    if (activeTab === 'Servicios') return <ServiciosTab formData={formData} setFormData={setFormData} user={user} isMobile={isMobile} setPreviewDocument={setPreviewDocument} isUploading={isUploading} setIsUploading={setIsUploading} availableAccounts={availableAccounts} />;
+    if (activeTab === 'Comunidad') return <ComunidadTab formData={formData} setFormData={setFormData} user={user} isMobile={isMobile} setPreviewDocument={setPreviewDocument} isUploading={isUploading} setIsUploading={setIsUploading} availableAccounts={availableAccounts} />;
+    if (activeTab === 'Cliente') return <ClienteTab formData={formData} user={user} queryUserIds={queryUserIds} />;
+    if (activeTab === 'Propietarios') return <PropietariosTab formData={accessoryFormData ? combinedFormData : formData} setFormData={setFormData} user={user} queryUserIds={queryUserIds} />;
     if (activeTab === 'Finanzas') {
       if (accessoryFormData) {
         return (
           <div className="flex flex-col h-full bg-white">
             <div className="flex bg-slate-100 border-b border-gray-300 p-2 gap-2">
-              <button 
-                className={`px-4 py-1 text-xs font-bold rounded ${finanzasSubTab === 'principal' ? 'bg-[#000080] text-white' : 'bg-white border border-gray-300 text-slate-700'}`}
-                onClick={() => setFinanzasSubTab('principal')}
-              >
-                Principal
-              </button>
-              <button 
-                className={`px-4 py-1 text-xs font-bold rounded ${finanzasSubTab === 'accesorio' ? 'bg-[#000080] text-white' : 'bg-white border border-gray-300 text-slate-700'}`}
-                onClick={() => setFinanzasSubTab('accesorio')}
-              >
-                Accesorio
-              </button>
-              <button 
-                className={`px-4 py-1 text-xs font-bold rounded ${finanzasSubTab === 'agrupado' ? 'bg-[#000080] text-white' : 'bg-white border border-gray-300 text-slate-700'}`}
-                onClick={() => setFinanzasSubTab('agrupado')}
-              >
-                Agrupado (Lectura)
-              </button>
+              <button className={`px-4 py-1 text-xs font-bold rounded ${finanzasSubTab === 'principal' ? 'bg-[#000080] text-white' : 'bg-white border border-gray-300 text-slate-700'}`} onClick={() => setFinanzasSubTab('principal')}>Principal</button>
+              <button className={`px-4 py-1 text-xs font-bold rounded ${finanzasSubTab === 'accesorio' ? 'bg-[#000080] text-white' : 'bg-white border border-gray-300 text-slate-700'}`} onClick={() => setFinanzasSubTab('accesorio')}>Accesorio</button>
+              <button className={`px-4 py-1 text-xs font-bold rounded ${finanzasSubTab === 'agrupado' ? 'bg-[#000080] text-white' : 'bg-white border border-gray-300 text-slate-700'}`} onClick={() => setFinanzasSubTab('agrupado')}>Agrupado (Lectura)</button>
             </div>
             <div className="flex-1 overflow-hidden flex flex-col">
-              {finanzasSubTab === 'principal' && (
-                <FinanzasTab formData={formData} setFormData={setFormData} rentals={rentals} user={user} setPreviewDocument={setPreviewDocument} />
-              )}
-              {finanzasSubTab === 'accesorio' && (
-                <FinanzasTab formData={accessoryFormData} setFormData={setAccessoryFormData} rentals={rentals} user={user} setPreviewDocument={setPreviewDocument} />
-              )}
-              {finanzasSubTab === 'agrupado' && (
-                <div className="flex-1 pointer-events-none opacity-80 flex flex-col">
-                  <FinanzasTab formData={combinedFormData} setFormData={() => {}} rentals={rentals} user={user} setPreviewDocument={setPreviewDocument} />
-                </div>
-              )}
+              {finanzasSubTab === 'principal' && <FinanzasTab formData={formData} setFormData={setFormData} rentals={rentals} user={user} setPreviewDocument={setPreviewDocument} />}
+              {finanzasSubTab === 'accesorio' && <FinanzasTab formData={accessoryFormData} setFormData={setAccessoryFormData} rentals={rentals} user={user} setPreviewDocument={setPreviewDocument} />}
+              {finanzasSubTab === 'agrupado' && <div className="flex-1 pointer-events-none opacity-80 flex flex-col"><FinanzasTab formData={combinedFormData} setFormData={() => {}} rentals={rentals} user={user} setPreviewDocument={setPreviewDocument} /></div>}
             </div>
           </div>
         );
       }
-
-      return (
-        <FinanzasTab 
-          formData={formData} 
-          setFormData={setFormData} 
-          rentals={rentals}
-          user={user}
-          setPreviewDocument={setPreviewDocument}
-        />
-      );
+      return <FinanzasTab formData={formData} setFormData={setFormData} rentals={rentals} user={user} setPreviewDocument={setPreviewDocument} />;
     }
-    if (activeTab === 'Reformas') {
-      return (
-        <ReformasTab 
-          formData={formData} 
-          setFormData={setFormData} 
-          user={user} 
-          isUploading={isUploading}
-          setIsUploading={setIsUploading}
-          setPreviewDocument={setPreviewDocument}
-        />
-      );
-    }
-    
-    return (
-      <div className="flex justify-center items-center h-full text-slate-500">
-        Contenido de la pestaña {activeTab} (En desarrollo...)
-      </div>
-    );
+    if (activeTab === 'Reformas') return <ReformasTab formData={formData} setFormData={setFormData} user={user} isUploading={isUploading} setIsUploading={setIsUploading} setPreviewDocument={setPreviewDocument} />;
+    return <div className="flex justify-center items-center h-full text-slate-500">Contenido de la pestaña {activeTab} (En desarrollo...)</div>;
   };
 
   return (
     <div className="w-full h-full bg-[#d4d0c8] flex flex-col p-1 overflow-hidden font-sans">
-
       <div className="flex flex-row flex-1 overflow-hidden bg-white relative">
-
-        {/* Table View */}
-        <div 
-          className="flex-1 flex flex-col bg-white overflow-hidden relative"
-          onClick={() => {
-            setSelectedProperty(null);
-            setSelectedTenantIndex(null);
-            setSelectedServiceIndex(null);
-          }}
-        >
-          {/* Header with Title and Search */}
+        <div className="flex-1 flex flex-col bg-white overflow-hidden relative" onClick={() => { setSelectedProperty(null); setSelectedTenantIndex(null); setSelectedServiceIndex(null); }}>
           <div className="flex justify-between items-center px-4 py-2 border-b border-gray-200">
-            <div className="flex items-center space-x-3"></div>
+            <div className="flex items-center space-x-2">
+              <button className="btn-classic flex items-center gap-1.5" onClick={() => {
+                      const allColumns = [
+                        { header: 'ID', dataKey: 'id' },
+                        { header: 'Nombre', dataKey: 'name' },
+                        { header: 'Dirección', dataKey: 'address' },
+                        { header: 'País', dataKey: 'country' },
+                        { header: 'Provincia', dataKey: 'region' },
+                        { header: 'Población', dataKey: 'city' },
+                        { header: 'CP', dataKey: 'cp' },
+                        { header: 'Ref. Catastral', dataKey: 'catastral' },
+                        { header: 'Núm. Finca Registral', dataKey: 'registry' },
+                        { header: 'Número de Cuenta', dataKey: 'accountNumber' },
+                        { header: 'Cuenta Contable', dataKey: 'accountingAccount' },
+                        { header: 'Inquilino Activo', dataKey: 'tenantDisplay' },
+                        { header: 'Renta Mensual', dataKey: 'rentTotal' },
+                        { header: 'Entidad Bancaria', dataKey: 'bank' },
+                        { header: 'Número Préstamo', dataKey: 'loanNumber' },
+                        { header: 'Importe Préstamo', dataKey: 'loanAmount' },
+                        { header: 'Pendiente Amortizar', dataKey: 'mortgagePending' },
+                        { header: 'Tipo Interés (%)', dataKey: 'interest' },
+                        { header: 'Fecha Vencimiento', dataKey: 'expiry' },
+                        { header: 'Admin. Comunidad', dataKey: 'communityAdmin' },
+                        { header: 'Email Admin', dataKey: 'communityAdminEmail' },
+                        { header: 'Tel. Admin', dataKey: 'communityAdminPhone' },
+                        { header: 'Cuota Com.', dataKey: 'communityFee' },
+                        { header: 'Día Cobro', dataKey: 'communityPaymentDay' },
+                        { header: 'Fecha Adquisición', dataKey: 'finAcquisitionDate' },
+                        { header: 'Precio Compra', dataKey: 'finPurchasePrice' },
+                        { header: 'Gastos Adq.', dataKey: 'finAcquisitionCosts' },
+                        { header: 'Hon. Agencia', dataKey: 'finAgentFees' },
+                        { header: 'Valor Actual', dataKey: 'finCurrentValue' },
+                        { header: 'Precio Venta Esp.', dataKey: 'finSalePrice' }
+                      ];
+                      const colsToExport = allColumns.filter(c => visibleColumns.includes(c.dataKey));
+                      exportToPDF(applyTableFilters(propertiesWithCalculatedRentals, 'properties'), colsToExport, 'Reporte de Activos', 'activos.pdf');
+                    }} title="Exportar a PDF"><Download className="w-3.5 h-3.5" /> PDF</button>
+            </div>
             <div className="relative" onClick={e => e.stopPropagation()}>
-              <input 
-                type="text" 
-                placeholder="Buscar en el fichero (Alt+B)"
-                value={filterValue}
-                onChange={(e) => {
+              <input type="text" placeholder="Buscar en el fichero (Alt+B)" value={filterValue} onChange={(e) => {
                   setFilterValue(e.target.value);
                   setIsFilterActive(e.target.value.length > 0);
-                }}
-                className="pl-2 pr-8 py-1 border-b border-gray-400 text-[12px] w-64 outline-none focus:border-blue-500"
-              />
+                }} className="pl-2 pr-8 py-1 border-b border-gray-400 text-[12px] w-64 outline-none focus:border-blue-500" />
               <Search className="w-4 h-4 absolute right-1 top-1/2 -translate-y-1/2 text-gray-500" />
             </div>
           </div>
@@ -1296,54 +808,16 @@ export default function RealEstate() {
                   {visibleColumns.includes('id') && <TableHeaderWithFilter label="ID" columnKey="id" data={propertiesWithCalculatedRentals} tableId="properties" className="w-16 md:w-20" />}
                   {visibleColumns.includes('name') && <TableHeaderWithFilter label="Nombre" columnKey="name" data={propertiesWithCalculatedRentals} tableId="properties" className="w-32 md:w-48" />}
                   {visibleColumns.includes('address') && <TableHeaderWithFilter label="Dirección" columnKey="address" data={propertiesWithCalculatedRentals} tableId="properties" className="hidden md:table-cell md:w-64" />}
-                  {visibleColumns.includes('country') && <TableHeaderWithFilter label="País" columnKey="country" data={propertiesWithCalculatedRentals} tableId="properties" className="hidden md:table-cell" />}
-                  {visibleColumns.includes('region') && <TableHeaderWithFilter label="Región/Provincia" columnKey="region" data={propertiesWithCalculatedRentals} tableId="properties" className="w-32" />}
-                  {visibleColumns.includes('city') && <TableHeaderWithFilter label="Población" columnKey="city" data={propertiesWithCalculatedRentals} tableId="properties" className="w-32" />}
-                  {visibleColumns.includes('cp') && <TableHeaderWithFilter label="CP" columnKey="cp" data={propertiesWithCalculatedRentals} tableId="properties" className="hidden md:table-cell md:w-24" />}
-                  {visibleColumns.includes('catastral') && <TableHeaderWithFilter label="Ref. Catastral" columnKey="catastral" data={propertiesWithCalculatedRentals} tableId="properties" className="hidden md:table-cell" />}
-                  {visibleColumns.includes('registry') && <TableHeaderWithFilter label="Reg. Propiedad" columnKey="registry" data={propertiesWithCalculatedRentals} tableId="properties" className="hidden md:table-cell" />}
-                  {visibleColumns.includes('accountNumber') && <TableHeaderWithFilter label="Número de cuenta" columnKey="accountNumber" data={propertiesWithCalculatedRentals} tableId="properties" className="hidden md:table-cell" />}
-                  {visibleColumns.includes('accountingAccount') && <TableHeaderWithFilter label="Cuenta contable" columnKey="accountingAccount" data={propertiesWithCalculatedRentals} tableId="properties" className="hidden md:table-cell" />}
-                  
                   {visibleColumns.includes('tenantDisplay') && <TableHeaderWithFilter label="Inquilino" columnKey="tenantDisplay" data={propertiesWithCalculatedRentals} tableId="properties" className="w-24 md:w-32" />}
                   {visibleColumns.includes('rentTotal') && <TableHeaderWithFilter label="Renta Mensual" columnKey="rentTotal" data={propertiesWithCalculatedRentals} tableId="properties" className="text-right" />}
-                  
-                  {visibleColumns.includes('bank') && <TableHeaderWithFilter label="Entidad Bancaria" columnKey="bank" data={propertiesWithCalculatedRentals} tableId="properties" />}
-                  {visibleColumns.includes('loanNumber') && <TableHeaderWithFilter label="Nº Préstamo" columnKey="loanNumber" data={propertiesWithCalculatedRentals} tableId="properties" />}
-                  {visibleColumns.includes('loanAmount') && <TableHeaderWithFilter label="Importe Concedido" columnKey="loanAmount" data={propertiesWithCalculatedRentals} tableId="properties" className="text-right" />}
-                  {visibleColumns.includes('mortgagePending') && <TableHeaderWithFilter label="Hipoteca Pendiente" columnKey="mortgagePending" data={propertiesWithCalculatedRentals} tableId="properties" className="text-right" />}
-                  {visibleColumns.includes('interest') && <TableHeaderWithFilter label="Tipo Interés" columnKey="interest" data={propertiesWithCalculatedRentals} tableId="properties" className="text-right" />}
-                  {visibleColumns.includes('expiry') && <TableHeaderWithFilter label="Fecha Vencimiento" columnKey="expiry" data={propertiesWithCalculatedRentals} tableId="properties" className="text-center" />}
-
-                  {visibleColumns.includes('communityAdmin') && <TableHeaderWithFilter label="Admin. Comunidad" columnKey="communityAdmin" data={propertiesWithCalculatedRentals} tableId="properties" />}
-                  {visibleColumns.includes('communityAdminEmail') && <TableHeaderWithFilter label="Email Admin" columnKey="communityAdminEmail" data={propertiesWithCalculatedRentals} tableId="properties" />}
-                  {visibleColumns.includes('communityAdminPhone') && <TableHeaderWithFilter label="Tel. Admin" columnKey="communityAdminPhone" data={propertiesWithCalculatedRentals} tableId="properties" />}
-                  {visibleColumns.includes('communityFee') && <TableHeaderWithFilter label="Cuota Com." columnKey="communityFee" data={propertiesWithCalculatedRentals} tableId="properties" className="text-right" />}
-                  {visibleColumns.includes('communityPaymentDay') && <TableHeaderWithFilter label="Día Cobro" columnKey="communityPaymentDay" data={propertiesWithCalculatedRentals} tableId="properties" className="text-center" />}
-
-                  {visibleColumns.includes('finAcquisitionDate') && <TableHeaderWithFilter label="Fecha Adquisición" columnKey="finAcquisitionDate" data={propertiesWithCalculatedRentals} tableId="properties" className="text-center" />}
-                  {visibleColumns.includes('finPurchasePrice') && <TableHeaderWithFilter label="Precio Compra" columnKey="finPurchasePrice" data={propertiesWithCalculatedRentals} tableId="properties" className="text-right" />}
-                  {visibleColumns.includes('finAcquisitionCosts') && <TableHeaderWithFilter label="Gastos Adq." columnKey="finAcquisitionCosts" data={propertiesWithCalculatedRentals} tableId="properties" className="text-right" />}
-                  {visibleColumns.includes('finAgentFees') && <TableHeaderWithFilter label="Hon. Agencia" columnKey="finAgentFees" data={propertiesWithCalculatedRentals} tableId="properties" className="text-right" />}
-                  {visibleColumns.includes('finCurrentValue') && <TableHeaderWithFilter label="Valor Actual" columnKey="finCurrentValue" data={propertiesWithCalculatedRentals} tableId="properties" className="text-right" />}
-                  {visibleColumns.includes('finSalePrice') && <TableHeaderWithFilter label="Precio Venta Esp." columnKey="finSalePrice" data={propertiesWithCalculatedRentals} tableId="properties" className="text-right" />}
                 </tr>
               </thead>
               <tbody>
                 {applyTableFilters(propertiesWithCalculatedRentals, 'properties').map(p => (
-                  <tr 
-                    key={p.id} 
-                    className={selectedProperty?.id === p.id ? 'selected' : ''}
-                    onClick={(e) => {
-                      e.stopPropagation();
-                      setSelectedProperty(p);
-                    }}
-                    onDoubleClick={handleEdit}
-                  >
+                  <tr key={p.id} className={selectedProperty?.id === p.id ? 'selected' : ''} onClick={(e) => { e.stopPropagation(); setSelectedProperty(p); }} onDoubleClick={handleEdit}>
                     {visibleColumns.includes('id') && <td>{p.id}</td>}
                     {visibleColumns.includes('name') && <td className="truncate max-w-[100px]">{p.name}</td>}
                     {visibleColumns.includes('address') && <td className="hidden md:table-cell">{p.address}</td>}
-                    {visibleColumns.includes('country') && <td className="hidden md:table-cell">{p.country}</td>}
                     {visibleColumns.includes('region') && <td>{p.region}</td>}
                     {visibleColumns.includes('city') && <td>{p.city}</td>}
                     {visibleColumns.includes('cp') && <td className="hidden md:table-cell">{p.cp}</td>}

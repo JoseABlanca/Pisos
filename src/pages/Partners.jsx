@@ -10,6 +10,9 @@ import {
   ChevronLeft, ChevronRight, Filter, PanelLeft
 } from 'lucide-react';
 import { handleExportFormat } from '../utils/exportUtils';
+import { useTableColumns } from '../hooks/useTableColumns';
+import { useTableFilters } from '../hooks/useTableFilters';
+import { exportToPDF } from '../utils/pdfExport';
 
 
 export default function Partners() {
@@ -119,22 +122,9 @@ export default function Partners() {
     }
   };
 
+  const { activeTableFilters, applyTableFilters, clearAllFilters, TableHeaderWithFilter, renderFilterMenu, openFilterMenu, setOpenFilterMenu } = useTableFilters();
   const DEFAULT_COLUMNS = ['dni', 'name', 'email', 'phone', 'status'];
-  const [visibleColumns, setVisibleColumns] = useState(DEFAULT_COLUMNS);
-
-  useEffect(() => {
-    window.dispatchEvent(new CustomEvent('sync-columns', { detail: { tab: 'Propietarios', columns: visibleColumns } }));
-  }, [visibleColumns]);
-
-  useEffect(() => {
-    const handleToggleColumn = (e) => {
-      const colId = e.detail.columnId;
-      setVisibleColumns(prev => {
-        if (prev.includes(colId)) return prev.filter(c => c !== colId);
-        return [...prev, colId];
-      });
-    };
-    window.addEventListener('toggle-column', handleToggleColumn);
+  const { visibleColumns, toggleColumn } = useTableColumns('partners', DEFAULT_COLUMNS);
     return () => window.removeEventListener('toggle-column', handleToggleColumn);
   }, []);
 
@@ -258,7 +248,30 @@ export default function Partners() {
         >
           {/* Header with Title and Search */}
           <div className="flex justify-between items-center px-4 py-2 border-b border-gray-200">
-            <div className="flex items-center space-x-3"></div>
+            <div className="flex items-center space-x-3">
+              {/* Botón Exportar PDF */}
+              <button
+                className="btn-classic flex items-center gap-1.5"
+                onClick={() => {
+                  const allColumns = [
+                    { header: 'ID', dataKey: 'id' },
+                    { header: 'DNI', dataKey: 'dni' },
+                    { header: 'Nombre / Razón Social', dataKey: 'name' },
+                    { header: 'Email', dataKey: 'email' },
+                    { header: 'Teléfono', dataKey: 'phone' },
+                    { header: 'Dirección', dataKey: 'address' },
+                    { header: 'IBAN', dataKey: 'iban' },
+                    { header: '% Propiedad', dataKey: 'ownership' },
+                    { header: 'Estado', dataKey: 'status' }
+                  ];
+                  const colsToExport = allColumns.filter(c => visibleColumns.includes(c.dataKey));
+                  exportToPDF(applyTableFilters(filteredPartners, 'partners'), colsToExport, 'Reporte de Propietarios', 'propietarios.pdf');
+                }}
+                title="Exportar a PDF"
+              >
+                <Download className="w-3.5 h-3.5" /> PDF
+              </button>
+            </div>
             <div className="relative" onClick={e => e.stopPropagation()}>
               <input 
                 type="text" 
@@ -274,29 +287,30 @@ export default function Partners() {
             </div>
           </div>
           <div 
-            className="flex-1 overflow-auto bg-white"
+            className="flex-1 overflow-auto bg-white relative"
             onClick={(e) => e.stopPropagation()}
           >
+            {renderFilterMenu()}
             <table className="clean-table">
               <thead>
                 <tr className="sticky top-0 z-10">
-                  {visibleColumns.includes('id') && <th className="w-24">ID</th>}
-                  {visibleColumns.includes('dni') && <th className="w-24">DNI</th>}
-                  {visibleColumns.includes('name') && <th className="w-auto">Nombre / Razón Social</th>}
-                  {visibleColumns.includes('email') && !isMobile && <th className="w-48">Email</th>}
-                  {visibleColumns.includes('phone') && !isMobile && <th className="w-32">Teléfono</th>}
-                  {visibleColumns.includes('address') && <th className="w-48">Dirección</th>}
-                  {visibleColumns.includes('iban') && <th className="w-48">IBAN</th>}
-                  {visibleColumns.includes('ownership') && <th className="w-24">% Propiedad</th>}
-                  {visibleColumns.includes('status') && <th className="w-24 text-center">Estado</th>}
+                  {visibleColumns.includes('id') && <TableHeaderWithFilter label="ID" columnKey="id" data={filteredPartners} tableId="partners" className="w-24" />}
+                  {visibleColumns.includes('dni') && <TableHeaderWithFilter label="DNI" columnKey="dni" data={filteredPartners} tableId="partners" className="w-24" />}
+                  {visibleColumns.includes('name') && <TableHeaderWithFilter label="Nombre / Razón Social" columnKey="name" data={filteredPartners} tableId="partners" className="w-auto" />}
+                  {visibleColumns.includes('email') && !isMobile && <TableHeaderWithFilter label="Email" columnKey="email" data={filteredPartners} tableId="partners" className="w-48" />}
+                  {visibleColumns.includes('phone') && !isMobile && <TableHeaderWithFilter label="Teléfono" columnKey="phone" data={filteredPartners} tableId="partners" className="w-32" />}
+                  {visibleColumns.includes('address') && <TableHeaderWithFilter label="Dirección" columnKey="address" data={filteredPartners} tableId="partners" className="w-48" />}
+                  {visibleColumns.includes('iban') && <TableHeaderWithFilter label="IBAN" columnKey="iban" data={filteredPartners} tableId="partners" className="w-48" />}
+                  {visibleColumns.includes('ownership') && <TableHeaderWithFilter label="% Propiedad" columnKey="ownership" data={filteredPartners} tableId="partners" className="w-24" />}
+                  {visibleColumns.includes('status') && <TableHeaderWithFilter label="Estado" columnKey="status" data={filteredPartners} tableId="partners" className="w-24 text-center" />}
                 </tr>
               </thead>
               <tbody>
-                {filteredPartners.length === 0 ? (
+                {applyTableFilters(filteredPartners, 'partners').length === 0 ? (
                   <tr>
                     <td colSpan={visibleColumns.length} className="text-center py-20 italic text-slate-400">No se han encontrado propietarios</td>
                   </tr>
-                ) : filteredPartners.map((partner) => (
+                ) : applyTableFilters(filteredPartners, 'partners').map((partner) => (
                   <tr 
                     key={partner.id} 
                     className={selectedPartner?.id === partner.id ? 'selected' : ''}

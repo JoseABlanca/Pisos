@@ -11,6 +11,9 @@ import {
 } from 'lucide-react';
 import { handleExportFormat } from '../utils/exportUtils';
 import ZoomControl from '../components/ZoomControl';
+import { useTableColumns } from '../hooks/useTableColumns';
+import { useTableFilters } from '../hooks/useTableFilters';
+import { exportToPDF } from '../utils/pdfExport';
 
 export default function Customers() {
   const [showForm, setShowForm] = useState(false);
@@ -95,24 +98,11 @@ export default function Customers() {
       { id: 'C00005', name: 'Juan Pérez García', address: 'C/ Ejemplo 1', dni: '12345678Z', phone: '+34 600 000 000', email: 'juan.perez@email.com', cp: '28001', floor: '1', status: 'activo' }
     ];
   });
+  const { activeTableFilters, applyTableFilters, clearAllFilters, TableHeaderWithFilter, renderFilterMenu, openFilterMenu, setOpenFilterMenu } = useTableFilters();
 
   const DEFAULT_COLUMNS = ['id', 'name', 'address', 'status'];
-  const [visibleColumns, setVisibleColumns] = useState(DEFAULT_COLUMNS);
+  const { visibleColumns, toggleColumn } = useTableColumns('customers', DEFAULT_COLUMNS);
   const [rentals, setRentals] = useState([]);
-
-  useEffect(() => {
-    window.dispatchEvent(new CustomEvent('sync-columns', { detail: { tab: 'Clientes', columns: visibleColumns } }));
-  }, [visibleColumns]);
-
-  useEffect(() => {
-    const handleToggleColumn = (e) => {
-      const colId = e.detail.columnId;
-      setVisibleColumns(prev => {
-        if (prev.includes(colId)) return prev.filter(c => c !== colId);
-        return [...prev, colId];
-      });
-    };
-    window.addEventListener('toggle-column', handleToggleColumn);
     return () => window.removeEventListener('toggle-column', handleToggleColumn);
   }, []);
 
@@ -458,6 +448,31 @@ export default function Customers() {
                 <PanelLeft className="w-4 h-4" />
               </button>
             </div>
+
+            {/* Botón de exportación a PDF */}
+            <button
+              className="btn-classic flex items-center gap-1.5"
+              onClick={() => {
+                const allColumns = [
+                  { header: 'CUENTA', dataKey: 'id' },
+                  { header: 'DESCRIPCIÓN', dataKey: 'name' },
+                  { header: 'DIRECCIÓN', dataKey: 'address' },
+                  { header: 'DNI/NIF', dataKey: 'dni' },
+                  { header: 'TELÉFONO', dataKey: 'phone' },
+                  { header: 'EMAIL', dataKey: 'email' },
+                  { header: 'POBLACIÓN', dataKey: 'city' },
+                  { header: 'CP', dataKey: 'cp' },
+                  { header: 'ESTADO', dataKey: 'status' },
+                  { header: 'NOTAS', dataKey: 'notes' }
+                ];
+                const colsToExport = allColumns.filter(c => visibleColumns.includes(c.dataKey));
+                exportToPDF(applyTableFilters(filteredCustomers, 'customers'), colsToExport, 'Reporte de Clientes', 'clientes.pdf');
+              }}
+              title="Exportar a PDF"
+            >
+              <Download className="w-3.5 h-3.5" /> PDF
+            </button>
+
             <div className="relative" onClick={e => e.stopPropagation()}>
               <input 
                 type="text" 
@@ -473,26 +488,27 @@ export default function Customers() {
             </div>
           </div>
           <div 
-            className="flex-1 overflow-auto"
+            className="flex-1 overflow-auto bg-white win-bevel-inner custom-scrollbar relative"
             onClick={(e) => e.stopPropagation()}
           >
-            <table className="clean-table">
+            {renderFilterMenu()}
+            <table className="w-full text-left border-collapse text-[11px] font-sans">
               <thead>
                 <tr>
-                  {visibleColumns.includes('id') && <th className="w-20">CUENTA</th>}
-                  {visibleColumns.includes('name') && <th className="w-48">DESCRIPCIÓN</th>}
-                  {visibleColumns.includes('address') && <th className="w-48">DIRECCIÓN</th>}
-                  {visibleColumns.includes('dni') && <th className="w-32">DNI/NIF</th>}
-                  {visibleColumns.includes('phone') && <th className="w-32">TELÉFONO</th>}
-                  {visibleColumns.includes('email') && <th className="w-48">EMAIL</th>}
-                  {visibleColumns.includes('city') && <th className="w-32">POBLACIÓN</th>}
-                  {visibleColumns.includes('cp') && <th className="w-24">CP</th>}
-                  {visibleColumns.includes('status') && <th className="w-24">ESTADO</th>}
-                  {visibleColumns.includes('notes') && <th className="w-48">NOTAS</th>}
+                  {visibleColumns.includes('id') && <TableHeaderWithFilter label="CUENTA" columnKey="id" data={filteredCustomers} tableId="customers" className="w-20" />}
+                  {visibleColumns.includes('name') && <TableHeaderWithFilter label="DESCRIPCIÓN" columnKey="name" data={filteredCustomers} tableId="customers" className="w-48" />}
+                  {visibleColumns.includes('address') && <TableHeaderWithFilter label="DIRECCIÓN" columnKey="address" data={filteredCustomers} tableId="customers" className="w-48" />}
+                  {visibleColumns.includes('dni') && <TableHeaderWithFilter label="DNI/NIF" columnKey="dni" data={filteredCustomers} tableId="customers" className="w-32" />}
+                  {visibleColumns.includes('phone') && <TableHeaderWithFilter label="TELÉFONO" columnKey="phone" data={filteredCustomers} tableId="customers" className="w-32" />}
+                  {visibleColumns.includes('email') && <TableHeaderWithFilter label="EMAIL" columnKey="email" data={filteredCustomers} tableId="customers" className="w-48" />}
+                  {visibleColumns.includes('city') && <TableHeaderWithFilter label="POBLACIÓN" columnKey="city" data={filteredCustomers} tableId="customers" className="w-32" />}
+                  {visibleColumns.includes('cp') && <TableHeaderWithFilter label="CP" columnKey="cp" data={filteredCustomers} tableId="customers" className="w-24" />}
+                  {visibleColumns.includes('status') && <TableHeaderWithFilter label="ESTADO" columnKey="status" data={filteredCustomers} tableId="customers" className="w-24" />}
+                  {visibleColumns.includes('notes') && <TableHeaderWithFilter label="NOTAS" columnKey="notes" data={filteredCustomers} tableId="customers" className="w-48" />}
                 </tr>
               </thead>
               <tbody>
-                {filteredCustomers.map(c => (
+                {applyTableFilters(filteredCustomers, 'customers').map(c => (
                   <tr 
                     key={c.id} 
                     className={selectedCustomer?.id === c.id ? 'selected' : ''}
