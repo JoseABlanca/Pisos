@@ -118,34 +118,6 @@ export default function RealEstate() {
   const DEFAULT_COLUMNS = ['id', 'name', 'address', 'cp', 'tenantDisplay', 'rentTotal'];
   const { visibleColumns, toggleColumn } = useTableColumns('properties', DEFAULT_COLUMNS);
 
-  const [filterColumn, setFilterColumn] = useState('name');
-  const [filterOperator, setFilterOperator] = useState('contains');
-  const [filterValue, setFilterValue] = useState('');
-  const [isFilterActive, setIsFilterActive] = useState(false);
-
-  const filteredProperties = properties.filter(p => {
-    if (statusFilter !== 'todos' && (p.status || 'activo') !== statusFilter) return false;
-    if (!isFilterActive && !filterValue) return true;
-    
-    let val = String(p[filterColumn] || '').toLowerCase();
-    if (filterColumn === 'tenants' && Array.isArray(p.tenants)) {
-      val = p.tenants.map(t => t.name === 'OTRO' ? t.customName : t.name).join(' ').toLowerCase();
-    }
-    const searchVal = filterValue.toLowerCase();
-
-    switch (filterOperator) {
-      case '=': return val === searchVal;
-      case '<': return val < searchVal;
-      case '>': return val > searchVal;
-      case '<=': return val <= searchVal;
-      case '>=': return val >= searchVal;
-      case '<>': return val !== searchVal;
-      case 'contains': 
-      default:
-        return val.includes(searchVal);
-    }
-  });
-
   const transformServices = (servicesData) => {
     if (Array.isArray(servicesData)) return servicesData;
     if (!servicesData || typeof servicesData !== 'object') return [];
@@ -466,6 +438,34 @@ export default function RealEstate() {
       setSelectedProperty(null);
     }
   };
+
+  const [filterColumn, setFilterColumn] = useState('name');
+  const [filterOperator, setFilterOperator] = useState('contains');
+  const [filterValue, setFilterValue] = useState('');
+  const [isFilterActive, setIsFilterActive] = useState(false);
+
+  const filteredProperties = properties.filter(p => {
+    if (statusFilter !== 'todos' && (p.status || 'activo') !== statusFilter) return false;
+    if (!isFilterActive && !filterValue) return true;
+    
+    let val = String(p[filterColumn] || '').toLowerCase();
+    if (filterColumn === 'tenants' && Array.isArray(p.tenants)) {
+      val = p.tenants.map(t => t.name === 'OTRO' ? t.customName : t.name).join(' ').toLowerCase();
+    }
+    const searchVal = filterValue.toLowerCase();
+
+    switch (filterOperator) {
+      case '=': return val === searchVal;
+      case '<': return val < searchVal;
+      case '>': return val > searchVal;
+      case '<=': return val <= searchVal;
+      case '>=': return val >= searchVal;
+      case '<>': return val !== searchVal;
+      case 'contains': 
+      default:
+        return val.includes(searchVal);
+    }
+  });
 
   const propertiesWithCalculatedRentals = useMemo(() => {
     return filteredProperties.map(p => {
