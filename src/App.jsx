@@ -5,6 +5,7 @@ import Dashboard from './pages/Dashboard';
 import JournalList from './pages/JournalList';
 import JournalEntry from './pages/JournalEntry';
 import Accounts from './pages/Accounts';
+import AnalyticalCenters from './pages/AnalyticalCenters';
 import TrialBalance from './pages/TrialBalance';
 import FinancialReports from './pages/FinancialReports';
 import Settings from './pages/Settings';
@@ -41,6 +42,8 @@ function App() {
             <Route path="journal-entry" element={<JournalEntry />} />
             <Route path="accounts" element={<Accounts />} />
             <Route path="pgc" element={<Accounts />} />
+            <Route path="cecos" element={<AnalyticalCenters type="ceco" />} />
+            <Route path="cebes" element={<AnalyticalCenters type="cebe" />} />
             <Route path="trial-balance" element={<TrialBalance />} />
             <Route path="reports" element={<FinancialReports />} />
             <Route path="settings" element={<Settings />} />

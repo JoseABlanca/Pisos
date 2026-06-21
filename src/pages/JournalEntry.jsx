@@ -20,9 +20,12 @@ export default function JournalEntry() {
   const [nextEntryNumber, setNextEntryNumber] = useState(1);
   const [selectedLineIndex, setSelectedLineIndex] = useState(null);
   const [lines, setLines] = useState([
-    { id: 1, account: '', description: '', document: '', debit: 0, credit: 0, image: null },
-    { id: 2, account: '', description: '', document: '', debit: 0, credit: 0, image: null }
+    { id: 1, account: '', description: '', document: '', ceco: '', cebe: '', debit: 0, credit: 0, image: null },
+    { id: 2, account: '', description: '', document: '', ceco: '', cebe: '', debit: 0, credit: 0, image: null }
   ]);
+  
+  const [cecos, setCecos] = useState([]);
+  const [cebes, setCebes] = useState([]);
   
   // State for Accounts Modal
   const [showAccountsModal, setShowAccountsModal] = useState(false);
@@ -53,9 +56,21 @@ export default function JournalEntry() {
       }
     );
 
+    const unsubCecos = onSnapshot(
+      query(collection(db, 'analytical_centers'), where('userId', 'in', queryUserIds?.length > 0 ? queryUserIds : [user.uid]), where('type', '==', 'ceco')),
+      (snap) => setCecos(snap.docs.map(d => ({ ...d.data(), id: d.id })))
+    );
+
+    const unsubCebes = onSnapshot(
+      query(collection(db, 'analytical_centers'), where('userId', 'in', queryUserIds?.length > 0 ? queryUserIds : [user.uid]), where('type', '==', 'cebe')),
+      (snap) => setCebes(snap.docs.map(d => ({ ...d.data(), id: d.id })))
+    );
+
     return () => {
       unsubAccounts();
       unsubEntries();
+      unsubCecos();
+      unsubCebes();
     };
   }, [user]);
 
@@ -76,13 +91,15 @@ export default function JournalEntry() {
              account: acct ? acct.code : '',
              description: l.description || editEntry.description,
              document: l.document || '',
+             ceco: l.ceco || '',
+             cebe: l.cebe || '',
              debit: parseFloat(l.debit) || 0,
              credit: parseFloat(l.credit) || 0,
              image: null
            };
         });
         if (mappedLines.length < 2) {
-          mappedLines.push({ id: mappedLines.length + 1, account: '', description: '', document: '', debit: 0, credit: 0, image: null });
+          mappedLines.push({ id: mappedLines.length + 1, account: '', description: '', document: '', ceco: '', cebe: '', debit: 0, credit: 0, image: null });
         }
         setLines(mappedLines);
       }
@@ -114,7 +131,7 @@ export default function JournalEntry() {
   
   const addLine = () => {
     const maxId = lines.length > 0 ? Math.max(...lines.map(l => l.id)) : 0;
-    setLines([...lines, { id: maxId + 1, account: '', description: '', document: '', debit: 0, credit: 0, image: null }]);
+    setLines([...lines, { id: maxId + 1, account: '', description: '', document: '', ceco: '', cebe: '', debit: 0, credit: 0, image: null }]);
   };
   
   const removeLine = (index) => {
@@ -162,6 +179,8 @@ export default function JournalEntry() {
           accountCode: line.account,
           description: line.description,
           document: line.document,
+          ceco: line.ceco || '',
+          cebe: line.cebe || '',
           debit: Number(line.debit) || 0,
           credit: Number(line.credit) || 0,
         };
@@ -184,8 +203,8 @@ export default function JournalEntry() {
         // Reset form
         setDate('');
         setLines([
-          { id: 1, account: '', description: '', document: '', debit: 0, credit: 0, image: null },
-          { id: 2, account: '', description: '', document: '', debit: 0, credit: 0, image: null }
+          { id: 1, account: '', description: '', document: '', ceco: '', cebe: '', debit: 0, credit: 0, image: null },
+          { id: 2, account: '', description: '', document: '', ceco: '', cebe: '', debit: 0, credit: 0, image: null }
         ]);
         setSelectedLineIndex(null);
       }
@@ -306,9 +325,11 @@ export default function JournalEntry() {
               <th className="border-b border-gray-300 px-2 py-1.5 font-bold w-32 text-gray-600 uppercase">CUENTA</th>
               <th className="border-b border-gray-300 px-2 py-1.5 font-bold w-48 text-gray-600 uppercase">TÍTULO CUENTA</th>
               <th className="border-b border-gray-300 px-2 py-1.5 font-bold flex-1 text-gray-600 uppercase">CONCEPTO</th>
-              <th className="border-b border-gray-300 px-2 py-1.5 font-bold w-32 text-gray-600 uppercase">DOCUMENTO</th>
-              <th className="border-b border-gray-300 px-2 py-1.5 font-bold w-28 text-right text-gray-600 uppercase">DEBE</th>
-              <th className="border-b border-gray-300 px-2 py-1.5 font-bold w-28 text-right text-gray-600 uppercase">HABER</th>
+              <th className="border-b border-gray-300 px-2 py-1.5 font-bold w-24 text-gray-600 uppercase">DOCUMENTO</th>
+              <th className="border-b border-gray-300 px-2 py-1.5 font-bold w-20 text-gray-600 uppercase">CECO</th>
+              <th className="border-b border-gray-300 px-2 py-1.5 font-bold w-20 text-gray-600 uppercase">CEBE</th>
+              <th className="border-b border-gray-300 px-2 py-1.5 font-bold w-24 text-right text-gray-600 uppercase">DEBE</th>
+              <th className="border-b border-gray-300 px-2 py-1.5 font-bold w-24 text-right text-gray-600 uppercase">HABER</th>
               <th className="border-b border-gray-300 px-2 py-1.5 font-bold w-10 text-center"></th>
             </tr>
           </thead>
@@ -366,8 +387,38 @@ export default function JournalEntry() {
                       value={line.document}
                       onChange={(e) => updateLine(idx, 'document', e.target.value)}
                       onKeyDown={(e) => handleKeyDown(e, idx, 'document')}
-                      className="w-full h-full px-2 py-1.5 outline-none focus:bg-blue-50 focus:ring-1 focus:ring-blue-400"
+                      className="w-full h-full px-2 py-1.5 outline-none focus:bg-blue-50 focus:ring-1 focus:ring-blue-400 uppercase text-[10px]"
                     />
+                  </td>
+                  <td className="p-0">
+                    <input 
+                      id={`ceco-${idx}`}
+                      type="text" 
+                      value={line.ceco || ''}
+                      onChange={(e) => updateLine(idx, 'ceco', e.target.value)}
+                      onKeyDown={(e) => handleKeyDown(e, idx, 'ceco')}
+                      list={`ceco-list-${idx}`}
+                      className="w-full h-full px-2 py-1.5 outline-none focus:bg-blue-50 focus:ring-1 focus:ring-blue-400 uppercase text-[10px] font-mono"
+                      placeholder="CECO"
+                    />
+                    <datalist id={`ceco-list-${idx}`}>
+                      {cecos.map(c => <option key={c.id} value={c.code}>{c.name}</option>)}
+                    </datalist>
+                  </td>
+                  <td className="p-0">
+                    <input 
+                      id={`cebe-${idx}`}
+                      type="text" 
+                      value={line.cebe || ''}
+                      onChange={(e) => updateLine(idx, 'cebe', e.target.value)}
+                      onKeyDown={(e) => handleKeyDown(e, idx, 'cebe')}
+                      list={`cebe-list-${idx}`}
+                      className="w-full h-full px-2 py-1.5 outline-none focus:bg-blue-50 focus:ring-1 focus:ring-blue-400 uppercase text-[10px] font-mono"
+                      placeholder="CEBE"
+                    />
+                    <datalist id={`cebe-list-${idx}`}>
+                      {cebes.map(c => <option key={c.id} value={c.code}>{c.name}</option>)}
+                    </datalist>
                   </td>
                   <td className="p-0">
                     <input 

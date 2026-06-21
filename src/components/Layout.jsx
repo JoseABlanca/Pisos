@@ -541,6 +541,13 @@ export default function Layout() {
           { name: 'Configuración\nde cuentas', path: '/accounts', customIcon: 'ConfigCuentas' },
           { name: 'P.G.C.', path: '/pgc', customIcon: 'PGC' }
         ] 
+      },
+      {
+        group: 'Analítica',
+        items: [
+          { name: 'CECOS', path: '/cecos', icon: LayoutGrid },
+          { name: 'CEBES', path: '/cebes', icon: BarChart }
+        ]
       }
     ],
     'Diario': [

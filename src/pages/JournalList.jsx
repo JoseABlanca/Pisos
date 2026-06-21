@@ -525,6 +525,8 @@ export default function Journal() {
                 <th className="border-b border-gray-300 px-2 py-1.5 font-normal text-gray-600 w-24 uppercase">CUENTA</th>
                 <th className="border-b border-gray-300 px-2 py-1.5 font-normal text-gray-600 flex-1 min-w-[200px] uppercase">CONCEPTO</th>
                 <th className="border-b border-gray-300 px-2 py-1.5 font-normal text-gray-600 w-24 uppercase">DOCUM.</th>
+                <th className="border-b border-gray-300 px-2 py-1.5 font-normal text-gray-600 w-20 uppercase">CECO</th>
+                <th className="border-b border-gray-300 px-2 py-1.5 font-normal text-gray-600 w-20 uppercase">CEBE</th>
                 <th className="border-b border-gray-300 px-2 py-1.5 font-normal text-gray-600 w-24 text-right uppercase">DEBE</th>
                 <th className="border-b border-gray-300 px-2 py-1.5 font-normal text-gray-600 w-24 text-right uppercase">HABER</th>
                 <th className="border-b border-gray-300 px-2 py-1.5 font-normal text-gray-600 w-8 text-center uppercase">P</th>
@@ -534,7 +536,7 @@ export default function Journal() {
             <tbody>
               {finalFilteredHistory.length === 0 ? (
                 <tr>
-                  <td colSpan="12" className="text-center italic py-10 text-slate-400 text-[11px]">
+                  <td colSpan="14" className="text-center italic py-10 text-slate-400 text-[11px]">
                     {loading ? 'CARGANDO DATOS...' : 'NO HAY ASIENTOS REGISTRADOS PARA MOSTRAR'}
                   </td>
                 </tr>
@@ -567,7 +569,9 @@ export default function Journal() {
                     <td className="px-2 py-1 text-center text-gray-700">{idx + 1}</td>
                     <td className="px-2 py-1 text-gray-700">{item.accountCode}</td>
                     <td className="px-2 py-1 truncate max-w-[200px] text-gray-700" title={item.description}>{item.description}</td>
-                    <td className="px-2 py-1 text-gray-700"></td>
+                    <td className="px-2 py-1 text-gray-700">{item.document}</td>
+                    <td className="px-2 py-1 text-gray-700">{item.ceco}</td>
+                    <td className="px-2 py-1 text-gray-700">{item.cebe}</td>
                     <td className="px-2 py-1 text-right text-gray-700">{item.debit > 0 ? item.debit.toLocaleString('es-ES', {minimumFractionDigits: 2}) : '0,00'}</td>
                     <td className="px-2 py-1 text-right text-gray-700">{item.credit > 0 ? item.credit.toLocaleString('es-ES', {minimumFractionDigits: 2}) : '0,00'}</td>
                     <td className="px-2 py-1 text-center text-gray-700">
