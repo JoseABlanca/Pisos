@@ -502,7 +502,7 @@ export default function Accounts({ isModal = false, onAccountSelect = null }) {
       if (isEditing) {
         rows.push(
           <tr key={`edit-${node.id}`} className="bg-yellow-50 border-b border-yellow-300">
-            <td colSpan="5" className="px-3 py-1.5">
+            <td colSpan="2" className="px-3 py-1.5">
               <div className="flex items-center space-x-1" style={{ paddingLeft: `${depth * indentSize}px` }}>
                 <input 
                   type="text"
@@ -585,12 +585,7 @@ export default function Accounts({ isModal = false, onAccountSelect = null }) {
                 {node.code}
               </div>
             </td>
-            <td className={`px-3 py-1.5 border-r border-gray-100 uppercase text-[11px] ${isSelected ? 'text-white' : 'text-gray-800'}`}>{node.name}</td>
-            <td className={`px-3 py-1.5 border-r border-gray-100 text-right text-[11px] ${isSelected ? 'text-white' : 'text-gray-600'}`}>0,00</td>
-            <td className={`px-3 py-1.5 border-r border-gray-100 text-right text-[11px] ${isSelected ? 'text-white' : 'text-gray-600'}`}>0,00</td>
-            <td className={`px-3 py-1.5 text-right font-medium text-[11px] ${isSelected ? 'text-white' : 'text-gray-800'}`}>
-              {new Intl.NumberFormat('es-ES', { minimumFractionDigits: 2 }).format(node.balance_actual || 0)}
-            </td>
+            <td className={`px-3 py-1.5 uppercase text-[11px] ${isSelected ? 'text-white' : 'text-gray-800'}`}>{node.name}</td>
           </tr>
         );
       }
@@ -603,7 +598,7 @@ export default function Accounts({ isModal = false, onAccountSelect = null }) {
         if (hasNewChild) {
           rows.push(
             <tr key={`new-${node.id}`} className="bg-blue-50 border-b border-blue-300">
-              <td colSpan="5" className="px-3 py-1.5">
+              <td colSpan="2" className="px-3 py-1.5">
                 <div className="flex items-center space-x-1" style={{ paddingLeft: `${(depth + 1) * indentSize}px` }}>
                   <input 
                     type="text"
@@ -866,10 +861,7 @@ export default function Accounts({ isModal = false, onAccountSelect = null }) {
                     <thead className="sticky top-0 bg-white shadow-[0_1px_0_#d1d5db] z-10">
                       <tr className="text-gray-700">
                         <th className="px-3 py-2 font-normal border-r border-[#d1d5db] uppercase">Cuenta</th>
-                        <th className="px-3 py-2 font-normal border-r border-[#d1d5db] uppercase">Descripción</th>
-                        <th className="px-3 py-2 font-normal border-r border-[#d1d5db] uppercase text-right w-24">Debe</th>
-                        <th className="px-3 py-2 font-normal border-r border-[#d1d5db] uppercase text-right w-24">Haber</th>
-                        <th className="px-3 py-2 font-normal uppercase text-right w-28">Saldo</th>
+                        <th className="px-3 py-2 font-normal uppercase">Descripción</th>
                       </tr>
                     </thead>
                     <tbody>
@@ -878,7 +870,7 @@ export default function Accounts({ isModal = false, onAccountSelect = null }) {
                       {/* Root level new account form */}
                       {editingNode?.isNew && !editingNode.parentId && (
                         <tr className="bg-blue-50 border-b border-blue-300">
-                          <td colSpan="5" className="px-3 py-1.5">
+                          <td colSpan="2" className="px-3 py-1.5">
                             <div className="flex items-center space-x-1">
                               <input 
                                 type="text"
@@ -929,7 +921,7 @@ export default function Accounts({ isModal = false, onAccountSelect = null }) {
                       
                       {accounts.length === 0 && !showPGC && !editingNode && (
                         <tr>
-                          <td colSpan="5" className="text-center py-8 text-gray-400">
+                          <td colSpan="2" className="text-center py-8 text-gray-400">
                             <div className="flex flex-col items-center justify-center h-full text-slate-400">
                               <Folder className="w-12 h-12 mb-3 text-slate-300" />
                               <p className="text-[12px] font-semibold mb-1">Tu árbol de cuentas está vacío</p>
