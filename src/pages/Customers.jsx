@@ -459,15 +459,6 @@ export default function Customers() {
               </button>
             </div>
 
-            {/* Botón de exportación a PDF */}
-            <button
-              className="btn-classic flex items-center gap-1.5"
-              onClick={() => {
-                const allColumns = [
-                  { header: 'CUENTA', dataKey: 'id' },
-                  { header: 'DESCRIPCIÓN', dataKey: 'name' },
-                  { header: 'DIRECCIÓN', dataKey: 'address' },
-                  { header: 'DNI/NIF', dataKey: 'dni' },
             <div className="relative" onClick={e => e.stopPropagation()}>
               <input 
                 type="text" 

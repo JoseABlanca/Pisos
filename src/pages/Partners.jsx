@@ -259,7 +259,17 @@ export default function Partners() {
           onClick={() => setSelectedPartner(null)}
         >
           {/* Header with Title and Search */}
-          <div className="flex justify-end items-center px-4 py-2 border-b border-gray-200">
+          <div className="flex justify-between items-center px-4 py-2 border-b border-gray-200">
+            <div className="flex items-center space-x-3">
+              <button 
+                onClick={(e) => { e.stopPropagation(); setShowSidebar(!showSidebar); }}
+                className="p-1.5 hover:bg-gray-100 rounded text-gray-500 border border-transparent hover:border-gray-300"
+                title={showSidebar ? "Ocultar panel" : "Mostrar panel"}
+              >
+                <PanelLeft className="w-4 h-4" />
+              </button>
+            </div>
+
             <div className="relative" onClick={e => e.stopPropagation()}>
               <input 
                 type="text" 
