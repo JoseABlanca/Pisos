@@ -7,8 +7,10 @@ import { useAuth } from '../context/AuthContext';
 import Window from '../components/Window';
 import { 
   Check, X, Search, Plus, Trash2, Edit, Save, 
-  FileText, Building2, User, Key, Users, PanelLeft, Download, Filter
+  FileText, Building2, User, Key, Users, PanelLeft, Download, Filter,
+  Upload, Eye
 } from 'lucide-react';
+import { uploadFileToStorage } from '../utils/storageUtils';
 import { useTableColumns } from '../hooks/useTableColumns';
 import { useTableFilters } from '../hooks/useTableFilters';
 import { exportToPDF } from '../utils/pdfExport';
@@ -1310,7 +1312,7 @@ export default function Rentals() {
                             Añadir Asiento
                           </button>
                         </div>
-                        <AnalyticsJournalViewer type="cebe" value={formData.incomeCebeId} userIds={queryUserIds?.length > 0 ? queryUserIds : [user.uid]} />
+                        <AnalyticsJournalViewer type="cebe" value={formData.incomeCebeId} userIds={queryUserIds?.length > 0 ? queryUserIds : [user.uid]} setPreviewDocument={setPreviewDocument} />
                       </div>
                     )}
 
@@ -1338,7 +1340,7 @@ export default function Rentals() {
                             Añadir Asiento
                           </button>
                         </div>
-                        <AnalyticsJournalViewer type="ceco" value={formData.expenseCecoId} userIds={queryUserIds?.length > 0 ? queryUserIds : [user.uid]} />
+                        <AnalyticsJournalViewer type="ceco" value={formData.expenseCecoId} userIds={queryUserIds?.length > 0 ? queryUserIds : [user.uid]} setPreviewDocument={setPreviewDocument} />
                       </div>
                     )}
 
@@ -1443,8 +1445,9 @@ export default function Rentals() {
   );
 }
 
-function AnalyticsJournalViewer({ type, value, userIds }) {
+function AnalyticsJournalViewer({ type, value, userIds, setPreviewDocument }) {
   const [entries, setEntries] = useState([]);
+  const [uploadingId, setUploadingId] = useState(null);
   
   useEffect(() => {
     if (!value || !userIds || userIds.length === 0) {
@@ -1488,6 +1491,38 @@ function AnalyticsJournalViewer({ type, value, userIds }) {
     }
   };
 
+  const handleUploadDoc = async (e, entry) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+    setUploadingId(entry.id);
+    try {
+      const url = await uploadFileToStorage(file, entry.userId || userIds[0], 'journal_entries', entry.id, 'docs');
+      const entryRef = doc(db, 'journal_entries', entry.id);
+      await updateDoc(entryRef, {
+        documentUrl: url,
+        documentName: file.name
+      });
+    } catch (err) {
+      console.error(err);
+      alert('Error al subir el documento: ' + err.message);
+    } finally {
+      setUploadingId(null);
+    }
+  };
+
+  const handleDeleteDoc = async (entry) => {
+    if (!window.confirm('¿Eliminar el documento asociado a este asiento?')) return;
+    try {
+      const entryRef = doc(db, 'journal_entries', entry.id);
+      await updateDoc(entryRef, {
+        documentUrl: null,
+        documentName: null
+      });
+    } catch (err) {
+      alert('Error al eliminar el documento: ' + err.message);
+    }
+  };
+
   if (!value) return null;
 
   const regular = entries.filter(e => !e.isImpuesto);
@@ -1496,10 +1531,53 @@ function AnalyticsJournalViewer({ type, value, userIds }) {
   const totalImpuestos = impuestos.reduce((s, e) => s + (Number(e.total) || 0), 0);
 
   const renderRows = (rows) => rows.map(e => (
-    <tr key={e.id} className={`border-b border-gray-200 hover:bg-blue-50 ${e.isImpuesto ? 'bg-orange-50' : ''}`}>
+    <tr key={e.id} className={`border-b border-gray-200 hover:bg-blue-50 ${e.isImpuesto ? 'bg-orange-50/70' : ''}`}>
       <td className="p-1.5 whitespace-nowrap text-[10px]">{new Date(e.date).toLocaleDateString()}</td>
       <td className="p-1.5 truncate max-w-[150px] text-[10px]" title={e.description}>{e.description}</td>
-      <td className="p-1.5 text-right font-mono text-emerald-700 font-bold text-[10px]">{Number(e.total).toLocaleString('es-ES', {minimumFractionDigits:2})} &euro;</td>
+      
+      {/* Attached Document cell */}
+      <td className="p-1.5 text-[10px] border-r border-gray-200">
+        <div className="flex items-center gap-1.5">
+          {e.documentUrl ? (
+            <>
+              <button 
+                onClick={() => setPreviewDocument?.({ url: e.documentUrl, name: e.documentName || 'Documento' })} 
+                className="text-blue-600 hover:text-blue-800 flex items-center gap-1 font-medium underline"
+                title="Previsualizar documento"
+              >
+                <FileText className="w-3.5 h-3.5 shrink-0" />
+                <span className="truncate max-w-[90px]" title={e.documentName}>{e.documentName}</span>
+              </button>
+              <button 
+                onClick={() => handleDeleteDoc(e)} 
+                className="text-red-500 hover:text-red-700 ml-auto p-0.5 hover:bg-red-50 rounded"
+                title="Quitar documento"
+              >
+                <X className="w-3 h-3" />
+              </button>
+            </>
+          ) : (
+            <label className="flex items-center gap-1 cursor-pointer text-slate-400 hover:text-blue-600 select-none">
+              {uploadingId === e.id ? (
+                <span className="text-[9px] text-slate-500 animate-pulse">Subiendo...</span>
+              ) : (
+                <>
+                  <Upload className="w-3.5 h-3.5 shrink-0" />
+                  <span className="text-[9px]">Adjuntar doc</span>
+                </>
+              )}
+              <input 
+                type="file" 
+                className="hidden" 
+                onChange={(evt) => handleUploadDoc(evt, e)} 
+                disabled={uploadingId === e.id}
+              />
+            </label>
+          )}
+        </div>
+      </td>
+
+      <td className="p-1.5 text-right font-mono text-slate-700 font-bold text-[10px]">{Number(e.total).toLocaleString('es-ES', {minimumFractionDigits:2})} &euro;</td>
       <td className="p-1.5 text-center">
         <input type="checkbox" checked={!!e.isImpuesto} onChange={() => handleTaxToggle(e)} title="Marcar como Impuesto" className="cursor-pointer w-3.5 h-3.5 accent-orange-500" />
       </td>
@@ -1517,7 +1595,7 @@ function AnalyticsJournalViewer({ type, value, userIds }) {
         <h3 className="text-[12px] font-bold text-slate-800 uppercase">Asientos Contables Asociados</h3>
         {entries.length > 0 && (
           <div className="flex gap-3 text-[10px]">
-            <span className="text-emerald-700 font-bold">{type === 'cebe' ? 'Ingresos' : 'Gastos'}: {totalRegular.toLocaleString('es-ES', {minimumFractionDigits:2})} &euro;</span>
+            <span className="text-slate-700 font-bold">{type === 'cebe' ? 'Ingresos' : 'Gastos'}: {totalRegular.toLocaleString('es-ES', {minimumFractionDigits:2})} &euro;</span>
             {impuestos.length > 0 && <span className="text-orange-600 font-bold">Impuestos: {totalImpuestos.toLocaleString('es-ES', {minimumFractionDigits:2})} &euro;</span>}
           </div>
         )}
@@ -1531,6 +1609,7 @@ function AnalyticsJournalViewer({ type, value, userIds }) {
               <tr>
                 <th className="text-left p-1.5 w-20 text-[10px]">Fecha</th>
                 <th className="text-left p-1.5 text-[10px]">Concepto</th>
+                <th className="text-left p-1.5 w-36 text-[10px]">Documento</th>
                 <th className="text-right p-1.5 w-24 text-[10px]">Importe</th>
                 <th className="text-center p-1.5 w-16 text-[10px]">Impuesto</th>
                 <th className="w-8 p-1"></th>
@@ -1538,11 +1617,11 @@ function AnalyticsJournalViewer({ type, value, userIds }) {
             </thead>
             <tbody>
               {regular.length > 0 && (
-                <tr className="bg-emerald-50"><td colSpan="5" className="px-2 py-0.5 text-[9px] font-bold text-emerald-800 uppercase">{type === 'cebe' ? 'Ingresos' : 'Gastos'}</td></tr>
+                <tr className="bg-slate-50"><td colSpan="6" className="px-2 py-0.5 text-[9px] font-bold text-slate-700 uppercase">{type === 'cebe' ? 'Ingresos' : 'Gastos'}</td></tr>
               )}
               {renderRows(regular)}
               {impuestos.length > 0 && (
-                <tr className="bg-orange-50"><td colSpan="5" className="px-2 py-0.5 text-[9px] font-bold text-orange-700 uppercase">Impuestos</td></tr>
+                <tr className="bg-orange-50/50"><td colSpan="6" className="px-2 py-0.5 text-[9px] font-bold text-orange-700 uppercase">Impuestos</td></tr>
               )}
               {renderRows(impuestos)}
             </tbody>

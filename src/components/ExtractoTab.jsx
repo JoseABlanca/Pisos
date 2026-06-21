@@ -58,6 +58,38 @@ export default function ExtractoTab({ formData, setFormData, rentals }) {
     return () => unsubAcc();
   }, [user]);
 
+  const [cebes, setCebes] = useState([]);
+  const [cecos, setCecos] = useState([]);
+  const [journalEntriesList, setJournalEntriesList] = useState([]);
+  const [selectedCebe, setSelectedCebe] = useState('Todos');
+  const [selectedCeco, setSelectedCeco] = useState('Todos');
+
+  useEffect(() => {
+    if (!user) return;
+    const qIds = queryUserIds?.length > 0 ? queryUserIds : [user.uid];
+    
+    const qCebes = query(collection(db, 'analytical_centers'), where('userId', 'in', qIds), where('type', '==', 'cebe'));
+    const unsubCebes = onSnapshot(qCebes, (snap) => {
+      setCebes(snap.docs.map(d => ({ ...d.data(), id: d.id })));
+    });
+
+    const qCecos = query(collection(db, 'analytical_centers'), where('userId', 'in', qIds), where('type', '==', 'ceco'));
+    const unsubCecos = onSnapshot(qCecos, (snap) => {
+      setCecos(snap.docs.map(d => ({ ...d.data(), id: d.id })));
+    });
+
+    const qJournals = query(collection(db, 'journal_entries'), where('userId', 'in', qIds));
+    const unsubJournals = onSnapshot(qJournals, (snap) => {
+      setJournalEntriesList(snap.docs.map(d => ({ id: d.id, ...d.data() })));
+    });
+
+    return () => {
+      unsubCebes();
+      unsubCecos();
+      unsubJournals();
+    };
+  }, [user, queryUserIds]);
+
   // Synchronize amount and type directly into the journal entries
   useEffect(() => {
     if (accounts.length === 0) return;
@@ -203,6 +235,20 @@ export default function ExtractoTab({ formData, setFormData, rentals }) {
     return list.sort((a, b) => b.date.localeCompare(a.date));
   }, [propertyRentals, formData]);
 
+  // 2b. Map transactions to include resolved CEBE/CECO codes
+  const allTransactionsWithAnalytics = useMemo(() => {
+    return allTransactions.map(t => {
+      const journal = journalEntriesList.find(j => j.id === t.journalId);
+      const cebe = journal?.cebe || t.rentalObj?.incomeCebeId || "";
+      const ceco = journal?.ceco || t.rentalObj?.expenseCecoId || "";
+      return {
+        ...t,
+        cebe,
+        ceco
+      };
+    });
+  }, [allTransactions, journalEntriesList]);
+
   // 3. Extract dynamically all unique years where transactions exist
   const availableYears = useMemo(() => {
     const yearsSet = new Set();
@@ -217,7 +263,7 @@ export default function ExtractoTab({ formData, setFormData, rentals }) {
 
   // 4. Filter transactions based on selection state
   const filteredTransactions = useMemo(() => {
-    return allTransactions.filter(t => {
+    return allTransactionsWithAnalytics.filter(t => {
       // Year Filter
       if (selectedYear !== 'Todos') {
         const yr = t.date.split('-')[0];
@@ -235,6 +281,16 @@ export default function ExtractoTab({ formData, setFormData, rentals }) {
         if (t.type !== selectedType) return false;
       }
 
+      // CEBE Filter (hierarchical)
+      if (selectedCebe !== 'Todos') {
+        if (!t.cebe || !String(t.cebe).startsWith(selectedCebe)) return false;
+      }
+
+      // CECO Filter (hierarchical)
+      if (selectedCeco !== 'Todos') {
+        if (!t.ceco || !String(t.ceco).startsWith(selectedCeco)) return false;
+      }
+
       // Search query Filter
       if (searchQuery.trim() !== '') {
         const q = searchQuery.toLowerCase();
@@ -246,7 +302,7 @@ export default function ExtractoTab({ formData, setFormData, rentals }) {
 
       return true;
     });
-  }, [allTransactions, selectedYear, selectedMonth, selectedType, searchQuery]);
+  }, [allTransactionsWithAnalytics, selectedYear, selectedMonth, selectedType, selectedCebe, selectedCeco, searchQuery]);
 
   // 5. Calculate metrics based on the filtered set
   const metrics = useMemo(() => {
@@ -541,25 +597,25 @@ export default function ExtractoTab({ formData, setFormData, rentals }) {
     <div className="flex flex-col gap-4">
       {/* Metrics Summary Cards */}
       <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
-        <div className="p-3 bg-green-50 border border-green-200 rounded shadow-sm">
-          <div className="text-[9px] font-bold text-green-700 uppercase mb-1">Total Ingresos Filtrado</div>
-          <div className="font-mono text-[16px] font-bold text-green-950">
+        <div className="p-3 bg-slate-50 border border-slate-200 rounded shadow-sm">
+          <div className="text-[9px] font-bold text-slate-600 uppercase mb-1">Total Ingresos Filtrado</div>
+          <div className="font-mono text-[16px] font-bold text-slate-800">
             {metrics.incomes.toLocaleString('de-DE', { minimumFractionDigits: 2 })} €
           </div>
         </div>
 
-        <div className="p-3 bg-red-50 border border-red-200 rounded shadow-sm">
-          <div className="text-[9px] font-bold text-red-700 uppercase mb-1">Total Gastos Filtrado</div>
-          <div className="font-mono text-[16px] font-bold text-red-950">
+        <div className="p-3 bg-slate-50 border border-slate-200 rounded shadow-sm">
+          <div className="text-[9px] font-bold text-slate-600 uppercase mb-1">Total Gastos Filtrado</div>
+          <div className="font-mono text-[16px] font-bold text-slate-850">
             -{metrics.expenses.toLocaleString('de-DE', { minimumFractionDigits: 2 })} €
           </div>
         </div>
 
-        <div className={`p-3 border rounded shadow-sm ${metrics.net >= 0 ? 'bg-blue-50 border-blue-200' : 'bg-orange-50 border-orange-200'}`}>
-          <div className={`text-[9px] font-bold uppercase mb-1 ${metrics.net >= 0 ? 'text-blue-700' : 'text-orange-700'}`}>
+        <div className={`p-3 border rounded shadow-sm ${metrics.net >= 0 ? 'bg-blue-50/50 border-blue-200' : 'bg-slate-100 border-slate-300'}`}>
+          <div className={`text-[9px] font-bold uppercase mb-1 ${metrics.net >= 0 ? 'text-blue-700' : 'text-slate-600'}`}>
             Balance Neto Filtrado
           </div>
-          <div className={`font-mono text-[16px] font-bold ${metrics.net >= 0 ? 'text-blue-950' : 'text-orange-950'}`}>
+          <div className={`font-mono text-[16px] font-bold ${metrics.net >= 0 ? 'text-blue-950' : 'text-slate-900'}`}>
             {metrics.net.toLocaleString('de-DE', { minimumFractionDigits: 2 })} €
           </div>
         </div>
@@ -611,6 +667,36 @@ export default function ExtractoTab({ formData, setFormData, rentals }) {
           </select>
         </div>
 
+        {/* CEBE Filter (hierarchical) */}
+        <div className="flex items-center gap-1 bg-[#d4d0c8] border border-[#808080] p-1">
+          <span className="text-[10px] font-bold uppercase text-slate-600">CEBE:</span>
+          <select
+            className="win-input w-28 text-[10px]"
+            value={selectedCebe}
+            onChange={e => setSelectedCebe(e.target.value)}
+          >
+            <option value="Todos">Todos</option>
+            {cebes.map(c => (
+              <option key={c.id} value={c.code}>{c.code} - {c.name}</option>
+            ))}
+          </select>
+        </div>
+
+        {/* CECO Filter (hierarchical) */}
+        <div className="flex items-center gap-1 bg-[#d4d0c8] border border-[#808080] p-1">
+          <span className="text-[10px] font-bold uppercase text-slate-600">CECO:</span>
+          <select
+            className="win-input w-28 text-[10px]"
+            value={selectedCeco}
+            onChange={e => setSelectedCeco(e.target.value)}
+          >
+            <option value="Todos">Todos</option>
+            {cecos.map(c => (
+              <option key={c.id} value={c.code}>{c.code} - {c.name}</option>
+            ))}
+          </select>
+        </div>
+
         {/* Type selector buttons */}
         <div className="flex bg-[#d4d0c8] border border-[#808080] p-0.5 gap-0.5">
           {[
@@ -648,7 +734,7 @@ export default function ExtractoTab({ formData, setFormData, rentals }) {
           onClick={handleExport}
           title="Exportar extracto a CSV"
         >
-          <Download className="w-3.5 h-3.5 text-green-800" />
+          <Download className="w-3.5 h-3.5 text-slate-700" />
           <span className="font-bold">EXPORTAR CSV</span>
         </button>
       </div>
@@ -809,10 +895,10 @@ export default function ExtractoTab({ formData, setFormData, rentals }) {
                       {/* Totals Row */}
                       <tr className="bg-[#e7e1d3] border-t-2 border-[#808080]">
                         <td className="p-1 text-[9px] font-bold text-right uppercase">Total Asiento:</td>
-                        <td className="p-1 text-right font-mono text-[10px] font-bold text-green-700 bg-white/40 border-l border-[#808080]">
+                        <td className="p-1 text-right font-mono text-[10px] font-bold text-slate-800 bg-white/40 border-l border-[#808080]">
                           {totalDebit.toLocaleString('es-ES', { minimumFractionDigits: 2 })} €
                         </td>
-                        <td className="p-1 text-right font-mono text-[10px] font-bold text-red-700 bg-white/40 border-l border-[#808080]">
+                        <td className="p-1 text-right font-mono text-[10px] font-bold text-slate-800 bg-white/40 border-l border-[#808080]">
                           {totalCredit.toLocaleString('es-ES', { minimumFractionDigits: 2 })} €
                         </td>
                       </tr>
@@ -880,7 +966,7 @@ export default function ExtractoTab({ formData, setFormData, rentals }) {
             ) : (
               filteredTransactions.map((t) => {
                 const isIncome = t.type === 'Ingreso';
-                const rowBg = isIncome ? 'hover:bg-green-50/40' : 'hover:bg-red-50/40';
+                const rowBg = 'hover:bg-blue-50/30';
                 
                 return (
                   <tr key={t.id} className={`${rowBg} transition-colors border-b border-[#e0e0e0]`}>
@@ -891,8 +977,8 @@ export default function ExtractoTab({ formData, setFormData, rentals }) {
                     <td className="p-1 border-r border-[#d4d0c8] text-center">
                       <span className={`px-1.5 py-0.5 rounded text-[8px] font-bold border leading-none ${
                         isIncome
-                          ? 'bg-green-100 text-green-700 border-green-300'
-                          : 'bg-red-100 text-red-700 border-red-300'
+                          ? 'bg-blue-50 text-blue-700 border-blue-200'
+                          : 'bg-slate-100 text-slate-700 border-slate-300'
                       }`}>
                         {t.type.toUpperCase()}
                       </span>
@@ -925,14 +1011,12 @@ export default function ExtractoTab({ formData, setFormData, rentals }) {
                         title={t.journalId ? "Asiento Contable Registrado" : "Generar Asiento Contable"}
                         onClick={() => handleCreateJournalEntryForTransaction(t)}
                       >
-                        <BookOpen className={`w-3.5 h-3.5 mx-auto ${t.journalId ? 'text-green-700 font-bold' : 'text-slate-400 hover:text-blue-600'}`} />
+                        <BookOpen className={`w-3.5 h-3.5 mx-auto ${t.journalId ? 'text-blue-800 font-bold' : 'text-slate-400 hover:text-blue-600'}`} />
                       </button>
                     </td>
 
                     {/* Amount */}
-                    <td className={`p-1.5 border-r border-[#d4d0c8] text-right font-mono font-bold text-[11px] ${
-                      isIncome ? 'text-green-700' : 'text-red-700'
-                    }`}>
+                    <td className="p-1.5 border-r border-[#d4d0c8] text-right font-mono font-bold text-[11px] text-slate-800">
                       {isIncome ? '+' : '-'}{t.amount.toLocaleString('de-DE', { minimumFractionDigits: 2 })} €
                     </td>
 
