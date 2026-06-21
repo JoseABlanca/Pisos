@@ -1244,11 +1244,18 @@ export default function Rentals() {
                 </div>
                 <div className="flex-1 overflow-auto bg-slate-100 flex items-center justify-center relative">
                   {(previewDocument.type?.toLowerCase().includes('pdf') || previewDocument.name.toLowerCase().endsWith('.pdf')) ? (
-                    <iframe 
-                      src={previewDocument.url} 
+                    <object 
+                      data={previewDocument.url} 
+                      type="application/pdf"
                       className="absolute inset-0 w-full h-full border-none" 
                       title={previewDocument.name} 
-                    />
+                    >
+                      <iframe 
+                        src={`https://docs.google.com/viewer?url=${encodeURIComponent(previewDocument.url)}&embedded=true`} 
+                        className="absolute inset-0 w-full h-full border-none" 
+                        title={previewDocument.name} 
+                      />
+                    </object>
                   ) : (previewDocument.type?.toLowerCase().includes('image') || previewDocument.name.toLowerCase().match(/\.(jpg|jpeg|png)$/)) ? (
                     <img 
                       src={previewDocument.url} 
