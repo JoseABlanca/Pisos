@@ -103,8 +103,6 @@ export default function Customers() {
   const DEFAULT_COLUMNS = ['id', 'name', 'address', 'status'];
   const { visibleColumns, toggleColumn } = useTableColumns('customers', DEFAULT_COLUMNS);
   const [rentals, setRentals] = useState([]);
-    return () => window.removeEventListener('toggle-column', handleToggleColumn);
-  }, []);
 
   useEffect(() => {
     if (!user) return;

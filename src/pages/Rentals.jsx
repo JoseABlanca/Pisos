@@ -372,8 +372,7 @@ export default function Rentals() {
                   {visibleColumns.includes('paymentMethod') && <td>{rental.paymentPeriod || '-'}</td>}
                   {visibleColumns.includes('status') && <td className="text-center uppercase">{rental.status || 'activo'}</td>}
                 </tr>
-              );
-            })}
+                ))}
             {rentals.length === 0 && (
               <tr>
                 <td colSpan="6" className="text-center py-20 text-slate-400 italic">No hay alquileres registrados</td>

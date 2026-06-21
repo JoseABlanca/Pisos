@@ -125,8 +125,6 @@ export default function Partners() {
   const { activeTableFilters, applyTableFilters, clearAllFilters, TableHeaderWithFilter, renderFilterMenu, openFilterMenu, setOpenFilterMenu } = useTableFilters();
   const DEFAULT_COLUMNS = ['dni', 'name', 'email', 'phone', 'status'];
   const { visibleColumns, toggleColumn } = useTableColumns('partners', DEFAULT_COLUMNS);
-    return () => window.removeEventListener('toggle-column', handleToggleColumn);
-  }, []);
 
   const [formData, setFormData] = useState({
     id: '',
