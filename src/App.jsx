@@ -20,6 +20,7 @@ import Partners from './pages/Partners';
 import Rentals from './pages/Rentals';
 import Ledger from './pages/Ledger';
 import Home from './pages/Home';
+import { ErrorBoundary } from './components/ErrorBoundary';
 
 const ProtectedRoute = ({ children }) => {
   const { user, queryUserIds, loading } = useAuth();
@@ -29,9 +30,10 @@ const ProtectedRoute = ({ children }) => {
 
 function App() {
   return (
-    <AuthProvider>
-      <Router>
-        <Routes>
+    <ErrorBoundary>
+      <AuthProvider>
+        <Router>
+          <Routes>
           <Route path="/login" element={<Login />} />
           <Route path="/register" element={<Register />} />
           <Route path="/reset-password" element={<ResetPassword />} />
@@ -56,9 +58,10 @@ function App() {
             <Route path="ledger" element={<Ledger />} />
             <Route path="account-statement" element={<Ledger initialMode="detail" />} />
           </Route>
-        </Routes>
-      </Router>
-    </AuthProvider>
+          </Routes>
+        </Router>
+      </AuthProvider>
+    </ErrorBoundary>
   );
 }
 
