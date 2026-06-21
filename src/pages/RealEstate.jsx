@@ -93,6 +93,7 @@ export default function RealEstate() {
   const [activeTab, setActiveTab] = useState('Datos');
   const [availableAccounts, setAvailableAccounts] = useState([]);
   const [cebes, setCebes] = useState([]);
+  const [cecos, setCecos] = useState([]);
 
   useEffect(() => {
     const onNew = () => handleNew();
@@ -228,6 +229,7 @@ export default function RealEstate() {
     accountNumber: '',
     accountingAccount: '',
     cebe: '',
+    ceco: '',
     m2: '',
     rooms: '',
     baths: '',
@@ -298,6 +300,7 @@ export default function RealEstate() {
       accountNumber: '',
       accountingAccount: '',
       cebe: '',
+      ceco: '',
       m2: '',
       rooms: '',
       baths: '',
@@ -538,9 +541,13 @@ export default function RealEstate() {
     const qCebes = query(collection(db, 'analytical_centers'), where('userId', 'in', queryUserIds?.length > 0 ? queryUserIds : [user.uid]), where('type', '==', 'cebe'));
     const unsubCebes = onSnapshot(qCebes, (snap) => setCebes(snap.docs.map(d => ({ ...d.data(), id: d.id }))));
 
+    const qCecos = query(collection(db, 'analytical_centers'), where('userId', 'in', queryUserIds?.length > 0 ? queryUserIds : [user.uid]), where('type', '==', 'ceco'));
+    const unsubCecos = onSnapshot(qCecos, (snap) => setCecos(snap.docs.map(d => ({ ...d.data(), id: d.id }))));
+
     return () => {
       unsubscribe();
       unsubCebes();
+      unsubCecos();
     };
   }, [user, queryUserIds]);
 
@@ -645,7 +652,7 @@ export default function RealEstate() {
                 }}>
                 <option value="">-- Ninguno --</option>
                 {properties.filter(p => p.id !== formData.id).map(p => (
-                  <option key={p.id} value={p.id}>{p.name}</option>
+                  <option key={p.id} value={p.name}>{p.name}</option>
                 ))}
               </select>
             </div>
@@ -693,6 +700,15 @@ export default function RealEstate() {
               <select className="win-input w-full cursor-pointer" value={formData.cebe || ''} onChange={e => setFormData({ ...formData, cebe: e.target.value })}>
                 <option value=""></option>
                 {cebes.map(c => (
+                  <option key={c.id} value={c.code}>{c.code} - {c.name}</option>
+                ))}
+              </select>
+            </div>
+            <div className="space-y-1">
+              <label className="text-[10px] font-bold text-slate-700 uppercase">CECO Asociado:</label>
+              <select className="win-input w-full cursor-pointer" value={formData.ceco || ''} onChange={e => setFormData({ ...formData, ceco: e.target.value })}>
+                <option value=""></option>
+                {cecos.map(c => (
                   <option key={c.id} value={c.code}>{c.code} - {c.name}</option>
                 ))}
               </select>

@@ -1451,13 +1451,21 @@ function AnalyticsJournalViewer({ type, value, userIds }) {
       setEntries([]);
       return;
     }
+    // Fetch ALL entries for the user, then filter client-side by prefix
+    // This supports hierarchy: parent code matches all children (e.g. "CB01" matches "CB01.1", "CB01.2", etc.)
     const q = query(
       collection(db, 'journal_entries'), 
-      where('userId', 'in', userIds),
-      where(type, '==', value)
+      where('userId', 'in', userIds)
     );
     const unsubscribe = onSnapshot(q, (snap) => {
-      setEntries(snap.docs.map(d => ({ id: d.id, ...d.data() })).sort((a,b) => new Date(b.date) - new Date(a.date)));
+      const all = snap.docs.map(d => ({ id: d.id, ...d.data() }));
+      // Prefix match: entry's cebe/ceco starts with the selected code
+      const filtered = all.filter(entry => {
+        const fieldValue = entry[type];
+        if (!fieldValue) return false;
+        return String(fieldValue).startsWith(String(value));
+      });
+      setEntries(filtered.sort((a,b) => new Date(b.date) - new Date(a.date)));
     });
     return () => unsubscribe();
   }, [type, value, userIds]);
