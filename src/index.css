@@ -145,7 +145,7 @@
 
   /* Clean Minimalist Table (Photo 2 / Photo 1 font style) */
   .clean-table {
-    @apply w-full text-left text-[11px] whitespace-nowrap border-collapse bg-white;
+    @apply w-full text-left text-[11px] whitespace-nowrap border-collapse bg-white table-fixed;
   }
 
   .clean-table thead {

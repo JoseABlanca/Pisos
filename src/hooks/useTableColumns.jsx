@@ -24,6 +24,30 @@ export const useTableColumns = (tableId, defaultColumns) => {
     }
   }, [userPreferences, prefKey, widthPrefKey]);
 
+  // Sincronizar con el menú principal de añadir columnas
+  useEffect(() => {
+    const handleToggle = (e) => {
+      const colId = e.detail.columnId;
+      toggleColumn(colId);
+    };
+    
+    // Tab name in Layout might differ from tableId, but usually mapping is straightforward 
+    // or just emit the event whenever visibleColumns changes
+    window.addEventListener('toggle-column', handleToggle);
+    return () => window.removeEventListener('toggle-column', handleToggle);
+  }, [visibleColumns]); // dependency needed to have the latest visibleColumns inside toggleColumn
+
+  useEffect(() => {
+    // Notify layout of our current active columns
+    // We guess the tab name based on tableId
+    let tab = 'Clientes';
+    if (tableId === 'rentals') tab = 'Alquileres';
+    if (tableId === 'properties') tab = 'Activos';
+    if (tableId === 'partners') tab = 'Propietarios';
+    
+    window.dispatchEvent(new CustomEvent('sync-columns', { detail: { tab, columns: visibleColumns } }));
+  }, [visibleColumns, tableId]);
+
   const toggleColumn = (colId) => {
     const newColumns = visibleColumns.includes(colId)
       ? visibleColumns.filter(c => c !== colId)
