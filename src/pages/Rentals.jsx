@@ -1,7 +1,8 @@
 import { useState, useEffect, useMemo } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { db } from '../firebase/config';
-import { collection, query, where, onSnapshot, doc, setDoc, deleteDoc } from 'firebase/firestore';
+import { collection, query, where, onSnapshot, doc, setDoc, deleteDoc, updateDoc } from 'firebase/firestore';
+import { deleteJournalEntry } from '../services/accounting';
 import { useAuth } from '../context/AuthContext';
 import Window from '../components/Window';
 import { 
@@ -1450,45 +1451,92 @@ function AnalyticsJournalViewer({ type, value, userIds }) {
       setEntries([]);
       return;
     }
-    
     const q = query(
       collection(db, 'journal_entries'), 
       where('userId', 'in', userIds),
       where(type, '==', value)
     );
-    
     const unsubscribe = onSnapshot(q, (snap) => {
       setEntries(snap.docs.map(d => ({ id: d.id, ...d.data() })).sort((a,b) => new Date(b.date) - new Date(a.date)));
     });
-    
     return () => unsubscribe();
   }, [type, value, userIds]);
 
+  const handleDelete = async (entry) => {
+    if (!window.confirm(`Eliminar el asiento "${entry.description}"? Esta accion revertira los saldos contables.`)) return;
+    try {
+      await deleteJournalEntry(entry.userId || userIds[0], entry.id, entry.lines || []);
+    } catch (err) {
+      alert('Error al eliminar el asiento: ' + err.message);
+    }
+  };
+
+  const handleTaxToggle = async (entry) => {
+    try {
+      const entryRef = doc(db, 'journal_entries', entry.id);
+      await updateDoc(entryRef, { isImpuesto: !entry.isImpuesto });
+    } catch (err) {
+      alert('Error al actualizar: ' + err.message);
+    }
+  };
+
   if (!value) return null;
+
+  const regular = entries.filter(e => !e.isImpuesto);
+  const impuestos = entries.filter(e => e.isImpuesto);
+  const totalRegular = regular.reduce((s, e) => s + (Number(e.total) || 0), 0);
+  const totalImpuestos = impuestos.reduce((s, e) => s + (Number(e.total) || 0), 0);
+
+  const renderRows = (rows) => rows.map(e => (
+    <tr key={e.id} className={`border-b border-gray-200 hover:bg-blue-50 ${e.isImpuesto ? 'bg-orange-50' : ''}`}>
+      <td className="p-1.5 whitespace-nowrap text-[10px]">{new Date(e.date).toLocaleDateString()}</td>
+      <td className="p-1.5 truncate max-w-[150px] text-[10px]" title={e.description}>{e.description}</td>
+      <td className="p-1.5 text-right font-mono text-emerald-700 font-bold text-[10px]">{Number(e.total).toLocaleString('es-ES', {minimumFractionDigits:2})} &euro;</td>
+      <td className="p-1.5 text-center">
+        <input type="checkbox" checked={!!e.isImpuesto} onChange={() => handleTaxToggle(e)} title="Marcar como Impuesto" className="cursor-pointer w-3.5 h-3.5 accent-orange-500" />
+      </td>
+      <td className="p-1 text-center">
+        <button onClick={() => handleDelete(e)} className="text-red-400 hover:text-red-600 hover:bg-red-50 rounded p-0.5" title="Eliminar asiento">
+          <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5"><polyline points="3 6 5 6 21 6"/><path d="M19 6l-1 14H6L5 6"/><path d="M10 11v6M14 11v6"/><path d="M9 6V4h6v2"/></svg>
+        </button>
+      </td>
+    </tr>
+  ));
 
   return (
     <div className="mt-6 border-t border-gray-300 pt-4">
-      <h3 className="text-[12px] font-bold text-slate-800 uppercase mb-2">Asientos Contables Asociados</h3>
+      <div className="flex items-center justify-between mb-3">
+        <h3 className="text-[12px] font-bold text-slate-800 uppercase">Asientos Contables Asociados</h3>
+        {entries.length > 0 && (
+          <div className="flex gap-3 text-[10px]">
+            <span className="text-emerald-700 font-bold">{type === 'cebe' ? 'Ingresos' : 'Gastos'}: {totalRegular.toLocaleString('es-ES', {minimumFractionDigits:2})} &euro;</span>
+            {impuestos.length > 0 && <span className="text-orange-600 font-bold">Impuestos: {totalImpuestos.toLocaleString('es-ES', {minimumFractionDigits:2})} &euro;</span>}
+          </div>
+        )}
+      </div>
       {entries.length === 0 ? (
         <p className="text-[11px] text-gray-500 italic">No hay asientos contables registrados para este {type.toUpperCase()}.</p>
       ) : (
         <div className="overflow-x-auto border border-[#808080]">
-          <table className="w-full text-[11px] win-table bg-white">
+          <table className="w-full win-table bg-white">
             <thead className="bg-[#e7e1d3] sticky top-0">
               <tr>
-                <th className="text-left p-1.5 w-24">Fecha</th>
-                <th className="text-left p-1.5">Concepto</th>
-                <th className="text-right p-1.5 w-24">Importe</th>
+                <th className="text-left p-1.5 w-20 text-[10px]">Fecha</th>
+                <th className="text-left p-1.5 text-[10px]">Concepto</th>
+                <th className="text-right p-1.5 w-24 text-[10px]">Importe</th>
+                <th className="text-center p-1.5 w-16 text-[10px]">Impuesto</th>
+                <th className="w-8 p-1"></th>
               </tr>
             </thead>
             <tbody>
-              {entries.map(e => (
-                <tr key={e.id} className="border-b border-gray-200 hover:bg-blue-50">
-                  <td className="p-1.5">{new Date(e.date).toLocaleDateString()}</td>
-                  <td className="p-1.5 truncate">{e.description}</td>
-                  <td className="p-1.5 text-right font-mono text-emerald-700 font-bold">{Number(e.total).toLocaleString('es-ES', {minimumFractionDigits:2})} €</td>
-                </tr>
-              ))}
+              {regular.length > 0 && (
+                <tr className="bg-emerald-50"><td colSpan="5" className="px-2 py-0.5 text-[9px] font-bold text-emerald-800 uppercase">{type === 'cebe' ? 'Ingresos' : 'Gastos'}</td></tr>
+              )}
+              {renderRows(regular)}
+              {impuestos.length > 0 && (
+                <tr className="bg-orange-50"><td colSpan="5" className="px-2 py-0.5 text-[9px] font-bold text-orange-700 uppercase">Impuestos</td></tr>
+              )}
+              {renderRows(impuestos)}
             </tbody>
           </table>
         </div>
