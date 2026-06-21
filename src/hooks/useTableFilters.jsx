@@ -141,8 +141,8 @@ export const useTableFilters = ({ columnWidths = {}, updateColumnWidth = null } 
     
     return (
       <th className={`${className} group relative`} style={style}>
-        <div className="flex items-center justify-between h-full">
-          <span className="truncate flex-1 pr-1">{label}</span>
+        <div className="flex items-center justify-between h-full min-w-0 overflow-hidden">
+          <span className="truncate flex-1 pr-1 min-w-0 block">{label}</span>
           <button 
             className={`p-0.5 rounded-sm hover:bg-slate-300 transition-colors filter-btn flex-shrink-0 mr-1 ${isActive ? 'bg-blue-100 text-blue-700' : 'text-slate-400'}`}
             onClick={(e) => {

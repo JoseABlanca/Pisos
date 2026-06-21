@@ -784,42 +784,6 @@ export default function RealEstate() {
         <div className="flex-1 flex flex-col bg-white overflow-hidden relative" onClick={() => { setSelectedProperty(null); setSelectedTenantIndex(null); setSelectedServiceIndex(null); }}>
           <div className="flex justify-between items-center px-4 py-2 border-b border-gray-200">
             <div className="flex items-center space-x-2">
-              <button className="btn-classic flex items-center gap-1.5" onClick={() => {
-                      const allColumns = [
-                        { header: 'ID', dataKey: 'id' },
-                        { header: 'Nombre', dataKey: 'name' },
-                        { header: 'Dirección', dataKey: 'address' },
-                        { header: 'País', dataKey: 'country' },
-                        { header: 'Provincia', dataKey: 'region' },
-                        { header: 'Población', dataKey: 'city' },
-                        { header: 'CP', dataKey: 'cp' },
-                        { header: 'Ref. Catastral', dataKey: 'catastral' },
-                        { header: 'Núm. Finca Registral', dataKey: 'registry' },
-                        { header: 'Número de Cuenta', dataKey: 'accountNumber' },
-                        { header: 'Cuenta Contable', dataKey: 'accountingAccount' },
-                        { header: 'Inquilino Activo', dataKey: 'tenantDisplay' },
-                        { header: 'Renta Mensual', dataKey: 'rentTotal' },
-                        { header: 'Entidad Bancaria', dataKey: 'bank' },
-                        { header: 'Número Préstamo', dataKey: 'loanNumber' },
-                        { header: 'Importe Préstamo', dataKey: 'loanAmount' },
-                        { header: 'Pendiente Amortizar', dataKey: 'mortgagePending' },
-                        { header: 'Tipo Interés (%)', dataKey: 'interest' },
-                        { header: 'Fecha Vencimiento', dataKey: 'expiry' },
-                        { header: 'Admin. Comunidad', dataKey: 'communityAdmin' },
-                        { header: 'Email Admin', dataKey: 'communityAdminEmail' },
-                        { header: 'Tel. Admin', dataKey: 'communityAdminPhone' },
-                        { header: 'Cuota Com.', dataKey: 'communityFee' },
-                        { header: 'Día Cobro', dataKey: 'communityPaymentDay' },
-                        { header: 'Fecha Adquisición', dataKey: 'finAcquisitionDate' },
-                        { header: 'Precio Compra', dataKey: 'finPurchasePrice' },
-                        { header: 'Gastos Adq.', dataKey: 'finAcquisitionCosts' },
-                        { header: 'Hon. Agencia', dataKey: 'finAgentFees' },
-                        { header: 'Valor Actual', dataKey: 'finCurrentValue' },
-                        { header: 'Precio Venta Esp.', dataKey: 'finSalePrice' }
-                      ];
-                      const colsToExport = allColumns.filter(c => visibleColumns.includes(c.dataKey));
-                      exportToPDF(applyTableFilters(propertiesWithCalculatedRentals, 'properties'), colsToExport, 'Reporte de Activos', 'activos.pdf');
-                    }} title="Exportar a PDF"><Download className="w-3.5 h-3.5" /> PDF</button>
             </div>
             <div className="relative" onClick={e => e.stopPropagation()}>
               <input type="text" placeholder="Buscar en el fichero (Alt+B)" value={filterValue} onChange={(e) => {

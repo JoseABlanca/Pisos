@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useCallback } from 'react';
 import { useAuth } from '../context/AuthContext';
 
 export const useTableColumns = (tableId, defaultColumns) => {
@@ -24,6 +24,21 @@ export const useTableColumns = (tableId, defaultColumns) => {
     }
   }, [userPreferences, prefKey, widthPrefKey]);
 
+  const toggleColumn = useCallback((colId) => {
+    setVisibleColumns(prev => {
+      const newColumns = prev.includes(colId)
+        ? prev.filter(c => c !== colId)
+        : [...prev, colId];
+        
+      // Guardar en Firestore asíncronamente
+      updatePreferences({
+        ...userPreferences,
+        [prefKey]: newColumns
+      });
+      return newColumns;
+    });
+  }, [userPreferences, prefKey, updatePreferences]);
+
   // Sincronizar con el menú principal de añadir columnas
   useEffect(() => {
     const handleToggle = (e) => {
@@ -31,15 +46,11 @@ export const useTableColumns = (tableId, defaultColumns) => {
       toggleColumn(colId);
     };
     
-    // Tab name in Layout might differ from tableId, but usually mapping is straightforward 
-    // or just emit the event whenever visibleColumns changes
     window.addEventListener('toggle-column', handleToggle);
     return () => window.removeEventListener('toggle-column', handleToggle);
-  }, [visibleColumns]); // dependency needed to have the latest visibleColumns inside toggleColumn
+  }, [toggleColumn]);
 
   useEffect(() => {
-    // Notify layout of our current active columns
-    // We guess the tab name based on tableId
     let tab = 'Clientes';
     if (tableId === 'rentals') tab = 'Alquileres';
     if (tableId === 'properties') tab = 'Activos';
@@ -47,20 +58,6 @@ export const useTableColumns = (tableId, defaultColumns) => {
     
     window.dispatchEvent(new CustomEvent('sync-columns', { detail: { tab, columns: visibleColumns } }));
   }, [visibleColumns, tableId]);
-
-  const toggleColumn = (colId) => {
-    const newColumns = visibleColumns.includes(colId)
-      ? visibleColumns.filter(c => c !== colId)
-      : [...visibleColumns, colId];
-      
-    setVisibleColumns(newColumns);
-    
-    // Guardar en Firestore asíncronamente
-    updatePreferences({
-      ...userPreferences,
-      [prefKey]: newColumns
-    });
-  };
 
   const updateColumnWidth = (colId, width) => {
     const newWidths = { ...columnWidths, [colId]: width };
