@@ -107,6 +107,21 @@ export default function RealEstate() {
     };
   }, [selectedProperty]);
 
+  const [selectedTenantIndex, setSelectedTenantIndex] = useState(null);
+  const [previewDocument, setPreviewDocument] = useState(null);
+  const [activeMortgageTab, setActiveMortgageTab] = useState('docs');
+  const [activeCommunitySubTab, setActiveCommunitySubTab] = useState('payments');
+  const [selectedServiceIndex, setSelectedServiceIndex] = useState(null);
+  const [selectedReformIndex, setSelectedReformIndex] = useState(null);
+  const [dragOverZone, setDragOverZone] = useState(null);
+  const [showOnlyActiveServices, setShowOnlyActiveServices] = useState(false);
+  const [finanzasSubTab, setFinanzasSubTab] = useState('principal');
+  const [accessoryFormData, setAccessoryFormData] = useState(null);
+
+  const { activeTableFilters, applyTableFilters, clearAllFilters, TableHeaderWithFilter, renderFilterMenu, openFilterMenu, setOpenFilterMenu } = useTableFilters();
+  const DEFAULT_COLUMNS = ['id', 'name', 'address', 'cp', 'tenantDisplay', 'rentTotal'];
+  const { visibleColumns, toggleColumn } = useTableColumns('properties', DEFAULT_COLUMNS);
+
   useEffect(() => {
     const onExport = (e) => {
       const format = e.detail?.format || 'csv';
@@ -130,21 +145,6 @@ export default function RealEstate() {
     window.addEventListener('real-estate:export', onExport);
     return () => window.removeEventListener('real-estate:export', onExport);
   }, [propertiesWithCalculatedRentals, visibleColumns, applyTableFilters]);
-
-  const [selectedTenantIndex, setSelectedTenantIndex] = useState(null);
-  const [previewDocument, setPreviewDocument] = useState(null);
-  const [activeMortgageTab, setActiveMortgageTab] = useState('docs');
-  const [activeCommunitySubTab, setActiveCommunitySubTab] = useState('payments');
-  const [selectedServiceIndex, setSelectedServiceIndex] = useState(null);
-  const [selectedReformIndex, setSelectedReformIndex] = useState(null);
-  const [dragOverZone, setDragOverZone] = useState(null);
-  const [showOnlyActiveServices, setShowOnlyActiveServices] = useState(false);
-  const [finanzasSubTab, setFinanzasSubTab] = useState('principal');
-  const [accessoryFormData, setAccessoryFormData] = useState(null);
-
-  const { activeTableFilters, applyTableFilters, clearAllFilters, TableHeaderWithFilter, renderFilterMenu, openFilterMenu, setOpenFilterMenu } = useTableFilters();
-  const DEFAULT_COLUMNS = ['id', 'name', 'address', 'cp', 'tenantDisplay', 'rentTotal'];
-  const { visibleColumns, toggleColumn } = useTableColumns('properties', DEFAULT_COLUMNS);
 
   const transformServices = (servicesData) => {
     if (Array.isArray(servicesData)) return servicesData;
