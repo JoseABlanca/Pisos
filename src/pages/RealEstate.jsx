@@ -830,9 +830,10 @@ export default function RealEstate() {
             </div>
           </div>
           <div className="flex-1 overflow-auto">
+            {renderFilterMenu()}
             <table className="clean-table">
               <thead>
-                <tr>
+                <tr className="sticky top-0 z-10">
                   {visibleColumns.includes('id') && <TableHeaderWithFilter label="ID" columnKey="id" data={propertiesWithCalculatedRentals} tableId="properties" className="w-16 md:w-20" />}
                   {visibleColumns.includes('name') && <TableHeaderWithFilter label="Nombre" columnKey="name" data={propertiesWithCalculatedRentals} tableId="properties" className="w-32 md:w-48" />}
                   {visibleColumns.includes('address') && <TableHeaderWithFilter label="Dirección" columnKey="address" data={propertiesWithCalculatedRentals} tableId="properties" className="hidden md:table-cell md:w-64" />}

@@ -474,13 +474,13 @@ export default function Customers() {
             </div>
           </div>
           <div 
-            className="flex-1 overflow-auto bg-white win-bevel-inner custom-scrollbar relative"
+            className="flex-1 overflow-auto bg-white relative"
             onClick={(e) => e.stopPropagation()}
           >
             {renderFilterMenu()}
-            <table className="w-full text-left border-collapse text-[11px] font-sans">
+            <table className="clean-table">
               <thead>
-                <tr>
+                <tr className="sticky top-0 z-10">
                   {visibleColumns.includes('id') && <TableHeaderWithFilter label="CUENTA" columnKey="id" data={filteredCustomers} tableId="customers" className="w-20" />}
                   {visibleColumns.includes('name') && <TableHeaderWithFilter label="DESCRIPCIÓN" columnKey="name" data={filteredCustomers} tableId="customers" className="w-48" />}
                   {visibleColumns.includes('address') && <TableHeaderWithFilter label="DIRECCIÓN" columnKey="address" data={filteredCustomers} tableId="customers" className="w-48" />}
