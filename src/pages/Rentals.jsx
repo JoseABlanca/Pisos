@@ -1,4 +1,4 @@
-import { useState, useEffect, useMemo } from 'react';
+﻿import { useState, useEffect, useMemo } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { db } from '../firebase/config';
 import { collection, query, where, onSnapshot, doc, setDoc, deleteDoc } from 'firebase/firestore';
@@ -213,8 +213,8 @@ export default function Rentals() {
         type="text" 
         className="win-input flex-1 min-w-0" 
         placeholder="Ej: 7050000"
-        value={formData[field]} 
-        onChange={(e) => setFormData({...formData, [field]: e.target.value})} 
+        value={formData[field] || ""} 
+        onChange={(e) => setFormData(prev => ({...prev, [field]: e.target.value}))} 
       />
     </div>
   );
@@ -224,8 +224,8 @@ export default function Rentals() {
       <label className="win-form-label">{label}:</label>
       <select 
         className="win-input flex-1 min-w-0" 
-        value={formData[field]} 
-        onChange={(e) => setFormData({...formData, [field]: e.target.value})}
+        value={formData[field] || ""} 
+        onChange={(e) => setFormData(prev => ({...prev, [field]: e.target.value}))}
       >
         <option value="">-- Seleccionar CEBE --</option>
         {cebes.map(c => <option key={c.id} value={c.code}>{c.code} - {c.name}</option>)}
