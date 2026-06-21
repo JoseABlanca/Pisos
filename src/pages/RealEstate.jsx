@@ -13,6 +13,7 @@ import FinanzasTab from '../components/FinanzasTab';
 import ExtractoTab from '../components/ExtractoTab';
 import ClienteTab from '../components/ClienteTab';
 import ReformasTab from '../components/ReformasTab';
+import { ErrorBoundary } from '../components/ErrorBoundary';
 import { uploadFileToStorage } from '../utils/storageUtils';
 import { useTableColumns } from '../hooks/useTableColumns';
 import { useTableFilters } from '../hooks/useTableFilters';
@@ -930,59 +931,60 @@ export default function RealEstate() {
 
       {/* Property Form Window */}
       {showForm && (
-        <div className="fixed inset-0 bg-black/40 backdrop-blur-sm flex items-center justify-center z-50">
-          <Window 
-            title={isEditing ? `Editar Activo: ${formData.reference || formData.id || 'Nuevo'}` : "Nuevo Activo"} 
-            width={isMobile ? "100%" : "1000px"}
-            height={isMobile ? "100%" : "700px"}
-            initialPos={{ x: isMobile ? 0 : 50, y: isMobile ? 0 : 20 }}
-            onClose={() => setShowForm(false)}
-            onMenuClick={() => setShowSidebar(!showSidebar)}
-          >
-            <div className="flex flex-1 h-full min-h-0 bg-[#d4d0c8] relative">
-              {/* Sidebar - shown when showSidebar=true on both mobile and desktop */}
-              {showSidebar && (
-                <div className={`bg-[#f0f0f0] border-r border-[#808080] shrink-0 overflow-y-auto p-2 flex flex-col shadow-[inset_-1px_0_0_rgba(0,0,0,0.1)] ${isMobile ? 'absolute inset-y-0 left-0 z-30 w-56' : 'w-56'}`}>
-                  <div className="bg-white border border-[#a0a0a0] flex flex-col">
-                    {tabs.map((tab) => (
-                      <button
-                        key={tab.id}
-                        onClick={() => { setActiveTab(tab.id); setOpenFilterMenu(null); if (isMobile) setShowSidebar(false); }}
-                        className={`w-full text-left px-4 py-2.5 text-[12px] transition-colors border-y ${
-                          activeTab === tab.id
-                            ? 'bg-[#c0c0c0] text-black border-[#a0a0a0] shadow-[inset_0px_1px_1px_rgba(0,0,0,0.1)] font-semibold'
-                            : 'bg-white text-slate-700 border-transparent hover:bg-[#f8f8f8]'
-                        }`}
-                      >
-                        {tab.id}
-                      </button>
-                    ))}
+        <ErrorBoundary>
+          <div className="fixed inset-0 bg-black/40 backdrop-blur-sm flex items-center justify-center z-50">
+            <Window 
+              title={isEditing ? `Editar Activo: ${formData.reference || formData.id || 'Nuevo'}` : "Nuevo Activo"} 
+              width={isMobile ? "100%" : "1000px"}
+              height={isMobile ? "100%" : "700px"}
+              initialPos={{ x: isMobile ? 0 : 50, y: isMobile ? 0 : 20 }}
+              onClose={() => setShowForm(false)}
+              onMenuClick={() => setShowSidebar(!showSidebar)}
+            >
+              <div className="flex flex-1 h-full min-h-0 bg-[#d4d0c8] relative">
+                {/* Sidebar - shown when showSidebar=true on both mobile and desktop */}
+                {showSidebar && (
+                  <div className={`bg-[#f0f0f0] border-r border-[#808080] shrink-0 overflow-y-auto p-2 flex flex-col shadow-[inset_-1px_0_0_rgba(0,0,0,0.1)] ${isMobile ? 'absolute inset-y-0 left-0 z-30 w-56' : 'w-56'}`}>
+                    <div className="bg-white border border-[#a0a0a0] flex flex-col">
+                      {tabs.map((tab) => (
+                        <button
+                          key={tab.id}
+                          onClick={() => { setActiveTab(tab.id); setOpenFilterMenu(null); if (isMobile) setShowSidebar(false); }}
+                          className={`w-full text-left px-4 py-2.5 text-[12px] transition-colors border-y ${
+                            activeTab === tab.id
+                              ? 'bg-[#c0c0c0] text-black border-[#a0a0a0] shadow-[inset_0px_1px_1px_rgba(0,0,0,0.1)] font-semibold'
+                              : 'bg-white text-slate-700 border-transparent hover:bg-[#f8f8f8]'
+                          }`}
+                        >
+                          {tab.id}
+                        </button>
+                      ))}
+                    </div>
                   </div>
-                </div>
-              )}
-              {/* Mobile backdrop to close sidebar */}
-              {isMobile && showSidebar && (
-                <div className="absolute inset-0 z-20 bg-black/30" onClick={() => setShowSidebar(false)} />
-              )}
-              {/* Tab Content Container */}
-              <div className="flex-1 bg-[#d4d0c8] flex flex-col relative overflow-hidden">
-                <div className="flex-1 overflow-auto bg-[#d4d0c8] p-3">
-                  <div className="bg-[#d4d0c8] border border-white shadow-[1px_1px_0px_#000] p-4 min-h-full">
-                    {renderTabContent()}
+                )}
+                {/* Mobile backdrop to close sidebar */}
+                {isMobile && showSidebar && (
+                  <div className="absolute inset-0 z-20 bg-black/30" onClick={() => setShowSidebar(false)} />
+                )}
+                {/* Tab Content Container */}
+                <div className="flex-1 bg-[#d4d0c8] flex flex-col relative overflow-hidden">
+                  <div className="flex-1 overflow-auto bg-[#d4d0c8] p-3">
+                    <div className="bg-[#d4d0c8] border border-white shadow-[1px_1px_0px_#000] p-4 min-h-full">
+                      {renderTabContent()}
+                    </div>
                   </div>
-                </div>
 
-                {/* Action Buttons */}
-                <div className="flex justify-end gap-2 shrink-0 pt-2 pb-1 pr-1 bg-[#d4d0c8] border-t border-[#808080]">
-                  <button className="px-6 py-1 border border-gray-400 bg-gray-100 hover:bg-gray-200 shadow-sm text-[11px] font-bold uppercase" onClick={handleSave}>Aceptar</button>
-                  <button className="px-6 py-1 border border-gray-400 bg-gray-100 hover:bg-gray-200 shadow-sm text-[11px] font-bold uppercase" onClick={() => setShowForm(false)}>Cancelar</button>
+                  {/* Action Buttons */}
+                  <div className="flex justify-end gap-2 shrink-0 pt-2 pb-1 pr-1 bg-[#d4d0c8] border-t border-[#808080]">
+                    <button className="px-6 py-1 border border-gray-400 bg-gray-100 hover:bg-gray-200 shadow-sm text-[11px] font-bold uppercase" onClick={handleSave}>Aceptar</button>
+                    <button className="px-6 py-1 border border-gray-400 bg-gray-100 hover:bg-gray-200 shadow-sm text-[11px] font-bold uppercase" onClick={() => setShowForm(false)}>Cancelar</button>
+                  </div>
                 </div>
               </div>
-            </div>
-          </Window>
-        </div>
+            </Window>
+          </div>
+        </ErrorBoundary>
       )}
     </div>
   );
 }
-
