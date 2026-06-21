@@ -128,31 +128,6 @@ export default function Rentals() {
     };
   }, [initialFormState, selectedRental]);
 
-  useEffect(() => {
-    const onExport = (e) => {
-      const format = e.detail?.format || 'csv';
-      const filtered = applyTableFilters(filteredRentals, 'rentals');
-      if (format === 'pdf') {
-        const allColumns = [
-          { header: 'ID', dataKey: 'id' },
-          { header: 'Inmueble', dataKey: 'propertyTitle' },
-          { header: 'Inquilino', dataKey: 'customerName' },
-          { header: 'Renta', dataKey: 'rentAmount' },
-          { header: 'Fianza', dataKey: 'depositAmount' },
-          { header: 'F. Inicio', dataKey: 'startDate' },
-          { header: 'F. Fin', dataKey: 'endDate' },
-          { header: 'Estado', dataKey: 'status' }
-        ];
-        const colsToExport = allColumns.filter(c => visibleColumns.includes(c.dataKey));
-        exportToPDF(filtered, colsToExport, 'Reporte de Alquileres', 'alquileres.pdf');
-      } else {
-        handleExportFormat(filtered, 'Alquileres', format);
-      }
-    };
-    window.addEventListener('rentals:export', onExport);
-    return () => window.removeEventListener('rentals:export', onExport);
-  }, [filteredRentals, visibleColumns, applyTableFilters]);
-
   const handleSave = async () => {
     if (!formData.propertyId) {
       alert('La Propiedad es obligatoria.');
@@ -249,6 +224,31 @@ export default function Rentals() {
       return true;
     });
   }, [rentals, statusFilter, propertyFilter, properties, searchQuery, customers]);
+
+  useEffect(() => {
+    const onExport = (e) => {
+      const format = e.detail?.format || 'csv';
+      const filtered = applyTableFilters(filteredRentals, 'rentals');
+      if (format === 'pdf') {
+        const allColumns = [
+          { header: 'ID', dataKey: 'id' },
+          { header: 'Inmueble', dataKey: 'propertyTitle' },
+          { header: 'Inquilino', dataKey: 'customerName' },
+          { header: 'Renta', dataKey: 'rentAmount' },
+          { header: 'Fianza', dataKey: 'depositAmount' },
+          { header: 'F. Inicio', dataKey: 'startDate' },
+          { header: 'F. Fin', dataKey: 'endDate' },
+          { header: 'Estado', dataKey: 'status' }
+        ];
+        const colsToExport = allColumns.filter(c => visibleColumns.includes(c.dataKey));
+        exportToPDF(filtered, colsToExport, 'Reporte de Alquileres', 'alquileres.pdf');
+      } else {
+        handleExportFormat(filtered, 'Alquileres', format);
+      }
+    };
+    window.addEventListener('rentals:export', onExport);
+    return () => window.removeEventListener('rentals:export', onExport);
+  }, [filteredRentals, visibleColumns, applyTableFilters]);
 
   return (
     <div className="w-full h-full bg-[#d4d0c8] flex flex-col p-1 overflow-hidden font-sans">

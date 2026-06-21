@@ -122,30 +122,6 @@ export default function RealEstate() {
   const DEFAULT_COLUMNS = ['id', 'name', 'address', 'cp', 'tenantDisplay', 'rentTotal'];
   const { visibleColumns, toggleColumn } = useTableColumns('properties', DEFAULT_COLUMNS);
 
-  useEffect(() => {
-    const onExport = (e) => {
-      const format = e.detail?.format || 'csv';
-      const filtered = applyTableFilters(propertiesWithCalculatedRentals, 'properties');
-      if (format === 'pdf') {
-        const allColumns = [
-          { header: 'ID', dataKey: 'id' },
-          { header: 'Nombre', dataKey: 'name' },
-          { header: 'Dirección', dataKey: 'address' },
-          { header: 'Código Postal', dataKey: 'cp' },
-          { header: 'Inquilino', dataKey: 'tenantDisplay' },
-          { header: 'Renta Mensual', dataKey: 'rentTotal' },
-          { header: 'Estado', dataKey: 'status' }
-        ];
-        const colsToExport = allColumns.filter(c => visibleColumns.includes(c.dataKey));
-        exportToPDF(filtered, colsToExport, 'Reporte de Activos', 'activos.pdf');
-      } else {
-        handleExportFormat(filtered, 'Activos', format);
-      }
-    };
-    window.addEventListener('real-estate:export', onExport);
-    return () => window.removeEventListener('real-estate:export', onExport);
-  }, [propertiesWithCalculatedRentals, visibleColumns, applyTableFilters]);
-
   const transformServices = (servicesData) => {
     if (Array.isArray(servicesData)) return servicesData;
     if (!servicesData || typeof servicesData !== 'object') return [];
@@ -777,6 +753,30 @@ export default function RealEstate() {
     if (activeTab === 'Reformas') return <ReformasTab formData={formData} setFormData={setFormData} user={user} isUploading={isUploading} setIsUploading={setIsUploading} setPreviewDocument={setPreviewDocument} />;
     return <div className="flex justify-center items-center h-full text-slate-500">Contenido de la pestaña {activeTab} (En desarrollo...)</div>;
   };
+
+  useEffect(() => {
+    const onExport = (e) => {
+      const format = e.detail?.format || 'csv';
+      const filtered = applyTableFilters(propertiesWithCalculatedRentals, 'properties');
+      if (format === 'pdf') {
+        const allColumns = [
+          { header: 'ID', dataKey: 'id' },
+          { header: 'Nombre', dataKey: 'name' },
+          { header: 'Dirección', dataKey: 'address' },
+          { header: 'Código Postal', dataKey: 'cp' },
+          { header: 'Inquilino', dataKey: 'tenantDisplay' },
+          { header: 'Renta Mensual', dataKey: 'rentTotal' },
+          { header: 'Estado', dataKey: 'status' }
+        ];
+        const colsToExport = allColumns.filter(c => visibleColumns.includes(c.dataKey));
+        exportToPDF(filtered, colsToExport, 'Reporte de Activos', 'activos.pdf');
+      } else {
+        handleExportFormat(filtered, 'Activos', format);
+      }
+    };
+    window.addEventListener('real-estate:export', onExport);
+    return () => window.removeEventListener('real-estate:export', onExport);
+  }, [propertiesWithCalculatedRentals, visibleColumns, applyTableFilters]);
 
   return (
     <div className="w-full h-full bg-[#d4d0c8] flex flex-col p-1 overflow-hidden font-sans">
