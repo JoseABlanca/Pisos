@@ -326,7 +326,19 @@ export default function Customers() {
     const onFilter = () => handleFilter();
     const onExport = (e) => {
       const format = e.detail?.format || 'csv';
-      handleExportFormat(customers, 'Clientes', format);
+      const filtered = applyTableFilters(filteredCustomers, 'customers');
+      if (format === 'pdf') {
+        const allColumns = [
+          { header: 'ID', dataKey: 'id' },
+          { header: 'Nombre', dataKey: 'name' },
+          { header: 'Dirección', dataKey: 'address' },
+          { header: 'Estado', dataKey: 'status' }
+        ];
+        const colsToExport = allColumns.filter(c => visibleColumns.includes(c.dataKey));
+        exportToPDF(filtered, colsToExport, 'Reporte de Clientes', 'clientes.pdf');
+      } else {
+        handleExportFormat(filtered, 'Clientes', format);
+      }
     };
 
     window.addEventListener('customer:new', onNew);
@@ -456,21 +468,6 @@ export default function Customers() {
                   { header: 'DESCRIPCIÓN', dataKey: 'name' },
                   { header: 'DIRECCIÓN', dataKey: 'address' },
                   { header: 'DNI/NIF', dataKey: 'dni' },
-                  { header: 'TELÉFONO', dataKey: 'phone' },
-                  { header: 'EMAIL', dataKey: 'email' },
-                  { header: 'POBLACIÓN', dataKey: 'city' },
-                  { header: 'CP', dataKey: 'cp' },
-                  { header: 'ESTADO', dataKey: 'status' },
-                  { header: 'NOTAS', dataKey: 'notes' }
-                ];
-                const colsToExport = allColumns.filter(c => visibleColumns.includes(c.dataKey));
-                exportToPDF(applyTableFilters(filteredCustomers, 'customers'), colsToExport, 'Reporte de Clientes', 'clientes.pdf');
-              }}
-              title="Exportar a PDF"
-            >
-              <Download className="w-3.5 h-3.5" /> PDF
-            </button>
-
             <div className="relative" onClick={e => e.stopPropagation()}>
               <input 
                 type="text" 

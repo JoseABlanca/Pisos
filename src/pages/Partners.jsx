@@ -58,7 +58,21 @@ export default function Partners() {
     const onFilter = () => setIsFilterActive(true);
     const onExport = (e) => {
       const format = e.detail?.format || 'csv';
-      handleExportFormat(partners, 'Propietarios', format);
+      const filtered = applyTableFilters(filteredPartners, 'partners');
+      if (format === 'pdf') {
+        const allColumns = [
+          { header: 'ID', dataKey: 'id' },
+          { header: 'DNI/CIF', dataKey: 'dni' },
+          { header: 'Nombre', dataKey: 'name' },
+          { header: 'Email', dataKey: 'email' },
+          { header: 'Teléfono', dataKey: 'phone' },
+          { header: 'Estado', dataKey: 'status' }
+        ];
+        const colsToExport = allColumns.filter(c => visibleColumns.includes(c.dataKey));
+        exportToPDF(filtered, colsToExport, 'Reporte de Propietarios', 'propietarios.pdf');
+      } else {
+        handleExportFormat(filtered, 'Propietarios', format);
+      }
     };
 
     window.addEventListener('partners:new', onNew);
@@ -245,31 +259,7 @@ export default function Partners() {
           onClick={() => setSelectedPartner(null)}
         >
           {/* Header with Title and Search */}
-          <div className="flex justify-between items-center px-4 py-2 border-b border-gray-200">
-            <div className="flex items-center space-x-3">
-              {/* Botón Exportar PDF */}
-              <button
-                className="btn-classic flex items-center gap-1.5"
-                onClick={() => {
-                  const allColumns = [
-                    { header: 'ID', dataKey: 'id' },
-                    { header: 'DNI', dataKey: 'dni' },
-                    { header: 'Nombre / Razón Social', dataKey: 'name' },
-                    { header: 'Email', dataKey: 'email' },
-                    { header: 'Teléfono', dataKey: 'phone' },
-                    { header: 'Dirección', dataKey: 'address' },
-                    { header: 'IBAN', dataKey: 'iban' },
-                    { header: '% Propiedad', dataKey: 'ownership' },
-                    { header: 'Estado', dataKey: 'status' }
-                  ];
-                  const colsToExport = allColumns.filter(c => visibleColumns.includes(c.dataKey));
-                  exportToPDF(applyTableFilters(filteredPartners, 'partners'), colsToExport, 'Reporte de Propietarios', 'propietarios.pdf');
-                }}
-                title="Exportar a PDF"
-              >
-                <Download className="w-3.5 h-3.5" /> PDF
-              </button>
-            </div>
+          <div className="flex justify-end items-center px-4 py-2 border-b border-gray-200">
             <div className="relative" onClick={e => e.stopPropagation()}>
               <input 
                 type="text" 

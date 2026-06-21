@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useMemo } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { db } from '../firebase/config';
 import { collection, query, where, onSnapshot, doc, setDoc, deleteDoc } from 'firebase/firestore';
@@ -11,6 +11,7 @@ import {
 import { useTableColumns } from '../hooks/useTableColumns';
 import { useTableFilters } from '../hooks/useTableFilters';
 import { exportToPDF } from '../utils/pdfExport';
+import { handleExportFormat } from '../utils/exportUtils';
 
 export default function Rentals() {
   const { user, queryUserIds } = useAuth();
@@ -127,6 +128,31 @@ export default function Rentals() {
     };
   }, [initialFormState, selectedRental]);
 
+  useEffect(() => {
+    const onExport = (e) => {
+      const format = e.detail?.format || 'csv';
+      const filtered = applyTableFilters(filteredRentals, 'rentals');
+      if (format === 'pdf') {
+        const allColumns = [
+          { header: 'ID', dataKey: 'id' },
+          { header: 'Inmueble', dataKey: 'propertyTitle' },
+          { header: 'Inquilino', dataKey: 'customerName' },
+          { header: 'Renta', dataKey: 'rentAmount' },
+          { header: 'Fianza', dataKey: 'depositAmount' },
+          { header: 'F. Inicio', dataKey: 'startDate' },
+          { header: 'F. Fin', dataKey: 'endDate' },
+          { header: 'Estado', dataKey: 'status' }
+        ];
+        const colsToExport = allColumns.filter(c => visibleColumns.includes(c.dataKey));
+        exportToPDF(filtered, colsToExport, 'Reporte de Alquileres', 'alquileres.pdf');
+      } else {
+        handleExportFormat(filtered, 'Alquileres', format);
+      }
+    };
+    window.addEventListener('rentals:export', onExport);
+    return () => window.removeEventListener('rentals:export', onExport);
+  }, [filteredRentals, visibleColumns, applyTableFilters]);
+
   const handleSave = async () => {
     if (!formData.propertyId) {
       alert('La Propiedad es obligatoria.');
@@ -198,6 +224,31 @@ export default function Rentals() {
       />
     </div>
   );
+
+  const filteredRentals = useMemo(() => {
+    return rentals.filter(r => {
+      if (statusFilter !== 'todos' && (r.status || 'activo') !== statusFilter) return false;
+      
+      const prop = properties.find(p => p.id === r.propertyId);
+      const propName = prop ? prop.name : 'Desconocido';
+      
+      if (propertyFilter.length > 0) {
+        if (!propertyFilter.includes(propName)) return false;
+      }
+      
+      if (searchQuery) {
+        const sq = searchQuery.toLowerCase();
+        const customer = customers.find(c => c.id === r.tenantId);
+        const tNames = r.tenants?.length > 0 ? r.tenants.map(t => t.name).join(' ') : (customer ? customer.name : '');
+        const match = (r._originalId || r.reference || '').toLowerCase().includes(sq) ||
+                      propName.toLowerCase().includes(sq) ||
+                      tNames.toLowerCase().includes(sq);
+        if (!match) return false;
+      }
+      
+      return true;
+    });
+  }, [rentals, statusFilter, propertyFilter, properties, searchQuery, customers]);
 
   return (
     <div className="w-full h-full bg-[#d4d0c8] flex flex-col p-1 overflow-hidden font-sans">
@@ -326,13 +377,7 @@ export default function Rentals() {
                 </tr>
               </thead>
               <tbody>
-                {applyTableFilters(rentals.filter(r => {
-                  if (statusFilter !== 'todos' && (r.status || 'activo') !== statusFilter) return false;
-                  if (propertyFilter.length > 0) {
-                    const propName = properties.find(p => p.id === r.propertyId)?.name || 'Desconocido';
-                    if (!propertyFilter.includes(propName)) return false;
-                  }
-                  
+                {applyTableFilters(filteredRentals.filter(r => {
                   if (!searchQuery) return true;
                   const sq = searchQuery.toLowerCase();
                   const prop = properties.find(p => p.id === r.propertyId);

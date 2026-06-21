@@ -893,6 +893,7 @@ export default function Layout() {
           style={{ top: dropdownConfig.rect.top + 4, left: dropdownConfig.rect.left }}
           onMouseDown={e => e.stopPropagation()}
         >
+           <div className="px-3 py-1 hover:bg-gray-100 cursor-pointer text-left font-bold" onClick={() => { window.dispatchEvent(new CustomEvent(dropdownConfig.action, { detail: { format: 'pdf' } })); setDropdownConfig(null); }}>PDF (.pdf)</div>
            <div className="px-3 py-1 hover:bg-gray-100 cursor-pointer text-left" onClick={() => { window.dispatchEvent(new CustomEvent(dropdownConfig.action, { detail: { format: 'excel' } })); setDropdownConfig(null); }}>Excel (.xls)</div>
            <div className="px-3 py-1 hover:bg-gray-100 cursor-pointer text-left" onClick={() => { window.dispatchEvent(new CustomEvent(dropdownConfig.action, { detail: { format: 'csv' } })); setDropdownConfig(null); }}>CSV (.csv)</div>
            <div className="px-3 py-1 hover:bg-gray-100 cursor-pointer text-left" onClick={() => { window.dispatchEvent(new CustomEvent(dropdownConfig.action, { detail: { format: 'json' } })); setDropdownConfig(null); }}>JSON (.json)</div>

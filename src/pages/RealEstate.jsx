@@ -17,6 +17,7 @@ import { uploadFileToStorage } from '../utils/storageUtils';
 import { useTableColumns } from '../hooks/useTableColumns';
 import { useTableFilters } from '../hooks/useTableFilters';
 import { exportToPDF } from '../utils/pdfExport';
+import { handleExportFormat } from '../utils/exportUtils';
 import ZoomControl from '../components/ZoomControl';
 import { DEFAULT_PROPERTIES } from '../utils/defaultData';
 
@@ -105,6 +106,30 @@ export default function RealEstate() {
       window.removeEventListener('real-estate:delete', onDelete);
     };
   }, [selectedProperty]);
+
+  useEffect(() => {
+    const onExport = (e) => {
+      const format = e.detail?.format || 'csv';
+      const filtered = applyTableFilters(propertiesWithCalculatedRentals, 'properties');
+      if (format === 'pdf') {
+        const allColumns = [
+          { header: 'ID', dataKey: 'id' },
+          { header: 'Nombre', dataKey: 'name' },
+          { header: 'Dirección', dataKey: 'address' },
+          { header: 'Código Postal', dataKey: 'cp' },
+          { header: 'Inquilino', dataKey: 'tenantDisplay' },
+          { header: 'Renta Mensual', dataKey: 'rentTotal' },
+          { header: 'Estado', dataKey: 'status' }
+        ];
+        const colsToExport = allColumns.filter(c => visibleColumns.includes(c.dataKey));
+        exportToPDF(filtered, colsToExport, 'Reporte de Activos', 'activos.pdf');
+      } else {
+        handleExportFormat(filtered, 'Activos', format);
+      }
+    };
+    window.addEventListener('real-estate:export', onExport);
+    return () => window.removeEventListener('real-estate:export', onExport);
+  }, [propertiesWithCalculatedRentals, visibleColumns, applyTableFilters]);
 
   const [selectedTenantIndex, setSelectedTenantIndex] = useState(null);
   const [previewDocument, setPreviewDocument] = useState(null);
