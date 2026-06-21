@@ -26,7 +26,9 @@ import {
   Monitor,
   ArrowLeft,
   ChevronDown,
-  ChevronUp
+  ChevronUp,
+  LayoutGrid,
+  BarChart
 } from 'lucide-react';
 import PunteoModal from './PunteoModal';
 import BankReconciliationModal from './BankReconciliationModal';
