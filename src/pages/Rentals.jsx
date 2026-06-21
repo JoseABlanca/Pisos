@@ -1,4 +1,4 @@
-﻿import { useState, useEffect, useMemo } from 'react';
+import { useState, useEffect, useMemo } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { db } from '../firebase/config';
 import { collection, query, where, onSnapshot, doc, setDoc, deleteDoc } from 'firebase/firestore';
@@ -12,6 +12,7 @@ import { useTableColumns } from '../hooks/useTableColumns';
 import { useTableFilters } from '../hooks/useTableFilters';
 import { exportToPDF } from '../utils/pdfExport';
 import { handleExportFormat } from '../utils/exportUtils';
+import AccountingEntryModal from '../components/AccountingEntryModal';
 
 export default function Rentals() {
   const { user, queryUserIds } = useAuth();
@@ -21,6 +22,7 @@ export default function Rentals() {
   const [customers, setCustomers] = useState([]);
   const [tenants, setTenants] = useState([]);
   const [cebes, setCebes] = useState([]);
+  const [cecos, setCecos] = useState([]);
   
   const [showForm, setShowForm] = useState(false);
   const [isEditing, setIsEditing] = useState(false);
@@ -42,6 +44,9 @@ export default function Rentals() {
   const [activeFormTab, setActiveFormTab] = useState('general');
   const [activeRoomTab, setActiveRoomTab] = useState(0);
 
+  const [showAccountingModal, setShowAccountingModal] = useState(false);
+  const [accountingModalConfig, setAccountingModalConfig] = useState({});
+
   const initialFormState = {
     reference: '',
     propertyId: '',
@@ -56,7 +61,7 @@ export default function Rentals() {
     incomeAccountId: '',
     incomeCebeId: '',
     expenseAccountId: '',
-    expenseCebeId: '',
+    expenseCecoId: '',
     notes: '',
     expenses: [],
     actualizaIpc: false,
@@ -111,12 +116,20 @@ export default function Rentals() {
       }
     );
 
+    const unsubCecos = onSnapshot(
+      query(collection(db, 'analytical_centers'), where('userId', 'in', userIds), where('type', '==', 'ceco')),
+      (snap) => {
+        setCecos(snap.docs.map(d => ({ ...d.data(), id: d.id })));
+      }
+    );
+
     return () => {
       unsubRentals();
       unsubProps();
       unsubCusts();
       unsubTenants();
       unsubCebes();
+      unsubCecos();
     };
   }, [user, queryUserIds]);
 
@@ -199,6 +212,33 @@ export default function Rentals() {
     setActiveFormTab('general');
   };
 
+  const handleOpenAccounting = (type) => {
+    if (type === 'ingresos') {
+      if (!formData.incomeCebeId) {
+        alert("Por favor, selecciona primero un CEBE de Ingresos y pulsa 'Aceptar' para guardar el alquiler.");
+        return;
+      }
+      setAccountingModalConfig({
+        linkedAccountId: formData.incomeAccountId || null,
+        defaultDescription: `Ingresos Alquiler - ${formData.reference || formData.id || 'Nuevo'}`,
+        defaultAmount: formData.rentAmount || 0,
+        defaultAnalytics: { cebe: formData.incomeCebeId }
+      });
+    } else {
+      if (!formData.expenseCecoId) {
+        alert("Por favor, selecciona primero un CECO de Gastos y pulsa 'Aceptar' para guardar el alquiler.");
+        return;
+      }
+      setAccountingModalConfig({
+        linkedAccountId: formData.expenseAccountId || null,
+        defaultDescription: `Gastos Alquiler - ${formData.reference || formData.id || 'Nuevo'}`,
+        defaultAmount: 0,
+        defaultAnalytics: { ceco: formData.expenseCecoId }
+      });
+    }
+    setShowAccountingModal(true);
+  };
+
   const formTabs = [
     { id: 'general', name: 'Datos Generales', icon: FileText },
     { id: 'docs', name: 'Documentos', icon: FileText },
@@ -208,7 +248,13 @@ export default function Rentals() {
 
   const renderAccountSelector = (field, label) => (
     <div className="win-form-row">
-      <label className="win-form-label">{label}:</label>
+      <label 
+        className="win-form-label cursor-pointer text-blue-600 hover:text-blue-800 hover:underline flex items-center gap-1"
+        onClick={() => navigate('/cuentas')}
+        title="Ir a Configuración de Cuentas"
+      >
+        {label} <span className="text-[10px]">↗</span>:
+      </label>
       <input 
         type="text" 
         className="win-input flex-1 min-w-0" 
@@ -229,6 +275,20 @@ export default function Rentals() {
       >
         <option value="">-- Seleccionar CEBE --</option>
         {cebes.map(c => <option key={c.id} value={c.code}>{c.code} - {c.name}</option>)}
+      </select>
+    </div>
+  );
+
+  const renderCecoSelector = (field, label) => (
+    <div className="win-form-row">
+      <label className="win-form-label">{label}:</label>
+      <select 
+        className="win-input flex-1 min-w-0" 
+        value={formData[field] || ""} 
+        onChange={(e) => setFormData(prev => ({...prev, [field]: e.target.value}))}
+      >
+        <option value="">-- Seleccionar CECO --</option>
+        {cecos.map(c => <option key={c.id} value={c.code}>{c.code} - {c.name}</option>)}
       </select>
     </div>
   );
@@ -1239,6 +1299,15 @@ export default function Rentals() {
                           </p>
                           {renderCebeSelector('incomeCebeId', 'CEBE Ingresos')}
                         </div>
+                        <div className="pt-2">
+                          <button 
+                            className="px-4 py-1.5 bg-[#4a69bd] text-white text-[11px] font-bold uppercase shadow-sm hover:bg-[#3b5598]"
+                            onClick={() => handleOpenAccounting('ingresos')}
+                          >
+                            Añadir Asiento
+                          </button>
+                        </div>
+                        <AnalyticsJournalViewer type="cebe" value={formData.incomeCebeId} userIds={queryUserIds?.length > 0 ? queryUserIds : [user.uid]} />
                       </div>
                     )}
 
@@ -1252,12 +1321,21 @@ export default function Rentals() {
                           {renderAccountSelector('expenseAccountId', 'Cuenta Gastos')}
                         </div>
                         <div className="space-y-1">
-                          <label className="text-[10px] font-bold text-slate-700 uppercase">CEBE Asociado (Gastos):</label>
+                          <label className="text-[10px] font-bold text-slate-700 uppercase">CECO Asociado (Gastos):</label>
                           <p className="text-[11px] text-gray-600 mb-2">
-                            Selecciona el CEBE al que se imputarán los gastos fijos de este alquiler.
+                            Selecciona el CECO al que se imputarán los gastos fijos de este alquiler.
                           </p>
-                          {renderCebeSelector('expenseCebeId', 'CEBE Gastos')}
+                          {renderCecoSelector('expenseCecoId', 'CECO Gastos')}
                         </div>
+                        <div className="pt-2">
+                          <button 
+                            className="px-4 py-1.5 bg-[#4a69bd] text-white text-[11px] font-bold uppercase shadow-sm hover:bg-[#3b5598]"
+                            onClick={() => handleOpenAccounting('gastos')}
+                          >
+                            Añadir Asiento
+                          </button>
+                        </div>
+                        <AnalyticsJournalViewer type="ceco" value={formData.expenseCecoId} userIds={queryUserIds?.length > 0 ? queryUserIds : [user.uid]} />
                       </div>
                     )}
 
@@ -1323,6 +1401,78 @@ export default function Rentals() {
               </div>
             </div>
           </Window>
+        </div>
+      )}
+
+      {showAccountingModal && (
+        <AccountingEntryModal 
+          isOpen={true} 
+          onClose={() => setShowAccountingModal(false)}
+          onSaveSuccess={(id) => {
+            console.log("Asiento vinculado en alquiler:", id);
+            setShowAccountingModal(false);
+          }}
+          userId={user.uid}
+          defaultDate={new Date().toISOString().split('T')[0]}
+          defaultDescription={accountingModalConfig.defaultDescription}
+          defaultAmount={accountingModalConfig.defaultAmount}
+          linkedAccountId={accountingModalConfig.linkedAccountId}
+          defaultAnalytics={accountingModalConfig.defaultAnalytics}
+        />
+      )}
+    </div>
+  );
+}
+
+function AnalyticsJournalViewer({ type, value, userIds }) {
+  const [entries, setEntries] = useState([]);
+  
+  useEffect(() => {
+    if (!value || !userIds || userIds.length === 0) {
+      setEntries([]);
+      return;
+    }
+    
+    const q = query(
+      collection(db, 'journal_entries'), 
+      where('userId', 'in', userIds),
+      where(type, '==', value)
+    );
+    
+    const unsubscribe = onSnapshot(q, (snap) => {
+      setEntries(snap.docs.map(d => ({ id: d.id, ...d.data() })).sort((a,b) => new Date(b.date) - new Date(a.date)));
+    });
+    
+    return () => unsubscribe();
+  }, [type, value, userIds]);
+
+  if (!value) return null;
+
+  return (
+    <div className="mt-6 border-t border-gray-300 pt-4">
+      <h3 className="text-[12px] font-bold text-slate-800 uppercase mb-2">Asientos Contables Asociados</h3>
+      {entries.length === 0 ? (
+        <p className="text-[11px] text-gray-500 italic">No hay asientos contables registrados para este {type.toUpperCase()}.</p>
+      ) : (
+        <div className="overflow-x-auto border border-[#808080]">
+          <table className="w-full text-[11px] win-table bg-white">
+            <thead className="bg-[#e7e1d3] sticky top-0">
+              <tr>
+                <th className="text-left p-1.5 w-24">Fecha</th>
+                <th className="text-left p-1.5">Concepto</th>
+                <th className="text-right p-1.5 w-24">Importe</th>
+              </tr>
+            </thead>
+            <tbody>
+              {entries.map(e => (
+                <tr key={e.id} className="border-b border-gray-200 hover:bg-blue-50">
+                  <td className="p-1.5">{new Date(e.date).toLocaleDateString()}</td>
+                  <td className="p-1.5 truncate">{e.description}</td>
+                  <td className="p-1.5 text-right font-mono text-emerald-700 font-bold">{Number(e.total).toLocaleString('es-ES', {minimumFractionDigits:2})} €</td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
         </div>
       )}
     </div>

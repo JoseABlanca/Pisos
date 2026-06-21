@@ -28,7 +28,7 @@ const inferAccountType = (code, providedType) => {
 /**
  * Registra un Asiento Contable y sus Transacciones validando por Partida Doble.
  */
-export const registerJournalEntry = async (userId, description, entries, customDate = null) => {
+export const registerJournalEntry = async (userId, description, entries, customDate = null, analytics = null) => {
   try {
     let totalDebit = 0;
     let totalCredit = 0;
@@ -67,7 +67,7 @@ export const registerJournalEntry = async (userId, description, entries, customD
       journalId = journalRef.id;
       const date = customDate || new Date().toISOString();
       
-      transaction.set(journalRef, {
+      const journalData = {
         userId,
         number: nextSeq,
         description,
@@ -75,7 +75,14 @@ export const registerJournalEntry = async (userId, description, entries, customD
         date,
         lines: entries,
         createdAt: new Date().toISOString()
-      });
+      };
+      
+      if (analytics) {
+        if (analytics.cebe) journalData.cebe = analytics.cebe;
+        if (analytics.ceco) journalData.ceco = analytics.ceco;
+      }
+      
+      transaction.set(journalRef, journalData);
 
       for (const entry of entries) {
         if (!entry.accountId) continue;
@@ -84,7 +91,7 @@ export const registerJournalEntry = async (userId, description, entries, customD
         const credit = parseFloat(entry.credit) || 0;
 
         const txRef = doc(collection(db, 'transactions'));
-        transaction.set(txRef, {
+        const txData = {
           journalId: journalRef.id,
           journalDescription: description,
           userId,
@@ -92,7 +99,14 @@ export const registerJournalEntry = async (userId, description, entries, customD
           debit,
           credit,
           date
-        });
+        };
+        
+        if (analytics) {
+          if (analytics.cebe) txData.cebe = analytics.cebe;
+          if (analytics.ceco) txData.ceco = analytics.ceco;
+        }
+        
+        transaction.set(txRef, txData);
 
         const accData = accountDocs[entry.accountId].data;
         const type = inferAccountType(accData.code, accData.type);
@@ -181,10 +195,21 @@ export const deleteJournalEntry = async (userId, entryId, lines) => {
  */
 export const updateJournalEntry = async (userId, entryId, description, newLines, oldLines, customDate) => {
   try {
+    // Read old entry to preserve analytics
+    const oldJournalRef = doc(db, 'journal_entries', entryId);
+    const oldSnap = await getDocs(query(collection(db, 'journal_entries'), where('__name__', '==', entryId)));
+    let analytics = null;
+    if (!oldSnap.empty) {
+      const oldData = oldSnap.docs[0].data();
+      if (oldData.cebe || oldData.ceco) {
+        analytics = { cebe: oldData.cebe, ceco: oldData.ceco };
+      }
+    }
+
     // For safety and consistency, we revert the old one and register a new one (keeping same ID preferably or header)
     // To maintain the sequential number, we'll do it manually
     await deleteJournalEntry(userId, entryId, oldLines);
-    await registerJournalEntry(userId, description, newLines, customDate);
+    await registerJournalEntry(userId, description, newLines, customDate, analytics);
     return { success: true };
   } catch (error) {
     console.error("Error updating entry:", error);

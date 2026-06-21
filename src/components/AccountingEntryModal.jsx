@@ -8,7 +8,7 @@ import Accounts from '../pages/Accounts';
 import ZoomControl from './ZoomControl';
 import { useAuth } from '../context/AuthContext';
 
-export default function AccountingEntryModal({ isOpen, onClose, onSaveSuccess, userId, defaultDate, defaultDescription, defaultAmount, linkedAccountId }) {
+export default function AccountingEntryModal({ isOpen, onClose, onSaveSuccess, userId, defaultDate, defaultDescription, defaultAmount, linkedAccountId, defaultAnalytics }) {
   const { user, queryUserIds } = useAuth();
   const [linkMode, setLinkMode] = useState(false);
   const [searchTerm, setSearchTerm] = useState('');
@@ -163,7 +163,7 @@ export default function AccountingEntryModal({ isOpen, onClose, onSaveSuccess, u
     try {
       // Use the first line's description as the global description if it exists
       const globalDesc = lines[0].description || defaultDescription || "Asiento Automático";
-      const result = await registerJournalEntry(user.uid, globalDesc, formattedLines, date);
+      const result = await registerJournalEntry(user.uid, globalDesc, formattedLines, date, defaultAnalytics);
       if (result.success && result.id) {
         onSaveSuccess(result.id, { description: globalDesc, total: totalDebit, date });
         onClose();
