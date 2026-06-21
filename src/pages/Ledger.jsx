@@ -477,29 +477,18 @@ export default function Ledger({ initialMode }) {
   }
 
   // Summary View
+  useEffect(() => {
+    if (initialMode) {
+      setViewMode(initialMode);
+    } else {
+      setViewMode('summary');
+    }
+  }, [initialMode]);
+
   return (
     <div className="w-full h-full bg-[#d4d0c8] flex flex-col p-1 overflow-hidden font-sans">
       {/* Ribbon Bar */}
-      <div className="flex items-center p-1 bg-[#d4d0c8] border border-white shadow-[1px_1px_0px_#808080] mb-1 space-x-2">
-        <div className="flex items-center space-x-1 pr-4 border-r border-[#808080]">
-          <button 
-            className={`btn-classic px-3 h-6 flex items-center text-[10px] space-x-1 ${viewMode === 'summary' ? 'bg-[#c0c0c0] shadow-inner' : ''}`}
-            onClick={() => setViewMode('summary')}
-          >
-            <Activity className="w-3.5 h-3.5" />
-            <span className="font-bold uppercase italic">Balance de Situación</span>
-          </button>
-          <button 
-            className={`btn-classic px-3 h-6 flex items-center text-[10px] space-x-1 ${viewMode === 'detail' ? 'bg-[#c0c0c0] shadow-inner' : ''}`}
-            onClick={() => setViewMode('detail')}
-          >
-            <BookOpen className="w-3.5 h-3.5" />
-            <span className="font-bold uppercase italic">Extracto (Libro Mayor)</span>
-          </button>
-        </div>
-
-        <div className="flex flex-1 items-center space-x-2 px-2"></div>
-
+      <div className="flex items-center justify-end p-1 bg-[#d4d0c8] border border-white shadow-[1px_1px_0px_#808080] mb-1 space-x-2">
         <div className="flex space-x-1">
           <button className="btn-classic px-2 h-6 flex items-center" onClick={() => window.print()}>
             <Printer className="w-3.5 h-3.5 text-slate-600" />
