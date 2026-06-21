@@ -14,6 +14,12 @@ export default function AccountingEntryModal({ isOpen, onClose, onSaveSuccess, u
   const [searchTerm, setSearchTerm] = useState('');
   const [existingEntries, setExistingEntries] = useState([]);
   const [accounts, setAccounts] = useState([]);
+  const [cebes, setCebes] = useState([]);
+  const [cecos, setCecos] = useState([]);
+
+  // Analytics state (editable in the form, initialized from defaultAnalytics prop)
+  const [selectedCebe, setSelectedCebe] = useState(defaultAnalytics?.cebe || '');
+  const [selectedCeco, setSelectedCeco] = useState(defaultAnalytics?.ceco || '');
 
   // Grid state
   const [date, setDate] = useState(defaultDate || new Date().toISOString().split('T')[0]);
@@ -59,6 +65,16 @@ export default function AccountingEntryModal({ isOpen, onClose, onSaveSuccess, u
       setAccounts(data);
     });
     return () => unsubscribe();
+  }, [isOpen, user]);
+
+  useEffect(() => {
+    if (!isOpen || !user) return;
+    const userIds = queryUserIds?.length > 0 ? queryUserIds : [user.uid];
+    const qCebes = query(collection(db, 'analytical_centers'), where('userId', 'in', userIds), where('type', '==', 'cebe'));
+    const unsubCebes = onSnapshot(qCebes, (snap) => setCebes(snap.docs.map(d => ({ id: d.id, ...d.data() }))));
+    const qCecos = query(collection(db, 'analytical_centers'), where('userId', 'in', userIds), where('type', '==', 'ceco'));
+    const unsubCecos = onSnapshot(qCecos, (snap) => setCecos(snap.docs.map(d => ({ id: d.id, ...d.data() }))));
+    return () => { unsubCebes(); unsubCecos(); };
   }, [isOpen, user]);
 
   if (!isOpen) return null;
@@ -163,7 +179,13 @@ export default function AccountingEntryModal({ isOpen, onClose, onSaveSuccess, u
     try {
       // Use the first line's description as the global description if it exists
       const globalDesc = lines[0].description || defaultDescription || "Asiento Automático";
-      const result = await registerJournalEntry(user.uid, globalDesc, formattedLines, date, defaultAnalytics);
+      // Merge prop analytics with user-selected analytics (user selection takes priority)
+      const analytics = {
+        ...(defaultAnalytics || {}),
+        ...(selectedCebe ? { cebe: selectedCebe } : {}),
+        ...(selectedCeco ? { ceco: selectedCeco } : {})
+      };
+      const result = await registerJournalEntry(user.uid, globalDesc, formattedLines, date, Object.keys(analytics).length > 0 ? analytics : null);
       if (result.success && result.id) {
         onSaveSuccess(result.id, { description: globalDesc, total: totalDebit, date });
         onClose();
@@ -269,6 +291,32 @@ export default function AccountingEntryModal({ isOpen, onClose, onSaveSuccess, u
                     className="px-1 py-0.5 border border-gray-300 rounded focus:border-blue-500 outline-none"
                   />
                 </div>
+                {cebes.length > 0 && (
+                  <div className="flex items-center gap-1">
+                    <span className="text-gray-500">CEBE:</span>
+                    <select
+                      className="px-1 py-0.5 border border-gray-300 rounded focus:border-blue-500 outline-none text-[10px] font-normal"
+                      value={selectedCebe}
+                      onChange={(e) => setSelectedCebe(e.target.value)}
+                    >
+                      <option value="">-- Sin CEBE --</option>
+                      {cebes.map(c => <option key={c.id} value={c.code}>{c.code} - {c.name}</option>)}
+                    </select>
+                  </div>
+                )}
+                {cecos.length > 0 && (
+                  <div className="flex items-center gap-1">
+                    <span className="text-gray-500">CECO:</span>
+                    <select
+                      className="px-1 py-0.5 border border-gray-300 rounded focus:border-blue-500 outline-none text-[10px] font-normal"
+                      value={selectedCeco}
+                      onChange={(e) => setSelectedCeco(e.target.value)}
+                    >
+                      <option value="">-- Sin CECO --</option>
+                      {cecos.map(c => <option key={c.id} value={c.code}>{c.code} - {c.name}</option>)}
+                    </select>
+                  </div>
+                )}
               </div>
 
               {/* Toolbar */}

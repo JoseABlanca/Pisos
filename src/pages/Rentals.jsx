@@ -13,6 +13,7 @@ import { useTableFilters } from '../hooks/useTableFilters';
 import { exportToPDF } from '../utils/pdfExport';
 import { handleExportFormat } from '../utils/exportUtils';
 import AccountingEntryModal from '../components/AccountingEntryModal';
+import Accounts from './Accounts';
 
 export default function Rentals() {
   const { user, queryUserIds } = useAuth();
@@ -46,6 +47,7 @@ export default function Rentals() {
 
   const [showAccountingModal, setShowAccountingModal] = useState(false);
   const [accountingModalConfig, setAccountingModalConfig] = useState({});
+  const [showAccountsOverlay, setShowAccountsOverlay] = useState(false);
 
   const initialFormState = {
     reference: '',
@@ -250,8 +252,8 @@ export default function Rentals() {
     <div className="win-form-row">
       <label 
         className="win-form-label cursor-pointer text-blue-600 hover:text-blue-800 hover:underline flex items-center gap-1"
-        onClick={() => navigate('/cuentas')}
-        title="Ir a Configuración de Cuentas"
+        onClick={(e) => { e.preventDefault(); e.stopPropagation(); setShowAccountsOverlay(true); }}
+        title="Ver Configuración de Cuentas"
       >
         {label} <span className="text-[10px]">↗</span>:
       </label>
@@ -1419,6 +1421,22 @@ export default function Rentals() {
           linkedAccountId={accountingModalConfig.linkedAccountId}
           defaultAnalytics={accountingModalConfig.defaultAnalytics}
         />
+      )}
+
+      {showAccountsOverlay && (
+        <div className="fixed inset-0 bg-black/40 backdrop-blur-sm flex items-center justify-center z-[9998] p-4">
+          <div className="bg-white shadow-2xl rounded-lg flex flex-col w-[92vw] h-[90vh] overflow-hidden max-w-[1200px] border border-gray-400">
+            <div className="flex justify-between items-center px-4 py-2 bg-[#4a69bd] text-white select-none shrink-0">
+              <h2 className="font-bold text-[13px] tracking-wide">CONFIGURACIÓN DE CUENTAS</h2>
+              <button onClick={() => setShowAccountsOverlay(false)} className="hover:bg-white/20 p-1 rounded">
+                <X className="w-5 h-5" />
+              </button>
+            </div>
+            <div className="flex-1 overflow-hidden relative">
+              <Accounts />
+            </div>
+          </div>
+        </div>
       )}
     </div>
   );
