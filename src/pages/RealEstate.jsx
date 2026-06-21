@@ -1,4 +1,5 @@
 import { useState, useEffect, useMemo, useCallback } from 'react';
+import { Search, Download, Trash2, X, FileArchive, FileText } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
 import { db } from '../firebase/config';
 import { collection, query, where, getDocs, onSnapshot, doc, setDoc, deleteDoc, enableNetwork, disableNetwork } from 'firebase/firestore';
@@ -10,6 +11,8 @@ import ComunidadTab from '../components/ComunidadTab';
 import PropietariosTab from '../components/PropietariosTab';
 import FinanzasTab from '../components/FinanzasTab';
 import ExtractoTab from '../components/ExtractoTab';
+import ClienteTab from '../components/ClienteTab';
+import ReformasTab from '../components/ReformasTab';
 import { uploadFileToStorage } from '../utils/storageUtils';
 import { useTableColumns } from '../hooks/useTableColumns';
 import { useTableFilters } from '../hooks/useTableFilters';
