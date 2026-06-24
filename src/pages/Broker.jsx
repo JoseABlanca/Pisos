@@ -297,9 +297,6 @@ export default function Broker() {
               >
                 <PanelLeft className="w-4 h-4" />
               </button>
-              <div className="text-[11px] text-gray-500 font-semibold">
-                Brokers encontrados: <span className="text-blue-600">{filteredBrokers.length}</span>
-              </div>
             </div>
 
             <div className="relative" onClick={e => e.stopPropagation()}>

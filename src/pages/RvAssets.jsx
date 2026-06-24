@@ -414,9 +414,6 @@ export default function RvAssets() {
               >
                 <PanelLeft className="w-4 h-4" />
               </button>
-              <div className="text-[11px] text-gray-500 font-semibold">
-                Activos encontrados: <span className="text-blue-600">{filteredAssets.length}</span>
-              </div>
             </div>
 
             <div className="relative" onClick={e => e.stopPropagation()}>
@@ -489,43 +486,12 @@ export default function RvAssets() {
             width="650px"
             height="auto"
             initialPos={{ x: (window.innerWidth - 650) / 2, y: 100 }}
+            menuItems={[
+              { label: 'Datos', onClick: () => setActiveFormTab('datos') },
+              { label: 'Histórico', onClick: () => setActiveFormTab('historico') },
+              { label: 'Extracto cuentas', onClick: () => setActiveFormTab('extracto') },
+            ]}
           >
-            {/* Modal Internal Tabs Header */}
-            <div className="flex border-b border-gray-200 bg-slate-50 px-4 pt-1.5 shrink-0">
-              <button
-                type="button"
-                onClick={() => setActiveFormTab('datos')}
-                className={`px-4 py-2 text-[11px] font-bold border-b-2 transition-all cursor-pointer ${
-                  activeFormTab === 'datos'
-                    ? 'border-blue-600 text-blue-600'
-                    : 'border-transparent text-gray-500 hover:text-gray-700'
-                }`}
-              >
-                DATOS
-              </button>
-              <button
-                type="button"
-                onClick={() => setActiveFormTab('historico')}
-                className={`px-4 py-2 text-[11px] font-bold border-b-2 transition-all cursor-pointer ${
-                  activeFormTab === 'historico'
-                    ? 'border-blue-600 text-blue-600'
-                    : 'border-transparent text-gray-500 hover:text-gray-700'
-                }`}
-              >
-                HISTÓRICO
-              </button>
-              <button
-                type="button"
-                onClick={() => setActiveFormTab('extracto')}
-                className={`px-4 py-2 text-[11px] font-bold border-b-2 transition-all cursor-pointer ${
-                  activeFormTab === 'extracto'
-                    ? 'border-blue-600 text-blue-600'
-                    : 'border-transparent text-gray-500 hover:text-gray-700'
-                }`}
-              >
-                EXTRACTO CUENTAS
-              </button>
-            </div>
 
             {/* Modal Content */}
             <div className="flex-1 overflow-auto bg-white">
@@ -545,7 +511,7 @@ export default function RvAssets() {
                   </div>
 
                   <div className="win-form-row">
-                    <label className="win-form-label">Nombre empresa:</label>
+                    <label className="win-form-label">Nombre:</label>
                     <input
                       type="text"
                       value={formData.name}
@@ -557,27 +523,14 @@ export default function RvAssets() {
                   </div>
 
                   <div className="win-form-row">
-                    <label className="win-form-label">Código ISIN:</label>
-                    <input
-                      type="text"
-                      value={formData.isin}
-                      onChange={(e) => setFormData({ ...formData, isin: e.target.value })}
-                      placeholder="ej. US0378331005"
-                      className="win-input flex-1 uppercase"
-                    />
-                  </div>
-
-                  <div className="win-form-row">
-                    <label className="win-form-label">Tipo de Activo:</label>
+                    <label className="win-form-label">Tipo de activo:</label>
                     <select
                       value={formData.type}
                       onChange={(e) => setFormData({ ...formData, type: e.target.value })}
                       className="win-input flex-1"
                     >
                       {assetTypes.map((type) => (
-                        <option key={type} value={type}>
-                          {type}
-                        </option>
+                        <option key={type} value={type}>{type}</option>
                       ))}
                     </select>
                   </div>
@@ -594,7 +547,7 @@ export default function RvAssets() {
                   </div>
 
                   <div className="win-form-row">
-                    <label className="win-form-label">Divisa:</label>
+                    <label className="win-form-label">Divisa histórico:</label>
                     <select
                       value={formData.currency}
                       onChange={(e) => setFormData({ ...formData, currency: e.target.value })}
@@ -608,31 +561,6 @@ export default function RvAssets() {
                   </div>
 
                   <div className="win-form-row">
-                    <label className="win-form-label">Precio Referencia:</label>
-                    <input
-                      type="number"
-                      step="0.0001"
-                      value={formData.currentPrice}
-                      onChange={(e) => setFormData({ ...formData, currentPrice: e.target.value })}
-                      placeholder="ej. 175.50"
-                      required
-                      className="win-input flex-1 font-mono"
-                    />
-                  </div>
-
-                  <div className="win-form-row">
-                    <label className="win-form-label">País:</label>
-                    <input
-                      type="text"
-                      value={formData.country}
-                      onChange={(e) => setFormData({ ...formData, country: e.target.value })}
-                      placeholder="ej. EE.UU., España"
-                      className="win-input flex-1"
-                    />
-                  </div>
-
-                  {/* API Source */}
-                  <div className="win-form-row">
                     <label className="win-form-label">Origen API:</label>
                     <select
                       value={formData.apiSource}
@@ -640,16 +568,13 @@ export default function RvAssets() {
                       className="win-input flex-1"
                     >
                       {apiSources.map((src) => (
-                        <option key={src} value={src}>
-                          {src}
-                        </option>
+                        <option key={src} value={src}>{src}</option>
                       ))}
                     </select>
                   </div>
 
-                  {/* Date range for API */}
                   <div className="win-form-row">
-                    <label className="win-form-label">Rango fechas API:</label>
+                    <label className="win-form-label">Rango de fechas:</label>
                     <div className="flex-1 flex space-x-2">
                       <input
                         type="date"
@@ -667,7 +592,6 @@ export default function RvAssets() {
                     </div>
                   </div>
 
-                  {/* Download from API Action */}
                   <div className="win-form-row">
                     <span className="win-form-label"></span>
                     <button
@@ -681,32 +605,13 @@ export default function RvAssets() {
                     </button>
                   </div>
 
-                  {/* CSV File Upload */}
                   <div className="win-form-row">
                     <label className="win-form-label">Cargar CSV/Excel:</label>
-                    <div className="flex-1 flex items-center space-x-2">
-                      <label className="flex-1 flex items-center justify-center space-x-1.5 px-3 py-1.5 bg-slate-50 border border-slate-300 text-slate-700 rounded text-[11px] font-bold cursor-pointer hover:bg-slate-100 transition-colors">
-                        <Upload className="w-3.5 h-3.5" />
-                        <span>Subir Archivo (.csv)</span>
-                        <input
-                          type="file"
-                          accept=".csv"
-                          onChange={handleCSVUpload}
-                          className="hidden"
-                        />
-                      </label>
-                    </div>
-                  </div>
-
-                  <div className="win-form-row items-start">
-                    <label className="win-form-label pt-1.5">Notas:</label>
-                    <textarea
-                      value={formData.notes}
-                      onChange={(e) => setFormData({ ...formData, notes: e.target.value })}
-                      placeholder="Notas adicionales..."
-                      rows={2}
-                      className="win-input flex-1 font-sans resize-none"
-                    />
+                    <label className="flex-1 flex items-center justify-center space-x-1.5 px-3 py-1.5 bg-slate-50 border border-slate-300 text-slate-700 rounded text-[11px] font-bold cursor-pointer hover:bg-slate-100 transition-colors">
+                      <Upload className="w-3.5 h-3.5" />
+                      <span>Subir Archivo (.csv)</span>
+                      <input type="file" accept=".csv" onChange={handleCSVUpload} className="hidden" />
+                    </label>
                   </div>
 
                   <div className="flex justify-end space-x-2 pt-3 border-t border-gray-200">
