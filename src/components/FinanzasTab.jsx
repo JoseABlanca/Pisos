@@ -1,6 +1,5 @@
 import React, { useState, useMemo } from 'react';
 import { FileText, Plus, Trash2, PieChart, Database, BarChart2, Upload, Eye } from 'lucide-react';
-import ExtractoTab from './ExtractoTab';
 import { uploadFileToStorage } from '../utils/storageUtils';
 
 export default function FinanzasTab({ formData, setFormData, rentals, user, setPreviewDocument }) {
@@ -296,8 +295,8 @@ export default function FinanzasTab({ formData, setFormData, rentals, user, setP
 
     if (activeSubTab === 'Extracto') {
       return (
-        <div className="h-full relative overflow-hidden bg-white">
-          <ExtractoTab formData={formData} setFormData={setFormData} rentals={rentals} />
+        <div className="flex justify-center items-center h-full bg-white text-slate-500 py-10">
+          <p className="italic text-[11px]">Sección de Extracto (En desarrollo...)</p>
         </div>
       );
     }
