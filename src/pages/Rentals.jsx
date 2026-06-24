@@ -283,24 +283,7 @@ export default function Rentals() {
     { id: 'gastos', name: 'Gastos Asociados', icon: Key }
   ];
 
-  const renderAccountSelector = (field, label) => (
-    <div className="win-form-row">
-      <label 
-        className="win-form-label cursor-pointer text-blue-600 hover:text-blue-800 hover:underline flex items-center gap-1"
-        onClick={(e) => { e.preventDefault(); e.stopPropagation(); setShowAccountsOverlay(true); }}
-        title="Ver Configuración de Cuentas"
-      >
-        {label} <span className="text-[10px]">↗</span>:
-      </label>
-      <input 
-        type="text" 
-        className="win-input flex-1 min-w-0" 
-        placeholder="Ej: 7050000"
-        value={formData[field] || ""} 
-        onChange={(e) => setFormData(prev => ({...prev, [field]: e.target.value}))} 
-      />
-    </div>
-  );
+
 
   const renderCebeSelector = (field, label) => (
     <div className="win-form-row">
@@ -1321,13 +1304,6 @@ export default function Rentals() {
                     {activeFormTab === 'ingresos' && (
                       <div className="space-y-4 max-w-xl">
                         <div className="space-y-1">
-                          <label className="text-[10px] font-bold text-slate-700 uppercase">Cuenta de Ingresos:</label>
-                          <p className="text-[11px] text-gray-600 mb-2">
-                            Selecciona la cuenta contable donde se registrarán los ingresos de este alquiler (por ejemplo: 7050000 Ingresos por Arrendamientos).
-                          </p>
-                          {renderAccountSelector('incomeAccountId', 'Cuenta Ingresos')}
-                        </div>
-                        <div className="space-y-1">
                           <label className="text-[10px] font-bold text-slate-700 uppercase">CEBE Asociado (Ingresos):</label>
                           <p className="text-[11px] text-gray-600 mb-2">
                             Selecciona el CEBE al que se imputarán los ingresos de este alquiler.
@@ -1348,13 +1324,6 @@ export default function Rentals() {
 
                     {activeFormTab === 'gastos' && (
                       <div className="space-y-4 max-w-xl">
-                        <div className="space-y-1">
-                          <label className="text-[10px] font-bold text-slate-700 uppercase">Cuenta de Gastos:</label>
-                          <p className="text-[11px] text-gray-600 mb-2">
-                            Selecciona la cuenta contable predeterminada para los gastos asociados a este alquiler.
-                          </p>
-                          {renderAccountSelector('expenseAccountId', 'Cuenta Gastos')}
-                        </div>
                         <div className="space-y-1">
                           <label className="text-[10px] font-bold text-slate-700 uppercase">CECO Asociado (Gastos):</label>
                           <p className="text-[11px] text-gray-600 mb-2">
