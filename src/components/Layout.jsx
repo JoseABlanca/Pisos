@@ -496,14 +496,33 @@ export default function Layout() {
         { id: 'iban', name: 'IBAN' },
         { id: 'ownership', name: '% Propiedad' }
       ]}
+    ],
+    'Total': [
+      { group: 'DATOS FISCALES', items: [
+        { id: 'year', name: 'Año' },
+        { id: 'ingresos', name: 'Ingresos' },
+        { id: 'gastos', name: 'Gastos' },
+        { id: 'amortizacion', name: 'Amortización' },
+        { id: 'beneficioNeto', name: 'Rendimiento Neto' }
+      ]}
+    ],
+    'Inversiones inmobiliarias': [
+      { group: 'DATOS FISCALES', items: [
+        { id: 'id', name: 'ID' },
+        { id: 'name', name: 'Nombre del Activo' },
+        { id: 'ingresos', name: 'Ingresos' },
+        { id: 'gastos', name: 'Gastos' },
+        { id: 'amortizacion', name: 'Amortización' },
+        { id: 'beneficioNeto', name: 'Rendimiento Neto' }
+      ]}
     ]
   };
 
   const modules = [
     'Contabilidad',
     'Inversiones inmobiliarias',
-    'Informes',
     'Impuestos',
+    'Informes',
     'Herramientas',
     'Ayuda'
   ];
@@ -611,6 +630,13 @@ export default function Layout() {
         items: [
           { name: `Fecha\n(${taxYear})`, action: 'taxes:year-dropdown', icon: Calendar }
         ]
+      },
+      {
+        group: 'Acciones',
+        items: [
+          { name: 'Añadir columna', action: 'taxes-total:columns', path: '/taxes-total', customIcon: 'AddColumn' },
+          { name: 'Exportar', action: 'taxes-total:export', path: '/taxes-total', customIcon: 'Exportar' }
+        ]
       }
     ],
     'Inversiones inmobiliarias': [
@@ -619,6 +645,13 @@ export default function Layout() {
         items: [
           { name: `Fecha\n(${taxYear})`, action: 'taxes:year-dropdown', icon: Calendar },
           { name: 'Extracto', action: 'taxes:extract', icon: FileText }
+        ]
+      },
+      {
+        group: 'Acciones',
+        items: [
+          { name: 'Añadir columna', action: 'taxes-re:columns', path: '/taxes-real-estate', customIcon: 'AddColumn' },
+          { name: 'Exportar', action: 'taxes-re:export', path: '/taxes-real-estate', customIcon: 'Exportar' }
         ]
       }
     ],

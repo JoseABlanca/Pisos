@@ -4,6 +4,9 @@ import { collection, query, where, onSnapshot } from 'firebase/firestore';
 import { useAuth } from '../context/AuthContext';
 import { useOutletContext } from 'react-router-dom';
 import TaxesExtractModal from '../components/TaxesExtractModal';
+import { useTableColumns } from '../hooks/useTableColumns';
+import { exportToPDF } from '../utils/pdfExport';
+import { handleExportFormat } from '../utils/exportUtils';
 
 export default function TaxesRealEstate() {
   const { user, queryUserIds } = useAuth();
@@ -11,6 +14,7 @@ export default function TaxesRealEstate() {
   
   const [properties, setProperties] = useState([]);
   const [rentals, setRentals] = useState([]);
+  const [journalEntries, setJournalEntries] = useState([]);
   const [selectedProperty, setSelectedProperty] = useState(null);
   
   const [showTaxesExtract, setShowTaxesExtract] = useState(false);
@@ -28,46 +32,103 @@ export default function TaxesRealEstate() {
       setRentals(snap.docs.map(d => ({ ...d.data(), id: d.id })));
     });
 
+    const unsubJournal = onSnapshot(query(collection(db, 'journal_entries'), where('userId', 'in', qIds)), snap => {
+      setJournalEntries(snap.docs.map(d => ({ ...d.data(), id: d.id })));
+    });
+
     return () => {
       unsubProperties();
       unsubRentals();
+      unsubJournal();
     };
   }, [user, queryUserIds]);
+
+  const DEFAULT_COLUMNS = ['id', 'name', 'ingresos', 'gastos', 'amortizacion', 'beneficioNeto'];
+  const { visibleColumns } = useTableColumns('taxesRealEstate', DEFAULT_COLUMNS);
 
   // Compute values for each property
   const computedProperties = useMemo(() => {
     return properties.map(p => {
-      // Calculate years multiplier
-      const currentYear = new Date().getFullYear();
-      let yearsOwned = 1;
+      const propertyCebe = String(p.cebe || '').trim();
+      const propertyCeco = String(p.ceco || '').trim();
+
+      // Ingresos (Tax Incomes)
+      const taxIncomes = journalEntries.filter(entry => {
+        if (!entry.isImpuesto) return false;
+        if (taxYear !== 'Todas') {
+          const entryYr = entry.date ? entry.date.substring(0, 4) : '';
+          if (entryYr !== taxYear.toString()) return false;
+        }
+        if (!propertyCebe) return false;
+        const entryCebe = String(entry.cebe || '').trim().replace(/^(CEBE|CECO)/i, '');
+        const normalizedPropCebe = propertyCebe.replace(/^(CEBE|CECO)/i, '');
+        return entryCebe.startsWith(normalizedPropCebe);
+      });
+      const ingresos = taxIncomes.reduce((sum, e) => sum + (parseFloat(e.total) || 0), 0);
+
+      // Gastos (Tax Expenses)
+      const taxExpenses = journalEntries.filter(entry => {
+        if (!entry.isImpuesto) return false;
+        if (taxYear !== 'Todas') {
+          const entryYr = entry.date ? entry.date.substring(0, 4) : '';
+          if (entryYr !== taxYear.toString()) return false;
+        }
+        if (!propertyCeco) return false;
+        const entryCeco = String(entry.ceco || '').trim().replace(/^(CEBE|CECO)/i, '');
+        const normalizedPropCeco = propertyCeco.replace(/^(CEBE|CECO)/i, '');
+        return entryCeco.startsWith(normalizedPropCeco);
+      });
+      const gastos = taxExpenses.reduce((sum, e) => sum + (parseFloat(e.total) || 0), 0);
+
+      // Amortización (Amortization)
+      let amortizacion = 0;
+      const purchasePrice = parseFloat(p.financials?.purchasePrice || p.finPurchasePrice) || 0;
+      const acquisitionCosts = parseFloat(p.financials?.acquisitionCosts || p.finAcquisitionCosts) || 0;
+      const agentFees = parseFloat(p.financials?.agentFees || p.finAgentFees) || 0;
+      const acquisitionExpensesSum = (p.financials?.acquisitionExpenses || []).reduce((sum, exp) => sum + (parseFloat(exp.amount) || 0), 0);
+      const baseValue = purchasePrice + acquisitionCosts + agentFees + acquisitionExpensesSum;
+
       if (taxYear === 'Todas') {
-        if (p.finAcquisitionDate) {
-          const acqYear = parseInt(p.finAcquisitionDate.substring(0, 4), 10);
-          if (!isNaN(acqYear) && acqYear <= currentYear) {
-            yearsOwned = currentYear - acqYear + 1;
-          } else {
-             yearsOwned = 1; // Fallback
+        // Find years with rental income
+        const yearsWithIncome = new Set();
+        if (propertyCebe) {
+          const normalizedPropCebe = propertyCebe.replace(/^(CEBE|CECO)/i, '');
+          journalEntries.forEach(entry => {
+            if (!entry.isImpuesto) return;
+            const entryCebe = String(entry.cebe || '').trim().replace(/^(CEBE|CECO)/i, '');
+            if (entryCebe.startsWith(normalizedPropCebe)) {
+              const yr = entry.date ? entry.date.substring(0, 4) : '';
+              if (yr) yearsWithIncome.add(yr);
+            }
+          });
+        }
+        
+        yearsWithIncome.forEach(yrStr => {
+          const yr = parseInt(yrStr, 10);
+          let owned = true;
+          if (p.financials?.acquisitionDate) {
+            const acqYear = parseInt(p.financials.acquisitionDate.substring(0, 4), 10);
+            if (!isNaN(acqYear) && acqYear > yr) {
+              owned = false;
+            }
+          }
+          if (owned) {
+            amortizacion += baseValue * 0.80 * 0.03;
+          }
+        });
+      } else {
+        const targetYear = parseInt(taxYear, 10);
+        let owned = true;
+        if (p.financials?.acquisitionDate) {
+          const acqYear = parseInt(p.financials.acquisitionDate.substring(0, 4), 10);
+          if (!isNaN(acqYear) && acqYear > targetYear) {
+            owned = false;
           }
         }
+        if (owned && ingresos > 0) {
+          amortizacion = baseValue * 0.80 * 0.03;
+        }
       }
-
-      // Ingresos
-      const propertyRentals = rentals.filter(r => r.propertyId === p.id);
-      let ingresos = 0;
-      propertyRentals.forEach(r => {
-        ingresos += (parseFloat(r.rentAmount) || 0) * 12 * yearsOwned;
-      });
-
-      // Gastos
-      let gastos = 0;
-      if (p.communityFee) gastos += parseFloat(p.communityFee) * 12 * yearsOwned;
-
-      // Amortización
-      const purchasePrice = parseFloat(p.finPurchasePrice) || 0;
-      const acquisitionCosts = parseFloat(p.finAcquisitionCosts) || 0;
-      const agentFees = parseFloat(p.finAgentFees) || 0;
-      const baseValue = purchasePrice + acquisitionCosts + agentFees;
-      const amortizacion = baseValue * 0.03 * yearsOwned;
 
       // Beneficio Neto
       const beneficioNeto = ingresos - gastos - amortizacion;
@@ -80,7 +141,7 @@ export default function TaxesRealEstate() {
         beneficioNeto
       };
     });
-  }, [properties, rentals, taxYear]);
+  }, [properties, journalEntries, taxYear]);
 
   useEffect(() => {
     const onTaxesExtract = (e) => {
@@ -94,6 +155,38 @@ export default function TaxesRealEstate() {
     window.addEventListener('taxes:extract', onTaxesExtract);
     return () => window.removeEventListener('taxes:extract', onTaxesExtract);
   }, [selectedProperty]);
+
+  useEffect(() => {
+    const onExport = (e) => {
+      const format = e.detail?.format || 'csv';
+      
+      const dataToExport = computedProperties.map(p => ({
+        id: p.id,
+        name: p.name || p.address || p.id,
+        ingresos: p.ingresos.toLocaleString('es-ES', { style: 'currency', currency: 'EUR' }),
+        gastos: p.gastos.toLocaleString('es-ES', { style: 'currency', currency: 'EUR' }),
+        amortizacion: p.amortizacion.toLocaleString('es-ES', { style: 'currency', currency: 'EUR' }),
+        beneficioNeto: p.beneficioNeto.toLocaleString('es-ES', { style: 'currency', currency: 'EUR' })
+      }));
+
+      if (format === 'pdf') {
+        const allColumns = [
+          { header: 'ID', dataKey: 'id' },
+          { header: 'Nombre del Activo', dataKey: 'name' },
+          { header: 'Ingresos', dataKey: 'ingresos' },
+          { header: 'Gastos', dataKey: 'gastos' },
+          { header: 'Amortización', dataKey: 'amortizacion' },
+          { header: 'Rendimiento Neto', dataKey: 'beneficioNeto' }
+        ];
+        const colsToExport = allColumns.filter(c => visibleColumns.includes(c.dataKey));
+        exportToPDF(dataToExport, colsToExport, 'Reporte de Impuestos por Activo', 'impuestos_activos.pdf');
+      } else {
+        handleExportFormat(dataToExport, 'Impuestos por Activo', format);
+      }
+    };
+    window.addEventListener('taxes-re:export', onExport);
+    return () => window.removeEventListener('taxes-re:export', onExport);
+  }, [computedProperties, visibleColumns]);
 
   const toggleSelect = (p) => {
     if (selectedProperty?.id === p.id) {
@@ -110,12 +203,12 @@ export default function TaxesRealEstate() {
           <table className="clean-table w-full">
             <thead>
               <tr>
-                <th className="p-2 font-bold uppercase w-16 text-center">ID</th>
-                <th className="p-2 font-bold uppercase text-left">Nombre del Activo</th>
-                <th className="p-2 font-bold uppercase text-right">Ingresos ({taxYear})</th>
-                <th className="p-2 font-bold uppercase text-right">Gastos ({taxYear})</th>
-                <th className="p-2 font-bold uppercase text-right">Amortización ({taxYear})</th>
-                <th className="p-2 font-bold uppercase text-right">Rendimiento Neto</th>
+                {visibleColumns.includes('id') && <th className="p-2 font-bold uppercase w-16 text-center">ID</th>}
+                {visibleColumns.includes('name') && <th className="p-2 font-bold uppercase text-left">Nombre del Activo</th>}
+                {visibleColumns.includes('ingresos') && <th className="p-2 font-bold uppercase text-right">Ingresos ({taxYear})</th>}
+                {visibleColumns.includes('gastos') && <th className="p-2 font-bold uppercase text-right">Gastos ({taxYear})</th>}
+                {visibleColumns.includes('amortizacion') && <th className="p-2 font-bold uppercase text-right">Amortización ({taxYear})</th>}
+                {visibleColumns.includes('beneficioNeto') && <th className="p-2 font-bold uppercase text-right">Rendimiento Neto</th>}
               </tr>
             </thead>
             <tbody>
@@ -128,26 +221,34 @@ export default function TaxesRealEstate() {
                     className={`cursor-pointer border-b border-gray-200 transition-colors
                       ${isSelected ? 'bg-blue-100 text-blue-900' : 'hover:bg-blue-50/50'}`}
                   >
-                    <td className="p-2 text-center text-gray-500">{p.id.slice(0,5)}</td>
-                    <td className="p-2">{p.name || p.address}</td>
-                    <td className="p-2 text-right">
-                      {p.ingresos.toLocaleString('es-ES', { style: 'currency', currency: 'EUR' })}
-                    </td>
-                    <td className="p-2 text-right">
-                      {p.gastos.toLocaleString('es-ES', { style: 'currency', currency: 'EUR' })}
-                    </td>
-                    <td className="p-2 text-right">
-                      {p.amortizacion.toLocaleString('es-ES', { style: 'currency', currency: 'EUR' })}
-                    </td>
-                    <td className="p-2 text-right">
-                      {p.beneficioNeto.toLocaleString('es-ES', { style: 'currency', currency: 'EUR' })}
-                    </td>
+                    {visibleColumns.includes('id') && <td className="p-2 text-center text-gray-500">{p.id.slice(0,5)}</td>}
+                    {visibleColumns.includes('name') && <td className="p-2">{p.name || p.address}</td>}
+                    {visibleColumns.includes('ingresos') && (
+                      <td className="p-2 text-right">
+                        {p.ingresos.toLocaleString('es-ES', { style: 'currency', currency: 'EUR' })}
+                      </td>
+                    )}
+                    {visibleColumns.includes('gastos') && (
+                      <td className="p-2 text-right">
+                        {p.gastos.toLocaleString('es-ES', { style: 'currency', currency: 'EUR' })}
+                      </td>
+                    )}
+                    {visibleColumns.includes('amortizacion') && (
+                      <td className="p-2 text-right">
+                        {p.amortizacion.toLocaleString('es-ES', { style: 'currency', currency: 'EUR' })}
+                      </td>
+                    )}
+                    {visibleColumns.includes('beneficioNeto') && (
+                      <td className="p-2 text-right">
+                        {p.beneficioNeto.toLocaleString('es-ES', { style: 'currency', currency: 'EUR' })}
+                      </td>
+                    )}
                   </tr>
                 );
               })}
               {computedProperties.length === 0 && (
                 <tr>
-                  <td colSpan="6" className="p-8 text-center text-gray-500 italic">
+                  <td colSpan={visibleColumns.length} className="p-8 text-center text-gray-500 italic">
                     No hay inversiones inmobiliarias registradas.
                   </td>
                 </tr>

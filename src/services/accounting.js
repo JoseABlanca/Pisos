@@ -193,23 +193,23 @@ export const deleteJournalEntry = async (userId, entryId, lines) => {
 /**
  * Actualiza un asiento existente (Revisión Completa).
  */
-export const updateJournalEntry = async (userId, entryId, description, newLines, oldLines, customDate) => {
+export const updateJournalEntry = async (userId, entryId, description, newLines, oldLines, customDate, analytics = null) => {
   try {
-    // Read old entry to preserve analytics
-    const oldJournalRef = doc(db, 'journal_entries', entryId);
-    const oldSnap = await getDocs(query(collection(db, 'journal_entries'), where('__name__', '==', entryId)));
-    let analytics = null;
-    if (!oldSnap.empty) {
-      const oldData = oldSnap.docs[0].data();
-      if (oldData.cebe || oldData.ceco) {
-        analytics = { cebe: oldData.cebe, ceco: oldData.ceco };
+    let finalAnalytics = analytics;
+    if (!finalAnalytics) {
+      const oldSnap = await getDocs(query(collection(db, 'journal_entries'), where('__name__', '==', entryId)));
+      if (!oldSnap.empty) {
+        const oldData = oldSnap.docs[0].data();
+        if (oldData.cebe || oldData.ceco) {
+          finalAnalytics = { cebe: oldData.cebe, ceco: oldData.ceco };
+        }
       }
     }
 
     // For safety and consistency, we revert the old one and register a new one (keeping same ID preferably or header)
     // To maintain the sequential number, we'll do it manually
     await deleteJournalEntry(userId, entryId, oldLines);
-    await registerJournalEntry(userId, description, newLines, customDate, analytics);
+    await registerJournalEntry(userId, description, newLines, customDate, finalAnalytics);
     return { success: true };
   } catch (error) {
     console.error("Error updating entry:", error);

@@ -296,6 +296,8 @@ export default function Journal() {
           accountName: account.name || 'Cuenta Desconocida',
           debit: parseFloat(line.debit) || 0,
           credit: parseFloat(line.credit) || 0,
+          ceco: entry.ceco || line.ceco || '',
+          cebe: entry.cebe || line.cebe || '',
           originalEntry: entry
         });
       });

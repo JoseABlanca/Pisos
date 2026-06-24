@@ -1462,11 +1462,13 @@ function AnalyticsJournalViewer({ type, value, userIds, setPreviewDocument }) {
     );
     const unsubscribe = onSnapshot(q, (snap) => {
       const all = snap.docs.map(d => ({ id: d.id, ...d.data() }));
-      // Prefix match: entry's cebe/ceco starts with the selected code
+      // Prefix match: entry's cebe/ceco starts with the selected code (normalized)
       const filtered = all.filter(entry => {
         const fieldValue = entry[type];
         if (!fieldValue) return false;
-        return String(fieldValue).startsWith(String(value));
+        const normField = String(fieldValue).trim().replace(/^(CEBE|CECO)/i, '');
+        const normValue = String(value).trim().replace(/^(CEBE|CECO)/i, '');
+        return normField.startsWith(normValue);
       });
       setEntries(filtered.sort((a,b) => new Date(b.date) - new Date(a.date)));
     });
@@ -1531,7 +1533,7 @@ function AnalyticsJournalViewer({ type, value, userIds, setPreviewDocument }) {
   const totalImpuestos = impuestos.reduce((s, e) => s + (Number(e.total) || 0), 0);
 
   const renderRows = (rows) => rows.map(e => (
-    <tr key={e.id} className={`border-b border-gray-200 hover:bg-blue-50 ${e.isImpuesto ? 'bg-orange-50/70' : ''}`}>
+    <tr key={e.id} className="border-b border-gray-200 hover:bg-blue-50">
       <td className="p-1.5 whitespace-nowrap text-[10px]">{new Date(e.date).toLocaleDateString()}</td>
       <td className="p-1.5 truncate max-w-[150px] text-[10px]" title={e.description}>{e.description}</td>
       
@@ -1596,7 +1598,7 @@ function AnalyticsJournalViewer({ type, value, userIds, setPreviewDocument }) {
         {entries.length > 0 && (
           <div className="flex gap-3 text-[10px]">
             <span className="text-slate-700 font-bold">{type === 'cebe' ? 'Ingresos' : 'Gastos'}: {totalRegular.toLocaleString('es-ES', {minimumFractionDigits:2})} &euro;</span>
-            {impuestos.length > 0 && <span className="text-orange-600 font-bold">Impuestos: {totalImpuestos.toLocaleString('es-ES', {minimumFractionDigits:2})} &euro;</span>}
+            {impuestos.length > 0 && <span className="text-slate-700 font-bold">Impuestos: {totalImpuestos.toLocaleString('es-ES', {minimumFractionDigits:2})} &euro;</span>}
           </div>
         )}
       </div>
@@ -1616,13 +1618,7 @@ function AnalyticsJournalViewer({ type, value, userIds, setPreviewDocument }) {
               </tr>
             </thead>
             <tbody>
-              {regular.length > 0 && (
-                <tr className="bg-slate-50"><td colSpan="6" className="px-2 py-0.5 text-[9px] font-bold text-slate-700 uppercase">{type === 'cebe' ? 'Ingresos' : 'Gastos'}</td></tr>
-              )}
               {renderRows(regular)}
-              {impuestos.length > 0 && (
-                <tr className="bg-orange-50/50"><td colSpan="6" className="px-2 py-0.5 text-[9px] font-bold text-orange-700 uppercase">Impuestos</td></tr>
-              )}
               {renderRows(impuestos)}
             </tbody>
           </table>

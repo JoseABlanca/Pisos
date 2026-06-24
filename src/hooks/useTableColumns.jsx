@@ -55,6 +55,8 @@ export const useTableColumns = (tableId, defaultColumns) => {
     if (tableId === 'rentals') tab = 'Alquileres';
     if (tableId === 'properties') tab = 'Activos';
     if (tableId === 'partners') tab = 'Propietarios';
+    if (tableId === 'taxesTotal') tab = 'Total';
+    if (tableId === 'taxesRealEstate') tab = 'Inversiones inmobiliarias';
     
     window.dispatchEvent(new CustomEvent('sync-columns', { detail: { tab, columns: visibleColumns } }));
   }, [visibleColumns, tableId]);

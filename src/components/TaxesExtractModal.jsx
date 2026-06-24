@@ -12,7 +12,7 @@ export default function TaxesExtractModal({ isOpen, onClose, property, year, ren
   
   const { user, queryUserIds } = useAuth();
   const [journalEntries, setJournalEntries] = useState([]);
-  const [selectedYear, setSelectedYear] = useState(year || new Date().getFullYear().toString());
+  const [selectedYear, setSelectedYear] = useState(year ? year.toString() : new Date().getFullYear().toString());
   const [previewDoc, setPreviewDoc] = useState(null);
 
   useEffect(() => {
@@ -24,7 +24,7 @@ export default function TaxesExtractModal({ isOpen, onClose, property, year, ren
   // Update selected year if prop changes
   useEffect(() => {
     if (year) {
-      setSelectedYear(year);
+      setSelectedYear(year.toString());
     }
   }, [year]);
 
@@ -79,9 +79,10 @@ export default function TaxesExtractModal({ isOpen, onClose, property, year, ren
         if (entryYr !== selectedYear) return false;
       }
       
-      // Match CEBE hierarchically (startsWith prefix)
-      const entryCebe = String(entry.cebe || '').trim();
-      return entryCebe.startsWith(propertyCebe);
+      // Match CEBE hierarchically (startsWith prefix, normalized)
+      const entryCebe = String(entry.cebe || '').trim().replace(/^(CEBE|CECO)/i, '');
+      const normalizedPropCebe = propertyCebe.replace(/^(CEBE|CECO)/i, '');
+      return entryCebe.startsWith(normalizedPropCebe);
     }).sort((a, b) => new Date(b.date) - new Date(a.date));
   }, [journalEntries, property, selectedYear]);
 
@@ -101,9 +102,10 @@ export default function TaxesExtractModal({ isOpen, onClose, property, year, ren
         if (entryYr !== selectedYear) return false;
       }
 
-      // Match CECO hierarchically (startsWith prefix)
-      const entryCeco = String(entry.ceco || '').trim();
-      return entryCeco.startsWith(propertyCeco);
+      // Match CECO hierarchically (startsWith prefix, normalized)
+      const entryCeco = String(entry.ceco || '').trim().replace(/^(CEBE|CECO)/i, '');
+      const normalizedPropCeco = propertyCeco.replace(/^(CEBE|CECO)/i, '');
+      return entryCeco.startsWith(normalizedPropCeco);
     }).sort((a, b) => new Date(b.date) - new Date(a.date));
   }, [journalEntries, property, selectedYear]);
 

@@ -283,12 +283,18 @@ export default function ExtractoTab({ formData, setFormData, rentals }) {
 
       // CEBE Filter (hierarchical)
       if (selectedCebe !== 'Todos') {
-        if (!t.cebe || !String(t.cebe).startsWith(selectedCebe)) return false;
+        if (!t.cebe) return false;
+        const normField = String(t.cebe).trim().replace(/^(CEBE|CECO)/i, '');
+        const normSelected = String(selectedCebe).trim().replace(/^(CEBE|CECO)/i, '');
+        if (!normField.startsWith(normSelected)) return false;
       }
 
       // CECO Filter (hierarchical)
       if (selectedCeco !== 'Todos') {
-        if (!t.ceco || !String(t.ceco).startsWith(selectedCeco)) return false;
+        if (!t.ceco) return false;
+        const normField = String(t.ceco).trim().replace(/^(CEBE|CECO)/i, '');
+        const normSelected = String(selectedCeco).trim().replace(/^(CEBE|CECO)/i, '');
+        if (!normField.startsWith(normSelected)) return false;
       }
 
       // Search query Filter

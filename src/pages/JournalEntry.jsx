@@ -26,6 +26,8 @@ export default function JournalEntry() {
   
   const [cecos, setCecos] = useState([]);
   const [cebes, setCebes] = useState([]);
+  const [selectedCebe, setSelectedCebe] = useState('');
+  const [selectedCeco, setSelectedCeco] = useState('');
   
   // State for Accounts Modal
   const [showAccountsModal, setShowAccountsModal] = useState(false);
@@ -81,6 +83,8 @@ export default function JournalEntry() {
       setIsEditing(true);
       setDate(editEntry.date ? editEntry.date.split('T')[0] : '');
       setNextEntryNumber(editEntry.number || 1);
+      setSelectedCebe(editEntry.cebe || editEntry.lines?.find(l => l.cebe)?.cebe || '');
+      setSelectedCeco(editEntry.ceco || editEntry.lines?.find(l => l.ceco)?.ceco || '');
       
       if (editEntry.lines && editEntry.lines.length > 0) {
         setOriginalLines(editEntry.lines);
@@ -105,6 +109,27 @@ export default function JournalEntry() {
       }
     }
   }, [location.state, accounts]);
+
+  // Resolve CEBE/CECO codes with/without prefixes for select dropdowns
+  useEffect(() => {
+    if (selectedCebe && cebes.length > 0) {
+      const normSelected = selectedCebe.replace(/^(CEBE|CECO)/i, '').trim();
+      const matched = cebes.find(c => c.code.replace(/^(CEBE|CECO)/i, '').trim() === normSelected);
+      if (matched && matched.code !== selectedCebe) {
+        setSelectedCebe(matched.code);
+      }
+    }
+  }, [cebes, selectedCebe]);
+
+  useEffect(() => {
+    if (selectedCeco && cecos.length > 0) {
+      const normSelected = selectedCeco.replace(/^(CEBE|CECO)/i, '').trim();
+      const matched = cecos.find(c => c.code.replace(/^(CEBE|CECO)/i, '').trim() === normSelected);
+      if (matched && matched.code !== selectedCeco) {
+        setSelectedCeco(matched.code);
+      }
+    }
+  }, [cecos, selectedCeco]);
 
   const updateLine = (index, field, value) => {
     const newLines = [...lines];
@@ -179,8 +204,8 @@ export default function JournalEntry() {
           accountCode: line.account,
           description: line.description,
           document: line.document,
-          ceco: line.ceco || '',
-          cebe: line.cebe || '',
+          ceco: '',
+          cebe: '',
           debit: Number(line.debit) || 0,
           credit: Number(line.credit) || 0,
         };
@@ -192,16 +217,22 @@ export default function JournalEntry() {
       }
 
       const globalDescription = formattedLines[0].description || `Asiento manual ${date}`;
+      const analytics = {
+        cebe: selectedCebe || '',
+        ceco: selectedCeco || ''
+      };
       
       if (isEditing) {
-        await updateJournalEntry(user.uid, entryId, globalDescription, formattedLines, originalLines, date);
+        await updateJournalEntry(user.uid, entryId, globalDescription, formattedLines, originalLines, date, analytics);
         alert(`Asiento ${nextEntryNumber} actualizado correctamente.`);
         navigate('/journal-list');
       } else {
-        await registerJournalEntry(user.uid, globalDescription, formattedLines, date);
+        await registerJournalEntry(user.uid, globalDescription, formattedLines, date, analytics);
         alert(`Asiento ${entryNumber} guardado correctamente.`);
         // Reset form
         setDate('');
+        setSelectedCebe('');
+        setSelectedCeco('');
         setLines([
           { id: 1, account: '', description: '', document: '', ceco: '', cebe: '', debit: 0, credit: 0, image: null },
           { id: 2, account: '', description: '', document: '', ceco: '', cebe: '', debit: 0, credit: 0, image: null }
@@ -282,6 +313,36 @@ export default function JournalEntry() {
             {date ? nextEntryNumber : ''}
           </span>
         </div>
+        {cebes.length > 0 && (
+          <div className="flex items-center">
+            <span className="text-gray-500 mr-2">CEBE:</span>
+            <select 
+              value={selectedCebe}
+              onChange={(e) => setSelectedCebe(e.target.value)}
+              className="px-1 py-0.5 border border-gray-300 rounded focus:border-blue-500 outline-none bg-white text-[11px]"
+            >
+              <option value="">-- Sin CEBE --</option>
+              {cebes.map(c => (
+                <option key={c.id} value={c.code}>{c.code} - {c.name}</option>
+              ))}
+            </select>
+          </div>
+        )}
+        {cecos.length > 0 && (
+          <div className="flex items-center">
+            <span className="text-gray-500 mr-2">CECO:</span>
+            <select 
+              value={selectedCeco}
+              onChange={(e) => setSelectedCeco(e.target.value)}
+              className="px-1 py-0.5 border border-gray-300 rounded focus:border-blue-500 outline-none bg-white text-[11px]"
+            >
+              <option value="">-- Sin CECO --</option>
+              {cecos.map(c => (
+                <option key={c.id} value={c.code}>{c.code} - {c.name}</option>
+              ))}
+            </select>
+          </div>
+        )}
         <div className="flex-1" />
       </div>
 
@@ -326,8 +387,6 @@ export default function JournalEntry() {
               <th className="border-b border-gray-300 px-2 py-1.5 font-bold w-48 text-gray-600 uppercase">TÍTULO CUENTA</th>
               <th className="border-b border-gray-300 px-2 py-1.5 font-bold flex-1 text-gray-600 uppercase">CONCEPTO</th>
               <th className="border-b border-gray-300 px-2 py-1.5 font-bold w-24 text-gray-600 uppercase">DOCUMENTO</th>
-              <th className="border-b border-gray-300 px-2 py-1.5 font-bold w-20 text-gray-600 uppercase">CECO</th>
-              <th className="border-b border-gray-300 px-2 py-1.5 font-bold w-20 text-gray-600 uppercase">CEBE</th>
               <th className="border-b border-gray-300 px-2 py-1.5 font-bold w-24 text-right text-gray-600 uppercase">DEBE</th>
               <th className="border-b border-gray-300 px-2 py-1.5 font-bold w-24 text-right text-gray-600 uppercase">HABER</th>
               <th className="border-b border-gray-300 px-2 py-1.5 font-bold w-10 text-center"></th>
@@ -390,36 +449,7 @@ export default function JournalEntry() {
                       className="w-full h-full px-2 py-1.5 outline-none focus:bg-blue-50 focus:ring-1 focus:ring-blue-400 uppercase text-[10px]"
                     />
                   </td>
-                  <td className="p-0">
-                    <input 
-                      id={`ceco-${idx}`}
-                      type="text" 
-                      value={line.ceco || ''}
-                      onChange={(e) => updateLine(idx, 'ceco', e.target.value)}
-                      onKeyDown={(e) => handleKeyDown(e, idx, 'ceco')}
-                      list={`ceco-list-${idx}`}
-                      className="w-full h-full px-2 py-1.5 outline-none focus:bg-blue-50 focus:ring-1 focus:ring-blue-400 uppercase text-[10px] font-mono"
-                      placeholder="CECO"
-                    />
-                    <datalist id={`ceco-list-${idx}`}>
-                      {cecos.map(c => <option key={c.id} value={c.code}>{c.name}</option>)}
-                    </datalist>
-                  </td>
-                  <td className="p-0">
-                    <input 
-                      id={`cebe-${idx}`}
-                      type="text" 
-                      value={line.cebe || ''}
-                      onChange={(e) => updateLine(idx, 'cebe', e.target.value)}
-                      onKeyDown={(e) => handleKeyDown(e, idx, 'cebe')}
-                      list={`cebe-list-${idx}`}
-                      className="w-full h-full px-2 py-1.5 outline-none focus:bg-blue-50 focus:ring-1 focus:ring-blue-400 uppercase text-[10px] font-mono"
-                      placeholder="CEBE"
-                    />
-                    <datalist id={`cebe-list-${idx}`}>
-                      {cebes.map(c => <option key={c.id} value={c.code}>{c.name}</option>)}
-                    </datalist>
-                  </td>
+
                   <td className="p-0">
                     <input 
                       id={`debit-${idx}`}

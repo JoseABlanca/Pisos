@@ -95,21 +95,6 @@ export default function RealEstate() {
   const [cebes, setCebes] = useState([]);
   const [cecos, setCecos] = useState([]);
 
-  useEffect(() => {
-    const onNew = () => handleNew();
-    const onEdit = () => handleEdit();
-    const onDelete = () => handleDelete();
-    window.addEventListener('real-estate:new', onNew);
-    window.addEventListener('real-estate:edit', onEdit);
-    window.addEventListener('real-estate:delete', onDelete);
-
-    return () => {
-      window.removeEventListener('real-estate:new', onNew);
-      window.removeEventListener('real-estate:edit', onEdit);
-      window.removeEventListener('real-estate:delete', onDelete);
-    };
-  }, [selectedProperty]);
-
   const [selectedTenantIndex, setSelectedTenantIndex] = useState(null);
   const [previewDocument, setPreviewDocument] = useState(null);
   const [activeMortgageTab, setActiveMortgageTab] = useState('docs');
@@ -356,14 +341,18 @@ export default function RealEstate() {
     setShowForm(true);
   };
 
-  const handleEdit = () => {
-    if (!selectedProperty) return;
+  const handleEdit = (prop) => {
+    const target = prop || selectedProperty;
+    if (!target) return;
     setSelectedTenantIndex(null);
     setSelectedServiceIndex(null);
     
+    // Find the latest property from properties state to avoid stale data
+    const latestProperty = properties.find(p => p.id === target.id) || target;
+    
     setFormData({ 
-      ...selectedProperty,
-      services: transformServices(selectedProperty.services),
+      ...latestProperty,
+      services: transformServices(latestProperty.services),
       community: {
         admin: '',
         adminPhone: '',
@@ -374,12 +363,12 @@ export default function RealEstate() {
         specialLevyEndDate: '',
         specialLevyAmount: '',
         paymentDocs: [],
-        ...selectedProperty.community
+        ...latestProperty.community
       },
-      reforms: selectedProperty.reforms || [],
-      propertyDocs: selectedProperty.propertyDocs || [],
-      owners: selectedProperty.owners || [],
-      financials: selectedProperty.financials || {
+      reforms: latestProperty.reforms || [],
+      propertyDocs: latestProperty.propertyDocs || [],
+      owners: latestProperty.owners || [],
+      financials: latestProperty.financials || {
         acquisitionDate: '',
         purchasePrice: '',
         acquisitionCosts: '',
@@ -388,11 +377,11 @@ export default function RealEstate() {
         salePrice: '',
         acquisitionExpenses: []
       },
-      taxes: selectedProperty.taxes || []
+      taxes: latestProperty.taxes || []
     });
     setFinanzasSubTab('principal');
-    if (selectedProperty.accessoryPropertyId) {
-      const acc = properties.find(p => p.id === selectedProperty.accessoryPropertyId);
+    if (latestProperty.accessoryPropertyId) {
+      const acc = properties.find(p => p.id === latestProperty.accessoryPropertyId);
       setAccessoryFormData(acc ? { ...acc } : null);
     } else {
       setAccessoryFormData(null);
@@ -435,6 +424,7 @@ export default function RealEstate() {
       if (accessoryFormData && accessoryFormData.id) {
         await savePropertyToCloud(accessoryFormData);
       }
+      setSelectedProperty(updatedProperty);
       setShowForm(false);
     } catch (error) {
       console.error("Error saving property:", error);
@@ -450,6 +440,21 @@ export default function RealEstate() {
       setSelectedProperty(null);
     }
   };
+
+  useEffect(() => {
+    const onNew = () => handleNew();
+    const onEdit = () => handleEdit();
+    const onDelete = () => handleDelete();
+    window.addEventListener('real-estate:new', onNew);
+    window.addEventListener('real-estate:edit', onEdit);
+    window.addEventListener('real-estate:delete', onDelete);
+
+    return () => {
+      window.removeEventListener('real-estate:new', onNew);
+      window.removeEventListener('real-estate:edit', onEdit);
+      window.removeEventListener('real-estate:delete', onDelete);
+    };
+  }, [selectedProperty, properties]);
 
   const [filterColumn, setFilterColumn] = useState('name');
   const [filterOperator, setFilterOperator] = useState('contains');
@@ -844,7 +849,7 @@ export default function RealEstate() {
               </thead>
               <tbody>
                 {applyTableFilters(propertiesWithCalculatedRentals, 'properties').map(p => (
-                  <tr key={p.id} className={selectedProperty?.id === p.id ? 'selected' : ''} onClick={(e) => { e.stopPropagation(); setSelectedProperty(p); }} onDoubleClick={handleEdit}>
+                  <tr key={p.id} className={selectedProperty?.id === p.id ? 'selected' : ''} onClick={(e) => { e.stopPropagation(); setSelectedProperty(p); }} onDoubleClick={() => handleEdit(p)}>
                     {visibleColumns.includes('id') && <td>{p.id}</td>}
                     {visibleColumns.includes('name') && <td className="truncate max-w-[100px]">{p.name}</td>}
                     {visibleColumns.includes('address') && <td className="hidden md:table-cell">{p.address}</td>}
