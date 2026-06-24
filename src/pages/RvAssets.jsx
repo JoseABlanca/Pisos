@@ -3,7 +3,7 @@ import { db } from '../firebase/config';
 import { collection, query, where, onSnapshot, doc, setDoc, deleteDoc, writeBatch } from 'firebase/firestore';
 import { useAuth } from '../context/AuthContext';
 import Window from '../components/Window';
-import { Search, Plus, Trash2, Edit, Save, X, Download, Upload, RefreshCw, Calendar, FileText } from 'lucide-react';
+import { Search, Plus, Trash2, Edit, Save, X, Download, Upload, RefreshCw, Calendar, FileText, PanelLeft } from 'lucide-react';
 import { handleExportFormat } from '../utils/exportUtils';
 import ZoomControl from '../components/ZoomControl';
 import { useTableColumns } from '../hooks/useTableColumns';
@@ -367,23 +367,8 @@ export default function RvAssets() {
               <span>Filtros</span>
             </div>
             <div className="p-4 text-[11px] space-y-4 flex-1 overflow-auto">
-              {/* Search Box */}
-              <div className="space-y-1">
-                <label className="text-slate-700 font-bold">Buscar activo:</label>
-                <div className="relative">
-                  <input
-                    type="text"
-                    value={searchQuery}
-                    onChange={(e) => setSearchQuery(e.target.value)}
-                    placeholder="Ticker, Nombre, ISIN..."
-                    className="win-input w-full pl-7"
-                  />
-                  <Search className="absolute left-2 top-2 w-3.5 h-3.5 text-gray-400" />
-                </div>
-              </div>
-
               {/* Type Filter */}
-              <div className="space-y-2 pt-2 border-t border-gray-300">
+              <div className="space-y-2">
                 <label className="text-slate-700 font-bold">Tipo de activo:</label>
                 <div className="space-y-1">
                   <label className="flex items-center space-x-2 cursor-pointer">
@@ -420,15 +405,29 @@ export default function RvAssets() {
 
         {/* Main Content Table Area */}
         <div className="flex-1 flex flex-col overflow-hidden bg-white">
-          <div className="p-2 border-b border-gray-200 flex justify-between items-center bg-[#f8fafc]">
-            <button
-              onClick={() => setShowSidebar(!showSidebar)}
-              className="px-2 py-1 bg-slate-200 border border-slate-300 text-[10px] font-bold text-slate-700 rounded hover:bg-slate-300 transition-colors"
-            >
-              {showSidebar ? 'Ocultar Panel' : 'Mostrar Panel'}
-            </button>
-            <div className="text-[11px] text-gray-500 font-semibold">
-              Activos encontrados: <span className="text-blue-600">{filteredAssets.length}</span>
+          <div className="flex justify-between items-center px-4 py-2 border-b border-gray-200 bg-[#f8fafc]">
+            <div className="flex items-center space-x-3">
+              <button 
+                onClick={(e) => { e.stopPropagation(); setShowSidebar(!showSidebar); }}
+                className="p-1.5 hover:bg-gray-100 rounded text-gray-500 border border-transparent hover:border-gray-300 flex items-center justify-center"
+                title={showSidebar ? "Ocultar panel" : "Mostrar panel"}
+              >
+                <PanelLeft className="w-4 h-4" />
+              </button>
+              <div className="text-[11px] text-gray-500 font-semibold">
+                Activos encontrados: <span className="text-blue-600">{filteredAssets.length}</span>
+              </div>
+            </div>
+
+            <div className="relative" onClick={e => e.stopPropagation()}>
+              <input 
+                type="text" 
+                placeholder="Buscar en el fichero (Alt+B)"
+                value={searchQuery}
+                onChange={(e) => setSearchQuery(e.target.value)}
+                className="pl-2 pr-8 py-1 border-b border-gray-400 text-[12px] w-64 outline-none focus:border-blue-500 bg-transparent"
+              />
+              <Search className="w-4 h-4 absolute right-1 top-1/2 -translate-y-1/2 text-gray-500" />
             </div>
           </div>
 
