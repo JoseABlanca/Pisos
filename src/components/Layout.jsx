@@ -586,7 +586,7 @@ export default function Layout() {
   const moduleTabs = {
     'Contabilidad': ['Cuentas contables', 'Diario', 'Mayor', 'Sumas y saldos'],
     'Inversiones inmobiliarias': ['Activos', 'Propietarios', 'Clientes', 'Alquileres'],
-    'Renta variable': ['Portfolio', 'Broker', 'Activos RV', 'Configuración RV'],
+    'Renta variable': ['Portfolio', 'Broker', 'Activos RV', 'Métricas RV'],
     'Informes': ['Reportes', 'Dashboard'],
     'Impuestos': ['Total', 'Inversiones inmobiliarias'],
     'Herramientas': ['Calculadora'],
@@ -605,7 +605,7 @@ export default function Layout() {
     'Portfolio': '/portfolio',
     'Broker': '/broker',
     'Activos RV': '/rv-assets',
-    'Configuración RV': '/rv-config',
+    'Métricas RV': '/rv-metrics',
     'Reportes': '/reports',
     'Dashboard': '/dashboard',
     'Total': '/taxes-total',
@@ -818,12 +818,12 @@ export default function Layout() {
         ]
       }
     ],
-    'Configuración RV': [
+    'Métricas RV': [
       {
-        group: 'Mantenimiento',
+        group: 'Métricas',
         items: [
-          { name: 'Guardar', action: 'rv-config:save', icon: PlusCircle },
-          { name: 'Datos de\nejemplo', action: 'rv-config:seed', icon: Layers }
+          { name: 'Calcular\nmétricas', action: 'rv-metrics:calculate', icon: BarChart3 },
+          { name: 'Exportar', action: 'rv-metrics:export', customIcon: 'Exportar' }
         ]
       }
     ],
@@ -965,7 +965,7 @@ export default function Layout() {
                 }}
                 className={`px-3 py-1.5 text-[12px] transition-colors border-t border-l border-r border-b-0 ${activeTab === tab ? 'bg-[#f3f4f6] text-black border-transparent relative top-[1px]' : 'bg-transparent text-white border-transparent hover:bg-white/10'}`}
               >
-                {tab === 'Activos RV' ? 'Activos' : tab === 'Configuración RV' ? 'Configuración' : tab}
+                {tab === 'Activos RV' ? 'Activos' : tab === 'Métricas RV' ? 'Métricas' : tab}
               </button>
             ))}
           </nav>

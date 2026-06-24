@@ -23,7 +23,7 @@ import Home from './pages/Home';
 import Portfolio from './pages/Portfolio';
 import Broker from './pages/Broker';
 import RvAssets from './pages/RvAssets';
-import RvConfig from './pages/RvConfig';
+import RvMetrics from './pages/RvMetrics';
 import { ErrorBoundary } from './components/ErrorBoundary';
 
 const ProtectedRoute = ({ children }) => {
@@ -63,7 +63,7 @@ function App() {
             <Route path="portfolio" element={<Portfolio />} />
             <Route path="broker" element={<Broker />} />
             <Route path="rv-assets" element={<RvAssets />} />
-            <Route path="rv-config" element={<RvConfig />} />
+            <Route path="rv-metrics" element={<RvMetrics />} />
             <Route path="account-statement" element={<Ledger initialMode="detail" />} />
           </Route>
           </Routes>
