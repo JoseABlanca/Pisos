@@ -226,7 +226,7 @@ export default function AnalyticalCenters({ type }) { // type = 'ceco' | 'cebe'
                     if (e.key === 'Enter') handleSave();
                     if (e.key === 'Escape') setEditingNode(null);
                   }}
-                  className="win-input flex-1 text-[11px] uppercase"
+                  className="win-input flex-1 text-[11px]"
                   placeholder="Descripción..."
                 />
                 <button onClick={handleSave} className="p-1 bg-green-600 text-white rounded hover:bg-green-700" title="Guardar">
@@ -263,7 +263,7 @@ export default function AnalyticalCenters({ type }) { // type = 'ceco' | 'cebe'
                 {node.code}
               </div>
             </td>
-            <td className={`px-3 py-1.5 uppercase text-[11px] ${isSelected ? 'text-white' : 'text-gray-800'}`}>{node.name}</td>
+            <td className={`px-3 py-1.5 text-[11px] ${isSelected ? 'text-white' : 'text-gray-800'}`}>{node.name}</td>
           </tr>
         );
       }
@@ -294,7 +294,7 @@ export default function AnalyticalCenters({ type }) { // type = 'ceco' | 'cebe'
                       if (e.key === 'Enter') handleSave();
                       if (e.key === 'Escape') setEditingNode(null);
                     }}
-                    className="win-input flex-1 text-[11px] uppercase"
+                    className="win-input flex-1 text-[11px]"
                     placeholder="Nuevo elemento..."
                   />
                   <button onClick={handleSave} className="p-1 bg-green-600 text-white rounded hover:bg-green-700" title="Guardar">
@@ -428,7 +428,7 @@ export default function AnalyticalCenters({ type }) { // type = 'ceco' | 'cebe'
                             if (e.key === 'Enter') handleSave();
                             if (e.key === 'Escape') setEditingNode(null);
                           }}
-                          className="win-input flex-1 text-[11px] uppercase"
+                          className="win-input flex-1 text-[11px]"
                           placeholder="Descripción..."
                         />
                         <button onClick={handleSave} className="p-1 bg-green-600 text-white rounded hover:bg-green-700" title="Guardar">
