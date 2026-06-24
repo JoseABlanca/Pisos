@@ -8,7 +8,7 @@ import Window from '../components/Window';
 import { 
   Check, X, Search, Plus, Trash2, Edit, Save, 
   FileText, Building2, User, Key, Users, PanelLeft, Download, Filter,
-  Upload, Eye
+  Upload, Eye, RefreshCw
 } from 'lucide-react';
 import { uploadFileToStorage } from '../utils/storageUtils';
 import { useTableColumns } from '../hooks/useTableColumns';
@@ -35,6 +35,35 @@ export default function Rentals() {
   const [selectedRental, setSelectedRental] = useState(null);
   const [previewDocument, setPreviewDocument] = useState(null);
   const [dragOverZone, setDragOverZone] = useState(null);
+  const [isUploading, setIsUploading] = useState(false);
+
+  const handleRentalFileUpload = async (files) => {
+    if (!files.length || !user || !formData.docId) return;
+    setIsUploading(true);
+    try {
+      const newDocs = [];
+      for (const file of files) {
+        const url = await uploadFileToStorage(file, user.uid, 'rentals', formData.docId, 'docs');
+        newDocs.push({
+          id: Date.now() + Math.random().toString(36).substring(7),
+          name: file.name,
+          type: file.type || file.name.split('.').pop().toUpperCase() + ' Document',
+          date: new Date().toLocaleDateString('es-ES'),
+          size: (file.size / (1024 * 1024)).toFixed(2) + ' MB',
+          url
+        });
+      }
+      setFormData(prev => ({
+        ...prev,
+        documents: [...(prev.documents || []), ...newDocs]
+      }));
+    } catch (error) {
+      console.error('Error uploading rental document:', error);
+      alert('Error al subir el documento: ' + error.message);
+    } finally {
+      setIsUploading(false);
+    }
+  };
   
   const DEFAULT_COLUMNS = ['id', 'propertyDisplay', 'tenantDisplay', 'rent', 'status'];
   const { visibleColumns, toggleColumn, columnWidths, updateColumnWidth } = useTableColumns('rentals', DEFAULT_COLUMNS);
@@ -141,7 +170,10 @@ export default function Rentals() {
   // Window event listeners
   useEffect(() => {
     const onNew = () => {
-      setFormData(initialFormState);
+      setFormData({
+        ...initialFormState,
+        docId: doc(collection(db, 'rentals')).id
+      });
       setIsEditing(false);
       setShowForm(true);
       setActiveFormTab('general');
@@ -1195,50 +1227,40 @@ export default function Rentals() {
                             multiple 
                             accept=".pdf,.doc,.docx,.xls,.xlsx,.jpg,.jpeg,.png"
                             className="hidden"
+                            disabled={isUploading}
                             onChange={(e) => {
                               if (e.target.files && e.target.files.length > 0) {
-                                const newDocs = Array.from(e.target.files).map(file => ({
-                                  name: file.name,
-                                  type: file.type || file.name.split('.').pop().toUpperCase() + ' Document',
-                                  date: new Date().toLocaleDateString('es-ES'),
-                                  size: (file.size / (1024 * 1024)).toFixed(2) + ' MB',
-                                  url: URL.createObjectURL(file)
-                                }));
-                                setFormData({
-                                  ...formData,
-                                  documents: [...(formData.documents || []), ...newDocs]
-                                });
+                                handleRentalFileUpload(e.target.files);
                               }
                               e.target.value = null; // reset input
                             }}
                           />
                           <label 
                             htmlFor="file-upload-rentals" 
-                            className="btn-classic px-3 h-5 text-[10px] flex items-center cursor-pointer"
+                            className={`btn-classic px-3 h-5 text-[10px] flex items-center cursor-pointer ${isUploading ? 'opacity-50 cursor-not-allowed' : ''}`}
                           >
-                            <Plus className="w-3 h-3 mr-1" /> Adjuntar
+                            {isUploading ? (
+                              <>
+                                <RefreshCw className="w-3 h-3 mr-1 animate-spin" /> Subiendo...
+                              </>
+                            ) : (
+                              <>
+                                <Plus className="w-3 h-3 mr-1" /> Adjuntar
+                              </>
+                            )}
                           </label>
                         </div>
                         <div 
                           className={`flex-1 overflow-auto border border-[#808080] transition-colors duration-200 ${dragOverZone === 'rentalDocs' ? 'bg-blue-50 border-blue-400 ring-2 ring-blue-200 ring-inset' : ''}`}
-                          onDragOver={(e) => { e.preventDefault(); setDragOverZone('rentalDocs'); }}
+                          onDragOver={(e) => { e.preventDefault(); if (!isUploading) setDragOverZone('rentalDocs'); }}
                           onDragLeave={() => setDragOverZone(null)}
                           onDrop={(e) => {
                             e.preventDefault();
                             setDragOverZone(null);
+                            if (isUploading) return;
                             const files = Array.from(e.dataTransfer.files);
                             if (files.length > 0) {
-                              const newDocs = files.map(file => ({
-                                name: file.name,
-                                type: file.type || file.name.split('.').pop().toUpperCase() + ' Document',
-                                date: new Date().toLocaleDateString('es-ES'),
-                                size: (file.size / (1024 * 1024)).toFixed(2) + ' MB',
-                                url: URL.createObjectURL(file)
-                              }));
-                              setFormData({
-                                ...formData,
-                                documents: [...(formData.documents || []), ...newDocs]
-                              });
+                              handleRentalFileUpload(files);
                             }
                           }}
                         >

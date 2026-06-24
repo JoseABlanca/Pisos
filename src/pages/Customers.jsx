@@ -7,10 +7,12 @@ import Window from '../components/Window';
 import { 
   Check, X, Search, Plus, Trash2, Edit, Save, 
   Building2, User, Landmark, Zap, Users as UsersIcon,
-  Download, Filter, ChevronLeft, ChevronRight, PanelLeft
+  Download, Filter, ChevronLeft, ChevronRight, PanelLeft,
+  RefreshCw
 } from 'lucide-react';
 import { handleExportFormat } from '../utils/exportUtils';
 import ZoomControl from '../components/ZoomControl';
+import { uploadFileToStorage } from '../utils/storageUtils';
 import { useTableColumns } from '../hooks/useTableColumns';
 import { useTableFilters } from '../hooks/useTableFilters';
 import { exportToPDF } from '../utils/pdfExport';
@@ -40,6 +42,57 @@ export default function Customers() {
   const [isFilterActive, setIsFilterActive] = useState(false);
   const [previewDocument, setPreviewDocument] = useState(null);
   const [dragOverZone, setDragOverZone] = useState(null);
+  const [isUploading, setIsUploading] = useState(false);
+
+  const handleCustomerFileUpload = async (files) => {
+    if (!files.length || !user || !formData.id) return;
+    setIsUploading(true);
+    try {
+      const newDocs = [];
+      for (const file of files) {
+        const url = await uploadFileToStorage(file, user.uid, 'customers', formData.id, 'docs');
+        newDocs.push({
+          id: Date.now() + Math.random().toString(36).substring(7),
+          name: file.name,
+          type: file.type || file.name.split('.').pop().toUpperCase() + ' Document',
+          date: new Date().toLocaleDateString('es-ES'),
+          size: (file.size / (1024 * 1024)).toFixed(2) + ' MB',
+          url
+        });
+      }
+      setFormData(prev => ({
+        ...prev,
+        documents: [...(prev.documents || []), ...newDocs]
+      }));
+    } catch (error) {
+      console.error('Error uploading document:', error);
+      alert('Error al subir el documento: ' + error.message);
+    } finally {
+      setIsUploading(false);
+    }
+  };
+
+  const handleTransactionFileUpload = async (file, index) => {
+    if (!file || !user || !formData.id) return;
+    setIsUploading(true);
+    try {
+      const url = await uploadFileToStorage(file, user.uid, 'customers', formData.id, `transactions_${index}`);
+      setFormData(prev => {
+        const newTrs = [...prev.transactions];
+        newTrs[index].doc = file.name;
+        newTrs[index].docUrl = url;
+        return {
+          ...prev,
+          transactions: newTrs
+        };
+      });
+    } catch (error) {
+      console.error('Error uploading transaction document:', error);
+      alert('Error al subir el documento de transacción: ' + error.message);
+    } finally {
+      setIsUploading(false);
+    }
+  };
 
   const [statusFilter, setStatusFilter] = useState('todos');
   const [propertyFilter, setPropertyFilter] = useState([]);
@@ -743,19 +796,10 @@ export default function Customers() {
                           multiple 
                           accept=".pdf,.doc,.docx,.xls,.xlsx,.jpg,.jpeg,.png"
                           className="hidden"
+                          disabled={isUploading}
                           onChange={(e) => {
                             if (e.target.files && e.target.files.length > 0) {
-                              const newDocs = Array.from(e.target.files).map(file => ({
-                                name: file.name,
-                                type: file.type || file.name.split('.').pop().toUpperCase() + ' Document',
-                                date: new Date().toLocaleDateString('es-ES'),
-                                size: (file.size / (1024 * 1024)).toFixed(2) + ' MB',
-                                url: URL.createObjectURL(file)
-                              }));
-                              setFormData({
-                                ...formData,
-                                documents: [...(formData.documents || []), ...newDocs]
-                              });
+                              handleCustomerFileUpload(e.target.files);
                             }
                             e.target.value = null; // reset input
                           }}
@@ -764,36 +808,36 @@ export default function Customers() {
                           className="btn-classic px-3 h-5 text-[10px] flex items-center cursor-pointer mr-1"
                           onClick={() => exportToCSV(formData.documents || [], 'Documentos_Cliente')}
                           title="Exportar a Excel (CSV)"
+                          disabled={isUploading}
                         >
                           <Download className="w-3 h-3 mr-1 text-green-800" /> Exportar
                         </button>
                         <label 
                           htmlFor="file-upload" 
-                          className="btn-classic px-3 h-5 text-[10px] flex items-center cursor-pointer"
+                          className={`btn-classic px-3 h-5 text-[10px] flex items-center cursor-pointer ${isUploading ? 'opacity-50 cursor-not-allowed' : ''}`}
                         >
-                          <Plus className="w-3 h-3 mr-1" /> Adjuntar
+                          {isUploading ? (
+                            <>
+                              <RefreshCw className="w-3 h-3 mr-1 animate-spin" /> Subiendo...
+                            </>
+                          ) : (
+                            <>
+                              <Plus className="w-3 h-3 mr-1" /> Adjuntar
+                            </>
+                          )}
                         </label>
                       </div>
                       <div 
                         className={`flex-1 overflow-auto border border-[#808080] transition-colors duration-200 ${dragOverZone === 'customerDocs' ? 'bg-blue-50 border-blue-400 ring-2 ring-blue-200 ring-inset' : ''}`}
-                        onDragOver={(e) => { e.preventDefault(); setDragOverZone('customerDocs'); }}
+                        onDragOver={(e) => { e.preventDefault(); if (!isUploading) setDragOverZone('customerDocs'); }}
                         onDragLeave={() => setDragOverZone(null)}
                         onDrop={(e) => {
                           e.preventDefault();
                           setDragOverZone(null);
+                          if (isUploading) return;
                           const files = Array.from(e.dataTransfer.files);
                           if (files.length > 0) {
-                            const newDocs = files.map(file => ({
-                              name: file.name,
-                              type: file.type || file.name.split('.').pop().toUpperCase() + ' Document',
-                              date: new Date().toLocaleDateString('es-ES'),
-                              size: (file.size / (1024 * 1024)).toFixed(2) + ' MB',
-                              url: URL.createObjectURL(file)
-                            }));
-                            setFormData({
-                              ...formData,
-                              documents: [...(formData.documents || []), ...newDocs]
-                            });
+                            handleCustomerFileUpload(files);
                           }
                         }}
                       >
@@ -899,12 +943,10 @@ export default function Customers() {
                                 onDrop={(e) => {
                                   e.preventDefault();
                                   setDragOverZone(null);
+                                  if (isUploading) return;
                                   const file = e.dataTransfer.files[0];
                                   if (file) {
-                                    const newTrs = [...formData.transactions];
-                                    newTrs[idx].doc = file.name;
-                                    newTrs[idx].docUrl = URL.createObjectURL(file);
-                                    setFormData({...formData, transactions: newTrs});
+                                    handleTransactionFileUpload(file, idx);
                                   }
                                 }}
                               >
@@ -1007,22 +1049,24 @@ export default function Customers() {
                                         id={`trans-file-${idx}`} 
                                         className="hidden"
                                         accept=".pdf,.doc,.docx,.xls,.xlsx,.jpg,.jpeg,.png"
+                                        disabled={isUploading}
                                         onChange={(e) => {
                                           if (e.target.files && e.target.files.length > 0) {
-                                            const newTrs = [...formData.transactions];
-                                            const file = e.target.files[0];
-                                            newTrs[idx].doc = file.name;
-                                            newTrs[idx].docUrl = URL.createObjectURL(file);
-                                            setFormData({...formData, transactions: newTrs});
+                                            handleTransactionFileUpload(e.target.files[0], idx);
                                           }
                                         }}
                                       />
                                       <label 
                                         htmlFor={`trans-file-${idx}`} 
-                                        className="btn-classic px-1 py-0.5 text-[9px] flex items-center justify-center cursor-pointer mx-auto w-16"
+                                        className={`btn-classic px-1 py-0.5 text-[9px] flex items-center justify-center cursor-pointer mx-auto w-16 ${isUploading ? 'opacity-50 cursor-not-allowed' : ''}`}
                                         title="Adjuntar Documento"
                                       >
-                                        <FileText className="w-3 h-3 mr-1" /> PDF
+                                        {isUploading ? (
+                                          <RefreshCw className="w-3 h-3 mr-1 animate-spin" />
+                                        ) : (
+                                          <FileText className="w-3 h-3 mr-1" />
+                                        )}
+                                        PDF
                                       </label>
                                     </>
                                   )}
