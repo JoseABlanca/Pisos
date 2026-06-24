@@ -41,7 +41,7 @@ export default function RvAssets() {
     notes: ''
   });
 
-  const DEFAULT_COLUMNS = ['id', 'name', 'isin', 'type', 'sector', 'currency', 'currentPrice', 'country'];
+  const DEFAULT_COLUMNS = ['id', 'name', 'type', 'sector', 'currency', 'apiSource'];
   const { visibleColumns, toggleColumn, columnWidths, updateColumnWidth } = useTableColumns('rv-assets', DEFAULT_COLUMNS);
 
   // Filter and search computation - declared early to avoid Temporal Dead Zone (TDZ)
@@ -434,12 +434,10 @@ export default function RvAssets() {
                 <tr>
                   {visibleColumns.includes('id') && <th style={{ width: columnWidths['id'] || '100px' }}>Ticker</th>}
                   {visibleColumns.includes('name') && <th style={{ width: columnWidths['name'] || '200px' }}>Nombre</th>}
-                  {visibleColumns.includes('isin') && <th style={{ width: columnWidths['isin'] || '120px' }}>ISIN</th>}
-                  {visibleColumns.includes('type') && <th style={{ width: columnWidths['type'] || '120px' }}>Tipo</th>}
-                  {visibleColumns.includes('sector') && <th style={{ width: columnWidths['sector'] || '130px' }}>Sector</th>}
-                  {visibleColumns.includes('currency') && <th style={{ width: columnWidths['currency'] || '80px' }}>Divisa</th>}
-                  {visibleColumns.includes('currentPrice') && <th style={{ width: columnWidths['currentPrice'] || '100px' }}>Precio</th>}
-                  {visibleColumns.includes('country') && <th style={{ width: columnWidths['country'] || '110px' }}>País</th>}
+                  {visibleColumns.includes('type') && <th style={{ width: columnWidths['type'] || '130px' }}>Tipo de activo</th>}
+                  {visibleColumns.includes('sector') && <th style={{ width: columnWidths['sector'] || '140px' }}>Sector</th>}
+                  {visibleColumns.includes('currency') && <th style={{ width: columnWidths['currency'] || '90px' }}>Divisa</th>}
+                  {visibleColumns.includes('apiSource') && <th style={{ width: columnWidths['apiSource'] || '130px' }}>Origen API</th>}
                 </tr>
               </thead>
               <tbody>
@@ -456,18 +454,12 @@ export default function RvAssets() {
                       onClick={() => setSelectedAsset(selectedAsset?.id === asset.id ? null : asset)}
                       className={selectedAsset?.id === asset.id ? 'selected' : ''}
                     >
-                      {visibleColumns.includes('id') && <td>{asset.id}</td>}
+                      {visibleColumns.includes('id') && <td className="font-mono font-bold">{asset.id}</td>}
                       {visibleColumns.includes('name') && <td>{asset.name}</td>}
-                      {visibleColumns.includes('isin') && <td>{asset.isin || '-'}</td>}
                       {visibleColumns.includes('type') && <td>{asset.type}</td>}
                       {visibleColumns.includes('sector') && <td>{asset.sector}</td>}
                       {visibleColumns.includes('currency') && <td>{asset.currency}</td>}
-                      {visibleColumns.includes('currentPrice') && (
-                        <td className="font-mono text-right font-bold text-slate-800">
-                          {asset.currentPrice.toLocaleString('es-ES', { minimumFractionDigits: 2, maximumFractionDigits: 4 })} {asset.currency}
-                        </td>
-                      )}
-                      {visibleColumns.includes('country') && <td>{asset.country}</td>}
+                      {visibleColumns.includes('apiSource') && <td className="text-gray-500">{asset.apiSource || '-'}</td>}
                     </tr>
                   ))
                 )}

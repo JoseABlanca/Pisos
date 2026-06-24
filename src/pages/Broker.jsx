@@ -34,7 +34,7 @@ export default function Broker() {
     notes: ''
   });
 
-  const DEFAULT_COLUMNS = ['id', 'name', 'accountNumber', 'regulation', 'currency', 'cashBalance', 'status'];
+  const DEFAULT_COLUMNS = ['id', 'name', 'accountNumber', 'currency', 'status'];
   const { visibleColumns, toggleColumn, columnWidths, updateColumnWidth } = useTableColumns('rv-brokers', DEFAULT_COLUMNS);
 
   // Filter and search computation - declared early to avoid Temporal Dead Zone (TDZ)
@@ -315,12 +315,10 @@ export default function Broker() {
             <table className="clean-table">
               <thead>
                 <tr>
-                  {visibleColumns.includes('id') && <th style={{ width: columnWidths['id'] || '80px' }}>ID</th>}
-                  {visibleColumns.includes('name') && <th style={{ width: columnWidths['name'] || '180px' }}>Nombre</th>}
-                  {visibleColumns.includes('accountNumber') && <th style={{ width: columnWidths['accountNumber'] || '160px' }}>Número de cuenta</th>}
-                  {visibleColumns.includes('regulation') && <th style={{ width: columnWidths['regulation'] || '150px' }}>Regulación</th>}
-                  {visibleColumns.includes('currency') && <th style={{ width: columnWidths['currency'] || '80px' }}>Divisa</th>}
-                  {visibleColumns.includes('cashBalance') && <th style={{ width: columnWidths['cashBalance'] || '120px' }}>Saldo Efectivo</th>}
+                  {visibleColumns.includes('id') && <th style={{ width: columnWidths['id'] || '80px' }}>ID Broker</th>}
+                  {visibleColumns.includes('name') && <th style={{ width: columnWidths['name'] || '200px' }}>Nombre Broker</th>}
+                  {visibleColumns.includes('accountNumber') && <th style={{ width: columnWidths['accountNumber'] || '180px' }}>Número de cuenta</th>}
+                  {visibleColumns.includes('currency') && <th style={{ width: columnWidths['currency'] || '100px' }}>Tipo de divisa</th>}
                   {visibleColumns.includes('status') && <th style={{ width: columnWidths['status'] || '90px' }}>Estado</th>}
                 </tr>
               </thead>
@@ -328,7 +326,7 @@ export default function Broker() {
                 {filteredBrokers.length === 0 ? (
                   <tr>
                     <td colSpan={visibleColumns.length} className="text-center py-8 text-gray-400 font-medium">
-                      No se encontraron brokers. Ve a la pestaña de Configuración para cargar datos de ejemplo.
+                      No se encontraron brokers. Añade uno nuevo desde el menú superior.
                     </td>
                   </tr>
                 ) : (
@@ -341,13 +339,7 @@ export default function Broker() {
                       {visibleColumns.includes('id') && <td>{broker.id}</td>}
                       {visibleColumns.includes('name') && <td>{broker.name}</td>}
                       {visibleColumns.includes('accountNumber') && <td>{broker.accountNumber || '-'}</td>}
-                      {visibleColumns.includes('regulation') && <td>{broker.regulation}</td>}
                       {visibleColumns.includes('currency') && <td>{broker.currency}</td>}
-                      {visibleColumns.includes('cashBalance') && (
-                        <td className="font-mono text-right font-bold text-slate-800">
-                          {broker.cashBalance.toLocaleString('es-ES', { minimumFractionDigits: 2, maximumFractionDigits: 2 })} {broker.currency}
-                        </td>
-                      )}
                       {visibleColumns.includes('status') && (
                         <td>
                           <span

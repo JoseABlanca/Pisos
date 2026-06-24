@@ -549,26 +549,22 @@ export default function Layout() {
       ]}
     ],
     'Broker': [
-      { group: 'BROKERS', items: [
-        { id: 'id', name: 'ID' },
-        { id: 'name', name: 'Nombre' },
-        { id: 'regulation', name: 'Regulación' },
-        { id: 'currency', name: 'Divisa base' },
-        { id: 'cashBalance', name: 'Efectivo disponible' },
-        { id: 'accountingAccount', name: 'Cuenta contable' },
+      { group: 'DATOS BROKER', items: [
+        { id: 'id', name: 'ID Broker' },
+        { id: 'name', name: 'Nombre Broker' },
+        { id: 'accountNumber', name: 'Número de cuenta' },
+        { id: 'currency', name: 'Tipo de divisa' },
         { id: 'status', name: 'Estado' }
       ]}
     ],
     'Activos RV': [
-      { group: 'ACTIVOS', items: [
-        { id: 'id', name: 'Ticker' },
+      { group: 'DATOS ACTIVO', items: [
+        { id: 'id', name: 'Ticker / Símbolo' },
         { id: 'name', name: 'Nombre' },
-        { id: 'isin', name: 'ISIN' },
-        { id: 'type', name: 'Tipo de Activo' },
+        { id: 'type', name: 'Tipo de activo' },
         { id: 'sector', name: 'Sector' },
-        { id: 'currency', name: 'Divisa' },
-        { id: 'currentPrice', name: 'Precio Actual' },
-        { id: 'country', name: 'País' }
+        { id: 'currency', name: 'Divisa histórico' },
+        { id: 'apiSource', name: 'Origen API' }
       ]}
     ]
   };
