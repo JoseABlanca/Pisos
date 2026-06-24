@@ -52,6 +52,7 @@ export const useTableColumns = (tableId, defaultColumns) => {
       'portfolio': 'portfolio',
       'rv-brokers': 'rv-broker',
       'rv-assets': 'rv-asset',
+      'rv-transactions': 'rv-transaction',
     };
     const myAction = actionMap[tableId];
 
@@ -76,6 +77,7 @@ export const useTableColumns = (tableId, defaultColumns) => {
     if (tableId === 'rv-brokers') tab = 'Broker';
     if (tableId === 'rv-assets') tab = 'Activos RV';
     if (tableId === 'portfolio') tab = 'Portfolio';
+    if (tableId === 'rv-transactions') tab = 'Transacciones';
     
     window.dispatchEvent(new CustomEvent('sync-columns', { detail: { tab, columns: visibleColumns } }));
   }, [visibleColumns, tableId]);

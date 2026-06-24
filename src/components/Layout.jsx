@@ -566,6 +566,21 @@ export default function Layout() {
         { id: 'currency', name: 'Divisa histórico' },
         { id: 'apiSource', name: 'Origen API' }
       ]}
+    ],
+    'Transacciones': [
+      { group: 'DATOS TRANSACCIÓN', items: [
+        { id: 'id', name: 'ID Transacción' },
+        { id: 'date', name: 'Fecha' },
+        { id: 'assetId', name: 'Activo (Ticker)' },
+        { id: 'brokerName', name: 'Broker' },
+        { id: 'type', name: 'Tipo Operación' },
+        { id: 'quantity', name: 'Cantidad (Títulos)' },
+        { id: 'price', name: 'Precio Unitario' },
+        { id: 'fee', name: 'Comisiones' },
+        { id: 'exchangeRate', name: 'Tipo Cambio' },
+        { id: 'currency', name: 'Divisa' },
+        { id: 'totalAmount', name: 'Total' }
+      ]}
     ]
   };
 
@@ -582,7 +597,7 @@ export default function Layout() {
   const moduleTabs = {
     'Contabilidad': ['Cuentas contables', 'Diario', 'Mayor', 'Sumas y saldos'],
     'Inversiones inmobiliarias': ['Activos', 'Propietarios', 'Clientes', 'Alquileres'],
-    'Renta variable': ['Portfolio', 'Broker', 'Activos RV', 'Métricas RV'],
+    'Renta variable': ['Portfolio', 'Broker', 'Activos RV', 'Transacciones', 'Métricas RV'],
     'Informes': ['Reportes', 'Dashboard'],
     'Impuestos': ['Total', 'Inversiones inmobiliarias'],
     'Herramientas': ['Calculadora'],
@@ -601,6 +616,7 @@ export default function Layout() {
     'Portfolio': '/portfolio',
     'Broker': '/broker',
     'Activos RV': '/rv-assets',
+    'Transacciones': '/rv-transactions',
     'Métricas RV': '/rv-metrics',
     'Reportes': '/reports',
     'Dashboard': '/dashboard',
@@ -811,6 +827,23 @@ export default function Layout() {
         items: [
           { name: 'Añadir columna', action: 'rv-asset:columns', path: '/rv-assets', customIcon: 'AddColumn' },
           { name: 'Exportar', action: 'rv-asset:export', path: '/rv-assets', customIcon: 'Exportar' }
+        ]
+      }
+    ],
+    'Transacciones': [
+      { 
+        group: 'Mantenimiento', 
+        items: [
+          { name: 'Nuevo', action: 'rv-transaction:new', path: '/rv-transactions', customIcon: 'Nuevo' },
+          { name: 'Modificar', action: 'rv-transaction:edit', path: '/rv-transactions', customIcon: 'Modificar' },
+          { name: 'Eliminar', action: 'rv-transaction:delete', path: '/rv-transactions', customIcon: 'Eliminar' }
+        ] 
+      },
+      {
+        group: 'Acciones',
+        items: [
+          { name: 'Añadir columna', action: 'rv-transaction:columns', path: '/rv-transactions', customIcon: 'AddColumn' },
+          { name: 'Exportar', action: 'rv-transaction:export', path: '/rv-transactions', customIcon: 'Exportar' }
         ]
       }
     ],

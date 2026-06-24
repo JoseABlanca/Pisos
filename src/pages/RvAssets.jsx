@@ -22,6 +22,7 @@ export default function RvAssets() {
   
   // Modal states
   const [activeFormTab, setActiveFormTab] = useState('datos'); // 'datos' | 'historico' | 'extracto'
+  const [showModalSidebar, setShowModalSidebar] = useState(true);
   const [tempHistory, setTempHistory] = useState([]); // holds parsed CSV or API generated prices
   const [dbHistory, setDbHistory] = useState([]); // holds loaded prices from Firestore
   const [isGenerating, setIsGenerating] = useState(false);
@@ -532,229 +533,272 @@ export default function RvAssets() {
         </div>
       </div>
 
-      {/* Asset Maintenance Form Window with 3 Tabs: Datos, Histórico, Extracto cuentas */}
+      {/* Asset Maintenance Form Window with persistent Sidebar */}
       {showForm && (
         <div className="fixed inset-0 bg-black/35 backdrop-blur-xs flex items-center justify-center z-[200]">
           <Window
             title={isEditing ? `Modificar Activo: ${formData.id}` : 'Nuevo Activo de Renta Variable'}
             onClose={() => setShowForm(false)}
-            width="650px"
-            height="auto"
-            initialPos={{ x: (window.innerWidth - 650) / 2, y: 100 }}
-            menuItems={[
-              { label: 'Datos', onClick: () => setActiveFormTab('datos') },
-              { label: 'Histórico', onClick: () => setActiveFormTab('historico') },
-              { label: 'Extracto cuentas', onClick: () => setActiveFormTab('extracto') },
-            ]}
+            width={isMobile ? "100%" : "900px"}
+            height={isMobile ? "100%" : "600px"}
+            initialPos={{ x: (window.innerWidth - (isMobile ? window.innerWidth : 900)) / 2, y: 100 }}
+            onMenuClick={() => setShowModalSidebar(!showModalSidebar)}
           >
-
-            {/* Modal Content */}
-            <div className="flex-1 overflow-auto bg-white">
-              {activeFormTab === 'datos' && (
-                <form onSubmit={handleSave} className="p-4 space-y-3">
-                  <div className="win-form-row">
-                    <label className="win-form-label">Ticker / Símbolo:</label>
-                    <input
-                      type="text"
-                      value={formData.id}
-                      onChange={(e) => setFormData({ ...formData, id: e.target.value })}
-                      placeholder="ej. AAPL, TEF.MC"
-                      required
-                      className="win-input flex-1 uppercase"
-                    />
-                  </div>
-
-                  <div className="win-form-row">
-                    <label className="win-form-label">Nombre:</label>
-                    <input
-                      type="text"
-                      value={formData.name}
-                      onChange={(e) => setFormData({ ...formData, name: e.target.value })}
-                      placeholder="ej. Apple Inc."
-                      required
-                      className="win-input flex-1"
-                    />
-                  </div>
-
-                  <div className="win-form-row">
-                    <label className="win-form-label">Tipo de activo:</label>
-                    <select
-                      value={formData.type}
-                      onChange={(e) => setFormData({ ...formData, type: e.target.value })}
-                      className="win-input flex-1"
-                    >
-                      {assetTypes.map((type) => (
-                        <option key={type} value={type}>{type}</option>
-                      ))}
-                    </select>
-                  </div>
-
-                  <div className="win-form-row">
-                    <label className="win-form-label">Sector:</label>
-                    <input
-                      type="text"
-                      value={formData.sector}
-                      onChange={(e) => setFormData({ ...formData, sector: e.target.value })}
-                      placeholder="ej. Tecnología, Salud"
-                      className="win-input flex-1"
-                    />
-                  </div>
-
-                  <div className="win-form-row">
-                    <label className="win-form-label">Divisa histórico:</label>
-                    <select
-                      value={formData.currency}
-                      onChange={(e) => setFormData({ ...formData, currency: e.target.value })}
-                      className="win-input flex-1"
-                    >
-                      <option value="EUR">EUR (€)</option>
-                      <option value="USD">USD ($)</option>
-                      <option value="GBP">GBP (£)</option>
-                      <option value="CHF">CHF (Fr.)</option>
-                    </select>
-                  </div>
-
-                  <div className="win-form-row">
-                    <label className="win-form-label">Origen API:</label>
-                    <select
-                      value={formData.apiSource}
-                      onChange={(e) => setFormData({ ...formData, apiSource: e.target.value })}
-                      className="win-input flex-1"
-                    >
-                      {apiSources.map((src) => (
-                        <option key={src} value={src}>{src}</option>
-                      ))}
-                    </select>
-                  </div>
-
-                  <div className="win-form-row">
-                    <label className="win-form-label">Rango de fechas:</label>
-                    <div className="flex-1 flex space-x-2">
-                      <input
-                        type="date"
-                        value={formData.startDate}
-                        onChange={(e) => setFormData({ ...formData, startDate: e.target.value })}
-                        className="win-input flex-1"
-                      />
-                      <span className="text-[11px] self-center text-gray-500">hasta</span>
-                      <input
-                        type="date"
-                        value={formData.endDate}
-                        onChange={(e) => setFormData({ ...formData, endDate: e.target.value })}
-                        className="win-input flex-1"
-                      />
-                    </div>
-                  </div>
-
-                  <div className="win-form-row">
-                    <span className="win-form-label"></span>
+            <div className="flex flex-1 h-full min-h-0 bg-[#d4d0c8] relative">
+              {/* Sidebar */}
+              {showModalSidebar && (
+                <div className={`bg-[#f0f0f0] border-r border-[#808080] shrink-0 overflow-y-auto p-2 flex flex-col shadow-[inset_-1px_0_0_rgba(0,0,0,0.1)] ${isMobile ? 'absolute inset-y-0 left-0 z-30 w-56' : 'w-56'}`}>
+                  <div className="bg-white border border-[#a0a0a0] flex flex-col">
                     <button
-                      type="button"
-                      onClick={handleFetchFromApi}
-                      disabled={isGenerating}
-                      className="flex-1 flex items-center justify-center space-x-1.5 px-3 py-1.5 bg-blue-50 text-blue-700 border border-blue-300 rounded text-[11px] font-bold cursor-pointer hover:bg-blue-100 transition-colors disabled:opacity-50"
+                      onClick={() => { setActiveFormTab('datos'); if (isMobile) setShowModalSidebar(false); }}
+                      className={`w-full text-left px-4 py-2.5 text-[12px] transition-colors border-y ${
+                        activeFormTab === 'datos'
+                          ? 'bg-[#c0c0c0] text-black border-[#a0a0a0] shadow-[inset_0px_1px_1px_rgba(0,0,0,0.1)] font-semibold'
+                          : 'bg-white text-slate-700 border-transparent hover:bg-[#f8f8f8]'
+                      }`}
                     >
-                      <RefreshCw className={`w-3.5 h-3.5 ${isGenerating ? 'animate-spin' : ''}`} />
-                      <span>{isGenerating ? 'Descargando de API...' : 'Obtener Datos de API'}</span>
+                      Datos
+                    </button>
+                    <button
+                      onClick={() => { setActiveFormTab('historico'); if (isMobile) setShowModalSidebar(false); }}
+                      className={`w-full text-left px-4 py-2.5 text-[12px] transition-colors border-y ${
+                        activeFormTab === 'historico'
+                          ? 'bg-[#c0c0c0] text-black border-[#a0a0a0] shadow-[inset_0px_1px_1px_rgba(0,0,0,0.1)] font-semibold'
+                          : 'bg-white text-slate-700 border-transparent hover:bg-[#f8f8f8]'
+                      }`}
+                    >
+                      Histórico
+                    </button>
+                    <button
+                      onClick={() => { setActiveFormTab('extracto'); if (isMobile) setShowModalSidebar(false); }}
+                      className={`w-full text-left px-4 py-2.5 text-[12px] transition-colors border-y ${
+                        activeFormTab === 'extracto'
+                          ? 'bg-[#c0c0c0] text-black border-[#a0a0a0] shadow-[inset_0px_1px_1px_rgba(0,0,0,0.1)] font-semibold'
+                          : 'bg-white text-slate-700 border-transparent hover:bg-[#f8f8f8]'
+                      }`}
+                    >
+                      Extracto cuentas
                     </button>
                   </div>
+                </div>
+              )}
+              {/* Mobile backdrop */}
+              {isMobile && showModalSidebar && (
+                <div className="absolute inset-0 z-20 bg-black/30" onClick={() => setShowModalSidebar(false)} />
+              )}
 
-                  <div className="win-form-row">
-                    <label className="win-form-label">Cargar CSV/Excel:</label>
-                    <label className="flex-1 flex items-center justify-center space-x-1.5 px-3 py-1.5 bg-slate-50 border border-slate-300 text-slate-700 rounded text-[11px] font-bold cursor-pointer hover:bg-slate-100 transition-colors">
-                      <Upload className="w-3.5 h-3.5" />
-                      <span>Subir Archivo (.csv)</span>
-                      <input type="file" accept=".csv" onChange={handleCSVUpload} className="hidden" />
-                    </label>
+              {/* Main Content Area */}
+              <div className="flex-1 bg-[#d4d0c8] flex flex-col relative overflow-hidden">
+                <div className="flex-1 overflow-auto bg-[#d4d0c8] p-3">
+                  <div className="bg-[#d4d0c8] border border-white shadow-[1px_1px_0px_#000] p-4 min-h-full flex flex-col">
+                    
+                    {activeFormTab === 'datos' && (
+                      <form id="asset-form" onSubmit={handleSave} className="space-y-3 flex-1">
+                        <div className="win-form-row">
+                          <label className="win-form-label">Ticker / Símbolo:</label>
+                          <input
+                            type="text"
+                            value={formData.id}
+                            onChange={(e) => setFormData({ ...formData, id: e.target.value })}
+                            placeholder="ej. AAPL, TEF.MC"
+                            required
+                            className="win-input flex-1 uppercase"
+                          />
+                        </div>
+
+                        <div className="win-form-row">
+                          <label className="win-form-label">Nombre:</label>
+                          <input
+                            type="text"
+                            value={formData.name}
+                            onChange={(e) => setFormData({ ...formData, name: e.target.value })}
+                            placeholder="ej. Apple Inc."
+                            required
+                            className="win-input flex-1"
+                          />
+                        </div>
+
+                        <div className="win-form-row">
+                          <label className="win-form-label">Tipo de activo:</label>
+                          <select
+                            value={formData.type}
+                            onChange={(e) => setFormData({ ...formData, type: e.target.value })}
+                            className="win-input flex-1"
+                          >
+                            {assetTypes.map((type) => (
+                              <option key={type} value={type}>{type}</option>
+                            ))}
+                          </select>
+                        </div>
+
+                        <div className="win-form-row">
+                          <label className="win-form-label">Sector:</label>
+                          <input
+                            type="text"
+                            value={formData.sector}
+                            onChange={(e) => setFormData({ ...formData, sector: e.target.value })}
+                            placeholder="ej. Tecnología, Salud"
+                            className="win-input flex-1"
+                          />
+                        </div>
+
+                        <div className="win-form-row">
+                          <label className="win-form-label">Divisa histórico:</label>
+                          <select
+                            value={formData.currency}
+                            onChange={(e) => setFormData({ ...formData, currency: e.target.value })}
+                            className="win-input flex-1"
+                          >
+                            <option value="EUR">EUR (€)</option>
+                            <option value="USD">USD ($)</option>
+                            <option value="GBP">GBP (£)</option>
+                            <option value="CHF">CHF (Fr.)</option>
+                          </select>
+                        </div>
+
+                        <div className="win-form-row">
+                          <label className="win-form-label">Origen API:</label>
+                          <select
+                            value={formData.apiSource}
+                            onChange={(e) => setFormData({ ...formData, apiSource: e.target.value })}
+                            className="win-input flex-1"
+                          >
+                            {apiSources.map((src) => (
+                              <option key={src} value={src}>{src}</option>
+                            ))}
+                          </select>
+                        </div>
+
+                        <div className="win-form-row">
+                          <label className="win-form-label">Rango de fechas:</label>
+                          <div className="flex-1 flex space-x-2">
+                            <input
+                              type="date"
+                              value={formData.startDate}
+                              onChange={(e) => setFormData({ ...formData, startDate: e.target.value })}
+                              className="win-input flex-1"
+                            />
+                            <span className="text-[11px] self-center text-gray-500">hasta</span>
+                            <input
+                              type="date"
+                              value={formData.endDate}
+                              onChange={(e) => setFormData({ ...formData, endDate: e.target.value })}
+                              className="win-input flex-1"
+                            />
+                          </div>
+                        </div>
+
+                        <div className="win-form-row">
+                          <span className="win-form-label"></span>
+                          <button
+                            type="button"
+                            onClick={handleFetchFromApi}
+                            disabled={isGenerating}
+                            className="flex-1 flex items-center justify-center space-x-1.5 px-3 py-1.5 bg-blue-50 text-blue-700 border border-blue-300 rounded text-[11px] font-bold cursor-pointer hover:bg-blue-100 transition-colors disabled:opacity-50"
+                          >
+                            <RefreshCw className={`w-3.5 h-3.5 ${isGenerating ? 'animate-spin' : ''}`} />
+                            <span>{isGenerating ? 'Descargando de API...' : 'Obtener Datos de API'}</span>
+                          </button>
+                        </div>
+
+                        <div className="win-form-row">
+                          <label className="win-form-label">Cargar CSV/Excel:</label>
+                          <label className="flex-1 flex items-center justify-center space-x-1.5 px-3 py-1.5 bg-slate-50 border border-slate-300 text-slate-700 rounded text-[11px] font-bold cursor-pointer hover:bg-slate-100 transition-colors">
+                            <Upload className="w-3.5 h-3.5" />
+                            <span>Subir Archivo (.csv)</span>
+                            <input type="file" accept=".csv" onChange={handleCSVUpload} className="hidden" />
+                          </label>
+                        </div>
+                      </form>
+                    )}
+
+                    {activeFormTab === 'historico' && (
+                      <div className="flex flex-col flex-1 min-h-0">
+                        <div className="flex justify-between items-center mb-2">
+                          <h4 className="text-[11px] font-bold text-slate-700 uppercase tracking-wider">
+                            Datos Históricos de Precios ({formData.id || 'NUEVO'})
+                          </h4>
+                          <span className="text-[10px] text-gray-500 font-bold">
+                            Filas cargadas: <span className="text-blue-600">{displayedHistory.length}</span>
+                          </span>
+                        </div>
+                        <div className="flex-1 overflow-auto border border-gray-300 rounded-sm">
+                          <table className="clean-table">
+                            <thead className="sticky top-0 bg-[#f8fafc] z-10">
+                              <tr>
+                                <th>Fecha</th>
+                                <th className="text-right">Precio de Cierre ({formData.currency})</th>
+                              </tr>
+                            </thead>
+                            <tbody>
+                              {displayedHistory.length === 0 ? (
+                                <tr>
+                                  <td colSpan="2" className="text-center py-8 text-gray-400 font-medium">
+                                    No hay histórico de precios cargado. Usa el formulario Datos para importar de API o CSV.
+                                  </td>
+                                </tr>
+                              ) : (
+                                displayedHistory.map((row, idx) => (
+                                  <tr key={idx}>
+                                    <td className="font-mono">{row.date}</td>
+                                    <td className="font-mono text-right font-bold text-slate-800">
+                                      {row.close.toLocaleString('es-ES', { minimumFractionDigits: 2, maximumFractionDigits: 4 })}
+                                    </td>
+                                  </tr>
+                                ))
+                              )}
+                            </tbody>
+                          </table>
+                        </div>
+                      </div>
+                    )}
+
+                    {activeFormTab === 'extracto' && (
+                      <div className="p-8 flex flex-col items-center justify-center flex-1 text-center space-y-2">
+                        <FileText className="w-10 h-10 text-gray-400" />
+                        <h4 className="text-[13px] font-bold text-slate-700 uppercase">
+                          Extracto de cuentas
+                        </h4>
+                        <p className="text-[11px] text-gray-500 max-w-sm">
+                          Esta pestaña se desarrollará más adelante para consolidar los extractos y saldos de cuentas asociados a este activo.
+                        </p>
+                      </div>
+                    )}
+
                   </div>
+                </div>
 
-                  <div className="flex justify-end space-x-2 pt-3 border-t border-gray-200">
+                {/* Action Buttons (styled like RealEstate.jsx) */}
+                <div className="flex justify-end gap-2 shrink-0 pt-2 pb-1 pr-1 bg-[#d4d0c8] border-t border-[#808080]">
+                  {activeFormTab === 'datos' ? (
+                    <>
+                      <button
+                        type="submit"
+                        form="asset-form"
+                        className="px-6 py-1 border border-gray-400 bg-gray-100 hover:bg-gray-200 shadow-sm text-[11px] font-bold uppercase cursor-pointer"
+                      >
+                        Aceptar
+                      </button>
+                      <button
+                        type="button"
+                        onClick={() => setShowForm(false)}
+                        className="px-6 py-1 border border-gray-400 bg-gray-100 hover:bg-gray-200 shadow-sm text-[11px] font-bold uppercase cursor-pointer"
+                      >
+                        Cancelar
+                      </button>
+                    </>
+                  ) : (
                     <button
                       type="button"
                       onClick={() => setShowForm(false)}
-                      className="px-4 py-1.5 bg-slate-100 hover:bg-slate-200 text-slate-800 text-[11px] font-bold border border-slate-300 rounded cursor-pointer transition-colors"
+                      className="px-6 py-1 border border-gray-400 bg-gray-100 hover:bg-gray-200 shadow-sm text-[11px] font-bold uppercase cursor-pointer"
                     >
-                      Cancelar
+                      Cerrar
                     </button>
-                    <button
-                      type="submit"
-                      className="px-4 py-1.5 bg-blue-600 hover:bg-blue-700 text-white text-[11px] font-bold rounded cursor-pointer transition-colors flex items-center space-x-1"
-                    >
-                      <Save className="w-3.5 h-3.5" />
-                      <span>Guardar</span>
-                    </button>
-                  </div>
-                </form>
-              )}
-
-              {activeFormTab === 'historico' && (
-                <div className="p-4 flex flex-col h-[350px]">
-                  <div className="flex justify-between items-center mb-2">
-                    <h4 className="text-[11px] font-bold text-slate-700 uppercase tracking-wider">
-                      Datos Históricos de Precios ({formData.id || 'NUEVO'})
-                    </h4>
-                    <span className="text-[10px] text-gray-500 font-bold">
-                      Filas cargadas: <span className="text-blue-600">{displayedHistory.length}</span>
-                    </span>
-                  </div>
-                  <div className="flex-1 overflow-auto border border-gray-300 rounded-sm">
-                    <table className="clean-table">
-                      <thead className="sticky top-0 bg-[#f8fafc] z-10">
-                        <tr>
-                          <th>Fecha</th>
-                          <th className="text-right">Precio de Cierre ({formData.currency})</th>
-                        </tr>
-                      </thead>
-                      <tbody>
-                        {displayedHistory.length === 0 ? (
-                          <tr>
-                            <td colSpan="2" className="text-center py-8 text-gray-400 font-medium">
-                              No hay histórico de precios cargado. Usa el formulario Datos para importar de API o CSV.
-                            </td>
-                          </tr>
-                        ) : (
-                          displayedHistory.map((row, idx) => (
-                            <tr key={idx}>
-                              <td className="font-mono">{row.date}</td>
-                              <td className="font-mono text-right font-bold text-slate-800">
-                                {row.close.toLocaleString('es-ES', { minimumFractionDigits: 2, maximumFractionDigits: 4 })}
-                              </td>
-                            </tr>
-                          ))
-                        )}
-                      </tbody>
-                    </table>
-                  </div>
-                  <div className="flex justify-end pt-3 mt-auto">
-                    <button
-                      type="button"
-                      onClick={() => setActiveFormTab('datos')}
-                      className="px-4 py-1.5 bg-slate-100 hover:bg-slate-200 text-slate-800 text-[11px] font-bold border border-slate-300 rounded cursor-pointer transition-colors"
-                    >
-                      Volver a Datos
-                    </button>
-                  </div>
+                  )}
                 </div>
-              )}
 
-              {activeFormTab === 'extracto' && (
-                <div className="p-8 flex flex-col items-center justify-center h-[350px] text-center space-y-2">
-                  <FileText className="w-10 h-10 text-gray-400" />
-                  <h4 className="text-[13px] font-bold text-slate-700 uppercase">
-                    Extracto de cuentas
-                  </h4>
-                  <p className="text-[11px] text-gray-500 max-w-sm">
-                    Esta pestaña se desarrollará más adelante para consolidar los extractos y saldos de cuentas asociados a este activo.
-                  </p>
-                  <button
-                    type="button"
-                    onClick={() => setActiveFormTab('datos')}
-                    className="px-4 py-1.5 bg-slate-100 hover:bg-slate-200 text-slate-800 text-[11px] font-bold border border-slate-300 rounded cursor-pointer mt-4 transition-colors"
-                  >
-                    Volver a Datos
-                  </button>
-                </div>
-              )}
+              </div>
             </div>
           </Window>
         </div>

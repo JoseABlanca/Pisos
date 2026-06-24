@@ -21,6 +21,7 @@ export default function Broker() {
   const [showSidebar, setShowSidebar] = useState(true);
   const [isMobile, setIsMobile] = useState(window.innerWidth < 768);
   const [activeFormTab, setActiveFormTab] = useState('datos'); // 'datos' | 'extractos'
+  const [showModalSidebar, setShowModalSidebar] = useState(true);
 
   const [formData, setFormData] = useState({
     id: '', // Format BR001
@@ -355,171 +356,215 @@ export default function Broker() {
         </div>
       </div>
 
-      {/* Broker Maintenance Form Window (Modal with 2 Tabs: Datos and Extractos) */}
+      {/* Broker Maintenance Form Window (Modal with persistent Sidebar) */}
       {showForm && (
         <div className="fixed inset-0 bg-black/35 backdrop-blur-xs flex items-center justify-center z-[200]">
           <Window
             title={isEditing ? `Modificar Broker: ${formData.id}` : 'Nuevo Broker de Renta Variable'}
             onClose={() => setShowForm(false)}
-            width="650px"
-            height="auto"
-            initialPos={{ x: (window.innerWidth - 650) / 2, y: 100 }}
-            menuItems={[
-              { label: 'Datos', onClick: () => setActiveFormTab('datos') },
-              ...(isEditing ? [{ label: 'Extractos', onClick: () => setActiveFormTab('extractos') }] : [])
-            ]}
+            width={isMobile ? "100%" : "850px"}
+            height={isMobile ? "100%" : "600px"}
+            initialPos={{ x: (window.innerWidth - (isMobile ? window.innerWidth : 850)) / 2, y: 100 }}
+            onMenuClick={() => setShowModalSidebar(!showModalSidebar)}
           >
-            {/* Modal Content */}
-            <div className="flex-1 overflow-auto bg-white">
-              {activeFormTab === 'datos' && (
-                <form onSubmit={handleSave} className="p-4 space-y-3">
-                  <div className="win-form-row">
-                    <label className="win-form-label">ID Broker:</label>
-                    <input
-                      type="text"
-                      value={formData.id}
-                      onChange={(e) => setFormData({ ...formData, id: e.target.value })}
-                      placeholder="ej. BR001"
-                      disabled={isEditing}
-                      required
-                      className="win-input flex-1 uppercase font-mono"
-                    />
-                  </div>
-
-                  <div className="win-form-row">
-                    <label className="win-form-label">Nombre Broker:</label>
-                    <input
-                      type="text"
-                      value={formData.name}
-                      onChange={(e) => setFormData({ ...formData, name: e.target.value })}
-                      placeholder="ej. Interactive Brokers"
-                      required
-                      className="win-input flex-1"
-                    />
-                  </div>
-
-                  <div className="win-form-row">
-                    <label className="win-form-label">Número de cuenta:</label>
-                    <input
-                      type="text"
-                      value={formData.accountNumber}
-                      onChange={(e) => setFormData({ ...formData, accountNumber: e.target.value })}
-                      placeholder="ej. U1234567-A (nexo o efectivo)"
-                      className="win-input flex-1"
-                    />
-                  </div>
-
-                  <div className="win-form-row">
-                    <label className="win-form-label">Tipo de divisa:</label>
-                    <select
-                      value={formData.currency}
-                      onChange={(e) => setFormData({ ...formData, currency: e.target.value })}
-                      className="win-input flex-1"
-                    >
-                      <option value="EUR">EUR (€)</option>
-                      <option value="USD">USD ($)</option>
-                      <option value="GBP">GBP (£)</option>
-                      <option value="CHF">CHF (Fr.)</option>
-                    </select>
-                  </div>
-
-                  <div className="win-form-row">
-                    <label className="win-form-label">Estado:</label>
-                    <select
-                      value={formData.status}
-                      onChange={(e) => setFormData({ ...formData, status: e.target.value })}
-                      className="win-input flex-1"
-                    >
-                      <option value="activo">Activo</option>
-                      <option value="inactivo">Inactivo</option>
-                    </select>
-                  </div>
-
-                  <div className="flex justify-end space-x-2 pt-3 border-t border-gray-200">
+            <div className="flex flex-1 h-full min-h-0 bg-[#d4d0c8] relative">
+              {/* Sidebar */}
+              {showModalSidebar && (
+                <div className={`bg-[#f0f0f0] border-r border-[#808080] shrink-0 overflow-y-auto p-2 flex flex-col shadow-[inset_-1px_0_0_rgba(0,0,0,0.1)] ${isMobile ? 'absolute inset-y-0 left-0 z-30 w-56' : 'w-56'}`}>
+                  <div className="bg-white border border-[#a0a0a0] flex flex-col">
                     <button
-                      type="button"
-                      onClick={() => setShowForm(false)}
-                      className="px-4 py-1.5 bg-slate-100 hover:bg-slate-200 text-slate-800 text-[11px] font-bold border border-slate-300 rounded cursor-pointer transition-colors"
+                      onClick={() => { setActiveFormTab('datos'); if (isMobile) setShowModalSidebar(false); }}
+                      className={`w-full text-left px-4 py-2.5 text-[12px] transition-colors border-y ${
+                        activeFormTab === 'datos'
+                          ? 'bg-[#c0c0c0] text-black border-[#a0a0a0] shadow-[inset_0px_1px_1px_rgba(0,0,0,0.1)] font-semibold'
+                          : 'bg-white text-slate-700 border-transparent hover:bg-[#f8f8f8]'
+                      }`}
                     >
-                      Cancelar
+                      Datos
                     </button>
-                    <button
-                      type="submit"
-                      className="px-4 py-1.5 bg-blue-600 hover:bg-blue-700 text-white text-[11px] font-bold rounded cursor-pointer transition-colors flex items-center space-x-1"
-                    >
-                      <Save className="w-3.5 h-3.5" />
-                      <span>Guardar</span>
-                    </button>
-                  </div>
-                </form>
-              )}
-
-              {activeFormTab === 'extractos' && (
-                <div className="p-4 flex flex-col h-[350px]">
-                  <h4 className="text-[11px] font-bold text-slate-700 uppercase tracking-wider mb-2">
-                    Extracto de movimientos para {formData.name}
-                  </h4>
-                  <div className="flex-1 overflow-auto border border-gray-300 rounded-sm">
-                    <table className="clean-table">
-                      <thead className="sticky top-0 bg-[#f8fafc] z-10">
-                        <tr>
-                          <th style={{ width: '90px' }}>Fecha</th>
-                          <th style={{ width: '80px' }}>Activo</th>
-                          <th style={{ width: '80px' }}>Tipo</th>
-                          <th style={{ width: '90px' }}>Cantidad</th>
-                          <th style={{ width: '100px' }}>Precio</th>
-                          <th style={{ width: '110px' }}>Total</th>
-                        </tr>
-                      </thead>
-                      <tbody>
-                        {brokerTransactions.length === 0 ? (
-                          <tr>
-                            <td colSpan="6" className="text-center py-8 text-gray-400 font-medium">
-                              No hay transacciones registradas para este broker.
-                            </td>
-                          </tr>
-                        ) : (
-                          brokerTransactions.map((tx) => (
-                            <tr key={tx.id}>
-                              <td>{tx.date}</td>
-                              <td className="font-bold">{tx.assetId}</td>
-                              <td>
-                                <span
-                                  className={`px-1.5 py-0.5 rounded-sm text-[8px] font-bold uppercase tracking-wider ${
-                                    tx.type === 'Compra'
-                                      ? 'bg-blue-100 text-blue-800 border border-blue-200'
-                                      : tx.type === 'Venta'
-                                      ? 'bg-orange-100 text-orange-800 border border-orange-200'
-                                      : 'bg-green-100 text-green-800 border border-green-200'
-                                  }`}
-                                >
-                                  {tx.type}
-                                </span>
-                              </td>
-                              <td className="font-mono text-right">{tx.quantity}</td>
-                              <td className="font-mono text-right">
-                                {tx.price.toLocaleString('es-ES', { minimumFractionDigits: 2 })}
-                              </td>
-                              <td className="font-mono text-right font-bold text-slate-800">
-                                {tx.totalAmount.toLocaleString('es-ES', { minimumFractionDigits: 2 })} {tx.currency}
-                              </td>
-                            </tr>
-                          ))
-                        )}
-                      </tbody>
-                    </table>
-                  </div>
-                  <div className="flex justify-end pt-3 mt-auto">
-                    <button
-                      type="button"
-                      onClick={() => setShowForm(false)}
-                      className="px-4 py-1.5 bg-slate-100 hover:bg-slate-200 text-slate-800 text-[11px] font-bold border border-slate-300 rounded cursor-pointer transition-colors"
-                    >
-                      Cerrar
-                    </button>
+                    {isEditing && (
+                      <button
+                        onClick={() => { setActiveFormTab('extractos'); if (isMobile) setShowModalSidebar(false); }}
+                        className={`w-full text-left px-4 py-2.5 text-[12px] transition-colors border-y ${
+                          activeFormTab === 'extractos'
+                            ? 'bg-[#c0c0c0] text-black border-[#a0a0a0] shadow-[inset_0px_1px_1px_rgba(0,0,0,0.1)] font-semibold'
+                            : 'bg-white text-slate-700 border-transparent hover:bg-[#f8f8f8]'
+                        }`}
+                      >
+                        Extractos
+                      </button>
+                    )}
                   </div>
                 </div>
               )}
+              {/* Mobile backdrop */}
+              {isMobile && showModalSidebar && (
+                <div className="absolute inset-0 z-20 bg-black/30" onClick={() => setShowModalSidebar(false)} />
+              )}
+
+              {/* Main Content Area */}
+              <div className="flex-1 bg-[#d4d0c8] flex flex-col relative overflow-hidden">
+                <div className="flex-1 overflow-auto bg-[#d4d0c8] p-3">
+                  <div className="bg-[#d4d0c8] border border-white shadow-[1px_1px_0px_#000] p-4 min-h-full flex flex-col">
+                    
+                    {activeFormTab === 'datos' && (
+                      <form id="broker-form" onSubmit={handleSave} className="space-y-3 flex-1">
+                        <div className="win-form-row">
+                          <label className="win-form-label">ID Broker:</label>
+                          <input
+                            type="text"
+                            value={formData.id}
+                            onChange={(e) => setFormData({ ...formData, id: e.target.value })}
+                            placeholder="ej. BR001"
+                            disabled={isEditing}
+                            required
+                            className="win-input flex-1 uppercase font-mono"
+                          />
+                        </div>
+
+                        <div className="win-form-row">
+                          <label className="win-form-label">Nombre Broker:</label>
+                          <input
+                            type="text"
+                            value={formData.name}
+                            onChange={(e) => setFormData({ ...formData, name: e.target.value })}
+                            placeholder="ej. Interactive Brokers"
+                            required
+                            className="win-input flex-1"
+                          />
+                        </div>
+
+                        <div className="win-form-row">
+                          <label className="win-form-label">Número de cuenta:</label>
+                          <input
+                            type="text"
+                            value={formData.accountNumber}
+                            onChange={(e) => setFormData({ ...formData, accountNumber: e.target.value })}
+                            placeholder="ej. U1234567-A (nexo o efectivo)"
+                            className="win-input flex-1"
+                          />
+                        </div>
+
+                        <div className="win-form-row">
+                          <label className="win-form-label">Tipo de divisa:</label>
+                          <select
+                            value={formData.currency}
+                            onChange={(e) => setFormData({ ...formData, currency: e.target.value })}
+                            className="win-input flex-1"
+                          >
+                            <option value="EUR">EUR (€)</option>
+                            <option value="USD">USD ($)</option>
+                            <option value="GBP">GBP (£)</option>
+                            <option value="CHF">CHF (Fr.)</option>
+                          </select>
+                        </div>
+
+                        <div className="win-form-row">
+                          <label className="win-form-label">Estado:</label>
+                          <select
+                            value={formData.status}
+                            onChange={(e) => setFormData({ ...formData, status: e.target.value })}
+                            className="win-input flex-1"
+                          >
+                            <option value="activo">Activo</option>
+                            <option value="inactivo">Inactivo</option>
+                          </select>
+                        </div>
+                      </form>
+                    )}
+
+                    {activeFormTab === 'extractos' && (
+                      <div className="flex flex-col flex-1 min-h-0">
+                        <h4 className="text-[11px] font-bold text-slate-700 uppercase tracking-wider mb-2">
+                          Extracto de movimientos para {formData.name}
+                        </h4>
+                        <div className="flex-1 overflow-auto border border-gray-300 rounded-sm">
+                          <table className="clean-table">
+                            <thead className="sticky top-0 bg-[#f8fafc] z-10">
+                              <tr>
+                                <th style={{ width: '90px' }}>Fecha</th>
+                                <th style={{ width: '80px' }}>Activo</th>
+                                <th style={{ width: '80px' }}>Tipo</th>
+                                <th style={{ width: '90px' }}>Cantidad</th>
+                                <th style={{ width: '100px' }}>Precio</th>
+                                <th style={{ width: '110px' }}>Total</th>
+                              </tr>
+                            </thead>
+                            <tbody>
+                              {brokerTransactions.length === 0 ? (
+                                <tr>
+                                  <td colSpan="6" className="text-center py-8 text-gray-400 font-medium">
+                                    No hay transacciones registradas para este broker.
+                                  </td>
+                                </tr>
+                              ) : (
+                                brokerTransactions.map((tx) => (
+                                  <tr key={tx.id}>
+                                    <td>{tx.date}</td>
+                                    <td className="font-bold">{tx.assetId}</td>
+                                    <td>
+                                      <span
+                                        className={`px-1.5 py-0.5 rounded-sm text-[8px] font-bold uppercase tracking-wider ${
+                                          tx.type === 'Compra'
+                                            ? 'bg-blue-100 text-blue-800 border border-blue-200'
+                                            : tx.type === 'Venta'
+                                            ? 'bg-orange-100 text-orange-800 border border-orange-200'
+                                            : 'bg-green-100 text-green-800 border border-green-200'
+                                        }`}
+                                      >
+                                        {tx.type}
+                                      </span>
+                                    </td>
+                                    <td className="font-mono text-right">{tx.quantity}</td>
+                                    <td className="font-mono text-right">
+                                      {tx.price.toLocaleString('es-ES', { minimumFractionDigits: 2 })}
+                                    </td>
+                                    <td className="font-mono text-right font-bold text-slate-800">
+                                      {tx.totalAmount.toLocaleString('es-ES', { minimumFractionDigits: 2 })} {tx.currency}
+                                    </td>
+                                  </tr>
+                                ))
+                              )}
+                            </tbody>
+                          </table>
+                        </div>
+                      </div>
+                    )}
+
+                  </div>
+                </div>
+
+                {/* Action Buttons (styled like RealEstate.jsx) */}
+                <div className="flex justify-end gap-2 shrink-0 pt-2 pb-1 pr-1 bg-[#d4d0c8] border-t border-[#808080]">
+                  {activeFormTab === 'datos' ? (
+                    <>
+                      <button
+                        type="submit"
+                        form="broker-form"
+                        className="px-6 py-1 border border-gray-400 bg-gray-100 hover:bg-gray-200 shadow-sm text-[11px] font-bold uppercase cursor-pointer"
+                      >
+                        Aceptar
+                      </button>
+                      <button
+                        type="button"
+                        onClick={() => setShowForm(false)}
+                        className="px-6 py-1 border border-gray-400 bg-gray-100 hover:bg-gray-200 shadow-sm text-[11px] font-bold uppercase cursor-pointer"
+                      >
+                        Cancelar
+                      </button>
+                    </>
+                  ) : (
+                    <button
+                      type="button"
+                      onClick={() => setShowForm(false)}
+                      className="px-6 py-1 border border-gray-400 bg-gray-100 hover:bg-gray-200 shadow-sm text-[11px] font-bold uppercase cursor-pointer"
+                    >
+                      Cerrar
+                    </button>
+                  )}
+                </div>
+
+              </div>
             </div>
           </Window>
         </div>
