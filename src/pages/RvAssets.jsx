@@ -25,6 +25,7 @@ export default function RvAssets() {
   const [tempHistory, setTempHistory] = useState([]); // holds parsed CSV or API generated prices
   const [dbHistory, setDbHistory] = useState([]); // holds loaded prices from Firestore
   const [isGenerating, setIsGenerating] = useState(false);
+  const [originalId, setOriginalId] = useState(null); // tracks original ticker when editing
 
   const [formData, setFormData] = useState({
     id: '', // Ticker symbol
@@ -128,12 +129,10 @@ export default function RvAssets() {
         const allColumns = [
           { header: 'Ticker', dataKey: 'id' },
           { header: 'Nombre', dataKey: 'name' },
-          { header: 'ISIN', dataKey: 'isin' },
           { header: 'Tipo', dataKey: 'type' },
           { header: 'Sector', dataKey: 'sector' },
           { header: 'Divisa', dataKey: 'currency' },
-          { header: 'Precio', dataKey: 'currentPrice' },
-          { header: 'País', dataKey: 'country' }
+          { header: 'Origen API', dataKey: 'apiSource' }
         ];
         const colsToExport = allColumns.filter((c) => visibleColumns.includes(c.dataKey));
         exportToPDF(filtered, colsToExport, 'Reporte de Activos de Renta Variable', 'activos_rv.pdf');
@@ -141,22 +140,17 @@ export default function RvAssets() {
         handleExportFormat(filtered, 'Activos Renta Variable', format);
       }
     };
-    const onToggleColumn = (e) => {
-      toggleColumn(e.detail.columnId);
-    };
 
     window.addEventListener('rv-asset:new', onNew);
     window.addEventListener('rv-asset:edit', onEdit);
     window.addEventListener('rv-asset:delete', onDelete);
     window.addEventListener('rv-asset:export', onExport);
-    window.addEventListener('toggle-column', onToggleColumn);
 
     return () => {
       window.removeEventListener('rv-asset:new', onNew);
       window.removeEventListener('rv-asset:edit', onEdit);
       window.removeEventListener('rv-asset:delete', onDelete);
       window.removeEventListener('rv-asset:export', onExport);
-      window.removeEventListener('toggle-column', onToggleColumn);
     };
   }, [assets, selectedAsset, filteredAssets, visibleColumns]);
 
@@ -183,6 +177,7 @@ export default function RvAssets() {
 
   const handleEdit = (asset) => {
     setIsEditing(true);
+    setOriginalId(asset.id); // track original doc ID for rename handling
     setActiveFormTab('datos');
     setTempHistory([]);
     setFormData({
@@ -250,8 +245,8 @@ export default function RvAssets() {
     reader.readAsText(file);
   };
 
-  // Simulating API download
-  const handleFetchFromApi = () => {
+  // Real Yahoo Finance API fetch via CORS proxy
+  const handleFetchFromApi = async () => {
     if (!formData.id) {
       alert('Por favor, ingresa el Ticker primero.');
       return;
@@ -265,37 +260,74 @@ export default function RvAssets() {
 
     setIsGenerating(true);
     
-    setTimeout(() => {
-      try {
-        const generated = [];
-        let currentDate = new Date(start);
-        let currentPrice = parseFloat(formData.currentPrice) || 120.0;
+    try {
+      const ticker = formData.id.trim().toUpperCase();
+      const period1 = Math.floor(start.getTime() / 1000);
+      const period2 = Math.floor(end.getTime() / 1000);
 
-        while (currentDate <= end) {
-          const day = currentDate.getDay();
-          // Skip weekends
-          if (day !== 0 && day !== 6) {
-            const dateStr = currentDate.toISOString().split('T')[0];
-            // Random walk change: -1.8% to +1.9%
-            const pctChange = (Math.random() * 3.7 - 1.8) / 100;
-            currentPrice = currentPrice * (1 + pctChange);
-            
-            generated.push({
-              date: dateStr,
-              close: parseFloat(currentPrice.toFixed(4))
-            });
-          }
-          currentDate.setDate(currentDate.getDate() + 1);
-        }
+      let data = null;
+      let errorMsg = '';
 
-        setTempHistory(generated);
-        alert(`✓ Se han descargado ${generated.length} registros desde la API (${formData.apiSource}) para el ticker ${formData.id}.`);
-      } catch (e) {
-        alert('Error al generar datos de API: ' + e.message);
-      } finally {
-        setIsGenerating(false);
+      if (formData.apiSource === 'Yahoo Finance') {
+        // Yahoo Finance v8 chart API via allorigins proxy to avoid CORS
+        const yahooUrl = `https://query1.finance.yahoo.com/v8/finance/chart/${ticker}?period1=${period1}&period2=${period2}&interval=1d&events=history`;
+        const proxyUrl = `https://api.allorigins.win/get?url=${encodeURIComponent(yahooUrl)}`;
+        
+        const response = await fetch(proxyUrl);
+        if (!response.ok) throw new Error(`HTTP ${response.status}`);
+        
+        const outer = await response.json();
+        const json = JSON.parse(outer.contents);
+        
+        const result = json?.chart?.result?.[0];
+        if (!result) throw new Error('Respuesta inesperada de Yahoo Finance. Verifica el ticker.');
+        
+        const timestamps = result.timestamp || [];
+        const closes = result.indicators?.quote?.[0]?.close || [];
+        
+        data = timestamps
+          .map((ts, i) => ({
+            date: new Date(ts * 1000).toISOString().split('T')[0],
+            close: closes[i] != null ? parseFloat(closes[i].toFixed(4)) : null
+          }))
+          .filter(r => r.close !== null);
+          
+      } else if (formData.apiSource === 'Alpha Vantage') {
+        errorMsg = 'Alpha Vantage requiere una API key. Por favor usa la carga por CSV.';
+      } else if (formData.apiSource === 'CoinGecko') {
+        // CoinGecko free API (for crypto, by coin ID, no key needed)
+        const days = Math.round((end - start) / (1000 * 60 * 60 * 24));
+        const cgUrl = `https://api.coingecko.com/api/v3/coins/${ticker.toLowerCase()}/market_chart?vs_currency=${formData.currency.toLowerCase()}&days=${days}`;
+        const response = await fetch(cgUrl);
+        if (!response.ok) throw new Error(`CoinGecko HTTP ${response.status}`);
+        const json = await response.json();
+        data = (json.prices || []).map(([ts, price]) => ({
+          date: new Date(ts).toISOString().split('T')[0],
+          close: parseFloat(price.toFixed(4))
+        }));
+      } else {
+        errorMsg = `La API '${formData.apiSource}' no está implementada. Por favor usa Yahoo Finance o carga un CSV.`;
       }
-    }, 800);
+
+      if (errorMsg) {
+        alert(errorMsg);
+        return;
+      }
+
+      if (!data || data.length === 0) {
+        alert('No se encontraron datos para el ticker y rango de fechas indicados. Verifica el ticker.');
+        return;
+      }
+
+      setTempHistory(data);
+      alert(`✓ Se han descargado ${data.length} registros desde ${formData.apiSource} para ${ticker}. Pulsa 'Guardar' para almacenarlos.`);
+
+    } catch (e) {
+      console.error('API fetch error:', e);
+      alert('Error al obtener datos de la API: ' + e.message + '\n\nVerifica el ticker y el rango de fechas.');
+    } finally {
+      setIsGenerating(false);
+    }
   };
 
   const handleSave = async (e) => {
@@ -318,6 +350,11 @@ export default function RvAssets() {
         userId: user.uid,
         updatedAt: new Date().toISOString()
       };
+
+      // If ticker changed while editing, delete old document first
+      if (isEditing && originalId && originalId !== docId) {
+        await deleteDoc(doc(db, 'rv_assets', originalId));
+      }
 
       await setDoc(doc(db, 'rv_assets', docId), cleanData);
 
@@ -496,7 +533,6 @@ export default function RvAssets() {
                       value={formData.id}
                       onChange={(e) => setFormData({ ...formData, id: e.target.value })}
                       placeholder="ej. AAPL, TEF.MC"
-                      disabled={isEditing}
                       required
                       className="win-input flex-1 uppercase"
                     />

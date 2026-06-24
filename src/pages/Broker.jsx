@@ -122,12 +122,10 @@ export default function Broker() {
       const filtered = filteredBrokers;
       if (format === 'pdf') {
         const allColumns = [
-          { header: 'ID', dataKey: 'id' },
-          { header: 'Nombre', dataKey: 'name' },
-          { header: 'Nº Cuenta', dataKey: 'accountNumber' },
-          { header: 'Regulación', dataKey: 'regulation' },
-          { header: 'Divisa', dataKey: 'currency' },
-          { header: 'Efectivo', dataKey: 'cashBalance' },
+          { header: 'ID Broker', dataKey: 'id' },
+          { header: 'Nombre Broker', dataKey: 'name' },
+          { header: 'Nº de Cuenta', dataKey: 'accountNumber' },
+          { header: 'Tipo de divisa', dataKey: 'currency' },
           { header: 'Estado', dataKey: 'status' }
         ];
         const colsToExport = allColumns.filter((c) => visibleColumns.includes(c.dataKey));
@@ -136,22 +134,17 @@ export default function Broker() {
         handleExportFormat(filtered, 'Brokers Renta Variable', format);
       }
     };
-    const onToggleColumn = (e) => {
-      toggleColumn(e.detail.columnId);
-    };
 
     window.addEventListener('rv-broker:new', onNew);
     window.addEventListener('rv-broker:edit', onEdit);
     window.addEventListener('rv-broker:delete', onDelete);
     window.addEventListener('rv-broker:export', onExport);
-    window.addEventListener('toggle-column', onToggleColumn);
 
     return () => {
       window.removeEventListener('rv-broker:new', onNew);
       window.removeEventListener('rv-broker:edit', onEdit);
       window.removeEventListener('rv-broker:delete', onDelete);
       window.removeEventListener('rv-broker:export', onExport);
-      window.removeEventListener('toggle-column', onToggleColumn);
     };
   }, [brokers, selectedBroker, filteredBrokers, visibleColumns]);
 

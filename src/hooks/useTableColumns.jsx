@@ -41,14 +41,30 @@ export const useTableColumns = (tableId, defaultColumns) => {
 
   // Sincronizar con el menú principal de añadir columnas
   useEffect(() => {
+    // Map tableId to the action prefix used in Layout ribbon items
+    const actionMap = {
+      'customers': 'customers',
+      'properties': 'real-estate',
+      'rentals': 'rentals',
+      'partners': 'partner',
+      'taxesTotal': 'taxes-total',
+      'taxesRealEstate': 'taxes-re',
+      'portfolio': 'portfolio',
+      'rv-brokers': 'rv-broker',
+      'rv-assets': 'rv-asset',
+    };
+    const myAction = actionMap[tableId];
+
     const handleToggle = (e) => {
-      const colId = e.detail.columnId;
-      toggleColumn(colId);
+      const { columnId, action } = e.detail;
+      // If action is provided, only react if it matches this table's action prefix
+      if (action && myAction && !action.startsWith(myAction)) return;
+      toggleColumn(columnId);
     };
     
     window.addEventListener('toggle-column', handleToggle);
     return () => window.removeEventListener('toggle-column', handleToggle);
-  }, [toggleColumn]);
+  }, [toggleColumn, tableId]);
 
   useEffect(() => {
     let tab = 'Clientes';

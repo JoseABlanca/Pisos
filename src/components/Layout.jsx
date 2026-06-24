@@ -1077,7 +1077,7 @@ export default function Layout() {
                         key={col.id}
                         className="px-4 py-1.5 hover:bg-gray-100 cursor-pointer text-left flex items-center" 
                         onClick={() => { 
-                          window.dispatchEvent(new CustomEvent('toggle-column', { detail: { columnId: col.id } })); 
+                          window.dispatchEvent(new CustomEvent('toggle-column', { detail: { columnId: col.id, action: dropdownConfig.action } })); 
                         }}
                       >
                         <input type="checkbox" checked={!!isVisible} readOnly className="mr-2 pointer-events-none" />
@@ -1095,7 +1095,7 @@ export default function Layout() {
                   key={col.id}
                   className="px-3 py-1.5 hover:bg-gray-100 cursor-pointer text-left flex items-center" 
                   onClick={() => { 
-                    window.dispatchEvent(new CustomEvent('toggle-column', { detail: { columnId: col.id } })); 
+                    window.dispatchEvent(new CustomEvent('toggle-column', { detail: { columnId: col.id, action: dropdownConfig.action } })); 
                   }}
                 >
                   <input type="checkbox" checked={!!isVisible} readOnly className="mr-2 pointer-events-none" />
