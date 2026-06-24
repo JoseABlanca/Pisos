@@ -354,6 +354,12 @@ export default function Layout() {
     window.addEventListener('rentals:edit', closeDropdowns);
     window.addEventListener('partners:new', closeDropdowns);
     window.addEventListener('partners:edit', closeDropdowns);
+    window.addEventListener('rv-transaction:new', closeDropdowns);
+    window.addEventListener('rv-transaction:edit', closeDropdowns);
+    window.addEventListener('rv-broker:new', closeDropdowns);
+    window.addEventListener('rv-broker:edit', closeDropdowns);
+    window.addEventListener('rv-asset:new', closeDropdowns);
+    window.addEventListener('rv-asset:edit', closeDropdowns);
 
     return () => {
       window.removeEventListener('sync-columns', handleSync);
@@ -369,6 +375,12 @@ export default function Layout() {
       window.removeEventListener('rentals:edit', closeDropdowns);
       window.removeEventListener('partners:new', closeDropdowns);
       window.removeEventListener('partners:edit', closeDropdowns);
+      window.removeEventListener('rv-transaction:new', closeDropdowns);
+      window.removeEventListener('rv-transaction:edit', closeDropdowns);
+      window.removeEventListener('rv-broker:new', closeDropdowns);
+      window.removeEventListener('rv-broker:edit', closeDropdowns);
+      window.removeEventListener('rv-asset:new', closeDropdowns);
+      window.removeEventListener('rv-asset:edit', closeDropdowns);
     };
   }, []);
 
@@ -520,12 +532,51 @@ export default function Layout() {
         { id: 'amortizacion', name: 'Amortización' },
         { id: 'beneficioNeto', name: 'Rendimiento Neto' }
       ]}
+    ],
+    'Portfolio': [
+      { group: 'DATOS', items: [
+        { id: 'symbol', name: 'Ticker' },
+        { id: 'name', name: 'Nombre' },
+        { id: 'type', name: 'Tipo de Activo' },
+        { id: 'brokerName', name: 'Broker' },
+        { id: 'quantity', name: 'Cantidad' },
+        { id: 'pmc', name: 'PMC' },
+        { id: 'currentPrice', name: 'Precio Actual' },
+        { id: 'totalCost', name: 'Coste Total' },
+        { id: 'currentValue', name: 'Valor Actual' },
+        { id: 'pnl', name: 'Rendimiento (€)' },
+        { id: 'pnlPercent', name: 'Rendimiento (%)' }
+      ]}
+    ],
+    'Broker': [
+      { group: 'BROKERS', items: [
+        { id: 'id', name: 'ID' },
+        { id: 'name', name: 'Nombre' },
+        { id: 'regulation', name: 'Regulación' },
+        { id: 'currency', name: 'Divisa base' },
+        { id: 'cashBalance', name: 'Efectivo disponible' },
+        { id: 'accountingAccount', name: 'Cuenta contable' },
+        { id: 'status', name: 'Estado' }
+      ]}
+    ],
+    'Activos RV': [
+      { group: 'ACTIVOS', items: [
+        { id: 'id', name: 'Ticker' },
+        { id: 'name', name: 'Nombre' },
+        { id: 'isin', name: 'ISIN' },
+        { id: 'type', name: 'Tipo de Activo' },
+        { id: 'sector', name: 'Sector' },
+        { id: 'currency', name: 'Divisa' },
+        { id: 'currentPrice', name: 'Precio Actual' },
+        { id: 'country', name: 'País' }
+      ]}
     ]
   };
 
   const modules = [
     'Contabilidad',
     'Inversiones inmobiliarias',
+    'Renta variable',
     'Impuestos',
     'Informes',
     'Herramientas',
@@ -535,6 +586,7 @@ export default function Layout() {
   const moduleTabs = {
     'Contabilidad': ['Cuentas contables', 'Diario', 'Mayor', 'Sumas y saldos'],
     'Inversiones inmobiliarias': ['Activos', 'Propietarios', 'Clientes', 'Alquileres'],
+    'Renta variable': ['Portfolio', 'Broker', 'Activos RV', 'Configuración RV'],
     'Informes': ['Reportes', 'Dashboard'],
     'Impuestos': ['Total', 'Inversiones inmobiliarias'],
     'Herramientas': ['Calculadora'],
@@ -550,6 +602,10 @@ export default function Layout() {
     'Activos': '/real-estate',
     'Alquileres': '/rentals',
     'Propietarios': '/partners',
+    'Portfolio': '/portfolio',
+    'Broker': '/broker',
+    'Activos RV': '/rv-assets',
+    'Configuración RV': '/rv-config',
     'Reportes': '/reports',
     'Dashboard': '/dashboard',
     'Total': '/taxes-total',
@@ -711,6 +767,66 @@ export default function Layout() {
         ]
       }
     ],
+    'Portfolio': [
+      { 
+        group: 'Mantenimiento', 
+        items: [
+          { name: 'Nueva\ntransacción', action: 'rv-transaction:new', path: '/portfolio', customIcon: 'Nuevo' },
+          { name: 'Modificar', action: 'rv-transaction:edit', path: '/portfolio', customIcon: 'Modificar' },
+          { name: 'Eliminar', action: 'rv-transaction:delete', path: '/portfolio', customIcon: 'Eliminar' }
+        ] 
+      },
+      {
+        group: 'Acciones',
+        items: [
+          { name: 'Añadir columna', action: 'portfolio:columns', path: '/portfolio', customIcon: 'AddColumn' },
+          { name: 'Exportar', action: 'portfolio:export', path: '/portfolio', customIcon: 'Exportar' }
+        ]
+      }
+    ],
+    'Broker': [
+      { 
+        group: 'Mantenimiento', 
+        items: [
+          { name: 'Nuevo', action: 'rv-broker:new', path: '/broker', customIcon: 'Nuevo' },
+          { name: 'Modificar', action: 'rv-broker:edit', path: '/broker', customIcon: 'Modificar' },
+          { name: 'Eliminar', action: 'rv-broker:delete', path: '/broker', customIcon: 'Eliminar' }
+        ] 
+      },
+      {
+        group: 'Acciones',
+        items: [
+          { name: 'Añadir columna', action: 'rv-broker:columns', path: '/broker', customIcon: 'AddColumn' },
+          { name: 'Exportar', action: 'rv-broker:export', path: '/broker', customIcon: 'Exportar' }
+        ]
+      }
+    ],
+    'Activos RV': [
+      { 
+        group: 'Mantenimiento', 
+        items: [
+          { name: 'Nuevo', action: 'rv-asset:new', path: '/rv-assets', customIcon: 'Nuevo' },
+          { name: 'Modificar', action: 'rv-asset:edit', path: '/rv-assets', customIcon: 'Modificar' },
+          { name: 'Eliminar', action: 'rv-asset:delete', path: '/rv-assets', customIcon: 'Eliminar' }
+        ] 
+      },
+      {
+        group: 'Acciones',
+        items: [
+          { name: 'Añadir columna', action: 'rv-asset:columns', path: '/rv-assets', customIcon: 'AddColumn' },
+          { name: 'Exportar', action: 'rv-asset:export', path: '/rv-assets', customIcon: 'Exportar' }
+        ]
+      }
+    ],
+    'Configuración RV': [
+      {
+        group: 'Mantenimiento',
+        items: [
+          { name: 'Guardar', action: 'rv-config:save', icon: PlusCircle },
+          { name: 'Datos de\nejemplo', action: 'rv-config:seed', icon: Layers }
+        ]
+      }
+    ],
     'Reportes': [
       { group: 'Reportes', items: [{ name: 'Reportes', path: '/reports', icon: BarChart3 }] }
     ],
@@ -849,7 +965,7 @@ export default function Layout() {
                 }}
                 className={`px-3 py-1.5 text-[12px] transition-colors border-t border-l border-r border-b-0 ${activeTab === tab ? 'bg-[#f3f4f6] text-black border-transparent relative top-[1px]' : 'bg-transparent text-white border-transparent hover:bg-white/10'}`}
               >
-                {tab}
+                {tab === 'Activos RV' ? 'Activos' : tab === 'Configuración RV' ? 'Configuración' : tab}
               </button>
             ))}
           </nav>

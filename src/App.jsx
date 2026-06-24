@@ -20,6 +20,10 @@ import Partners from './pages/Partners';
 import Rentals from './pages/Rentals';
 import Ledger from './pages/Ledger';
 import Home from './pages/Home';
+import Portfolio from './pages/Portfolio';
+import Broker from './pages/Broker';
+import RvAssets from './pages/RvAssets';
+import RvConfig from './pages/RvConfig';
 import { ErrorBoundary } from './components/ErrorBoundary';
 
 const ProtectedRoute = ({ children }) => {
@@ -56,6 +60,10 @@ function App() {
             <Route path="rentals" element={<Rentals />} />
             <Route path="partners" element={<Partners />} />
             <Route path="ledger" element={<Ledger />} />
+            <Route path="portfolio" element={<Portfolio />} />
+            <Route path="broker" element={<Broker />} />
+            <Route path="rv-assets" element={<RvAssets />} />
+            <Route path="rv-config" element={<RvConfig />} />
             <Route path="account-statement" element={<Ledger initialMode="detail" />} />
           </Route>
           </Routes>
