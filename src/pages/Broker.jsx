@@ -12,6 +12,7 @@ import { exportToPDF } from '../utils/pdfExport';
 export default function Broker() {
   const { user, queryUserIds } = useAuth();
   const [brokers, setBrokers] = useState([]);
+  const [transactions, setTransactions] = useState([]); // to show ledger in Extractos tab
   const [selectedBroker, setSelectedBroker] = useState(null);
   const [showForm, setShowForm] = useState(false);
   const [isEditing, setIsEditing] = useState(false);
@@ -19,10 +20,12 @@ export default function Broker() {
   const [statusFilter, setStatusFilter] = useState('todos');
   const [showSidebar, setShowSidebar] = useState(true);
   const [isMobile, setIsMobile] = useState(window.innerWidth < 768);
+  const [activeFormTab, setActiveFormTab] = useState('datos'); // 'datos' | 'extractos'
 
   const [formData, setFormData] = useState({
     id: '', // Format BR001
     name: '',
+    accountNumber: '', // cash account number
     regulation: 'CNMV (España)',
     currency: 'EUR',
     cashBalance: '',
@@ -31,8 +34,32 @@ export default function Broker() {
     notes: ''
   });
 
-  const DEFAULT_COLUMNS = ['id', 'name', 'regulation', 'currency', 'cashBalance', 'accountingAccount', 'status'];
+  const DEFAULT_COLUMNS = ['id', 'name', 'accountNumber', 'regulation', 'currency', 'cashBalance', 'status'];
   const { visibleColumns, toggleColumn, columnWidths, updateColumnWidth } = useTableColumns('rv-brokers', DEFAULT_COLUMNS);
+
+  // Filter and search computation - declared early to avoid Temporal Dead Zone (TDZ)
+  const filteredBrokers = brokers.filter((broker) => {
+    // Status Filter
+    if (statusFilter !== 'todos' && broker.status !== statusFilter) return false;
+
+    // Search Query
+    if (searchQuery) {
+      const queryStr = searchQuery.toLowerCase();
+      return (
+        broker.id.toLowerCase().includes(queryStr) ||
+        broker.name.toLowerCase().includes(queryStr) ||
+        (broker.accountNumber || '').toLowerCase().includes(queryStr) ||
+        (broker.regulation || '').toLowerCase().includes(queryStr)
+      );
+    }
+
+    return true;
+  });
+
+  // Filter transactions for the active broker in the modal
+  const brokerTransactions = transactions
+    .filter(t => t.brokerId === formData.id)
+    .sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime());
 
   useEffect(() => {
     const handleResize = () => setIsMobile(window.innerWidth < 768);
@@ -43,10 +70,11 @@ export default function Broker() {
   // Fetch Brokers from Firestore
   useEffect(() => {
     if (!user) return;
+    const targetUserIds = queryUserIds?.length > 0 ? queryUserIds : [user.uid];
 
     const q = query(
       collection(db, 'rv_brokers'),
-      where('userId', 'in', queryUserIds?.length > 0 ? queryUserIds : [user.uid])
+      where('userId', 'in', targetUserIds)
     );
 
     const unsub = onSnapshot(
@@ -58,7 +86,24 @@ export default function Broker() {
       (err) => console.error('Error fetching brokers:', err)
     );
 
-    return () => unsub();
+    // Also fetch transactions to feed the Extractos tab
+    const qTx = query(
+      collection(db, 'rv_transactions'),
+      where('userId', 'in', targetUserIds)
+    );
+
+    const unsubTx = onSnapshot(
+      qTx,
+      (snap) => {
+        setTransactions(snap.docs.map(d => ({ ...d.data(), id: d.id })));
+      },
+      (err) => console.error('Error fetching transactions for brokers:', err)
+    );
+
+    return () => {
+      unsub();
+      unsubTx();
+    };
   }, [user, queryUserIds]);
 
   // Handle ribbon actions
@@ -79,10 +124,10 @@ export default function Broker() {
         const allColumns = [
           { header: 'ID', dataKey: 'id' },
           { header: 'Nombre', dataKey: 'name' },
+          { header: 'Nº Cuenta', dataKey: 'accountNumber' },
           { header: 'Regulación', dataKey: 'regulation' },
           { header: 'Divisa', dataKey: 'currency' },
           { header: 'Efectivo', dataKey: 'cashBalance' },
-          { header: 'Cta. Contable', dataKey: 'accountingAccount' },
           { header: 'Estado', dataKey: 'status' }
         ];
         const colsToExport = allColumns.filter((c) => visibleColumns.includes(c.dataKey));
@@ -112,6 +157,7 @@ export default function Broker() {
 
   const handleNew = () => {
     setIsEditing(false);
+    setActiveFormTab('datos');
     // Find highest ID to auto-generate
     const maxId = brokers.reduce((max, b) => {
       const num = parseInt(b.id.replace('BR', '')) || 0;
@@ -120,6 +166,7 @@ export default function Broker() {
     setFormData({
       id: `BR${String(maxId + 1).padStart(3, '0')}`,
       name: '',
+      accountNumber: '',
       regulation: 'CNMV (España)',
       currency: 'EUR',
       cashBalance: '0',
@@ -132,7 +179,12 @@ export default function Broker() {
 
   const handleEdit = (broker) => {
     setIsEditing(true);
-    setFormData({ ...broker });
+    setActiveFormTab('datos');
+    setFormData({
+      ...broker,
+      accountNumber: broker.accountNumber || '',
+      accountingAccount: broker.accountingAccount || ''
+    });
     setShowForm(true);
   };
 
@@ -178,28 +230,6 @@ export default function Broker() {
     }
   };
 
-  const getFilteredBrokers = () => {
-    return brokers.filter((broker) => {
-      // Status Filter
-      if (statusFilter !== 'todos' && broker.status !== statusFilter) return false;
-
-      // Search Query
-      if (searchQuery) {
-        const queryStr = searchQuery.toLowerCase();
-        return (
-          broker.id.toLowerCase().includes(queryStr) ||
-          broker.name.toLowerCase().includes(queryStr) ||
-          (broker.regulation || '').toLowerCase().includes(queryStr) ||
-          (broker.accountingAccount || '').toLowerCase().includes(queryStr)
-        );
-      }
-
-      return true;
-    });
-  };
-
-  const filteredBrokers = getFilteredBrokers();
-
   return (
     <div className="w-full h-full bg-[#d4d0c8] flex flex-col p-1 overflow-hidden font-sans">
       <div className="flex flex-row flex-1 overflow-hidden bg-white relative">
@@ -218,7 +248,7 @@ export default function Broker() {
                     type="text"
                     value={searchQuery}
                     onChange={(e) => setSearchQuery(e.target.value)}
-                    placeholder="ID, Nombre, Regulación..."
+                    placeholder="ID, Nombre, Nº cuenta..."
                     className="win-input w-full pl-7"
                   />
                   <Search className="absolute left-2 top-2 w-3.5 h-3.5 text-gray-400" />
@@ -291,10 +321,10 @@ export default function Broker() {
                 <tr>
                   {visibleColumns.includes('id') && <th style={{ width: columnWidths['id'] || '80px' }}>ID</th>}
                   {visibleColumns.includes('name') && <th style={{ width: columnWidths['name'] || '180px' }}>Nombre</th>}
+                  {visibleColumns.includes('accountNumber') && <th style={{ width: columnWidths['accountNumber'] || '160px' }}>Número de cuenta</th>}
                   {visibleColumns.includes('regulation') && <th style={{ width: columnWidths['regulation'] || '150px' }}>Regulación</th>}
                   {visibleColumns.includes('currency') && <th style={{ width: columnWidths['currency'] || '80px' }}>Divisa</th>}
                   {visibleColumns.includes('cashBalance') && <th style={{ width: columnWidths['cashBalance'] || '120px' }}>Saldo Efectivo</th>}
-                  {visibleColumns.includes('accountingAccount') && <th style={{ width: columnWidths['accountingAccount'] || '120px' }}>Cta. Contable</th>}
                   {visibleColumns.includes('status') && <th style={{ width: columnWidths['status'] || '90px' }}>Estado</th>}
                 </tr>
               </thead>
@@ -314,6 +344,7 @@ export default function Broker() {
                     >
                       {visibleColumns.includes('id') && <td>{broker.id}</td>}
                       {visibleColumns.includes('name') && <td>{broker.name}</td>}
+                      {visibleColumns.includes('accountNumber') && <td>{broker.accountNumber || '-'}</td>}
                       {visibleColumns.includes('regulation') && <td>{broker.regulation}</td>}
                       {visibleColumns.includes('currency') && <td>{broker.currency}</td>}
                       {visibleColumns.includes('cashBalance') && (
@@ -321,7 +352,6 @@ export default function Broker() {
                           {broker.cashBalance.toLocaleString('es-ES', { minimumFractionDigits: 2, maximumFractionDigits: 2 })} {broker.currency}
                         </td>
                       )}
-                      {visibleColumns.includes('accountingAccount') && <td>{broker.accountingAccount || '-'}</td>}
                       {visibleColumns.includes('status') && (
                         <td>
                           <span
@@ -344,131 +374,242 @@ export default function Broker() {
         </div>
       </div>
 
-      {/* Broker Maintenance Form Window */}
+      {/* Broker Maintenance Form Window (Modal with 2 Tabs: Datos and Extractos) */}
       {showForm && (
         <div className="fixed inset-0 bg-black/35 backdrop-blur-xs flex items-center justify-center z-[200]">
           <Window
             title={isEditing ? `Modificar Broker: ${formData.id}` : 'Nuevo Broker de Renta Variable'}
             onClose={() => setShowForm(false)}
-            width="500px"
+            width="650px"
             height="auto"
-            initialPos={{ x: (window.innerWidth - 500) / 2, y: 120 }}
+            initialPos={{ x: (window.innerWidth - 650) / 2, y: 100 }}
           >
-            <form onSubmit={handleSave} className="p-4 space-y-3">
-              <div className="win-form-row">
-                <label className="win-form-label">ID Broker:</label>
-                <input
-                  type="text"
-                  value={formData.id}
-                  onChange={(e) => setFormData({ ...formData, id: e.target.value })}
-                  placeholder="ej. BR001"
-                  disabled={isEditing}
-                  required
-                  className="win-input flex-1 uppercase font-mono"
-                />
-              </div>
-
-              <div className="win-form-row">
-                <label className="win-form-label">Nombre Broker:</label>
-                <input
-                  type="text"
-                  value={formData.name}
-                  onChange={(e) => setFormData({ ...formData, name: e.target.value })}
-                  placeholder="ej. Interactive Brokers"
-                  required
-                  className="win-input flex-1"
-                />
-              </div>
-
-              <div className="win-form-row">
-                <label className="win-form-label">Regulación:</label>
-                <input
-                  type="text"
-                  value={formData.regulation}
-                  onChange={(e) => setFormData({ ...formData, regulation: e.target.value })}
-                  placeholder="ej. CNMV (España), SEC (EEUU)"
-                  className="win-input flex-1"
-                />
-              </div>
-
-              <div className="win-form-row">
-                <label className="win-form-label">Divisa Base:</label>
-                <select
-                  value={formData.currency}
-                  onChange={(e) => setFormData({ ...formData, currency: e.target.value })}
-                  className="win-input flex-1"
-                >
-                  <option value="EUR">EUR (€)</option>
-                  <option value="USD">USD ($)</option>
-                  <option value="GBP">GBP (£)</option>
-                  <option value="CHF">CHF (Fr.)</option>
-                </select>
-              </div>
-
-              <div className="win-form-row">
-                <label className="win-form-label">Saldo Efectivo:</label>
-                <input
-                  type="number"
-                  step="0.01"
-                  value={formData.cashBalance}
-                  onChange={(e) => setFormData({ ...formData, cashBalance: e.target.value })}
-                  placeholder="ej. 5000.00"
-                  required
-                  className="win-input flex-1"
-                />
-              </div>
-
-              <div className="win-form-row">
-                <label className="win-form-label">Cuenta Contable:</label>
-                <input
-                  type="text"
-                  value={formData.accountingAccount}
-                  onChange={(e) => setFormData({ ...formData, accountingAccount: e.target.value })}
-                  placeholder="ej. 572001 (BBVA Broker)"
-                  className="win-input flex-1"
-                />
-              </div>
-
-              <div className="win-form-row">
-                <label className="win-form-label">Estado:</label>
-                <select
-                  value={formData.status}
-                  onChange={(e) => setFormData({ ...formData, status: e.target.value })}
-                  className="win-input flex-1"
-                >
-                  <option value="activo">Activo</option>
-                  <option value="inactivo">Inactivo</option>
-                </select>
-              </div>
-
-              <div className="win-form-row items-start">
-                <label className="win-form-label pt-1.5">Notas:</label>
-                <textarea
-                  value={formData.notes}
-                  onChange={(e) => setFormData({ ...formData, notes: e.target.value })}
-                  placeholder="Comentarios adicionales..."
-                  rows={2}
-                  className="win-input flex-1 font-sans resize-none"
-                />
-              </div>
-
-              <div className="flex justify-end space-x-2 pt-3 border-t border-gray-200">
+            {/* Modal Internal Tabs Header */}
+            <div className="flex border-b border-gray-200 bg-slate-50 px-4 pt-1.5 shrink-0">
+              <button
+                type="button"
+                onClick={() => setActiveFormTab('datos')}
+                className={`px-4 py-2 text-[11px] font-bold border-b-2 transition-all cursor-pointer ${
+                  activeFormTab === 'datos'
+                    ? 'border-blue-600 text-blue-600'
+                    : 'border-transparent text-gray-500 hover:text-gray-700'
+                }`}
+              >
+                DATOS
+              </button>
+              {isEditing && (
                 <button
                   type="button"
-                  onClick={() => setShowForm(false)}
-                  className="px-4 py-1.5 bg-slate-100 hover:bg-slate-200 text-slate-800 text-[11px] font-bold border border-slate-300 rounded cursor-pointer transition-colors"
+                  onClick={() => setActiveFormTab('extractos')}
+                  className={`px-4 py-2 text-[11px] font-bold border-b-2 transition-all cursor-pointer ${
+                    activeFormTab === 'extractos'
+                      ? 'border-blue-600 text-blue-600'
+                      : 'border-transparent text-gray-500 hover:text-gray-700'
+                  }`}
                 >
-                  Cancelar
+                  EXTRACTOS
                 </button>
-                <button
-                  type="submit"
-                  className="px-4 py-1.5 bg-blue-600 hover:bg-blue-700 text-white text-[11px] font-bold rounded cursor-pointer transition-colors flex items-center space-x-1"
-                >
-                  <Save className="w-3.5 h-3.5" />
-                  <span>Guardar</span>
-                </button>
-              </div>
-            </form>
+              )}
+            </div>
+
+            {/* Modal Content */}
+            <div className="flex-1 overflow-auto bg-white">
+              {activeFormTab === 'datos' && (
+                <form onSubmit={handleSave} className="p-4 space-y-3">
+                  <div className="win-form-row">
+                    <label className="win-form-label">ID Broker:</label>
+                    <input
+                      type="text"
+                      value={formData.id}
+                      onChange={(e) => setFormData({ ...formData, id: e.target.value })}
+                      placeholder="ej. BR001"
+                      disabled={isEditing}
+                      required
+                      className="win-input flex-1 uppercase font-mono"
+                    />
+                  </div>
+
+                  <div className="win-form-row">
+                    <label className="win-form-label">Nombre Broker:</label>
+                    <input
+                      type="text"
+                      value={formData.name}
+                      onChange={(e) => setFormData({ ...formData, name: e.target.value })}
+                      placeholder="ej. Interactive Brokers"
+                      required
+                      className="win-input flex-1"
+                    />
+                  </div>
+
+                  <div className="win-form-row">
+                    <label className="win-form-label">Número de cuenta:</label>
+                    <input
+                      type="text"
+                      value={formData.accountNumber}
+                      onChange={(e) => setFormData({ ...formData, accountNumber: e.target.value })}
+                      placeholder="ej. U1234567-A (nexo o efectivo)"
+                      className="win-input flex-1"
+                    />
+                  </div>
+
+                  <div className="win-form-row">
+                    <label className="win-form-label">Tipo de divisa:</label>
+                    <select
+                      value={formData.currency}
+                      onChange={(e) => setFormData({ ...formData, currency: e.target.value })}
+                      className="win-input flex-1"
+                    >
+                      <option value="EUR">EUR (€)</option>
+                      <option value="USD">USD ($)</option>
+                      <option value="GBP">GBP (£)</option>
+                      <option value="CHF">CHF (Fr.)</option>
+                    </select>
+                  </div>
+
+                  <div className="win-form-row">
+                    <label className="win-form-label">Saldo Efectivo Inicial:</label>
+                    <input
+                      type="number"
+                      step="0.01"
+                      value={formData.cashBalance}
+                      onChange={(e) => setFormData({ ...formData, cashBalance: e.target.value })}
+                      placeholder="ej. 5000.00"
+                      required
+                      className="win-input flex-1 font-mono"
+                    />
+                  </div>
+
+                  <div className="win-form-row">
+                    <label className="win-form-label">Cuenta Contable:</label>
+                    <input
+                      type="text"
+                      value={formData.accountingAccount}
+                      onChange={(e) => setFormData({ ...formData, accountingAccount: e.target.value })}
+                      placeholder="ej. 572005 (BBVA Broker)"
+                      className="win-input flex-1"
+                    />
+                  </div>
+
+                  <div className="win-form-row">
+                    <label className="win-form-label">Regulación:</label>
+                    <input
+                      type="text"
+                      value={formData.regulation}
+                      onChange={(e) => setFormData({ ...formData, regulation: e.target.value })}
+                      placeholder="ej. CNMV (España), SEC (EEUU)"
+                      className="win-input flex-1"
+                    />
+                  </div>
+
+                  <div className="win-form-row">
+                    <label className="win-form-label">Estado:</label>
+                    <select
+                      value={formData.status}
+                      onChange={(e) => setFormData({ ...formData, status: e.target.value })}
+                      className="win-input flex-1"
+                    >
+                      <option value="activo">Activo</option>
+                      <option value="inactivo">Inactivo</option>
+                    </select>
+                  </div>
+
+                  <div className="win-form-row items-start">
+                    <label className="win-form-label pt-1.5">Notas:</label>
+                    <textarea
+                      value={formData.notes}
+                      onChange={(e) => setFormData({ ...formData, notes: e.target.value })}
+                      placeholder="Comentarios adicionales..."
+                      rows={2}
+                      className="win-input flex-1 font-sans resize-none"
+                    />
+                  </div>
+
+                  <div className="flex justify-end space-x-2 pt-3 border-t border-gray-200">
+                    <button
+                      type="button"
+                      onClick={() => setShowForm(false)}
+                      className="px-4 py-1.5 bg-slate-100 hover:bg-slate-200 text-slate-800 text-[11px] font-bold border border-slate-300 rounded cursor-pointer transition-colors"
+                    >
+                      Cancelar
+                    </button>
+                    <button
+                      type="submit"
+                      className="px-4 py-1.5 bg-blue-600 hover:bg-blue-700 text-white text-[11px] font-bold rounded cursor-pointer transition-colors flex items-center space-x-1"
+                    >
+                      <Save className="w-3.5 h-3.5" />
+                      <span>Guardar</span>
+                    </button>
+                  </div>
+                </form>
+              )}
+
+              {activeFormTab === 'extractos' && (
+                <div className="p-4 flex flex-col h-[350px]">
+                  <h4 className="text-[11px] font-bold text-slate-700 uppercase tracking-wider mb-2">
+                    Extracto de movimientos para {formData.name}
+                  </h4>
+                  <div className="flex-1 overflow-auto border border-gray-300 rounded-sm">
+                    <table className="clean-table">
+                      <thead className="sticky top-0 bg-[#f8fafc] z-10">
+                        <tr>
+                          <th style={{ width: '90px' }}>Fecha</th>
+                          <th style={{ width: '80px' }}>Activo</th>
+                          <th style={{ width: '80px' }}>Tipo</th>
+                          <th style={{ width: '90px' }}>Cantidad</th>
+                          <th style={{ width: '100px' }}>Precio</th>
+                          <th style={{ width: '110px' }}>Total</th>
+                        </tr>
+                      </thead>
+                      <tbody>
+                        {brokerTransactions.length === 0 ? (
+                          <tr>
+                            <td colSpan="6" className="text-center py-8 text-gray-400 font-medium">
+                              No hay transacciones registradas para este broker.
+                            </td>
+                          </tr>
+                        ) : (
+                          brokerTransactions.map((tx) => (
+                            <tr key={tx.id}>
+                              <td>{tx.date}</td>
+                              <td className="font-bold">{tx.assetId}</td>
+                              <td>
+                                <span
+                                  className={`px-1.5 py-0.5 rounded-sm text-[8px] font-bold uppercase tracking-wider ${
+                                    tx.type === 'Compra'
+                                      ? 'bg-blue-100 text-blue-800 border border-blue-200'
+                                      : tx.type === 'Venta'
+                                      ? 'bg-orange-100 text-orange-800 border border-orange-200'
+                                      : 'bg-green-100 text-green-800 border border-green-200'
+                                  }`}
+                                >
+                                  {tx.type}
+                                </span>
+                              </td>
+                              <td className="font-mono text-right">{tx.quantity}</td>
+                              <td className="font-mono text-right">
+                                {tx.price.toLocaleString('es-ES', { minimumFractionDigits: 2 })}
+                              </td>
+                              <td className="font-mono text-right font-bold text-slate-800">
+                                {tx.totalAmount.toLocaleString('es-ES', { minimumFractionDigits: 2 })} {tx.currency}
+                              </td>
+                            </tr>
+                          ))
+                        )}
+                      </tbody>
+                    </table>
+                  </div>
+                  <div className="flex justify-end pt-3 mt-auto">
+                    <button
+                      type="button"
+                      onClick={() => setShowForm(false)}
+                      className="px-4 py-1.5 bg-slate-100 hover:bg-slate-200 text-slate-800 text-[11px] font-bold border border-slate-300 rounded cursor-pointer transition-colors"
+                    >
+                      Cerrar
+                    </button>
+                  </div>
+                </div>
+              )}
+            </div>
           </Window>
         </div>
       )}

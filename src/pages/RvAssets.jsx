@@ -35,6 +35,25 @@ export default function RvAssets() {
   const DEFAULT_COLUMNS = ['id', 'name', 'isin', 'type', 'sector', 'currency', 'currentPrice', 'country'];
   const { visibleColumns, toggleColumn, columnWidths, updateColumnWidth } = useTableColumns('rv-assets', DEFAULT_COLUMNS);
 
+  // Filter and search computation - declared early to avoid Temporal Dead Zone (TDZ)
+  const filteredAssets = assets.filter((asset) => {
+    // Type Filter
+    if (typeFilter !== 'todos' && asset.type !== typeFilter) return false;
+
+    // Search Query
+    if (searchQuery) {
+      const queryStr = searchQuery.toLowerCase();
+      return (
+        asset.id.toLowerCase().includes(queryStr) ||
+        asset.name.toLowerCase().includes(queryStr) ||
+        (asset.isin || '').toLowerCase().includes(queryStr) ||
+        (asset.sector || '').toLowerCase().includes(queryStr)
+      );
+    }
+
+    return true;
+  });
+
   useEffect(() => {
     const handleResize = () => setIsMobile(window.innerWidth < 768);
     window.addEventListener('resize', handleResize);
@@ -175,29 +194,6 @@ export default function RvAssets() {
       alert('Error al guardar el activo: ' + error.message);
     }
   };
-
-  // Filter and search computation
-  const getFilteredAssets = () => {
-    return assets.filter((asset) => {
-      // Type Filter
-      if (typeFilter !== 'todos' && asset.type !== typeFilter) return false;
-
-      // Search Query
-      if (searchQuery) {
-        const queryStr = searchQuery.toLowerCase();
-        return (
-          asset.id.toLowerCase().includes(queryStr) ||
-          asset.name.toLowerCase().includes(queryStr) ||
-          (asset.isin || '').toLowerCase().includes(queryStr) ||
-          (asset.sector || '').toLowerCase().includes(queryStr)
-        );
-      }
-
-      return true;
-    });
-  };
-
-  const filteredAssets = getFilteredAssets();
 
   const assetTypes = ['Acción', 'ETF', 'Fondo de Inversión', 'Criptomoneda', 'Otros'];
 

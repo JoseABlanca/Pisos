@@ -52,6 +52,142 @@ export default function Portfolio() {
   const DEFAULT_COLUMNS_TX = ['id', 'date', 'assetId', 'brokerName', 'type', 'quantity', 'price', 'fee', 'currency', 'exchangeRate', 'totalAmount'];
   const { visibleColumns: visColsTx, toggleColumn: toggleColTx } = useTableColumns('rv-transactions-grid', DEFAULT_COLUMNS_TX);
 
+  // Compute Portfolio holdings dynamically - declared early to avoid TDZ
+  const { holdings, summary } = useMemo(() => {
+    const exchangeRates = config.exchangeRates || { USD: 1.08, GBP: 0.85, CHF: 0.95 };
+    const rates = { EUR: 1.0, ...exchangeRates };
+
+    const assetsMap = new Map(assets.map(a => [a.id, a]));
+    const brokersMap = new Map(brokers.map(b => [b.id, b]));
+
+    // Chronological transactions sorting
+    const chronTx = [...transactions].sort((a, b) => new Date(a.date).getTime() - new Date(b.date).getTime());
+
+    // Holds key: `assetId_brokerId` -> position detail
+    const positions = {};
+    let totalDividendsEUR = 0;
+
+    chronTx.forEach(tx => {
+      const asset = assetsMap.get(tx.assetId);
+      const broker = brokersMap.get(tx.brokerId);
+      
+      const key = `${tx.assetId}_${tx.brokerId}`;
+      const rate = tx.exchangeRate || 1.0;
+
+      if (tx.type === 'Dividendo') {
+        const divEUR = (parseFloat(tx.quantity) * parseFloat(tx.price) - (parseFloat(tx.fee) || 0)) / rate;
+        totalDividendsEUR += divEUR;
+        return;
+      }
+
+      if (!positions[key]) {
+        positions[key] = {
+          symbol: tx.assetId,
+          name: asset?.name || tx.assetId,
+          type: asset?.type || 'Acción',
+          sector: asset?.sector || 'Otros',
+          currency: asset?.currency || 'EUR',
+          brokerId: tx.brokerId,
+          brokerName: broker?.name || tx.brokerId,
+          quantity: 0,
+          costBasisEUR: 0,
+          pmcEUR: 0
+        };
+      }
+
+      const pos = positions[key];
+      const q = parseFloat(tx.quantity) || 0;
+      const p = parseFloat(tx.price) || 0;
+      const f = parseFloat(tx.fee) || 0;
+
+      if (tx.type === 'Compra') {
+        const costEUR = (q * p + f) / rate;
+        pos.costBasisEUR += costEUR;
+        pos.quantity += q;
+        pos.pmcEUR = pos.quantity > 0 ? pos.costBasisEUR / pos.quantity : 0;
+      } else if (tx.type === 'Venta') {
+        const costReductionEUR = q * pos.pmcEUR;
+        pos.costBasisEUR = Math.max(0, pos.costBasisEUR - costReductionEUR);
+        pos.quantity = Math.max(0, pos.quantity - q);
+        if (pos.quantity === 0) {
+          pos.costBasisEUR = 0;
+          pos.pmcEUR = 0;
+        }
+      }
+    });
+
+    // Calculate current valuations in EUR
+    const finalHoldings = Object.values(positions)
+      .filter(pos => pos.quantity > 0)
+      .map(pos => {
+        const asset = assetsMap.get(pos.symbol);
+        const currentPriceRaw = asset ? parseFloat(asset.currentPrice) || 0 : 0;
+        const assetRate = rates[pos.currency] || 1.0;
+
+        const totalCostEUR = pos.costBasisEUR;
+        const currentValueEUR = (pos.quantity * currentPriceRaw) / assetRate;
+        const pnlEUR = currentValueEUR - totalCostEUR;
+        const pnlPercent = totalCostEUR > 0 ? (pnlEUR / totalCostEUR) * 100 : 0;
+
+        return {
+          ...pos,
+          pmc: pos.pmcEUR,
+          currentPrice: currentPriceRaw / assetRate, // in EUR
+          currentPriceRaw, // original currency
+          totalCost: totalCostEUR,
+          currentValue: currentValueEUR,
+          pnl: pnlEUR,
+          pnlPercent
+        };
+      });
+
+    // Summary calculation
+    const totalCostEUR = finalHoldings.reduce((sum, h) => sum + h.totalCost, 0);
+    const totalMarketValueEUR = finalHoldings.reduce((sum, h) => sum + h.currentValue, 0);
+    const totalPnLEUR = totalMarketValueEUR - totalCostEUR;
+    const totalPnLPercent = totalCostEUR > 0 ? (totalPnLEUR / totalCostEUR) * 100 : 0;
+
+    const totalCashEUR = brokers.reduce((sum, b) => {
+      const brokerRate = rates[b.currency] || 1.0;
+      return sum + (parseFloat(b.cashBalance) || 0) / brokerRate;
+    }, 0);
+
+    return {
+      holdings: finalHoldings,
+      summary: {
+        totalCost: totalCostEUR,
+        totalValue: totalMarketValueEUR,
+        pnl: totalPnLEUR,
+        pnlPercent: totalPnLPercent,
+        dividends: totalDividendsEUR,
+        cash: totalCashEUR,
+        grandTotal: totalMarketValueEUR + totalCashEUR
+      }
+    };
+  }, [transactions, assets, brokers, config]);
+
+  // Transactions list sorting & filtering - declared early to avoid TDZ
+  const sortedTransactions = useMemo(() => {
+    return [...transactions]
+      .filter(tx => {
+        // Broker filter
+        if (brokerFilter !== 'todos' && tx.brokerId !== brokerFilter) return false;
+        
+        // Search query
+        if (searchQuery) {
+          const q = searchQuery.toLowerCase();
+          return (
+            tx.assetId.toLowerCase().includes(q) ||
+            (tx.assetName || '').toLowerCase().includes(q) ||
+            tx.brokerName.toLowerCase().includes(q) ||
+            tx.type.toLowerCase().includes(q)
+          );
+        }
+        return true;
+      })
+      .sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime());
+  }, [transactions, brokerFilter, searchQuery]);
+
   useEffect(() => {
     const handleResize = () => setIsMobile(window.innerWidth < 768);
     window.addEventListener('resize', handleResize);
@@ -175,143 +311,7 @@ export default function Portfolio() {
       window.removeEventListener('rv-transaction:export', onExport);
       window.removeEventListener('toggle-column', onToggleColumn);
     };
-  }, [transactions, selectedTx, portfolioTab, config, assets, brokers]);
-
-  // Compute Portfolio holdings dynamically
-  const { holdings, summary } = useMemo(() => {
-    const exchangeRates = config.exchangeRates || { USD: 1.08, GBP: 0.85, CHF: 0.95 };
-    const rates = { EUR: 1.0, ...exchangeRates };
-
-    const assetsMap = new Map(assets.map(a => [a.id, a]));
-    const brokersMap = new Map(brokers.map(b => [b.id, b]));
-
-    // Chronological transactions sorting
-    const chronTx = [...transactions].sort((a, b) => new Date(a.date).getTime() - new Date(b.date).getTime());
-
-    // Holds key: `assetId_brokerId` -> position detail
-    const positions = {};
-    let totalDividendsEUR = 0;
-
-    chronTx.forEach(tx => {
-      const asset = assetsMap.get(tx.assetId);
-      const broker = brokersMap.get(tx.brokerId);
-      
-      const key = `${tx.assetId}_${tx.brokerId}`;
-      const rate = tx.exchangeRate || 1.0;
-
-      if (tx.type === 'Dividendo') {
-        const divEUR = (parseFloat(tx.quantity) * parseFloat(tx.price) - (parseFloat(tx.fee) || 0)) / rate;
-        totalDividendsEUR += divEUR;
-        return;
-      }
-
-      if (!positions[key]) {
-        positions[key] = {
-          symbol: tx.assetId,
-          name: asset?.name || tx.assetId,
-          type: asset?.type || 'Acción',
-          sector: asset?.sector || 'Otros',
-          currency: asset?.currency || 'EUR',
-          brokerId: tx.brokerId,
-          brokerName: broker?.name || tx.brokerId,
-          quantity: 0,
-          costBasisEUR: 0,
-          pmcEUR: 0
-        };
-      }
-
-      const pos = positions[key];
-      const q = parseFloat(tx.quantity) || 0;
-      const p = parseFloat(tx.price) || 0;
-      const f = parseFloat(tx.fee) || 0;
-
-      if (tx.type === 'Compra') {
-        const costEUR = (q * p + f) / rate;
-        pos.costBasisEUR += costEUR;
-        pos.quantity += q;
-        pos.pmcEUR = pos.quantity > 0 ? pos.costBasisEUR / pos.quantity : 0;
-      } else if (tx.type === 'Venta') {
-        const costReductionEUR = q * pos.pmcEUR;
-        pos.costBasisEUR = Math.max(0, pos.costBasisEUR - costReductionEUR);
-        pos.quantity = Math.max(0, pos.quantity - q);
-        if (pos.quantity === 0) {
-          pos.costBasisEUR = 0;
-          pos.pmcEUR = 0;
-        }
-      }
-    });
-
-    // Calculate current valuations in EUR
-    const finalHoldings = Object.values(positions)
-      .filter(pos => pos.quantity > 0)
-      .map(pos => {
-        const asset = assetsMap.get(pos.symbol);
-        const currentPriceRaw = asset ? parseFloat(asset.currentPrice) || 0 : 0;
-        const assetRate = rates[pos.currency] || 1.0;
-
-        const totalCostEUR = pos.costBasisEUR;
-        const currentValueEUR = (pos.quantity * currentPriceRaw) / assetRate;
-        const pnlEUR = currentValueEUR - totalCostEUR;
-        const pnlPercent = totalCostEUR > 0 ? (pnlEUR / totalCostEUR) * 100 : 0;
-
-        return {
-          ...pos,
-          pmc: pos.pmcEUR,
-          currentPrice: currentPriceRaw / assetRate, // in EUR
-          currentPriceRaw, // original currency
-          totalCost: totalCostEUR,
-          currentValue: currentValueEUR,
-          pnl: pnlEUR,
-          pnlPercent
-        };
-      });
-
-    // Summary calculation
-    const totalCostEUR = finalHoldings.reduce((sum, h) => sum + h.totalCost, 0);
-    const totalMarketValueEUR = finalHoldings.reduce((sum, h) => sum + h.currentValue, 0);
-    const totalPnLEUR = totalMarketValueEUR - totalCostEUR;
-    const totalPnLPercent = totalCostEUR > 0 ? (totalPnLEUR / totalCostEUR) * 100 : 0;
-
-    const totalCashEUR = brokers.reduce((sum, b) => {
-      const brokerRate = rates[b.currency] || 1.0;
-      return sum + (parseFloat(b.cashBalance) || 0) / brokerRate;
-    }, 0);
-
-    return {
-      holdings: finalHoldings,
-      summary: {
-        totalCost: totalCostEUR,
-        totalValue: totalMarketValueEUR,
-        pnl: totalPnLEUR,
-        pnlPercent: totalPnLPercent,
-        dividends: totalDividendsEUR,
-        cash: totalCashEUR,
-        grandTotal: totalMarketValueEUR + totalCashEUR
-      }
-    };
-  }, [transactions, assets, brokers, config]);
-
-  // Transactions list sorting & filtering
-  const sortedTransactions = useMemo(() => {
-    return [...transactions]
-      .filter(tx => {
-        // Broker filter
-        if (brokerFilter !== 'todos' && tx.brokerId !== brokerFilter) return false;
-        
-        // Search query
-        if (searchQuery) {
-          const q = searchQuery.toLowerCase();
-          return (
-            tx.assetId.toLowerCase().includes(q) ||
-            (tx.assetName || '').toLowerCase().includes(q) ||
-            tx.brokerName.toLowerCase().includes(q) ||
-            tx.type.toLowerCase().includes(q)
-          );
-        }
-        return true;
-      })
-      .sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime());
-  }, [transactions, brokerFilter, searchQuery]);
+  }, [transactions, selectedTx, portfolioTab, config, assets, brokers, holdings, sortedTransactions]);
 
   // Transaction form triggers
   const handleNewTx = () => {
@@ -509,7 +509,7 @@ export default function Portfolio() {
               <span>Filtros</span>
             </div>
             <div className="p-4 text-[11px] space-y-4 flex-1 overflow-auto">
-              {/* Search (only for transactions) */}
+              {/* Search */}
               <div className="space-y-1">
                 <label className="text-slate-700 font-bold">Buscar:</label>
                 <div className="relative">
@@ -856,7 +856,7 @@ export default function Portfolio() {
                   {/* Cost basis vs Market value bar chart */}
                   <div className="bg-white p-6 border border-gray-200 shadow-sm rounded">
                     <h4 className="text-[11px] font-bold uppercase tracking-wide text-gray-500 mb-4">
-                      Comparativa Coste de Compra vs Valor de Mercado (€)
+                      Comparativa Coste de Compra vs Valor de Mercado Actual (€)
                     </h4>
                     <div className="w-full h-64">
                       <ResponsiveContainer width="100%" height="100%">
