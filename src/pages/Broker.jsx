@@ -382,35 +382,11 @@ export default function Broker() {
             width="650px"
             height="auto"
             initialPos={{ x: (window.innerWidth - 650) / 2, y: 100 }}
+            menuItems={[
+              { label: 'Datos', onClick: () => setActiveFormTab('datos') },
+              ...(isEditing ? [{ label: 'Extractos', onClick: () => setActiveFormTab('extractos') }] : [])
+            ]}
           >
-            {/* Modal Internal Tabs Header */}
-            <div className="flex border-b border-gray-200 bg-slate-50 px-4 pt-1.5 shrink-0">
-              <button
-                type="button"
-                onClick={() => setActiveFormTab('datos')}
-                className={`px-4 py-2 text-[11px] font-bold border-b-2 transition-all cursor-pointer ${
-                  activeFormTab === 'datos'
-                    ? 'border-blue-600 text-blue-600'
-                    : 'border-transparent text-gray-500 hover:text-gray-700'
-                }`}
-              >
-                DATOS
-              </button>
-              {isEditing && (
-                <button
-                  type="button"
-                  onClick={() => setActiveFormTab('extractos')}
-                  className={`px-4 py-2 text-[11px] font-bold border-b-2 transition-all cursor-pointer ${
-                    activeFormTab === 'extractos'
-                      ? 'border-blue-600 text-blue-600'
-                      : 'border-transparent text-gray-500 hover:text-gray-700'
-                  }`}
-                >
-                  EXTRACTOS
-                </button>
-              )}
-            </div>
-
             {/* Modal Content */}
             <div className="flex-1 overflow-auto bg-white">
               {activeFormTab === 'datos' && (
@@ -466,41 +442,6 @@ export default function Broker() {
                   </div>
 
                   <div className="win-form-row">
-                    <label className="win-form-label">Saldo Efectivo Inicial:</label>
-                    <input
-                      type="number"
-                      step="0.01"
-                      value={formData.cashBalance}
-                      onChange={(e) => setFormData({ ...formData, cashBalance: e.target.value })}
-                      placeholder="ej. 5000.00"
-                      required
-                      className="win-input flex-1 font-mono"
-                    />
-                  </div>
-
-                  <div className="win-form-row">
-                    <label className="win-form-label">Cuenta Contable:</label>
-                    <input
-                      type="text"
-                      value={formData.accountingAccount}
-                      onChange={(e) => setFormData({ ...formData, accountingAccount: e.target.value })}
-                      placeholder="ej. 572005 (BBVA Broker)"
-                      className="win-input flex-1"
-                    />
-                  </div>
-
-                  <div className="win-form-row">
-                    <label className="win-form-label">Regulación:</label>
-                    <input
-                      type="text"
-                      value={formData.regulation}
-                      onChange={(e) => setFormData({ ...formData, regulation: e.target.value })}
-                      placeholder="ej. CNMV (España), SEC (EEUU)"
-                      className="win-input flex-1"
-                    />
-                  </div>
-
-                  <div className="win-form-row">
                     <label className="win-form-label">Estado:</label>
                     <select
                       value={formData.status}
@@ -510,17 +451,6 @@ export default function Broker() {
                       <option value="activo">Activo</option>
                       <option value="inactivo">Inactivo</option>
                     </select>
-                  </div>
-
-                  <div className="win-form-row items-start">
-                    <label className="win-form-label pt-1.5">Notas:</label>
-                    <textarea
-                      value={formData.notes}
-                      onChange={(e) => setFormData({ ...formData, notes: e.target.value })}
-                      placeholder="Comentarios adicionales..."
-                      rows={2}
-                      className="win-input flex-1 font-sans resize-none"
-                    />
                   </div>
 
                   <div className="flex justify-end space-x-2 pt-3 border-t border-gray-200">
