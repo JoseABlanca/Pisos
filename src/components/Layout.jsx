@@ -23,7 +23,6 @@ import {
   BarChart3,
   PieChart,
   Search,
-  Monitor,
   ArrowLeft,
   ChevronDown,
   ChevronUp,
@@ -750,7 +749,6 @@ export default function Layout() {
                 setDropdownOpen(!dropdownOpen);
               }}
             >
-              <Monitor className="w-5 h-5" />
               <span className="text-[12px] font-semibold">{activeModule}</span>
               <span className="text-[9px]">▼</span>
             </button>
