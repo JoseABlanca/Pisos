@@ -269,18 +269,44 @@ export default function RvAssets() {
       let errorMsg = '';
 
       if (formData.apiSource === 'Yahoo Finance') {
-        // Yahoo Finance v8 chart API via allorigins proxy to avoid CORS
-        const yahooUrl = `https://query1.finance.yahoo.com/v8/finance/chart/${ticker}?period1=${period1}&period2=${period2}&interval=1d&events=history`;
-        const proxyUrl = `https://api.allorigins.win/get?url=${encodeURIComponent(yahooUrl)}`;
+        const yahooUrl = `https://query1.finance.yahoo.com/v8/finance/chart/${ticker}?period1=${period1}&period2=${period2}&interval=1d&events=history&includeAdjustedClose=true`;
         
-        const response = await fetch(proxyUrl);
-        if (!response.ok) throw new Error(`HTTP ${response.status}`);
+        // Try multiple CORS proxies in cascade
+        const proxies = [
+          { url: `https://corsproxy.io/?url=${encodeURIComponent(yahooUrl)}`, mode: 'direct' },
+          { url: `https://api.allorigins.win/raw?url=${encodeURIComponent(yahooUrl)}`, mode: 'direct' },
+          { url: `https://api.allorigins.win/get?url=${encodeURIComponent(yahooUrl)}`, mode: 'wrapped' },
+        ];
         
-        const outer = await response.json();
-        const json = JSON.parse(outer.contents);
+        let json = null;
+        let lastError = 'No se pudo conectar con ningún proxy CORS';
+        
+        for (const proxy of proxies) {
+          try {
+            const resp = await fetch(proxy.url, { signal: AbortSignal.timeout(10000) });
+            if (!resp.ok) continue;
+            const text = await resp.text();
+            if (proxy.mode === 'wrapped') {
+              const outer = JSON.parse(text);
+              json = JSON.parse(outer.contents);
+            } else {
+              json = JSON.parse(text);
+            }
+            if (json?.chart?.result) break; // success
+            json = null;
+          } catch (e) {
+            lastError = e.message;
+            continue;
+          }
+        }
+        
+        if (!json) throw new Error(lastError);
         
         const result = json?.chart?.result?.[0];
-        if (!result) throw new Error('Respuesta inesperada de Yahoo Finance. Verifica el ticker.');
+        if (!result) {
+          const errDetail = json?.chart?.error?.description || 'Ticker no encontrado';
+          throw new Error(`Yahoo Finance: ${errDetail}. Verifica el ticker (ej. SOFI, AAPL, TEF.MC).`);
+        }
         
         const timestamps = result.timestamp || [];
         const closes = result.indicators?.quote?.[0]?.close || [];
@@ -298,7 +324,7 @@ export default function RvAssets() {
         // CoinGecko free API (for crypto, by coin ID, no key needed)
         const days = Math.round((end - start) / (1000 * 60 * 60 * 24));
         const cgUrl = `https://api.coingecko.com/api/v3/coins/${ticker.toLowerCase()}/market_chart?vs_currency=${formData.currency.toLowerCase()}&days=${days}`;
-        const response = await fetch(cgUrl);
+        const response = await fetch(cgUrl, { signal: AbortSignal.timeout(10000) });
         if (!response.ok) throw new Error(`CoinGecko HTTP ${response.status}`);
         const json = await response.json();
         data = (json.prices || []).map(([ts, price]) => ({
@@ -315,16 +341,16 @@ export default function RvAssets() {
       }
 
       if (!data || data.length === 0) {
-        alert('No se encontraron datos para el ticker y rango de fechas indicados. Verifica el ticker.');
+        alert('No se encontraron datos para el ticker y rango de fechas indicados.\nVerifica el ticker (ejemplos: SOFI, AAPL, TEF.MC para España).');
         return;
       }
 
       setTempHistory(data);
-      alert(`✓ Se han descargado ${data.length} registros desde ${formData.apiSource} para ${ticker}. Pulsa 'Guardar' para almacenarlos.`);
+      alert(`✓ Se han descargado ${data.length} registros desde ${formData.apiSource} para ${ticker}.\nPulsa 'Guardar' para almacenarlos.`);
 
     } catch (e) {
       console.error('API fetch error:', e);
-      alert('Error al obtener datos de la API: ' + e.message + '\n\nVerifica el ticker y el rango de fechas.');
+      alert('Error al obtener datos de la API: ' + e.message + '\n\nSi el error persiste, descarga los datos manualmente y usa la opción de cargar CSV/Excel.');
     } finally {
       setIsGenerating(false);
     }
