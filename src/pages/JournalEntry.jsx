@@ -3,10 +3,11 @@ import { useLocation, useNavigate } from 'react-router-dom';
 import { useAuth } from '../context/AuthContext';
 import { db } from '../firebase/config';
 import { collection, query, where, onSnapshot, doc, getDoc, setDoc, addDoc, serverTimestamp, writeBatch, increment } from 'firebase/firestore';
-import { Save, Plus, Trash2, X, Search, Edit2, Minus, FilePlus } from 'lucide-react';
+import { Save, Plus, Trash2, X, Search, Edit2, Minus, FilePlus, RefreshCw } from 'lucide-react';
 import Accounts from './Accounts'; // Import Accounts to use as modal
 import ZoomControl from '../components/ZoomControl';
 import { registerJournalEntry, updateJournalEntry } from '../services/accounting';
+import { uploadFileToStorage } from '../utils/storageUtils';
 
 export default function JournalEntry() {
   const { user, queryUserIds } = useAuth();
@@ -28,6 +29,39 @@ export default function JournalEntry() {
   const [cebes, setCebes] = useState([]);
   const [selectedCebe, setSelectedCebe] = useState('');
   const [selectedCeco, setSelectedCeco] = useState('');
+
+  const [documentUrl, setDocumentUrl] = useState(null);
+  const [documentName, setDocumentName] = useState(null);
+  const [isUploading, setIsUploading] = useState(false);
+
+  useEffect(() => {
+    if (!isEditing && !entryId) {
+      setEntryId(doc(collection(db, 'journal_entries')).id);
+    }
+  }, [isEditing, entryId]);
+
+  const handleFileUpload = async (e) => {
+    const file = e.target.files?.[0];
+    if (!file || !user || !entryId) return;
+    setIsUploading(true);
+    try {
+      const url = await uploadFileToStorage(file, user.uid, 'journal_entries', entryId, 'docs');
+      setDocumentUrl(url);
+      setDocumentName(file.name);
+    } catch (err) {
+      console.error(err);
+      alert('Error al subir el documento: ' + err.message);
+    } finally {
+      setIsUploading(false);
+    }
+  };
+
+  const handleDeleteDoc = () => {
+    if (window.confirm('¿Eliminar el documento asociado a este asiento?')) {
+      setDocumentUrl(null);
+      setDocumentName(null);
+    }
+  };
   
   // State for Accounts Modal
   const [showAccountsModal, setShowAccountsModal] = useState(false);
@@ -85,6 +119,8 @@ export default function JournalEntry() {
       setNextEntryNumber(editEntry.number || 1);
       setSelectedCebe(editEntry.cebe || editEntry.lines?.find(l => l.cebe)?.cebe || '');
       setSelectedCeco(editEntry.ceco || editEntry.lines?.find(l => l.ceco)?.ceco || '');
+      setDocumentUrl(editEntry.documentUrl || null);
+      setDocumentName(editEntry.documentName || null);
       
       if (editEntry.lines && editEntry.lines.length > 0) {
         setOriginalLines(editEntry.lines);
@@ -223,16 +259,19 @@ export default function JournalEntry() {
       };
       
       if (isEditing) {
-        await updateJournalEntry(user.uid, entryId, globalDescription, formattedLines, originalLines, date, analytics);
+        await updateJournalEntry(user.uid, entryId, globalDescription, formattedLines, originalLines, date, analytics, documentUrl, documentName);
         alert(`Asiento ${nextEntryNumber} actualizado correctamente.`);
         navigate('/journal-list');
       } else {
-        await registerJournalEntry(user.uid, globalDescription, formattedLines, date, analytics);
+        await registerJournalEntry(user.uid, globalDescription, formattedLines, date, analytics, entryId, documentUrl, documentName);
         alert(`Asiento ${entryNumber} guardado correctamente.`);
         // Reset form
         setDate('');
         setSelectedCebe('');
         setSelectedCeco('');
+        setDocumentUrl(null);
+        setDocumentName(null);
+        setEntryId(''); // triggers regeneration via useEffect
         setLines([
           { id: 1, account: '', description: '', document: '', ceco: '', cebe: '', debit: 0, credit: 0, image: null },
           { id: 2, account: '', description: '', document: '', ceco: '', cebe: '', debit: 0, credit: 0, image: null }
@@ -343,6 +382,46 @@ export default function JournalEntry() {
             </select>
           </div>
         )}
+        
+        {/* Document Upload Option */}
+        <div className="flex items-center space-x-2 border-l border-gray-300 pl-3">
+          <span className="text-gray-500 mr-2">Doc:</span>
+          {documentUrl ? (
+            <div className="flex items-center bg-blue-50 text-blue-700 px-2 py-0.5 border border-blue-200 rounded text-[10px]">
+              <span className="truncate max-w-[120px]" title={documentName}>{documentName}</span>
+              <button 
+                type="button"
+                onClick={handleDeleteDoc}
+                className="ml-1.5 text-red-500 hover:text-red-700"
+                title="Quitar documento"
+              >
+                <X className="w-3 h-3" />
+              </button>
+            </div>
+          ) : (
+            <label className={`btn-classic px-2 h-[26px] text-[10px] flex items-center cursor-pointer ${isUploading ? 'opacity-50 cursor-not-allowed' : ''}`}>
+              {isUploading ? (
+                <>
+                  <RefreshCw className="w-3 h-3 mr-1 animate-spin" />
+                  Subiendo...
+                </>
+              ) : (
+                <>
+                  <FilePlus className="w-3.5 h-3.5 mr-1" />
+                  Adjuntar
+                </>
+              )}
+              <input 
+                type="file" 
+                className="hidden" 
+                onChange={handleFileUpload} 
+                disabled={isUploading}
+                accept=".pdf,.doc,.docx,.xls,.xlsx,.jpg,.jpeg,.png"
+              />
+            </label>
+          )}
+        </div>
+
         <div className="flex-1" />
       </div>
 
