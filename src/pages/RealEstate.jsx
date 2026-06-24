@@ -208,6 +208,7 @@ export default function RealEstate() {
     accessoryPropertyId: '',
     country: '',
     region: '',
+    city: '',
     cp: '',
     catastral: '',
     registry: '',
@@ -279,6 +280,7 @@ export default function RealEstate() {
       address: '',
       country: '',
       region: '',
+      city: '',
       cp: '',
       catastral: '',
       registry: '',
@@ -520,12 +522,12 @@ export default function RealEstate() {
         communityAdminPhone: p.community?.adminPhone,
         communityFee: p.community?.fee,
         communityPaymentDay: p.community?.paymentDay,
-        finAcquisitionDate: p.financials?.acquisitionDate,
-        finPurchasePrice: p.financials?.purchasePrice,
-        finAcquisitionCosts: p.financials?.acquisitionCosts,
-        finAgentFees: p.financials?.agentFees,
-        finCurrentValue: p.financials?.currentValue,
-        finSalePrice: p.financials?.salePrice
+        finAcquisitionDate: p.purchaseDate || p.financials?.acquisitionDate,
+        finPurchasePrice: p.acquisitionPrice || p.financials?.purchasePrice,
+        finAcquisitionCosts: p.acquisitionCosts || p.financials?.acquisitionCosts || (Array.isArray(p.adquisitionExpenses) ? p.adquisitionExpenses.reduce((sum, exp) => sum + (parseFloat(exp.amount) || 0), 0) : 0),
+        finAgentFees: p.agentFees || p.financials?.agentFees,
+        finCurrentValue: p.currentValue || p.financials?.currentValue,
+        finSalePrice: p.theoreticalSalePrice || p.financials?.salePrice
       };
     });
   }, [filteredProperties, rentals, availableCustomers]);
@@ -672,6 +674,10 @@ export default function RealEstate() {
             <div className="space-y-1">
               <label className="text-[10px] font-bold text-slate-700 uppercase">Región/Provincia:</label>
               <input type="text" className="win-input w-full" value={formData.region || ''} onChange={e => setFormData({ ...formData, region: e.target.value })} />
+            </div>
+            <div className="space-y-1">
+              <label className="text-[10px] font-bold text-slate-700 uppercase">Población:</label>
+              <input type="text" className="win-input w-full" value={formData.city || ''} onChange={e => setFormData({ ...formData, city: e.target.value })} />
             </div>
             <div className="space-y-1">
               <label className="text-[10px] font-bold text-slate-700 uppercase">Código Postal:</label>
@@ -843,8 +849,39 @@ export default function RealEstate() {
                   {visibleColumns.includes('id') && <TableHeaderWithFilter label="ID" columnKey="id" data={propertiesWithCalculatedRentals} tableId="properties" className="w-16 md:w-20" />}
                   {visibleColumns.includes('name') && <TableHeaderWithFilter label="Nombre" columnKey="name" data={propertiesWithCalculatedRentals} tableId="properties" className="w-32 md:w-48" />}
                   {visibleColumns.includes('address') && <TableHeaderWithFilter label="Dirección" columnKey="address" data={propertiesWithCalculatedRentals} tableId="properties" className="hidden md:table-cell md:w-64" />}
+                  {visibleColumns.includes('country') && <TableHeaderWithFilter label="País" columnKey="country" data={propertiesWithCalculatedRentals} tableId="properties" className="hidden md:table-cell" />}
+                  {visibleColumns.includes('region') && <TableHeaderWithFilter label="Provincia" columnKey="region" data={propertiesWithCalculatedRentals} tableId="properties" className="hidden md:table-cell" />}
+                  {visibleColumns.includes('city') && <TableHeaderWithFilter label="Población" columnKey="city" data={propertiesWithCalculatedRentals} tableId="properties" className="hidden md:table-cell" />}
+                  {visibleColumns.includes('cp') && <TableHeaderWithFilter label="CP" columnKey="cp" data={propertiesWithCalculatedRentals} tableId="properties" className="hidden md:table-cell" />}
+                  {visibleColumns.includes('catastral') && <TableHeaderWithFilter label="Ref. Catastral" columnKey="catastral" data={propertiesWithCalculatedRentals} tableId="properties" className="hidden md:table-cell" />}
+                  {visibleColumns.includes('registry') && <TableHeaderWithFilter label="Reg. Propiedad" columnKey="registry" data={propertiesWithCalculatedRentals} tableId="properties" className="hidden md:table-cell" />}
+                  {visibleColumns.includes('accountNumber') && <TableHeaderWithFilter label="Nº Cuenta" columnKey="accountNumber" data={propertiesWithCalculatedRentals} tableId="properties" className="hidden md:table-cell" />}
+                  {visibleColumns.includes('accountingAccount') && <TableHeaderWithFilter label="Cuenta Contable" columnKey="accountingAccount" data={propertiesWithCalculatedRentals} tableId="properties" className="hidden md:table-cell" />}
+                  {visibleColumns.includes('cebe') && <TableHeaderWithFilter label="CEBE" columnKey="cebe" data={propertiesWithCalculatedRentals} tableId="properties" className="hidden md:table-cell" />}
+                  {visibleColumns.includes('ceco') && <TableHeaderWithFilter label="CECO" columnKey="ceco" data={propertiesWithCalculatedRentals} tableId="properties" className="hidden md:table-cell" />}
+                  
                   {visibleColumns.includes('tenantDisplay') && <TableHeaderWithFilter label="Inquilino" columnKey="tenantDisplay" data={propertiesWithCalculatedRentals} tableId="properties" className="w-24 md:w-32" />}
                   {visibleColumns.includes('rentTotal') && <TableHeaderWithFilter label="Renta Mensual" columnKey="rentTotal" data={propertiesWithCalculatedRentals} tableId="properties" className="text-right" />}
+                  
+                  {visibleColumns.includes('bank') && <TableHeaderWithFilter label="Banco" columnKey="bank" data={propertiesWithCalculatedRentals} tableId="properties" />}
+                  {visibleColumns.includes('loanNumber') && <TableHeaderWithFilter label="Nº Préstamo" columnKey="loanNumber" data={propertiesWithCalculatedRentals} tableId="properties" />}
+                  {visibleColumns.includes('loanAmount') && <TableHeaderWithFilter label="Imp. Concedido" columnKey="loanAmount" data={propertiesWithCalculatedRentals} tableId="properties" className="text-right" />}
+                  {visibleColumns.includes('mortgagePending') && <TableHeaderWithFilter label="Hip. Pendiente" columnKey="mortgagePending" data={propertiesWithCalculatedRentals} tableId="properties" className="text-right" />}
+                  {visibleColumns.includes('interest') && <TableHeaderWithFilter label="Tipo Interés" columnKey="interest" data={propertiesWithCalculatedRentals} tableId="properties" className="text-right" />}
+                  {visibleColumns.includes('expiry') && <TableHeaderWithFilter label="Fecha Vencimiento" columnKey="expiry" data={propertiesWithCalculatedRentals} tableId="properties" className="text-center" />}
+
+                  {visibleColumns.includes('communityAdmin') && <TableHeaderWithFilter label="Admin. Comunidad" columnKey="communityAdmin" data={propertiesWithCalculatedRentals} tableId="properties" />}
+                  {visibleColumns.includes('communityAdminEmail') && <TableHeaderWithFilter label="Email Admin" columnKey="communityAdminEmail" data={propertiesWithCalculatedRentals} tableId="properties" />}
+                  {visibleColumns.includes('communityAdminPhone') && <TableHeaderWithFilter label="Tel. Admin" columnKey="communityAdminPhone" data={propertiesWithCalculatedRentals} tableId="properties" />}
+                  {visibleColumns.includes('communityFee') && <TableHeaderWithFilter label="Cuota Mensual" columnKey="communityFee" data={propertiesWithCalculatedRentals} tableId="properties" className="text-right" />}
+                  {visibleColumns.includes('communityPaymentDay') && <TableHeaderWithFilter label="Día Cobro" columnKey="communityPaymentDay" data={propertiesWithCalculatedRentals} tableId="properties" className="text-center" />}
+
+                  {visibleColumns.includes('finAcquisitionDate') && <TableHeaderWithFilter label="Fecha Adq." columnKey="finAcquisitionDate" data={propertiesWithCalculatedRentals} tableId="properties" className="text-center" />}
+                  {visibleColumns.includes('finPurchasePrice') && <TableHeaderWithFilter label="Precio Compra" columnKey="finPurchasePrice" data={propertiesWithCalculatedRentals} tableId="properties" className="text-right" />}
+                  {visibleColumns.includes('finAcquisitionCosts') && <TableHeaderWithFilter label="Gastos Adq." columnKey="finAcquisitionCosts" data={propertiesWithCalculatedRentals} tableId="properties" className="text-right" />}
+                  {visibleColumns.includes('finAgentFees') && <TableHeaderWithFilter label="Hon. Agencia" columnKey="finAgentFees" data={propertiesWithCalculatedRentals} tableId="properties" className="text-right" />}
+                  {visibleColumns.includes('finCurrentValue') && <TableHeaderWithFilter label="Valor Actual" columnKey="finCurrentValue" data={propertiesWithCalculatedRentals} tableId="properties" className="text-right" />}
+                  {visibleColumns.includes('finSalePrice') && <TableHeaderWithFilter label="Precio Venta Esp." columnKey="finSalePrice" data={propertiesWithCalculatedRentals} tableId="properties" className="text-right" />}
                 </tr>
               </thead>
               <tbody>
@@ -853,36 +890,39 @@ export default function RealEstate() {
                     {visibleColumns.includes('id') && <td>{p.id}</td>}
                     {visibleColumns.includes('name') && <td className="truncate max-w-[100px]">{p.name}</td>}
                     {visibleColumns.includes('address') && <td className="hidden md:table-cell">{p.address}</td>}
-                    {visibleColumns.includes('region') && <td>{p.region}</td>}
-                    {visibleColumns.includes('city') && <td>{p.city}</td>}
-                    {visibleColumns.includes('cp') && <td className="hidden md:table-cell">{p.cp}</td>}
-                    {visibleColumns.includes('catastral') && <td className="hidden md:table-cell">{p.catastral}</td>}
-                    {visibleColumns.includes('registry') && <td className="hidden md:table-cell">{p.registry}</td>}
-                    {visibleColumns.includes('accountNumber') && <td className="hidden md:table-cell">{p.accountNumber}</td>}
-                    {visibleColumns.includes('accountingAccount') && <td className="hidden md:table-cell">{p.accountingAccount}</td>}
+                    {visibleColumns.includes('country') && <td className="hidden md:table-cell">{p.country || '---'}</td>}
+                    {visibleColumns.includes('region') && <td className="hidden md:table-cell">{p.region || '---'}</td>}
+                    {visibleColumns.includes('city') && <td className="hidden md:table-cell">{p.city || '---'}</td>}
+                    {visibleColumns.includes('cp') && <td className="hidden md:table-cell">{p.cp || '---'}</td>}
+                    {visibleColumns.includes('catastral') && <td className="hidden md:table-cell">{p.catastral || '---'}</td>}
+                    {visibleColumns.includes('registry') && <td className="hidden md:table-cell">{p.registry || '---'}</td>}
+                    {visibleColumns.includes('accountNumber') && <td className="hidden md:table-cell">{p.accountNumber || '---'}</td>}
+                    {visibleColumns.includes('accountingAccount') && <td className="hidden md:table-cell">{p.accountingAccount || '---'}</td>}
+                    {visibleColumns.includes('cebe') && <td className="hidden md:table-cell">{p.cebe || '---'}</td>}
+                    {visibleColumns.includes('ceco') && <td className="hidden md:table-cell">{p.ceco || '---'}</td>}
                     
                     {visibleColumns.includes('tenantDisplay') && <td className="truncate max-w-[100px]" title={p.tenantDisplay}>{p.tenantDisplay}</td>}
                     {visibleColumns.includes('rentTotal') && <td className="text-right">{p.rentTotal}</td>}
                     
-                    {visibleColumns.includes('bank') && <td>{p.bank}</td>}
-                    {visibleColumns.includes('loanNumber') && <td>{p.loanNumber}</td>}
-                    {visibleColumns.includes('loanAmount') && <td className="text-right">{p.loanAmount}</td>}
-                    {visibleColumns.includes('mortgagePending') && <td className="text-right">{p.mortgagePending}</td>}
-                    {visibleColumns.includes('interest') && <td className="text-right">{p.interest}</td>}
-                    {visibleColumns.includes('expiry') && <td className="text-center">{p.expiry}</td>}
+                    {visibleColumns.includes('bank') && <td>{p.bank || '---'}</td>}
+                    {visibleColumns.includes('loanNumber') && <td>{p.loanNumber || '---'}</td>}
+                    {visibleColumns.includes('loanAmount') && <td className="text-right">{p.loanAmount ? Number(p.loanAmount).toLocaleString('es-ES', { minimumFractionDigits: 2 }) + ' €' : '---'}</td>}
+                    {visibleColumns.includes('mortgagePending') && <td className="text-right">{p.mortgagePending ? Number(p.mortgagePending).toLocaleString('es-ES', { minimumFractionDigits: 2 }) + ' €' : '---'}</td>}
+                    {visibleColumns.includes('interest') && <td className="text-right">{p.interest ? p.interest + ' %' : '---'}</td>}
+                    {visibleColumns.includes('expiry') && <td className="text-center">{p.expiry || '---'}</td>}
 
-                    {visibleColumns.includes('communityAdmin') && <td>{p.community?.admin}</td>}
-                    {visibleColumns.includes('communityAdminEmail') && <td>{p.community?.adminEmail}</td>}
-                    {visibleColumns.includes('communityAdminPhone') && <td>{p.community?.adminPhone}</td>}
-                    {visibleColumns.includes('communityFee') && <td className="text-right">{p.community?.fee}</td>}
-                    {visibleColumns.includes('communityPaymentDay') && <td className="text-center">{p.community?.paymentDay}</td>}
+                    {visibleColumns.includes('communityAdmin') && <td>{p.communityAdmin || '---'}</td>}
+                    {visibleColumns.includes('communityAdminEmail') && <td className="lowercase">{p.communityAdminEmail || '---'}</td>}
+                    {visibleColumns.includes('communityAdminPhone') && <td>{p.communityAdminPhone || '---'}</td>}
+                    {visibleColumns.includes('communityFee') && <td className="text-right">{p.communityFee ? Number(p.communityFee).toLocaleString('es-ES', { minimumFractionDigits: 2 }) + ' €' : '---'}</td>}
+                    {visibleColumns.includes('communityPaymentDay') && <td className="text-center">{p.communityPaymentDay || '---'}</td>}
 
-                    {visibleColumns.includes('finAcquisitionDate') && <td className="text-center">{p.financials?.acquisitionDate}</td>}
-                    {visibleColumns.includes('finPurchasePrice') && <td className="text-right">{p.financials?.purchasePrice}</td>}
-                    {visibleColumns.includes('finAcquisitionCosts') && <td className="text-right">{p.financials?.acquisitionCosts}</td>}
-                    {visibleColumns.includes('finAgentFees') && <td className="text-right">{p.financials?.agentFees}</td>}
-                    {visibleColumns.includes('finCurrentValue') && <td className="text-right">{p.financials?.currentValue}</td>}
-                    {visibleColumns.includes('finSalePrice') && <td className="text-right">{p.financials?.salePrice}</td>}
+                    {visibleColumns.includes('finAcquisitionDate') && <td className="text-center">{p.finAcquisitionDate || '---'}</td>}
+                    {visibleColumns.includes('finPurchasePrice') && <td className="text-right">{p.finPurchasePrice ? Number(p.finPurchasePrice).toLocaleString('es-ES', { minimumFractionDigits: 2 }) + ' €' : '---'}</td>}
+                    {visibleColumns.includes('finAcquisitionCosts') && <td className="text-right">{p.finAcquisitionCosts ? Number(p.finAcquisitionCosts).toLocaleString('es-ES', { minimumFractionDigits: 2 }) + ' €' : '---'}</td>}
+                    {visibleColumns.includes('finAgentFees') && <td className="text-right">{p.finAgentFees ? Number(p.finAgentFees).toLocaleString('es-ES', { minimumFractionDigits: 2 }) + ' €' : '---'}</td>}
+                    {visibleColumns.includes('finCurrentValue') && <td className="text-right">{p.finCurrentValue ? Number(p.finCurrentValue).toLocaleString('es-ES', { minimumFractionDigits: 2 }) + ' €' : '---'}</td>}
+                    {visibleColumns.includes('finSalePrice') && <td className="text-right">{p.finSalePrice ? Number(p.finSalePrice).toLocaleString('es-ES', { minimumFractionDigits: 2 }) + ' €' : '---'}</td>}
                   </tr>
                 ))}
               </tbody>

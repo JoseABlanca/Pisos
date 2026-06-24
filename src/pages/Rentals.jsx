@@ -463,15 +463,19 @@ export default function Rentals() {
             <table className="clean-table">
               <thead>
                 <tr className="sticky top-0 z-10">
-                  {visibleColumns.includes('id') && <TableHeaderWithFilter label="Ref. / ID" columnKey="id" data={rentals.map(r => ({ ...r, id: r._originalId || r.reference || '' }))} tableId="rentals" className="w-32" />}
+                  {visibleColumns.includes('id') && <TableHeaderWithFilter label="ID" columnKey="id" data={rentals.map(r => ({ ...r, id: r._originalId || r.id || '' }))} tableId="rentals" className="w-24" />}
+                  {visibleColumns.includes('reference') && <TableHeaderWithFilter label="Referencia" columnKey="reference" data={rentals} tableId="rentals" className="w-32" />}
                   {visibleColumns.includes('propertyDisplay') && <TableHeaderWithFilter label="Propiedad" columnKey="propertyDisplay" data={rentals.map(r => { const p = properties.find(p => p.id === r.propertyId); return { ...r, propertyDisplay: p ? p.name : r.propertyName || r.propertyId || 'Desconocido' }; })} tableId="rentals" className="w-48" />}
                   {visibleColumns.includes('tenantDisplay') && <TableHeaderWithFilter label="Inquilino" columnKey="tenantDisplay" data={rentals.map(r => { const c = customers.find(c => c.id === r.tenantId); return { ...r, tenantDisplay: r.tenants?.length > 0 ? r.tenants.map(t => t.name).join(', ') : (c ? c.name : 'Ninguno') }; })} tableId="rentals" className="w-48" />}
+                  {visibleColumns.includes('rentalType') && <TableHeaderWithFilter label="Tipo Alquiler" columnKey="rentalType" data={rentals} tableId="rentals" className="w-32" />}
+                  {visibleColumns.includes('duration') && <TableHeaderWithFilter label="Duración" columnKey="duration" data={rentals} tableId="rentals" className="w-24 text-center" />}
                   {visibleColumns.includes('startDate') && <TableHeaderWithFilter label="Inicio" columnKey="startDate" data={rentals} tableId="rentals" className="w-32 text-center" />}
                   {visibleColumns.includes('endDate') && <TableHeaderWithFilter label="Fin" columnKey="endDate" data={rentals} tableId="rentals" className="w-32 text-center" />}
+                  {visibleColumns.includes('status') && <TableHeaderWithFilter label="Estado" columnKey="status" data={rentals} tableId="rentals" className="w-24 text-center" />}
                   {visibleColumns.includes('deposit') && <TableHeaderWithFilter label="Fianza" columnKey="deposit" data={rentals.map(r => ({ ...r, deposit: Number(r.depositAmount || 0).toLocaleString('es-ES', { minimumFractionDigits: 2 }) }))} tableId="rentals" className="w-32 text-right" />}
                   {visibleColumns.includes('rent') && <TableHeaderWithFilter label="Renta" columnKey="rent" data={rentals.map(r => ({ ...r, rent: Number(r.rentAmount || 0).toLocaleString('es-ES', { minimumFractionDigits: 2 }) }))} tableId="rentals" className="w-32 text-right" />}
                   {visibleColumns.includes('paymentMethod') && <TableHeaderWithFilter label="Forma Pago" columnKey="paymentMethod" data={rentals} tableId="rentals" className="w-32" />}
-                  {visibleColumns.includes('status') && <TableHeaderWithFilter label="Estado" columnKey="status" data={rentals} tableId="rentals" className="w-24 text-center" />}
+                  {visibleColumns.includes('actualizaIpc') && <TableHeaderWithFilter label="Actualiza IPC" columnKey="actualizaIpc" data={rentals} tableId="rentals" className="w-24 text-center" />}
                 </tr>
               </thead>
               <tbody>
@@ -492,7 +496,7 @@ export default function Rentals() {
                   const cust = customers.find(c => c.id === rental.tenantId);
                   return {
                     ...rental,
-                    id: rental._originalId || rental.reference || '',
+                    id: rental._originalId || rental.id || '',
                     propertyDisplay: prop ? prop.name : rental.propertyName || rental.propertyId || 'Desconocido',
                     tenantDisplay: rental.tenants?.length > 0 ? rental.tenants.map(t => t.name).join(', ') : (cust ? cust.name : 'Ninguno'),
                     deposit: Number(rental.depositAmount || 0).toLocaleString('es-ES', { minimumFractionDigits: 2 }),
@@ -506,19 +510,23 @@ export default function Rentals() {
                   onDoubleClick={() => handleEdit(rental)}
                 >
                   {visibleColumns.includes('id') && <td>{rental.id}</td>}
+                  {visibleColumns.includes('reference') && <td>{rental.reference || '---'}</td>}
                   {visibleColumns.includes('propertyDisplay') && <td>{rental.propertyDisplay}</td>}
                   {visibleColumns.includes('tenantDisplay') && <td>{rental.tenantDisplay}</td>}
+                  {visibleColumns.includes('rentalType') && <td className="capitalize">{rental.rentalType || '---'}</td>}
+                  {visibleColumns.includes('duration') && <td className="text-center capitalize">{rental.duration || '---'}</td>}
                   {visibleColumns.includes('startDate') && <td className="text-center">{rental.startDate || '-'}</td>}
                   {visibleColumns.includes('endDate') && <td className="text-center">{rental.endDate || '-'}</td>}
+                  {visibleColumns.includes('status') && <td className="text-center uppercase">{rental.status || 'activo'}</td>}
                   {visibleColumns.includes('deposit') && <td className="text-right">{rental.deposit} €</td>}
                   {visibleColumns.includes('rent') && <td className="text-right">{rental.rent} €</td>}
                   {visibleColumns.includes('paymentMethod') && <td>{rental.paymentPeriod || '-'}</td>}
-                  {visibleColumns.includes('status') && <td className="text-center uppercase">{rental.status || 'activo'}</td>}
+                  {visibleColumns.includes('actualizaIpc') && <td className="text-center">{rental.actualizaIpc ? 'SÍ' : 'NO'}</td>}
                 </tr>
                 ))}
             {rentals.length === 0 && (
               <tr>
-                <td colSpan="6" className="text-center py-20 text-slate-400 italic">No hay alquileres registrados</td>
+                <td colSpan={visibleColumns.length} className="text-center py-20 text-slate-400 italic">No hay alquileres registrados</td>
               </tr>
             )}
           </tbody>

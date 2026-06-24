@@ -146,6 +146,30 @@ export default function FinanzasTab({ formData, setFormData, rentals, user, setP
                 <span className="absolute right-2 top-1/2 -translate-y-1/2 text-[11px] text-gray-500">€</span>
               </div>
             </div>
+            <div className="space-y-1">
+              <label className="text-[10px] font-bold text-slate-700 uppercase">Honorarios de Agencia:</label>
+              <div className="relative">
+                <input 
+                  type="number" 
+                  className="win-input w-full text-right pr-6" 
+                  value={formData.agentFees || ''} 
+                  onChange={e => setFormData({ ...formData, agentFees: e.target.value })} 
+                />
+                <span className="absolute right-2 top-1/2 -translate-y-1/2 text-[11px] text-gray-500">€</span>
+              </div>
+            </div>
+            <div className="space-y-1">
+              <label className="text-[10px] font-bold text-slate-700 uppercase">Valor Actual:</label>
+              <div className="relative">
+                <input 
+                  type="number" 
+                  className="win-input w-full text-right pr-6" 
+                  value={formData.currentValue || ''} 
+                  onChange={e => setFormData({ ...formData, currentValue: e.target.value })} 
+                />
+                <span className="absolute right-2 top-1/2 -translate-y-1/2 text-[11px] text-gray-500">€</span>
+              </div>
+            </div>
           </div>
 
           {/* Gastos de Adquisición Table (Full Width) */}

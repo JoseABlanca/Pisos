@@ -256,7 +256,7 @@ export default function ComunidadTab({
               </div>
             </div>
 
-            <div className="grid grid-cols-2 gap-3">
+            <div className="grid grid-cols-3 gap-3">
               <div className="space-y-1">
                 <label className="text-[10px] font-bold text-slate-700 uppercase">Cuota Ordinaria (€):</label>
                 <input 
@@ -265,6 +265,18 @@ export default function ComunidadTab({
                   value={community.fee || ''} 
                   onChange={e => updateCommunityField('fee', e.target.value)} 
                   placeholder="0.00"
+                />
+              </div>
+              <div className="space-y-1">
+                <label className="text-[10px] font-bold text-slate-700 uppercase">Día Cobro:</label>
+                <input 
+                  type="number" 
+                  min="1"
+                  max="31"
+                  className="win-input w-full text-right" 
+                  value={community.paymentDay || ''} 
+                  onChange={e => updateCommunityField('paymentDay', e.target.value)} 
+                  placeholder="1-31"
                 />
               </div>
               <div className="space-y-1 relative">

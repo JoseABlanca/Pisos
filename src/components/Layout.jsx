@@ -435,7 +435,9 @@ export default function Layout() {
         { id: 'catastral', name: 'Ref. Catastral' },
         { id: 'registry', name: 'Reg. Propiedad' },
         { id: 'accountNumber', name: 'Número de cuenta' },
-        { id: 'accountingAccount', name: 'Cuenta contable asociada' }
+        { id: 'accountingAccount', name: 'Cuenta contable asociada' },
+        { id: 'cebe', name: 'CEBE Asociado' },
+        { id: 'ceco', name: 'CECO Asociado' }
       ]},
       { group: 'ALQUILER (RESUMEN)', items: [
         { id: 'tenantDisplay', name: 'Inquilino Actual' },
@@ -468,16 +470,20 @@ export default function Layout() {
     'Alquileres': [
       { group: 'CONTRATO', items: [
         { id: 'id', name: 'ID' },
+        { id: 'reference', name: 'Referencia' },
         { id: 'propertyDisplay', name: 'Activo' },
         { id: 'tenantDisplay', name: 'Inquilino' },
-        { id: 'status', name: 'Estado' },
+        { id: 'rentalType', name: 'Tipo de Alquiler' },
+        { id: 'duration', name: 'Duración' },
         { id: 'startDate', name: 'Inicio Contrato' },
-        { id: 'endDate', name: 'Fin Contrato' }
+        { id: 'endDate', name: 'Fin Contrato' },
+        { id: 'status', name: 'Estado' }
       ]},
       { group: 'ECONÓMICO', items: [
         { id: 'deposit', name: 'Fianza' },
         { id: 'rent', name: 'Renta' },
-        { id: 'paymentMethod', name: 'Forma de Pago' }
+        { id: 'paymentMethod', name: 'Forma de Pago' },
+        { id: 'actualizaIpc', name: 'Actualiza IPC' }
       ]}
     ],
     'Propietarios': [

@@ -181,9 +181,12 @@ export default function Customers() {
     address: '',
     dni: '',
     phone: '',
+    email: '',
+    city: '',
     cp: '',
     floor: '',
     status: 'activo',
+    notes: '',
     documents: [],
     transactions: []
   });
@@ -211,10 +214,13 @@ export default function Customers() {
       address: '',
       dni: '',
       phone: '',
+      email: '',
+      city: '',
       cp: '',
       floor: '',
       floors: [],
       status: 'activo',
+      notes: '',
       documents: [],
       transactions: []
     });
@@ -599,8 +605,7 @@ export default function Customers() {
                         <span>Inactivo</span>
                       </label>
                     </div>
-                  </div>
-                  <div className="win-form-row">
+                             <div className="win-form-row">
                     <label className="win-form-label">Dirección:</label>
                     <input 
                       type="text" 
@@ -616,6 +621,15 @@ export default function Customers() {
                       className="win-input flex-1"
                       value={formData.dni}
                       onChange={(e) => setFormData({...formData, dni: e.target.value})}
+                    />
+                  </div>
+                  <div className="win-form-row">
+                    <label className="win-form-label">Email:</label>
+                    <input 
+                      type="email" 
+                      className="win-input flex-1"
+                      value={formData.email || ''}
+                      onChange={(e) => setFormData({...formData, email: e.target.value})}
                     />
                   </div>
                 </div>
@@ -638,6 +652,15 @@ export default function Customers() {
                       onChange={(e) => setFormData({...formData, cp: e.target.value})}
                     />
                   </div>
+                  <div className="win-form-row">
+                    <label className="win-form-label">Población:</label>
+                    <input 
+                      type="text" 
+                      className="win-input flex-1"
+                      value={formData.city || ''}
+                      onChange={(e) => setFormData({...formData, city: e.target.value})}
+                    />
+                  </div>             </div>
                   <div className="win-form-row flex flex-col items-start gap-1 w-full">
                     <label className="win-form-label font-bold text-slate-700 uppercase">Pisos/Propiedades Asociadas:</label>
                     <div className="w-full bg-white border border-[#808080] p-1.5 win-bevel max-h-[100px] overflow-auto">
@@ -698,6 +721,16 @@ export default function Customers() {
                             ))}
                           </select>
                         </div>
+                      </div>
+                      
+                      <div className="space-y-1 mt-4">
+                        <label className="text-[10px] font-bold text-slate-700 uppercase">Notas:</label>
+                        <textarea 
+                          className="win-input w-full h-24 p-1.5 resize-none" 
+                          value={formData.notes || ''} 
+                          onChange={(e) => setFormData({...formData, notes: e.target.value})}
+                          placeholder="Notas o comentarios sobre el inquilino..."
+                        />
                       </div>
                     </div>
                   )}

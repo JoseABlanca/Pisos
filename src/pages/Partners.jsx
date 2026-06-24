@@ -146,6 +146,9 @@ export default function Partners() {
     dni: '',
     phone: '',
     email: '',
+    address: '',
+    iban: '',
+    ownership: '',
     status: 'activo',
     documents: []
   });
@@ -173,6 +176,9 @@ export default function Partners() {
       dni: '',
       phone: '',
       email: '',
+      address: '',
+      iban: '',
+      ownership: '',
       status: 'activo',
       documents: []
     });
@@ -416,23 +422,34 @@ export default function Partners() {
                   </div>
                 )}
 
-                {activeFormTab === 'contact' && (
-                  <div className={`grid ${isMobile ? 'grid-cols-1' : 'grid-cols-2'} gap-4`}>
-                    <div className="space-y-1">
-                      <label className="text-[10px] font-bold text-slate-700 uppercase">Teléfono:</label>
-                      <input 
-                        type="text" 
-                        value={formData.phone} 
-                        onChange={e => setFormData({...formData, phone: e.target.value})}
-                        className="win-input w-full" 
-                      />
+                               {activeFormTab === 'contact' && (
+                  <div className="space-y-3">
+                    <div className={`grid ${isMobile ? 'grid-cols-1' : 'grid-cols-2'} gap-4`}>
+                      <div className="space-y-1">
+                        <label className="text-[10px] font-bold text-slate-700 uppercase">Teléfono:</label>
+                        <input 
+                          type="text" 
+                          value={formData.phone} 
+                          onChange={e => setFormData({...formData, phone: e.target.value})}
+                          className="win-input w-full" 
+                        />
+                      </div>
+                      <div className="space-y-1">
+                        <label className="text-[10px] font-bold text-slate-700 uppercase">Email:</label>
+                        <input 
+                          type="email" 
+                          value={formData.email} 
+                          onChange={e => setFormData({...formData, email: e.target.value})}
+                          className="win-input w-full" 
+                        />
+                      </div>
                     </div>
                     <div className="space-y-1">
-                      <label className="text-[10px] font-bold text-slate-700 uppercase">Email:</label>
+                      <label className="text-[10px] font-bold text-slate-700 uppercase">Dirección:</label>
                       <input 
-                        type="email" 
-                        value={formData.email} 
-                        onChange={e => setFormData({...formData, email: e.target.value})}
+                        type="text" 
+                        value={formData.address || ''} 
+                        onChange={e => setFormData({...formData, address: e.target.value})}
                         className="win-input w-full" 
                       />
                     </div>
@@ -441,6 +458,29 @@ export default function Partners() {
 
                 {activeFormTab === 'financial' && (
                   <div className="space-y-4">
+                    <div className={`grid ${isMobile ? 'grid-cols-1' : 'grid-cols-2'} gap-4 p-3 border border-white bg-slate-50/50 shadow-sm mb-4`}>
+                      <div className="space-y-1">
+                        <label className="text-[10px] font-bold text-slate-700 uppercase">IBAN:</label>
+                        <input 
+                          type="text" 
+                          value={formData.iban || ''} 
+                          onChange={e => setFormData({...formData, iban: e.target.value})}
+                          className="win-input w-full font-mono" 
+                          placeholder="ES00 0000 0000 0000 0000 0000"
+                        />
+                      </div>
+                      <div className="space-y-1">
+                        <label className="text-[10px] font-bold text-slate-700 uppercase">% Propiedad:</label>
+                        <input 
+                          type="text" 
+                          value={formData.ownership || ''} 
+                          onChange={e => setFormData({...formData, ownership: e.target.value})}
+                          className="win-input w-full" 
+                          placeholder="Ej: 50.00"
+                        />
+                      </div>
+                    </div>
+
                     <div className="flex justify-between items-center bg-slate-100 p-2 border border-[#808080]">
                       <span className="text-[10px] font-bold uppercase text-slate-600 italic">Vista de Rentabilidad</span>
                       <div className="flex bg-[#d4d0c8] p-0.5 border border-inset border-[#808080]">

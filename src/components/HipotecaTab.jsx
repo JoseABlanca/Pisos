@@ -166,6 +166,15 @@ export default function HipotecaTab({
                   />
                 </div>
                 <div className="space-y-1">
+                  <label className="text-[10px] font-bold text-slate-700 uppercase">Nº Préstamo:</label>
+                  <input 
+                    type="text" 
+                    className="win-input w-full" 
+                    value={formData.loanNumber || ''} 
+                    onChange={e => setFormData({ ...formData, loanNumber: e.target.value })} 
+                  />
+                </div>
+                <div className="space-y-1">
                   <label className="text-[10px] font-bold text-slate-700 uppercase">Tipo de Hipoteca:</label>
                   <select 
                     className="win-input w-full"
@@ -305,6 +314,15 @@ export default function HipotecaTab({
                       disabled
                     />
                   </div>
+                </div>
+                <div className="space-y-1">
+                  <label className="text-[10px] font-bold text-slate-700 uppercase">Fecha Vencimiento:</label>
+                  <input 
+                    type="date" 
+                    className="win-input w-full" 
+                    value={formData.expiry || ''} 
+                    onChange={e => setFormData({ ...formData, expiry: e.target.value })} 
+                  />
                 </div>
               </div>
             </div>
