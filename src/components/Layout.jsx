@@ -607,7 +607,7 @@ export default function Layout() {
   const tabDefaultPaths = {
     'Cuentas contables': '/accounts',
     'Diario': '/journal-entry',
-    'Mayor': '/ledger',
+    'Mayor': '/account-statement',
     'Sumas y saldos': '/trial-balance',
     'Clientes': '/customers',
     'Activos': '/real-estate',
@@ -664,7 +664,6 @@ export default function Layout() {
       { 
         group: 'Mayor', 
         items: [
-          { name: 'Mayor', path: '/ledger', icon: Library },
           { name: 'Extracto de\nmovimientos', path: '/account-statement', customIcon: 'ExtractoMov' }
         ] 
       }
