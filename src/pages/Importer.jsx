@@ -4,6 +4,7 @@ import * as XLSX from 'xlsx';
 import { db } from '../firebase/config';
 import { collection, query, where, getDocs, doc, setDoc, deleteDoc, writeBatch } from 'firebase/firestore';
 import { useAuth } from '../context/AuthContext';
+import { registerJournalEntry } from '../services/accounting';
 import Window from '../components/Window';
 import { Upload, X, Check, AlertTriangle, FileSpreadsheet, RefreshCw, Download, Building2, TrendingUp, Landmark } from 'lucide-react';
 
@@ -242,6 +243,42 @@ const TABLES_CONFIG = [
       ltv: 65,
       notes: 'Proyecto residencial, garantía hipotecaria primer grado'
     }
+  },
+  // ── CONTABILIDAD ────────────────────────────────────────────────────────
+  {
+    module: 'Contabilidad',
+    name: 'Cuentas contables',
+    collection: 'accounts',
+    idField: 'code',
+    icon: Landmark,
+    headers: ['code', 'name', 'parentCode'],
+    numeric: [],
+    booleans: [],
+    example: {
+      code: '57200001',
+      name: 'Banco Sabadell 1234',
+      parentCode: '572'
+    }
+  },
+  {
+    module: 'Contabilidad',
+    name: 'Asientos contables',
+    collection: 'journal_entries',
+    idField: 'asiento',
+    icon: Landmark,
+    headers: ['asiento', 'date', 'description', 'accountCode', 'lineDescription', 'debit', 'credit', 'document'],
+    numeric: ['debit', 'credit'],
+    booleans: [],
+    example: {
+      asiento: 'AS-001',
+      date: '2024-02-15',
+      description: 'Pago de suministro eléctrico',
+      accountCode: '62800001',
+      lineDescription: 'Gasto luz local principal',
+      debit: 150.25,
+      credit: 0,
+      document: 'FACT-2024-089'
+    }
   }
 ];
 
@@ -269,6 +306,29 @@ function parseBoolean(val) {
   if (typeof val === 'boolean') return val;
   const s = String(val).trim().toLowerCase();
   return s === 'true' || s === 'yes' || s === 'sí' || s === 'si' || s === '1';
+}
+
+function getAccountTypeByCode(code) {
+  if (!code) return 'Activo';
+  const firstChar = String(code).trim().charAt(0);
+  switch (firstChar) {
+    case '1': 
+      if (code.startsWith('10') || code.startsWith('11') || code.startsWith('12')) return 'Patrimonio';
+      return 'Pasivo';
+    case '2': return 'Activo';
+    case '3': return 'Activo';
+    case '4': 
+      if (code.startsWith('40') || code.startsWith('41') || code.startsWith('475')) return 'Pasivo';
+      return 'Activo';
+    case '5': 
+      if (code.startsWith('52') || code.startsWith('55')) return 'Pasivo';
+      return 'Activo';
+    case '6': return 'Gasto';
+    case '7': return 'Ingreso';
+    case '8': return 'Gasto';
+    case '9': return 'Ingreso';
+    default: return 'Activo';
+  }
 }
 
 export default function Importer() {
@@ -449,6 +509,159 @@ export default function Importer() {
       const keyField = selectedTable.idField;
       const qIds = queryUserIds?.length > 0 ? queryUserIds : [user.uid];
 
+      if (collectionName === 'accounts') {
+        const q = query(collection(db, 'accounts'), where('userId', 'in', qIds));
+        const existingSnap = await getDocs(q);
+        const existingAccounts = existingSnap.docs.map(d => ({ id: d.id, ...d.data() }));
+
+        const allCodes = {};
+        existingAccounts.forEach(acc => {
+          allCodes[acc.code] = acc.id;
+        });
+        parsedData.forEach(row => {
+          allCodes[row.code] = row.code; // Use code as ID for new ones
+        });
+
+        let batch = writeBatch(db);
+        let count = 0;
+
+        for (const row of parsedData) {
+          const code = String(row.code).trim();
+          const type = getAccountTypeByCode(code);
+          
+          let resolvedParentId = null;
+          if (row.parentCode && String(row.parentCode).trim()) {
+            resolvedParentId = allCodes[String(row.parentCode).trim()] || null;
+          } else {
+            for (let len = code.length - 1; len > 0; len--) {
+              const prefix = code.substring(0, len);
+              if (allCodes[prefix]) {
+                resolvedParentId = allCodes[prefix];
+                break;
+              }
+            }
+          }
+
+          const finalRow = {
+            code,
+            name: String(row.name).trim(),
+            parentId: resolvedParentId,
+            type,
+            userId: user.uid,
+            balance_actual: row.balance_actual !== undefined ? parseFloat(row.balance_actual) || 0 : 0,
+            updatedAt: new Date().toISOString(),
+            createdAt: new Date().toISOString(),
+            order: Date.now()
+          };
+
+          const docRef = doc(db, 'accounts', code);
+          batch.set(docRef, finalRow, { merge: importMode === 'append' });
+          count++;
+
+          if (count === 500) {
+            await batch.commit();
+            batch = writeBatch(db);
+            count = 0;
+          }
+        }
+
+        if (count > 0) {
+          await batch.commit();
+        }
+
+        alert(`✅ ¡Importación completada! Se han procesado ${parsedData.length} cuentas.`);
+        resetState();
+        return;
+      }
+
+      if (collectionName === 'journal_entries') {
+        const qAcc = query(collection(db, 'accounts'), where('userId', 'in', qIds));
+        const accSnap = await getDocs(qAcc);
+        const accountsList = accSnap.docs.map(d => ({ id: d.id, ...d.data() }));
+        const accountsByCode = {};
+        accountsList.forEach(a => {
+          accountsByCode[a.code] = a;
+        });
+
+        const grouped = {};
+        parsedData.forEach(row => {
+          const key = String(row.asiento || 'DEFAULT').trim();
+          if (!grouped[key]) {
+            grouped[key] = [];
+          }
+          grouped[key].push(row);
+        });
+
+        let successCount = 0;
+        let errorsList = [];
+
+        for (const [asientoKey, lines] of Object.entries(grouped)) {
+          let totalDebit = 0;
+          let totalCredit = 0;
+          const formattedLines = [];
+          let date = null;
+          let globalDesc = '';
+
+          for (const line of lines) {
+            if (!date && line.date) date = line.date;
+            if (!globalDesc && line.description) globalDesc = line.description;
+
+            const code = String(line.accountCode || '').trim();
+            const acct = accountsByCode[code];
+            if (!acct) {
+              errorsList.push(`Asiento ${asientoKey}: La cuenta contable ${code} no existe en el catálogo.`);
+              continue;
+            }
+
+            const debit = parseFloat(line.debit) || 0;
+            const credit = parseFloat(line.credit) || 0;
+            totalDebit += debit;
+            totalCredit += credit;
+
+            formattedLines.push({
+              accountId: acct.id,
+              accountCode: code,
+              description: line.lineDescription || line.description || '',
+              document: line.document || '',
+              ceco: '',
+              cebe: '',
+              debit,
+              credit
+            });
+          }
+
+          if (formattedLines.length < 2) {
+            errorsList.push(`Asiento ${asientoKey}: Debe tener al menos dos apuntes.`);
+            continue;
+          }
+
+          if (Math.abs(totalDebit - totalCredit) > 0.01) {
+            errorsList.push(`Asiento ${asientoKey}: No cuadra por partida doble (Debe: ${totalDebit}, Haber: ${totalCredit}).`);
+            continue;
+          }
+
+          try {
+            await registerJournalEntry(
+              user.uid,
+              globalDesc || `Importación Asiento ${asientoKey}`,
+              formattedLines,
+              date || new Date().toISOString().split('T')[0]
+            );
+            successCount++;
+          } catch (e) {
+            errorsList.push(`Asiento ${asientoKey}: Error al registrar - ${e.message}`);
+          }
+        }
+
+        if (errorsList.length > 0) {
+          alert(`⚠️ Importación parcial: Se registraron ${successCount} asientos, pero hubo ${errorsList.length} errores:\n\n` + errorsList.slice(0, 5).join('\n'));
+        } else {
+          alert(`✅ ¡Importación completada! Se han procesado ${successCount} asientos contables.`);
+        }
+        resetState();
+        return;
+      }
+
       if (importMode === 'replace') {
         const q = query(collection(db, collectionName), where('userId', 'in', qIds));
         const snapshot = await getDocs(q);
@@ -556,29 +769,7 @@ export default function Importer() {
 
   return (
     <div className="flex flex-col h-full bg-[#d4d0c8] font-sans overflow-hidden">
-      {/* Subtab selection headers */}
-      <div className="flex items-center space-x-0.5 px-2 pt-2 bg-[#f0f0f0] border-b border-[#808080] shrink-0">
-        <button
-          onClick={() => setActiveSubTab('importaciones')}
-          className={`px-4 py-1.5 text-[11px] font-bold border-t border-l border-r rounded-t-sm transition-colors ${
-            activeSubTab === 'importaciones'
-              ? 'bg-[#d4d0c8] text-black border-[#808080] border-b-[#d4d0c8] relative top-[1px] z-10 shadow-[inset_0_1.5px_#4f46e5]'
-              : 'bg-[#e0e0e0] text-gray-600 border-[#c0c0c0] hover:bg-gray-100 hover:text-black cursor-pointer'
-          }`}
-        >
-          Importar Datos
-        </button>
-        <button
-          onClick={() => setActiveSubTab('plantillas')}
-          className={`px-4 py-1.5 text-[11px] font-bold border-t border-l border-r rounded-t-sm transition-colors ${
-            activeSubTab === 'plantillas'
-              ? 'bg-[#d4d0c8] text-black border-[#808080] border-b-[#d4d0c8] relative top-[1px] z-10 shadow-[inset_0_1.5px_#4f46e5]'
-              : 'bg-[#e0e0e0] text-gray-600 border-[#c0c0c0] hover:bg-gray-100 hover:text-black cursor-pointer'
-          }`}
-        >
-          Descargar Plantillas
-        </button>
-      </div>
+      {/* Las pestañas internas se controlan desde el Ribbon superior */}
 
       <div className="flex-1 overflow-auto p-4 min-h-0">
         {activeSubTab === 'importaciones' ? (
@@ -599,6 +790,7 @@ export default function Importer() {
                   <option value="Inversiones inmobiliarias">Inversiones inmobiliarias</option>
                   <option value="Renta variable">Renta variable</option>
                   <option value="Crowdfunding">Crowdfunding</option>
+                  <option value="Contabilidad">Contabilidad</option>
                 </select>
               </div>
 

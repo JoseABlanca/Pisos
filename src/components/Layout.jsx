@@ -961,7 +961,7 @@ export default function Layout() {
     'Importador': [
       { group: 'Acciones', items: [
         { name: 'Importar\nDatos', path: '/importador', icon: Upload },
-        { name: 'Descargar\nPlantillas', path: '/importador?tab=plantillas', icon: FileSpreadsheet }
+        { name: 'Descargar plantilla\nimportación', path: '/importador?tab=plantillas', icon: FileSpreadsheet }
       ]}
     ],
     'Manual': [
