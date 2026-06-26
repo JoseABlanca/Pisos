@@ -7,6 +7,7 @@ import { Search, Plus, Trash2, Edit, Save, X, Download, PanelLeft, Building2 } f
 import { handleExportFormat } from '../utils/exportUtils';
 import { useTableColumns } from '../hooks/useTableColumns';
 import { exportToPDF } from '../utils/pdfExport';
+import EditableCell from '../components/EditableCell';
 
 const TYPES = ['Inmobiliaria', 'P2P', 'Equity', 'Mixta', 'Otras'];
 const STATUSES = ['activo', 'inactivo'];
@@ -58,6 +59,71 @@ export default function CfEmpresas() {
     }
     return true;
   });
+
+  const handleSaveField = async (platform, field, newVal) => {
+    try {
+      const docRef = doc(db, 'cf_platforms', platform.id);
+      let updatedObj = { ...platform };
+      
+      let processedVal = newVal;
+      if (field === 'cashBalance') {
+        processedVal = parseFloat(newVal) || 0;
+      }
+      updatedObj[field] = processedVal;
+
+      await setDoc(docRef, updatedObj);
+    } catch (err) {
+      console.error("Error updating platform field:", err);
+    }
+  };
+
+  const createNewRecord = async () => {
+    if (!user) return;
+    try {
+      const maxId = platforms.reduce((max, p) => {
+        const num = parseInt((p.id || '').replace(/\D/g, '')) || 0;
+        return num > max ? num : max;
+      }, 0);
+      const newId = `PLT${String(maxId + 1).padStart(3, '0')}`;
+      const newRecord = {
+        id: newId,
+        name: 'Nueva Plataforma',
+        type: 'Inmobiliaria',
+        country: 'España',
+        regulation: '',
+        website: '',
+        status: 'activo',
+        cashBalance: 0,
+        currency: 'EUR',
+        notes: '',
+        userId: user.uid,
+        updatedAt: new Date().toISOString()
+      };
+      await setDoc(doc(db, 'cf_platforms', newId), newRecord);
+      setSelectedPlatform(newRecord);
+    } catch (err) {
+      console.error("Error creating new platform:", err);
+    }
+  };
+
+  useEffect(() => {
+    const handleKeyDown = (e) => {
+      if (e.key === 'ArrowDown') {
+        if (selectedPlatform) {
+          const displayed = filteredPlatforms;
+          if (displayed.length > 0) {
+            const lastItem = displayed[displayed.length - 1];
+            if (selectedPlatform.id === lastItem.id) {
+              e.preventDefault();
+              createNewRecord();
+            }
+          }
+        }
+      }
+    };
+    window.addEventListener('keydown', handleKeyDown);
+    return () => window.removeEventListener('keydown', handleKeyDown);
+  }, [selectedPlatform, filteredPlatforms, platforms, user]);
 
   useEffect(() => {
     const onResize = () => setIsMobile(window.innerWidth < 768);
@@ -295,18 +361,59 @@ export default function CfEmpresas() {
                     <tr
                       key={p.id}
                       onClick={() => setSelectedPlatform(selectedPlatform?.id === p.id ? null : p)}
+                      onDoubleClick={() => handleEdit(p)}
                       className={selectedPlatform?.id === p.id ? 'selected' : ''}
                     >
                       {visibleColumns.includes('id') && <td className="font-mono font-bold">{p.id}</td>}
-                      {visibleColumns.includes('name') && <td className="font-semibold">{p.name}</td>}
-                      {visibleColumns.includes('type') && (
-                        <td><span className={`px-1.5 py-0.5 rounded-sm text-[9px] font-bold uppercase tracking-wider ${typeBadge(p.type)}`}>{p.type}</span></td>
+                      {visibleColumns.includes('name') && (
+                        <EditableCell
+                          className="font-semibold"
+                          value={p.name}
+                          onSave={(val) => handleSaveField(p, 'name', val)}
+                        />
                       )}
-                      {visibleColumns.includes('country') && <td>{p.country || '-'}</td>}
-                      {visibleColumns.includes('regulation') && <td className="text-gray-600 text-[11px]">{p.regulation || '-'}</td>}
-                      {visibleColumns.includes('currency') && <td className="font-mono">{p.currency}</td>}
+                      {visibleColumns.includes('type') && (
+                        <EditableCell
+                          value={p.type}
+                          options={TYPES}
+                          onSave={(val) => handleSaveField(p, 'type', val)}
+                        >
+                          <span className={`px-1.5 py-0.5 rounded-sm text-[9px] font-bold uppercase tracking-wider ${typeBadge(p.type)}`}>
+                            {p.type}
+                          </span>
+                        </EditableCell>
+                      )}
+                      {visibleColumns.includes('country') && (
+                        <EditableCell
+                          value={p.country}
+                          onSave={(val) => handleSaveField(p, 'country', val)}
+                        />
+                      )}
+                      {visibleColumns.includes('regulation') && (
+                        <EditableCell
+                          className="text-gray-600 text-[11px]"
+                          value={p.regulation}
+                          onSave={(val) => handleSaveField(p, 'regulation', val)}
+                        />
+                      )}
+                      {visibleColumns.includes('currency') && (
+                        <EditableCell
+                          className="font-mono"
+                          value={p.currency}
+                          options={CURRENCIES}
+                          onSave={(val) => handleSaveField(p, 'currency', val)}
+                        />
+                      )}
                       {visibleColumns.includes('status') && (
-                        <td><span className={`px-1.5 py-0.5 rounded-sm text-[9px] font-bold uppercase tracking-wider ${statusBadge(p.status)}`}>{p.status}</span></td>
+                        <EditableCell
+                          value={p.status}
+                          options={STATUSES}
+                          onSave={(val) => handleSaveField(p, 'status', val)}
+                        >
+                          <span className={`px-1.5 py-0.5 rounded-sm text-[9px] font-bold uppercase tracking-wider ${statusBadge(p.status)}`}>
+                            {p.status}
+                          </span>
+                        </EditableCell>
                       )}
                     </tr>
                   ))

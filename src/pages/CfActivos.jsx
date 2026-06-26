@@ -7,6 +7,7 @@ import { Search, Plus, Trash2, Edit, Save, X, Download, PanelLeft, TrendingUp } 
 import { handleExportFormat } from '../utils/exportUtils';
 import { useTableColumns } from '../hooks/useTableColumns';
 import { exportToPDF } from '../utils/pdfExport';
+import EditableCell from '../components/EditableCell';
 
 const fmt = (v, dec = 2) =>
   (v || 0).toLocaleString('es-ES', { minimumFractionDigits: dec, maximumFractionDigits: dec });
@@ -76,6 +77,87 @@ export default function CfActivos() {
     }
     return true;
   });
+
+  const handleSaveField = async (project, field, newVal) => {
+    try {
+      const docRef = doc(db, 'cf_projects', project.id);
+      let updatedObj = { ...project };
+      
+      let processedVal = newVal;
+      const numFields = ['targetAmount', 'raisedAmount', 'annualRate', 'term', 'ltv'];
+      if (numFields.includes(field)) {
+        processedVal = parseFloat(newVal) || 0;
+      }
+      if (field === 'term') {
+        processedVal = parseInt(newVal) || 0;
+      }
+      updatedObj[field] = processedVal;
+
+      if (field === 'platformId') {
+        const matched = platforms.find(p => p.id === newVal);
+        updatedObj.platformName = matched ? matched.name : newVal;
+      }
+
+      await setDoc(docRef, updatedObj);
+    } catch (err) {
+      console.error("Error updating project field:", err);
+    }
+  };
+
+  const createNewRecord = async () => {
+    if (!user) return;
+    try {
+      const maxId = projects.reduce((max, p) => {
+        const num = parseInt((p.id || '').replace(/\D/g, '')) || 0;
+        return num > max ? num : max;
+      }, 0);
+      const newId = `CF${String(maxId + 1).padStart(3, '0')}`;
+      const newRecord = {
+        id: newId,
+        name: 'Nuevo Proyecto',
+        platformId: platforms[0]?.id || '',
+        platformName: platforms[0]?.name || '',
+        type: 'Inmobiliario',
+        sector: 'Residencial',
+        country: 'España',
+        targetAmount: 0,
+        raisedAmount: 0,
+        annualRate: 0,
+        term: 12,
+        startDate: new Date().toISOString().split('T')[0],
+        endDate: '',
+        status: 'activo',
+        guaranteeType: 'Sin garantía',
+        ltv: 0,
+        notes: '',
+        userId: user.uid,
+        updatedAt: new Date().toISOString()
+      };
+      await setDoc(doc(db, 'cf_projects', newId), newRecord);
+      setSelectedProject(newRecord);
+    } catch (err) {
+      console.error("Error creating new project:", err);
+    }
+  };
+
+  useEffect(() => {
+    const handleKeyDown = (e) => {
+      if (e.key === 'ArrowDown') {
+        if (selectedProject) {
+          const displayed = filteredProjects;
+          if (displayed.length > 0) {
+            const lastItem = displayed[displayed.length - 1];
+            if (selectedProject.id === lastItem.id) {
+              e.preventDefault();
+              createNewRecord();
+            }
+          }
+        }
+      }
+    };
+    window.addEventListener('keydown', handleKeyDown);
+    return () => window.removeEventListener('keydown', handleKeyDown);
+  }, [selectedProject, filteredProjects, projects, user]);
 
   useEffect(() => {
     const onResize = () => setIsMobile(window.innerWidth < 768);
@@ -340,25 +422,73 @@ export default function CfActivos() {
                     <tr
                       key={proj.id}
                       onClick={() => setSelectedProject(selectedProject?.id === proj.id ? null : proj)}
+                      onDoubleClick={() => handleEdit(proj)}
                       className={selectedProject?.id === proj.id ? 'selected' : ''}
                     >
                       {visibleColumns.includes('id') && <td className="font-mono font-bold">{proj.id}</td>}
-                      {visibleColumns.includes('name') && <td className="font-semibold">{proj.name}</td>}
-                      {visibleColumns.includes('platformName') && <td>{proj.platformName}</td>}
+                      {visibleColumns.includes('name') && (
+                        <EditableCell
+                          className="font-semibold"
+                          value={proj.name}
+                          onSave={(val) => handleSaveField(proj, 'name', val)}
+                        />
+                      )}
+                      {visibleColumns.includes('platformName') && (
+                        <EditableCell
+                          value={proj.platformId}
+                          options={platforms.map(p => ({ id: p.id, name: p.name }))}
+                          onSave={(val) => handleSaveField(proj, 'platformId', val)}
+                        />
+                      )}
                       {visibleColumns.includes('type') && (
-                        <td><span className={`px-1.5 py-0.5 rounded-sm text-[9px] font-bold uppercase tracking-wider ${typeBadge(proj.type)}`}>{proj.type}</span></td>
+                        <EditableCell
+                          value={proj.type}
+                          options={TYPES}
+                          onSave={(val) => handleSaveField(proj, 'type', val)}
+                        >
+                          <span className={`px-1.5 py-0.5 rounded-sm text-[9px] font-bold uppercase tracking-wider ${typeBadge(proj.type)}`}>
+                            {proj.type}
+                          </span>
+                        </EditableCell>
                       )}
                       {visibleColumns.includes('targetAmount') && (
-                        <td className="font-mono text-right">{fmt(parseFloat(proj.targetAmount) || 0)}</td>
+                        <EditableCell
+                          type="number"
+                          className="font-mono text-right"
+                          value={proj.targetAmount}
+                          onSave={(val) => handleSaveField(proj, 'targetAmount', val)}
+                        >
+                          {fmt(parseFloat(proj.targetAmount) || 0)}
+                        </EditableCell>
                       )}
                       {visibleColumns.includes('annualRate') && (
-                        <td className="font-mono text-right font-bold text-emerald-700">{fmt(parseFloat(proj.annualRate) || 0)} %</td>
+                        <EditableCell
+                          type="number"
+                          className="font-mono text-right font-bold text-emerald-700"
+                          value={proj.annualRate}
+                          onSave={(val) => handleSaveField(proj, 'annualRate', val)}
+                        >
+                          {fmt(parseFloat(proj.annualRate) || 0)} %
+                        </EditableCell>
                       )}
                       {visibleColumns.includes('term') && (
-                        <td className="font-mono text-right">{proj.term || '-'}</td>
+                        <EditableCell
+                          type="number"
+                          className="font-mono text-right"
+                          value={proj.term}
+                          onSave={(val) => handleSaveField(proj, 'term', val)}
+                        />
                       )}
                       {visibleColumns.includes('status') && (
-                        <td><span className={`px-1.5 py-0.5 rounded-sm text-[9px] font-bold uppercase tracking-wider ${statusBadge(proj.status)}`}>{proj.status}</span></td>
+                        <EditableCell
+                          value={proj.status}
+                          options={STATUSES}
+                          onSave={(val) => handleSaveField(proj, 'status', val)}
+                        >
+                          <span className={`px-1.5 py-0.5 rounded-sm text-[9px] font-bold uppercase tracking-wider ${statusBadge(proj.status)}`}>
+                            {proj.status}
+                          </span>
+                        </EditableCell>
                       )}
                     </tr>
                   ))

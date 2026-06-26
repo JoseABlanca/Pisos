@@ -8,6 +8,7 @@ import { handleExportFormat } from '../utils/exportUtils';
 import ZoomControl from '../components/ZoomControl';
 import { useTableColumns } from '../hooks/useTableColumns';
 import { exportToPDF } from '../utils/pdfExport';
+import EditableCell from '../components/EditableCell';
 
 export default function RvAssets() {
   const { user, queryUserIds } = useAuth();
@@ -111,6 +112,65 @@ export default function RvAssets() {
       setDbHistory([]);
     }
   }, [showForm, isEditing, formData.id, user]);
+
+  const handleSaveField = async (asset, field, newVal) => {
+    try {
+      const docRef = doc(db, 'rv_assets', asset.id);
+      let processedVal = newVal;
+      if (field === 'currentPrice') {
+        processedVal = parseFloat(newVal) || 0;
+      }
+      await setDoc(docRef, { ...asset, [field]: processedVal }, { merge: true });
+    } catch (err) {
+      console.error("Error updating asset field:", err);
+    }
+  };
+
+  const createNewRecord = async () => {
+    if (!user) return;
+    try {
+      const newId = `TICKER${String(assets.length + 1).padStart(3, '0')}`;
+      const newRecord = {
+        id: newId,
+        name: 'Nuevo Activo',
+        isin: '',
+        type: 'Acción',
+        sector: 'Tecnología',
+        currency: 'EUR',
+        currentPrice: 0,
+        country: 'España',
+        apiSource: 'Yahoo Finance',
+        startDate: '2024-01-01',
+        endDate: new Date().toISOString().split('T')[0],
+        notes: '',
+        userId: user.uid,
+        updatedAt: new Date().toISOString()
+      };
+      await setDoc(doc(db, 'rv_assets', newId), newRecord);
+      setSelectedAsset(newRecord);
+    } catch (err) {
+      console.error("Error creating new asset:", err);
+    }
+  };
+
+  useEffect(() => {
+    const handleKeyDown = (e) => {
+      if (e.key === 'ArrowDown') {
+        if (selectedAsset) {
+          const displayed = filteredAssets;
+          if (displayed.length > 0) {
+            const lastItem = displayed[displayed.length - 1];
+            if (selectedAsset.id === lastItem.id) {
+              e.preventDefault();
+              createNewRecord();
+            }
+          }
+        }
+      }
+    };
+    window.addEventListener('keydown', handleKeyDown);
+    return () => window.removeEventListener('keydown', handleKeyDown);
+  }, [selectedAsset, filteredAssets, assets, user]);
 
   // Handle ribbon actions
   useEffect(() => {
@@ -519,11 +579,11 @@ export default function RvAssets() {
                       className={selectedAsset?.id === asset.id ? 'selected' : ''}
                     >
                       {visibleColumns.includes('id') && <td className="font-mono font-bold">{asset.id}</td>}
-                      {visibleColumns.includes('name') && <td>{asset.name}</td>}
-                      {visibleColumns.includes('type') && <td>{asset.type}</td>}
-                      {visibleColumns.includes('sector') && <td>{asset.sector}</td>}
-                      {visibleColumns.includes('currency') && <td>{asset.currency}</td>}
-                      {visibleColumns.includes('apiSource') && <td className="text-gray-500">{asset.apiSource || '-'}</td>}
+                      {visibleColumns.includes('name') && <EditableCell value={asset.name} onSave={(val) => handleSaveField(asset, 'name', val)} />}
+                      {visibleColumns.includes('type') && <EditableCell value={asset.type} options={['Acción', 'Fondo', 'ETF', 'Cripto', 'Otros']} onSave={(val) => handleSaveField(asset, 'type', val)} />}
+                      {visibleColumns.includes('sector') && <EditableCell value={asset.sector} options={['Tecnología', 'Financiero', 'Consumo', 'Industrial', 'Energía', 'Salud', 'Telecomunicaciones', 'Inmobiliario', 'Materiales Básicos', 'Otros']} onSave={(val) => handleSaveField(asset, 'sector', val)} />}
+                      {visibleColumns.includes('currency') && <EditableCell value={asset.currency} options={['EUR', 'USD', 'GBP', 'CHF', 'JPY']} onSave={(val) => handleSaveField(asset, 'currency', val)} />}
+                      {visibleColumns.includes('apiSource') && <EditableCell className="text-gray-500" value={asset.apiSource} options={['Yahoo Finance', 'Manual']} onSave={(val) => handleSaveField(asset, 'apiSource', val)} />}
                     </tr>
                   ))
                 )}

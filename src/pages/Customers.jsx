@@ -16,6 +16,7 @@ import { uploadFileToStorage } from '../utils/storageUtils';
 import { useTableColumns } from '../hooks/useTableColumns';
 import { useTableFilters } from '../hooks/useTableFilters';
 import { exportToPDF } from '../utils/pdfExport';
+import EditableCell from '../components/EditableCell';
 
 export default function Customers() {
   const [showForm, setShowForm] = useState(false);
@@ -227,6 +228,67 @@ export default function Customers() {
       console.error("Error deleting customer from cloud:", error);
     }
   };
+
+  const handleSaveField = async (customer, field, newVal) => {
+    try {
+      const docRef = doc(db, 'customers', customer.id);
+      await setDoc(docRef, { ...customer, [field]: newVal }, { merge: true });
+    } catch (err) {
+      console.error("Error updating customer field:", err);
+    }
+  };
+
+  const createNewRecord = async () => {
+    if (!user) return;
+    try {
+      const maxId = customers.reduce((max, c) => {
+        const num = parseInt(c.id?.replace('CLI', '')) || 0;
+        return num > max ? num : max;
+      }, 0);
+      const newId = `CLI${String(maxId + 1).padStart(3, '0')}`;
+      const newRecord = {
+        id: newId,
+        name: 'Nuevo Cliente',
+        dni: '',
+        phone: '',
+        email: '',
+        address: '',
+        city: '',
+        cp: '',
+        floor: '',
+        status: 'activo',
+        notes: '',
+        documents: [],
+        transactions: [],
+        userId: user.uid,
+        updatedAt: new Date().toISOString()
+      };
+      await setDoc(doc(db, 'customers', newId), newRecord);
+      setSelectedCustomer(newRecord);
+    } catch (err) {
+      console.error("Error creating new customer:", err);
+    }
+  };
+
+  useEffect(() => {
+    const handleKeyDown = (e) => {
+      if (e.key === 'ArrowDown') {
+        if (selectedCustomer) {
+          const displayed = applyTableFilters(filteredCustomers, 'customers');
+          if (displayed.length > 0) {
+            const lastItem = displayed[displayed.length - 1];
+            if (selectedCustomer.id === lastItem.id) {
+              e.preventDefault();
+              createNewRecord();
+            }
+          }
+        }
+      }
+    };
+    window.addEventListener('keydown', handleKeyDown);
+    return () => window.removeEventListener('keydown', handleKeyDown);
+  }, [selectedCustomer, filteredCustomers, customers, user]);
+
 
   const [formData, setFormData] = useState({
     id: '',
@@ -560,15 +622,15 @@ export default function Customers() {
                     onDoubleClick={handleEdit}
                   >
                     {visibleColumns.includes('id') && <td>{c.id}</td>}
-                    {visibleColumns.includes('name') && <td>{c.name}</td>}
-                    {visibleColumns.includes('address') && <td>{c.address}</td>}
-                    {visibleColumns.includes('dni') && <td>{c.dni}</td>}
-                    {visibleColumns.includes('phone') && <td>{c.phone}</td>}
-                    {visibleColumns.includes('email') && <td>{c.email}</td>}
-                    {visibleColumns.includes('city') && <td>{c.city}</td>}
-                    {visibleColumns.includes('cp') && <td>{c.cp}</td>}
-                    {visibleColumns.includes('status') && <td>{c.status || 'activo'}</td>}
-                    {visibleColumns.includes('notes') && <td>{c.notes}</td>}
+                    {visibleColumns.includes('name') && <EditableCell value={c.name} onSave={(val) => handleSaveField(c, 'name', val)} />}
+                    {visibleColumns.includes('address') && <EditableCell value={c.address} onSave={(val) => handleSaveField(c, 'address', val)} />}
+                    {visibleColumns.includes('dni') && <EditableCell value={c.dni} onSave={(val) => handleSaveField(c, 'dni', val)} />}
+                    {visibleColumns.includes('phone') && <EditableCell value={c.phone} onSave={(val) => handleSaveField(c, 'phone', val)} />}
+                    {visibleColumns.includes('email') && <EditableCell value={c.email} onSave={(val) => handleSaveField(c, 'email', val)} />}
+                    {visibleColumns.includes('city') && <EditableCell value={c.city} onSave={(val) => handleSaveField(c, 'city', val)} />}
+                    {visibleColumns.includes('cp') && <EditableCell value={c.cp} onSave={(val) => handleSaveField(c, 'cp', val)} />}
+                    {visibleColumns.includes('status') && <EditableCell value={c.status || 'activo'} options={['activo', 'inactivo']} onSave={(val) => handleSaveField(c, 'status', val)} />}
+                    {visibleColumns.includes('notes') && <EditableCell value={c.notes} onSave={(val) => handleSaveField(c, 'notes', val)} />}
                   </tr>
                 ))}
               </tbody>

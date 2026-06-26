@@ -16,6 +16,7 @@ import { useTableFilters } from '../hooks/useTableFilters';
 import { exportToPDF } from '../utils/pdfExport';
 import { handleExportFormat } from '../utils/exportUtils';
 import AccountingEntryModal from '../components/AccountingEntryModal';
+import EditableCell from '../components/EditableCell';
 import Accounts from './Accounts';
 
 export default function Rentals() {
@@ -241,6 +242,79 @@ export default function Rentals() {
       }
     }
   };
+
+  const handleSaveField = async (rental, field, newVal) => {
+    try {
+      const docId = rental.docId || rental.id || rental.reference;
+      const docRef = doc(db, 'rentals', docId);
+      let processedVal = newVal;
+      if (field === 'rentAmount' || field === 'depositAmount') {
+        processedVal = parseFloat(newVal) || 0;
+      } else if (field === 'actualizaIpc') {
+        processedVal = newVal === 'SÍ' || newVal === true;
+      }
+      await setDoc(docRef, { [field]: processedVal }, { merge: true });
+    } catch (err) {
+      console.error("Error updating rental field:", err);
+    }
+  };
+
+  const createNewRecord = async () => {
+    if (!user) return;
+    try {
+      const maxId = rentals.reduce((max, r) => {
+        const ref = r.reference || '';
+        const num = parseInt(ref.replace('CONT-', '')) || 0;
+        return num > max ? num : max;
+      }, 0);
+      const newId = `CONT-${String(maxId + 1).padStart(3, '0')}`;
+      const newRecord = {
+        reference: newId,
+        propertyId: properties[0]?.id || '',
+        tenantId: '',
+        tenantIds: [],
+        status: 'activo',
+        rentalType: 'vivienda habitual',
+        duration: 'fijo',
+        rentAmount: 0,
+        depositAmount: 0,
+        paymentPeriod: 'mensual',
+        notes: '',
+        expenses: [],
+        actualizaIpc: false,
+        rooms: [],
+        userId: user.uid,
+        updatedAt: new Date().toISOString(),
+        createdAt: new Date().toISOString()
+      };
+      await setDoc(doc(db, 'rentals', newId), newRecord);
+      setSelectedRental(newRecord);
+    } catch (err) {
+      console.error("Error creating new rental:", err);
+    }
+  };
+
+  useEffect(() => {
+    const handleKeyDown = (e) => {
+      if (e.key === 'ArrowDown') {
+        if (selectedRental) {
+          const displayed = applyTableFilters(filteredRentals, 'rentals');
+          if (displayed.length > 0) {
+            const lastItem = displayed[displayed.length - 1];
+            const lastId = lastItem.reference;
+            const currentId = selectedRental.reference;
+            if (currentId === lastId) {
+              e.preventDefault();
+              createNewRecord();
+            }
+          }
+        }
+      }
+    };
+    window.addEventListener('keydown', handleKeyDown);
+    return () => window.removeEventListener('keydown', handleKeyDown);
+  }, [selectedRental, filteredRentals, rentals, properties, user]);
+
 
   const handleEdit = (rental) => {
     setFormData(rental);
@@ -526,17 +600,85 @@ export default function Rentals() {
                 >
                   {visibleColumns.includes('id') && <td>{rental.id}</td>}
                   {visibleColumns.includes('reference') && <td>{rental.reference || '---'}</td>}
-                  {visibleColumns.includes('propertyDisplay') && <td>{rental.propertyDisplay}</td>}
+                  {visibleColumns.includes('propertyDisplay') && (
+                    <EditableCell 
+                      value={rental.propertyId} 
+                      options={properties.map(p => ({ id: p.id, name: p.name || p.address }))} 
+                      onSave={(val) => handleSaveField(rental, 'propertyId', val)} 
+                    />
+                  )}
                   {visibleColumns.includes('tenantDisplay') && <td>{rental.tenantDisplay}</td>}
-                  {visibleColumns.includes('rentalType') && <td className="capitalize">{rental.rentalType || '---'}</td>}
-                  {visibleColumns.includes('duration') && <td className="text-center capitalize">{rental.duration || '---'}</td>}
-                  {visibleColumns.includes('startDate') && <td className="text-center">{rental.startDate || '-'}</td>}
-                  {visibleColumns.includes('endDate') && <td className="text-center">{rental.endDate || '-'}</td>}
-                  {visibleColumns.includes('status') && <td className="text-center uppercase">{rental.status || 'activo'}</td>}
-                  {visibleColumns.includes('deposit') && <td className="text-right">{rental.deposit} €</td>}
-                  {visibleColumns.includes('rent') && <td className="text-right">{rental.rent} €</td>}
-                  {visibleColumns.includes('paymentMethod') && <td>{rental.paymentPeriod || '-'}</td>}
-                  {visibleColumns.includes('actualizaIpc') && <td className="text-center">{rental.actualizaIpc ? 'SÍ' : 'NO'}</td>}
+                  {visibleColumns.includes('rentalType') && (
+                    <EditableCell 
+                      className="capitalize" 
+                      value={rental.rentalType} 
+                      options={['vivienda habitual', 'alquiler por habitaciones', 'comercial', 'otro']} 
+                      onSave={(val) => handleSaveField(rental, 'rentalType', val)} 
+                    />
+                  )}
+                  {visibleColumns.includes('duration') && (
+                    <EditableCell 
+                      className="text-center capitalize" 
+                      value={rental.duration} 
+                      options={['fijo', 'temporal']} 
+                      onSave={(val) => handleSaveField(rental, 'duration', val)} 
+                    />
+                  )}
+                  {visibleColumns.includes('startDate') && (
+                    <EditableCell 
+                      className="text-center" 
+                      type="date" 
+                      value={rental.startDate} 
+                      onSave={(val) => handleSaveField(rental, 'startDate', val)} 
+                    />
+                  )}
+                  {visibleColumns.includes('endDate') && (
+                    <EditableCell 
+                      className="text-center" 
+                      type="date" 
+                      value={rental.endDate} 
+                      onSave={(val) => handleSaveField(rental, 'endDate', val)} 
+                    />
+                  )}
+                  {visibleColumns.includes('status') && (
+                    <EditableCell 
+                      className="text-center uppercase" 
+                      value={rental.status || 'activo'} 
+                      options={['activo', 'inactivo']} 
+                      onSave={(val) => handleSaveField(rental, 'status', val)} 
+                    />
+                  )}
+                  {visibleColumns.includes('deposit') && (
+                    <EditableCell 
+                      className="text-right" 
+                      type="number" 
+                      value={rental.depositAmount} 
+                      onSave={(val) => handleSaveField(rental, 'depositAmount', val)} 
+                    />
+                  )}
+                  {visibleColumns.includes('rent') && (
+                    <EditableCell 
+                      className="text-right" 
+                      type="number" 
+                      value={rental.rentAmount} 
+                      onSave={(val) => handleSaveField(rental, 'rentAmount', val)} 
+                    />
+                  )}
+                  {visibleColumns.includes('paymentMethod') && (
+                    <EditableCell 
+                      value={rental.paymentPeriod || 'mensual'} 
+                      options={['mensual', 'trimestral', 'anual']} 
+                      onSave={(val) => handleSaveField(rental, 'paymentPeriod', val)} 
+                    />
+                  )}
+                  {visibleColumns.includes('actualizaIpc') && (
+                    <EditableCell 
+                      className="text-center font-bold" 
+                      value={rental.actualizaIpc ? 'SÍ' : 'NO'} 
+                      options={['SÍ', 'NO']} 
+                      onSave={(val) => handleSaveField(rental, 'actualizaIpc', val)} 
+                    />
+                  )}
                 </tr>
                 ))}
             {rentals.length === 0 && (

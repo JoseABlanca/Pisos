@@ -7,6 +7,7 @@ import { Search, Plus, Trash2, Edit, Save, X, Download, PanelLeft, TrendingUp, T
 import { handleExportFormat } from '../utils/exportUtils';
 import { useTableColumns } from '../hooks/useTableColumns';
 import { exportToPDF } from '../utils/pdfExport';
+import EditableCell from '../components/EditableCell';
 
 const fmt = (v, dec = 2) =>
   (v || 0).toLocaleString('es-ES', { minimumFractionDigits: dec, maximumFractionDigits: dec });
@@ -45,6 +46,84 @@ export default function CfPortfolio() {
   const [isMobile, setIsMobile] = useState(window.innerWidth < 768);
   const [activeFormTab, setActiveFormTab] = useState('datos');
   const [showModalSidebar, setShowModalSidebar] = useState(true);
+
+  const handleSaveField = async (inv, field, newVal) => {
+    try {
+      const docRef = doc(db, 'cf_investments', inv.id);
+      let updatedObj = { ...inv };
+      
+      let processedVal = newVal;
+      const numFields = ['amount', 'currentValue', 'returnRate'];
+      if (numFields.includes(field)) {
+        processedVal = parseFloat(newVal) || 0;
+      }
+      updatedObj[field] = processedVal;
+
+      // Update platformName / projectName if platformId or projectId changed
+      if (field === 'platformId') {
+        const matched = platforms.find(p => p.id === newVal);
+        updatedObj.platformName = matched ? matched.name : newVal;
+      }
+      if (field === 'projectId') {
+        const matched = projects.find(p => p.id === newVal);
+        updatedObj.projectName = matched ? matched.name : newVal;
+      }
+
+      await setDoc(docRef, updatedObj);
+    } catch (err) {
+      console.error("Error updating investment field:", err);
+    }
+  };
+
+  const createNewRecord = async () => {
+    if (!user) return;
+    try {
+      const maxId = investments.reduce((max, inv) => {
+        const num = parseInt((inv.id || '').replace(/\D/g, '')) || 0;
+        return num > max ? num : max;
+      }, 0);
+      const newId = `INV${String(maxId + 1).padStart(3, '0')}`;
+      const newRecord = {
+        id: newId,
+        projectId: projects[0]?.id || '',
+        platformId: platforms[0]?.id || '',
+        platformName: platforms[0]?.name || '',
+        type: 'Inmobiliario',
+        amount: 0,
+        currentValue: 0,
+        returnRate: 0,
+        status: 'activo',
+        startDate: new Date().toISOString().split('T')[0],
+        endDate: '',
+        notes: '',
+        userId: user.uid,
+        updatedAt: new Date().toISOString()
+      };
+      await setDoc(doc(db, 'cf_investments', newId), newRecord);
+      setSelectedInv(newRecord);
+    } catch (err) {
+      console.error("Error creating new investment:", err);
+    }
+  };
+
+  useEffect(() => {
+    const handleKeyDown = (e) => {
+      if (e.key === 'ArrowDown') {
+        if (selectedInv) {
+          const displayed = filteredInvestments;
+          if (displayed.length > 0) {
+            const lastItem = displayed[displayed.length - 1];
+            if (selectedInv.id === lastItem.id) {
+              e.preventDefault();
+              createNewRecord();
+            }
+          }
+        }
+      }
+    };
+    window.addEventListener('keydown', handleKeyDown);
+    return () => window.removeEventListener('keydown', handleKeyDown);
+  }, [selectedInv, filteredInvestments, investments, platforms, projects, user]);
 
   const DEFAULT_COLUMNS = ['id', 'projectId', 'platformName', 'type', 'amount', 'currentValue', 'returnRate', 'status'];
   const { visibleColumns, columnWidths } = useTableColumns('cf-portfolio', DEFAULT_COLUMNS);
@@ -401,29 +480,76 @@ export default function CfPortfolio() {
                       <tr
                         key={inv.id}
                         onClick={() => setSelectedInv(selectedInv?.id === inv.id ? null : inv)}
+                        onDoubleClick={() => handleEdit(inv)}
                         className={selectedInv?.id === inv.id ? 'selected' : ''}
                       >
                         {visibleColumns.includes('id') && <td className="font-mono font-bold">{inv.id}</td>}
-                        {visibleColumns.includes('projectId') && <td className="font-semibold">{inv.projectId || '-'}</td>}
-                        {visibleColumns.includes('platformName') && <td>{inv.platformName}</td>}
+                        {visibleColumns.includes('projectId') && (
+                          <EditableCell
+                            className="font-semibold"
+                            value={inv.projectId}
+                            options={projects.map(p => ({ id: p.id, name: `${p.id} - ${p.name}` }))}
+                            onSave={(val) => handleSaveField(inv, 'projectId', val)}
+                          />
+                        )}
+                        {visibleColumns.includes('platformName') && (
+                          <EditableCell
+                            value={inv.platformId}
+                            options={platforms.map(p => ({ id: p.id, name: p.name }))}
+                            onSave={(val) => handleSaveField(inv, 'platformId', val)}
+                          />
+                        )}
                         {visibleColumns.includes('type') && (
-                          <td><span className={`px-1.5 py-0.5 rounded-sm text-[9px] font-bold uppercase tracking-wider ${typeBadge(inv.type)}`}>{inv.type}</span></td>
+                          <EditableCell
+                            value={inv.type}
+                            options={TYPES}
+                            onSave={(val) => handleSaveField(inv, 'type', val)}
+                          >
+                            <span className={`px-1.5 py-0.5 rounded-sm text-[9px] font-bold uppercase tracking-wider ${typeBadge(inv.type)}`}>
+                              {inv.type}
+                            </span>
+                          </EditableCell>
                         )}
                         {visibleColumns.includes('amount') && (
-                          <td className="font-mono text-right">{fmt(parseFloat(inv.amount) || 0)}</td>
+                          <EditableCell
+                            type="number"
+                            className="font-mono text-right"
+                            value={inv.amount}
+                            onSave={(val) => handleSaveField(inv, 'amount', val)}
+                          >
+                            {fmt(parseFloat(inv.amount) || 0)}
+                          </EditableCell>
                         )}
                         {visibleColumns.includes('currentValue') && (
-                          <td className={`font-mono text-right font-bold ${returnVal >= 0 ? 'text-green-700' : 'text-red-600'}`}>
+                          <EditableCell
+                            type="number"
+                            className={`font-mono text-right font-bold ${returnVal >= 0 ? 'text-green-700' : 'text-red-600'}`}
+                            value={inv.currentValue}
+                            onSave={(val) => handleSaveField(inv, 'currentValue', val)}
+                          >
                             {fmt(parseFloat(inv.currentValue) || parseFloat(inv.amount) || 0)}
-                          </td>
+                          </EditableCell>
                         )}
                         {visibleColumns.includes('returnRate') && (
-                          <td className={`font-mono text-right ${parseFloat(inv.returnRate) >= 0 ? 'text-green-700' : 'text-red-600'}`}>
+                          <EditableCell
+                            type="number"
+                            className={`font-mono text-right ${parseFloat(inv.returnRate) >= 0 ? 'text-green-700' : 'text-red-600'}`}
+                            value={inv.returnRate}
+                            onSave={(val) => handleSaveField(inv, 'returnRate', val)}
+                          >
                             {fmt(parseFloat(inv.returnRate) || 0)} %
-                          </td>
+                          </EditableCell>
                         )}
                         {visibleColumns.includes('status') && (
-                          <td><span className={`px-1.5 py-0.5 rounded-sm text-[9px] font-bold uppercase tracking-wider ${statusBadge(inv.status)}`}>{inv.status}</span></td>
+                          <EditableCell
+                            value={inv.status}
+                            options={STATUSES}
+                            onSave={(val) => handleSaveField(inv, 'status', val)}
+                          >
+                            <span className={`px-1.5 py-0.5 rounded-sm text-[9px] font-bold uppercase tracking-wider ${statusBadge(inv.status)}`}>
+                              {inv.status}
+                            </span>
+                          </EditableCell>
                         )}
                       </tr>
                     );

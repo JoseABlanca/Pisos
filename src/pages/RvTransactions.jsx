@@ -8,6 +8,7 @@ import { handleExportFormat } from '../utils/exportUtils';
 import ZoomControl from '../components/ZoomControl';
 import { useTableColumns } from '../hooks/useTableColumns';
 import { exportToPDF } from '../utils/pdfExport';
+import EditableCell from '../components/EditableCell';
 
 export default function RvTransactions() {
   const { user, queryUserIds } = useAuth();
@@ -102,6 +103,105 @@ export default function RvTransactions() {
       }
     }
   }, [formData.brokerId, brokers]);
+
+  const handleSaveField = async (tx, field, newVal) => {
+    try {
+      const docRef = doc(db, 'rv_transactions', tx.id);
+      let updatedObj = { ...tx };
+      
+      let processedVal = newVal;
+      const numFields = ['quantity', 'price', 'fee', 'exchangeRate'];
+      if (numFields.includes(field)) {
+        processedVal = parseFloat(newVal) || 0;
+      }
+      updatedObj[field] = processedVal;
+
+      // Recalculate totalAmount
+      const qty = parseFloat(updatedObj.quantity) || 0;
+      const prc = parseFloat(updatedObj.price) || 0;
+      const feeVal = parseFloat(updatedObj.fee) || 0;
+      const rate = parseFloat(updatedObj.exchangeRate) || 1.0;
+      const isCompra = updatedObj.type === 'Compra';
+      const isVenta = updatedObj.type === 'Venta';
+
+      let totalAmt = 0;
+      if (isCompra) {
+        totalAmt = qty * prc + feeVal;
+      } else if (isVenta) {
+        totalAmt = qty * prc - feeVal;
+      } else {
+        totalAmt = qty * prc;
+      }
+      updatedObj.totalAmount = totalAmt;
+
+      // Also set assetName/brokerName if assetId or brokerId changed
+      if (field === 'assetId') {
+        const matched = assets.find(a => a.id === newVal);
+        updatedObj.assetName = matched ? matched.name : newVal;
+      }
+      if (field === 'brokerId') {
+        const matched = brokers.find(b => b.id === newVal);
+        updatedObj.brokerName = matched ? matched.name : newVal;
+        updatedObj.currency = matched ? (matched.currency || 'EUR') : 'EUR';
+      }
+
+      await setDoc(docRef, updatedObj);
+    } catch (err) {
+      console.error("Error updating transaction field:", err);
+    }
+  };
+
+  const createNewRecord = async () => {
+    if (!user) return;
+    try {
+      const maxId = transactions.reduce((max, tx) => {
+        const num = parseInt(tx.id?.replace('TX', '')) || 0;
+        return num > max ? num : max;
+      }, 0);
+      const newId = `TX${String(maxId + 1).padStart(3, '0')}`;
+      const newRecord = {
+        id: newId,
+        assetId: assets[0]?.id || '',
+        assetName: assets[0]?.name || '',
+        brokerId: brokers[0]?.id || '',
+        brokerName: brokers[0]?.name || '',
+        type: 'Compra',
+        date: new Date().toISOString().split('T')[0],
+        quantity: 0,
+        price: 0,
+        fee: 0,
+        exchangeRate: 1.0,
+        currency: 'EUR',
+        totalAmount: 0,
+        notes: '',
+        userId: user.uid,
+        updatedAt: new Date().toISOString()
+      };
+      await setDoc(doc(db, 'rv_transactions', newId), newRecord);
+      setSelectedTx(newRecord);
+    } catch (err) {
+      console.error("Error creating new transaction:", err);
+    }
+  };
+
+  useEffect(() => {
+    const handleKeyDown = (e) => {
+      if (e.key === 'ArrowDown') {
+        if (selectedTx) {
+          const displayed = filteredTransactions;
+          if (displayed.length > 0) {
+            const lastItem = displayed[displayed.length - 1];
+            if (selectedTx.id === lastItem.id) {
+              e.preventDefault();
+              createNewRecord();
+            }
+          }
+        }
+      }
+    };
+    window.addEventListener('keydown', handleKeyDown);
+    return () => window.removeEventListener('keydown', handleKeyDown);
+  }, [selectedTx, filteredTransactions, transactions, assets, brokers, user]);
 
   // Filter & Search
   const filteredTransactions = useMemo(() => {
@@ -376,11 +476,34 @@ export default function RvTransactions() {
                       className={selectedTx?.id === tx.id ? 'selected' : ''}
                     >
                       {visibleColumns.includes('id') && <td className="font-mono">{tx.id}</td>}
-                      {visibleColumns.includes('date') && <td>{tx.date}</td>}
-                      {visibleColumns.includes('assetId') && <td className="font-bold">{tx.assetId}</td>}
-                      {visibleColumns.includes('brokerName') && <td>{tx.brokerName}</td>}
+                      {visibleColumns.includes('date') && (
+                        <EditableCell
+                          type="date"
+                          value={tx.date}
+                          onSave={(val) => handleSaveField(tx, 'date', val)}
+                        />
+                      )}
+                      {visibleColumns.includes('assetId') && (
+                        <EditableCell
+                          className="font-bold"
+                          value={tx.assetId}
+                          options={assets.map((a) => ({ id: a.id, name: `${a.id} - ${a.name}` }))}
+                          onSave={(val) => handleSaveField(tx, 'assetId', val)}
+                        />
+                      )}
+                      {visibleColumns.includes('brokerName') && (
+                        <EditableCell
+                          value={tx.brokerId}
+                          options={brokers.map((b) => ({ id: b.id, name: b.name }))}
+                          onSave={(val) => handleSaveField(tx, 'brokerId', val)}
+                        />
+                      )}
                       {visibleColumns.includes('type') && (
-                        <td>
+                        <EditableCell
+                          value={tx.type}
+                          options={['Compra', 'Venta', 'Dividendo']}
+                          onSave={(val) => handleSaveField(tx, 'type', val)}
+                        >
                           <span
                             className={`px-1.5 py-0.5 rounded-sm text-[8px] font-bold uppercase tracking-wider ${
                               tx.type === 'Compra'
@@ -392,13 +515,55 @@ export default function RvTransactions() {
                           >
                             {tx.type}
                           </span>
-                        </td>
+                        </EditableCell>
                       )}
-                      {visibleColumns.includes('quantity') && <td className="font-mono text-right">{tx.quantity.toLocaleString('es-ES', { minimumFractionDigits: 0, maximumFractionDigits: 6 })}</td>}
-                      {visibleColumns.includes('price') && <td className="font-mono text-right">{tx.price.toLocaleString('es-ES', { minimumFractionDigits: 2, maximumFractionDigits: 4 })}</td>}
-                      {visibleColumns.includes('fee') && <td className="font-mono text-right">{tx.fee.toLocaleString('es-ES', { minimumFractionDigits: 2 })}</td>}
-                      {visibleColumns.includes('currency') && <td>{tx.currency}</td>}
-                      {visibleColumns.includes('exchangeRate') && <td className="font-mono text-right">{tx.exchangeRate.toLocaleString('es-ES', { minimumFractionDigits: 2, maximumFractionDigits: 4 })}</td>}
+                      {visibleColumns.includes('quantity') && (
+                        <EditableCell
+                          type="number"
+                          className="font-mono text-right"
+                          value={tx.quantity}
+                          onSave={(val) => handleSaveField(tx, 'quantity', val)}
+                        >
+                          {tx.quantity.toLocaleString('es-ES', { minimumFractionDigits: 0, maximumFractionDigits: 6 })}
+                        </EditableCell>
+                      )}
+                      {visibleColumns.includes('price') && (
+                        <EditableCell
+                          type="number"
+                          className="font-mono text-right"
+                          value={tx.price}
+                          onSave={(val) => handleSaveField(tx, 'price', val)}
+                        >
+                          {tx.price.toLocaleString('es-ES', { minimumFractionDigits: 2, maximumFractionDigits: 4 })}
+                        </EditableCell>
+                      )}
+                      {visibleColumns.includes('fee') && (
+                        <EditableCell
+                          type="number"
+                          className="font-mono text-right"
+                          value={tx.fee}
+                          onSave={(val) => handleSaveField(tx, 'fee', val)}
+                        >
+                          {tx.fee.toLocaleString('es-ES', { minimumFractionDigits: 2 })}
+                        </EditableCell>
+                      )}
+                      {visibleColumns.includes('currency') && (
+                        <EditableCell
+                          value={tx.currency}
+                          options={['EUR', 'USD', 'GBP', 'CHF']}
+                          onSave={(val) => handleSaveField(tx, 'currency', val)}
+                        />
+                      )}
+                      {visibleColumns.includes('exchangeRate') && (
+                        <EditableCell
+                          type="number"
+                          className="font-mono text-right"
+                          value={tx.exchangeRate}
+                          onSave={(val) => handleSaveField(tx, 'exchangeRate', val)}
+                        >
+                          {tx.exchangeRate.toLocaleString('es-ES', { minimumFractionDigits: 2, maximumFractionDigits: 4 })}
+                        </EditableCell>
+                      )}
                       {visibleColumns.includes('totalAmount') && (
                         <td className="font-mono text-right font-bold text-slate-800">
                           {tx.totalAmount.toLocaleString('es-ES', { minimumFractionDigits: 2, maximumFractionDigits: 2 })} {tx.currency}

@@ -18,6 +18,7 @@ import { uploadFileToStorage } from '../utils/storageUtils';
 import { useTableColumns } from '../hooks/useTableColumns';
 import { useTableFilters } from '../hooks/useTableFilters';
 import { exportToPDF } from '../utils/pdfExport';
+import EditableCell from '../components/EditableCell';
 import { handleExportFormat } from '../utils/exportUtils';
 import ZoomControl from '../components/ZoomControl';
 import { DEFAULT_PROPERTIES } from '../utils/defaultData';
@@ -200,6 +201,64 @@ export default function RealEstate() {
       console.error("Error deleting property from cloud:", error);
     }
   };
+
+  const handleSaveField = async (property, field, newVal) => {
+    try {
+      const docRef = doc(db, 'properties', property.id);
+      let processedVal = newVal;
+      const numFields = ['m2', 'rooms', 'baths', 'year', 'loanAmount', 'interest', 'monthlyQuota', 'mortgagePending'];
+      if (numFields.includes(field)) {
+        processedVal = parseFloat(newVal) || 0;
+      }
+      await setDoc(docRef, { ...property, [field]: processedVal }, { merge: true });
+    } catch (err) {
+      console.error("Error updating property field:", err);
+    }
+  };
+
+  const createNewRecord = async () => {
+    if (!user) return;
+    try {
+      const maxId = properties.reduce((max, p) => {
+        const num = parseInt(p.id?.replace('PROP', '')) || 0;
+        return num > max ? num : max;
+      }, 0);
+      const newId = `PROP${String(maxId + 1).padStart(3, '0')}`;
+      const newRecord = {
+        id: newId,
+        name: 'Nuevo Activo',
+        address: '',
+        country: 'España',
+        status: 'disponible',
+        userId: user.uid,
+        updatedAt: new Date().toISOString()
+      };
+      await setDoc(doc(db, 'properties', newId), newRecord);
+      setSelectedProperty(newRecord);
+    } catch (err) {
+      console.error("Error creating new property:", err);
+    }
+  };
+
+  useEffect(() => {
+    const handleKeyDown = (e) => {
+      if (e.key === 'ArrowDown') {
+        if (selectedProperty) {
+          const displayed = applyTableFilters(properties, 'properties');
+          if (displayed.length > 0) {
+            const lastItem = displayed[displayed.length - 1];
+            if (selectedProperty.id === lastItem.id) {
+              e.preventDefault();
+              createNewRecord();
+            }
+          }
+        }
+      }
+    };
+    window.addEventListener('keydown', handleKeyDown);
+    return () => window.removeEventListener('keydown', handleKeyDown);
+  }, [selectedProperty, properties, user]);
+
 
   const [formData, setFormData] = useState({
     id: '',
@@ -888,41 +947,41 @@ export default function RealEstate() {
                 {applyTableFilters(propertiesWithCalculatedRentals, 'properties').map(p => (
                   <tr key={p.id} className={selectedProperty?.id === p.id ? 'selected' : ''} onClick={(e) => { e.stopPropagation(); setSelectedProperty(p); }} onDoubleClick={() => handleEdit(p)}>
                     {visibleColumns.includes('id') && <td>{p.id}</td>}
-                    {visibleColumns.includes('name') && <td className="truncate max-w-[100px]">{p.name}</td>}
-                    {visibleColumns.includes('address') && <td className="hidden md:table-cell">{p.address}</td>}
-                    {visibleColumns.includes('country') && <td className="hidden md:table-cell">{p.country || '---'}</td>}
-                    {visibleColumns.includes('region') && <td className="hidden md:table-cell">{p.region || '---'}</td>}
-                    {visibleColumns.includes('city') && <td className="hidden md:table-cell">{p.city || '---'}</td>}
-                    {visibleColumns.includes('cp') && <td className="hidden md:table-cell">{p.cp || '---'}</td>}
-                    {visibleColumns.includes('catastral') && <td className="hidden md:table-cell">{p.catastral || '---'}</td>}
-                    {visibleColumns.includes('registry') && <td className="hidden md:table-cell">{p.registry || '---'}</td>}
-                    {visibleColumns.includes('accountNumber') && <td className="hidden md:table-cell">{p.accountNumber || '---'}</td>}
-                    {visibleColumns.includes('accountingAccount') && <td className="hidden md:table-cell">{p.accountingAccount || '---'}</td>}
-                    {visibleColumns.includes('cebe') && <td className="hidden md:table-cell">{p.cebe || '---'}</td>}
-                    {visibleColumns.includes('ceco') && <td className="hidden md:table-cell">{p.ceco || '---'}</td>}
+                    {visibleColumns.includes('name') && <EditableCell value={p.name} onSave={(val) => handleSaveField(p, 'name', val)} />}
+                    {visibleColumns.includes('address') && <EditableCell className="hidden md:table-cell" value={p.address} onSave={(val) => handleSaveField(p, 'address', val)} />}
+                    {visibleColumns.includes('country') && <EditableCell className="hidden md:table-cell" value={p.country} onSave={(val) => handleSaveField(p, 'country', val)} />}
+                    {visibleColumns.includes('region') && <EditableCell className="hidden md:table-cell" value={p.region} onSave={(val) => handleSaveField(p, 'region', val)} />}
+                    {visibleColumns.includes('city') && <EditableCell className="hidden md:table-cell" value={p.city} onSave={(val) => handleSaveField(p, 'city', val)} />}
+                    {visibleColumns.includes('cp') && <EditableCell className="hidden md:table-cell" value={p.cp} onSave={(val) => handleSaveField(p, 'cp', val)} />}
+                    {visibleColumns.includes('catastral') && <EditableCell className="hidden md:table-cell" value={p.catastral} onSave={(val) => handleSaveField(p, 'catastral', val)} />}
+                    {visibleColumns.includes('registry') && <EditableCell className="hidden md:table-cell" value={p.registry} onSave={(val) => handleSaveField(p, 'registry', val)} />}
+                    {visibleColumns.includes('accountNumber') && <EditableCell className="hidden md:table-cell" value={p.accountNumber} onSave={(val) => handleSaveField(p, 'accountNumber', val)} />}
+                    {visibleColumns.includes('accountingAccount') && <EditableCell className="hidden md:table-cell" value={p.accountingAccount} onSave={(val) => handleSaveField(p, 'accountingAccount', val)} />}
+                    {visibleColumns.includes('cebe') && <EditableCell className="hidden md:table-cell" value={p.cebe} options={cebes.map(c => ({ id: c.id, name: c.name }))} onSave={(val) => handleSaveField(p, 'cebe', val)} />}
+                    {visibleColumns.includes('ceco') && <EditableCell className="hidden md:table-cell" value={p.ceco} options={cecos.map(c => ({ id: c.id, name: c.name }))} onSave={(val) => handleSaveField(p, 'ceco', val)} />}
                     
                     {visibleColumns.includes('tenantDisplay') && <td className="truncate max-w-[100px]" title={p.tenantDisplay}>{p.tenantDisplay}</td>}
                     {visibleColumns.includes('rentTotal') && <td className="text-right">{p.rentTotal}</td>}
                     
-                    {visibleColumns.includes('bank') && <td>{p.bank || '---'}</td>}
-                    {visibleColumns.includes('loanNumber') && <td>{p.loanNumber || '---'}</td>}
-                    {visibleColumns.includes('loanAmount') && <td className="text-right">{p.loanAmount ? Number(p.loanAmount).toLocaleString('es-ES', { minimumFractionDigits: 2 }) + ' €' : '---'}</td>}
-                    {visibleColumns.includes('mortgagePending') && <td className="text-right">{p.mortgagePending ? Number(p.mortgagePending).toLocaleString('es-ES', { minimumFractionDigits: 2 }) + ' €' : '---'}</td>}
-                    {visibleColumns.includes('interest') && <td className="text-right">{p.interest ? p.interest + ' %' : '---'}</td>}
-                    {visibleColumns.includes('expiry') && <td className="text-center">{p.expiry || '---'}</td>}
+                    {visibleColumns.includes('bank') && <EditableCell value={p.bank} onSave={(val) => handleSaveField(p, 'bank', val)} />}
+                    {visibleColumns.includes('loanNumber') && <EditableCell value={p.loanNumber} onSave={(val) => handleSaveField(p, 'loanNumber', val)} />}
+                    {visibleColumns.includes('loanAmount') && <EditableCell className="text-right" type="number" value={p.loanAmount} onSave={(val) => handleSaveField(p, 'loanAmount', val)} />}
+                    {visibleColumns.includes('mortgagePending') && <EditableCell className="text-right" type="number" value={p.mortgagePending} onSave={(val) => handleSaveField(p, 'mortgagePending', val)} />}
+                    {visibleColumns.includes('interest') && <EditableCell className="text-right" type="number" value={p.interest} onSave={(val) => handleSaveField(p, 'interest', val)} />}
+                    {visibleColumns.includes('expiry') && <EditableCell className="text-center" type="date" value={p.expiry} onSave={(val) => handleSaveField(p, 'expiry', val)} />}
 
-                    {visibleColumns.includes('communityAdmin') && <td>{p.communityAdmin || '---'}</td>}
-                    {visibleColumns.includes('communityAdminEmail') && <td className="lowercase">{p.communityAdminEmail || '---'}</td>}
-                    {visibleColumns.includes('communityAdminPhone') && <td>{p.communityAdminPhone || '---'}</td>}
-                    {visibleColumns.includes('communityFee') && <td className="text-right">{p.communityFee ? Number(p.communityFee).toLocaleString('es-ES', { minimumFractionDigits: 2 }) + ' €' : '---'}</td>}
-                    {visibleColumns.includes('communityPaymentDay') && <td className="text-center">{p.communityPaymentDay || '---'}</td>}
+                    {visibleColumns.includes('communityAdmin') && <EditableCell value={p.communityAdmin} onSave={(val) => handleSaveField(p, 'communityAdmin', val)} />}
+                    {visibleColumns.includes('communityAdminEmail') && <EditableCell className="lowercase" value={p.communityAdminEmail} onSave={(val) => handleSaveField(p, 'communityAdminEmail', val)} />}
+                    {visibleColumns.includes('communityAdminPhone') && <EditableCell value={p.communityAdminPhone} onSave={(val) => handleSaveField(p, 'communityAdminPhone', val)} />}
+                    {visibleColumns.includes('communityFee') && <EditableCell className="text-right" type="number" value={p.communityFee} onSave={(val) => handleSaveField(p, 'communityFee', val)} />}
+                    {visibleColumns.includes('communityPaymentDay') && <EditableCell className="text-center" type="number" value={p.communityPaymentDay} onSave={(val) => handleSaveField(p, 'communityPaymentDay', val)} />}
 
-                    {visibleColumns.includes('finAcquisitionDate') && <td className="text-center">{p.finAcquisitionDate || '---'}</td>}
-                    {visibleColumns.includes('finPurchasePrice') && <td className="text-right">{p.finPurchasePrice ? Number(p.finPurchasePrice).toLocaleString('es-ES', { minimumFractionDigits: 2 }) + ' €' : '---'}</td>}
-                    {visibleColumns.includes('finAcquisitionCosts') && <td className="text-right">{p.finAcquisitionCosts ? Number(p.finAcquisitionCosts).toLocaleString('es-ES', { minimumFractionDigits: 2 }) + ' €' : '---'}</td>}
-                    {visibleColumns.includes('finAgentFees') && <td className="text-right">{p.finAgentFees ? Number(p.finAgentFees).toLocaleString('es-ES', { minimumFractionDigits: 2 }) + ' €' : '---'}</td>}
-                    {visibleColumns.includes('finCurrentValue') && <td className="text-right">{p.finCurrentValue ? Number(p.finCurrentValue).toLocaleString('es-ES', { minimumFractionDigits: 2 }) + ' €' : '---'}</td>}
-                    {visibleColumns.includes('finSalePrice') && <td className="text-right">{p.finSalePrice ? Number(p.finSalePrice).toLocaleString('es-ES', { minimumFractionDigits: 2 }) + ' €' : '---'}</td>}
+                    {visibleColumns.includes('finAcquisitionDate') && <EditableCell className="text-center" type="date" value={p.finAcquisitionDate} onSave={(val) => handleSaveField(p, 'finAcquisitionDate', val)} />}
+                    {visibleColumns.includes('finPurchasePrice') && <EditableCell className="text-right" type="number" value={p.finPurchasePrice} onSave={(val) => handleSaveField(p, 'finPurchasePrice', val)} />}
+                    {visibleColumns.includes('finAcquisitionCosts') && <EditableCell className="text-right" type="number" value={p.finAcquisitionCosts} onSave={(val) => handleSaveField(p, 'finAcquisitionCosts', val)} />}
+                    {visibleColumns.includes('finAgentFees') && <EditableCell className="text-right" type="number" value={p.finAgentFees} onSave={(val) => handleSaveField(p, 'finAgentFees', val)} />}
+                    {visibleColumns.includes('finCurrentValue') && <EditableCell className="text-right" type="number" value={p.finCurrentValue} onSave={(val) => handleSaveField(p, 'finCurrentValue', val)} />}
+                    {visibleColumns.includes('finSalePrice') && <EditableCell className="text-right" type="number" value={p.finSalePrice} onSave={(val) => handleSaveField(p, 'finSalePrice', val)} />}
                   </tr>
                 ))}
               </tbody>

@@ -8,6 +8,7 @@ import { handleExportFormat } from '../utils/exportUtils';
 import ZoomControl from '../components/ZoomControl';
 import { useTableColumns } from '../hooks/useTableColumns';
 import { exportToPDF } from '../utils/pdfExport';
+import EditableCell from '../components/EditableCell';
 
 export default function Broker() {
   const { user, queryUserIds } = useAuth();
@@ -106,6 +107,65 @@ export default function Broker() {
       unsubTx();
     };
   }, [user, queryUserIds]);
+
+  const handleSaveField = async (broker, field, newVal) => {
+    try {
+      const docRef = doc(db, 'rv_brokers', broker.id);
+      let processedVal = newVal;
+      if (field === 'cashBalance') {
+        processedVal = parseFloat(newVal) || 0;
+      }
+      await setDoc(docRef, { ...broker, [field]: processedVal }, { merge: true });
+    } catch (err) {
+      console.error("Error updating broker field:", err);
+    }
+  };
+
+  const createNewRecord = async () => {
+    if (!user) return;
+    try {
+      const maxId = brokers.reduce((max, b) => {
+        const num = parseInt(b.id?.replace('BR', '')) || 0;
+        return num > max ? num : max;
+      }, 0);
+      const newId = `BR${String(maxId + 1).padStart(3, '0')}`;
+      const newRecord = {
+        id: newId,
+        name: 'Nuevo Broker',
+        accountNumber: '',
+        regulation: 'CNMV (España)',
+        currency: 'EUR',
+        cashBalance: 0,
+        status: 'activo',
+        notes: '',
+        userId: user.uid,
+        updatedAt: new Date().toISOString()
+      };
+      await setDoc(doc(db, 'rv_brokers', newId), newRecord);
+      setSelectedBroker(newRecord);
+    } catch (err) {
+      console.error("Error creating new broker:", err);
+    }
+  };
+
+  useEffect(() => {
+    const handleKeyDown = (e) => {
+      if (e.key === 'ArrowDown') {
+        if (selectedBroker) {
+          const displayed = filteredBrokers;
+          if (displayed.length > 0) {
+            const lastItem = displayed[displayed.length - 1];
+            if (selectedBroker.id === lastItem.id) {
+              e.preventDefault();
+              createNewRecord();
+            }
+          }
+        }
+      }
+    };
+    window.addEventListener('keydown', handleKeyDown);
+    return () => window.removeEventListener('keydown', handleKeyDown);
+  }, [selectedBroker, filteredBrokers, brokers, user]);
 
   // Handle ribbon actions
   useEffect(() => {
@@ -331,22 +391,10 @@ export default function Broker() {
                       className={selectedBroker?.id === broker.id ? 'selected' : ''}
                     >
                       {visibleColumns.includes('id') && <td>{broker.id}</td>}
-                      {visibleColumns.includes('name') && <td>{broker.name}</td>}
-                      {visibleColumns.includes('accountNumber') && <td>{broker.accountNumber || '-'}</td>}
-                      {visibleColumns.includes('currency') && <td>{broker.currency}</td>}
-                      {visibleColumns.includes('status') && (
-                        <td>
-                          <span
-                            className={`px-1.5 py-0.5 rounded-sm text-[9px] font-bold uppercase tracking-wider ${
-                              broker.status === 'activo'
-                                ? 'bg-green-100 text-green-800 border border-green-200'
-                                : 'bg-red-100 text-red-800 border border-red-200'
-                            }`}
-                          >
-                            {broker.status}
-                          </span>
-                        </td>
-                      )}
+                      {visibleColumns.includes('name') && <EditableCell value={broker.name} onSave={(val) => handleSaveField(broker, 'name', val)} />}
+                      {visibleColumns.includes('accountNumber') && <EditableCell value={broker.accountNumber} onSave={(val) => handleSaveField(broker, 'accountNumber', val)} />}
+                      {visibleColumns.includes('currency') && <EditableCell value={broker.currency} options={['EUR', 'USD', 'GBP', 'CHF', 'JPY']} onSave={(val) => handleSaveField(broker, 'currency', val)} />}
+                      {visibleColumns.includes('status') && <EditableCell className="text-center" value={broker.status} options={['activo', 'inactivo']} onSave={(val) => handleSaveField(broker, 'status', val)} />}
                     </tr>
                   ))
                 )}

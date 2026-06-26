@@ -13,6 +13,7 @@ import { handleExportFormat } from '../utils/exportUtils';
 import { useTableColumns } from '../hooks/useTableColumns';
 import { useTableFilters } from '../hooks/useTableFilters';
 import { exportToPDF } from '../utils/pdfExport';
+import EditableCell from '../components/EditableCell';
 
 
 export default function Partners() {
@@ -135,6 +136,67 @@ export default function Partners() {
       console.error("Error deleting partner from cloud:", error);
     }
   };
+
+  const handleSaveField = async (partner, field, newVal) => {
+    try {
+      const docRef = doc(db, 'partners', partner.id);
+      let processedVal = newVal;
+      if (field === 'ownership') {
+        processedVal = parseFloat(newVal) || 0;
+      }
+      await setDoc(docRef, { ...partner, [field]: processedVal }, { merge: true });
+    } catch (err) {
+      console.error("Error updating partner field:", err);
+    }
+  };
+
+  const createNewRecord = async () => {
+    if (!user) return;
+    try {
+      const maxId = partners.reduce((max, p) => {
+        const num = parseInt(p.id?.replace('S', '')) || 0;
+        return num > max ? num : max;
+      }, 0);
+      const newId = `S${String(maxId + 1).padStart(3, '0')}`;
+      const newRecord = {
+        id: newId,
+        name: 'Nuevo Propietario',
+        dni: '',
+        phone: '',
+        email: '',
+        address: '',
+        iban: '',
+        ownership: 0,
+        status: 'activo',
+        documents: [],
+        userId: user.uid,
+        updatedAt: new Date().toISOString()
+      };
+      await setDoc(doc(db, 'partners', newId), newRecord);
+      setSelectedPartner(newRecord);
+    } catch (err) {
+      console.error("Error creating new partner:", err);
+    }
+  };
+
+  useEffect(() => {
+    const handleKeyDown = (e) => {
+      if (e.key === 'ArrowDown') {
+        if (selectedPartner) {
+          const displayed = applyTableFilters(filteredPartners, 'partners');
+          if (displayed.length > 0) {
+            const lastItem = displayed[displayed.length - 1];
+            if (selectedPartner.id === lastItem.id) {
+              e.preventDefault();
+              createNewRecord();
+            }
+          }
+        }
+      }
+    };
+    window.addEventListener('keydown', handleKeyDown);
+    return () => window.removeEventListener('keydown', handleKeyDown);
+  }, [selectedPartner, filteredPartners, partners, user]);
 
   const DEFAULT_COLUMNS = ['dni', 'name', 'email', 'phone', 'status'];
   const { visibleColumns, toggleColumn, columnWidths, updateColumnWidth } = useTableColumns('partners', DEFAULT_COLUMNS);
@@ -322,14 +384,14 @@ export default function Partners() {
                     onDoubleClick={() => handleEdit(partner)}
                   >
                     {visibleColumns.includes('id') && <td className="font-mono">{partner.id}</td>}
-                    {visibleColumns.includes('dni') && <td className="font-mono">{partner.dni || '---'}</td>}
-                    {visibleColumns.includes('name') && <td>{partner.name}</td>}
-                    {visibleColumns.includes('email') && !isMobile && <td className="lowercase normal-case">{partner.email || '---'}</td>}
-                    {visibleColumns.includes('phone') && !isMobile && <td>{partner.phone || '---'}</td>}
-                    {visibleColumns.includes('address') && <td>{partner.address || '---'}</td>}
-                    {visibleColumns.includes('iban') && <td>{partner.iban || '---'}</td>}
-                    {visibleColumns.includes('ownership') && <td>{partner.ownership || '---'}</td>}
-                    {visibleColumns.includes('status') && <td className="text-center">{partner.status}</td>}
+                    {visibleColumns.includes('dni') && <EditableCell className="font-mono" value={partner.dni} onSave={(val) => handleSaveField(partner, 'dni', val)} />}
+                    {visibleColumns.includes('name') && <EditableCell value={partner.name} onSave={(val) => handleSaveField(partner, 'name', val)} />}
+                    {visibleColumns.includes('email') && !isMobile && <EditableCell className="lowercase normal-case" value={partner.email} onSave={(val) => handleSaveField(partner, 'email', val)} />}
+                    {visibleColumns.includes('phone') && !isMobile && <EditableCell value={partner.phone} onSave={(val) => handleSaveField(partner, 'phone', val)} />}
+                    {visibleColumns.includes('address') && <EditableCell value={partner.address} onSave={(val) => handleSaveField(partner, 'address', val)} />}
+                    {visibleColumns.includes('iban') && <EditableCell value={partner.iban} onSave={(val) => handleSaveField(partner, 'iban', val)} />}
+                    {visibleColumns.includes('ownership') && <EditableCell type="number" value={partner.ownership} onSave={(val) => handleSaveField(partner, 'ownership', val)} />}
+                    {visibleColumns.includes('status') && <EditableCell className="text-center" value={partner.status} options={['activo', 'inactivo']} onSave={(val) => handleSaveField(partner, 'status', val)} />}
                   </tr>
                 ))}
               </tbody>
