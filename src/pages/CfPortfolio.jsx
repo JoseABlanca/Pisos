@@ -106,24 +106,7 @@ export default function CfPortfolio() {
     }
   };
 
-  useEffect(() => {
-    const handleKeyDown = (e) => {
-      if (e.key === 'ArrowDown') {
-        if (selectedInv) {
-          const displayed = filteredInvestments;
-          if (displayed.length > 0) {
-            const lastItem = displayed[displayed.length - 1];
-            if (selectedInv.id === lastItem.id) {
-              e.preventDefault();
-              createNewRecord();
-            }
-          }
-        }
-      }
-    };
-    window.addEventListener('keydown', handleKeyDown);
-    return () => window.removeEventListener('keydown', handleKeyDown);
-  }, [selectedInv, filteredInvestments, investments, platforms, projects, user]);
+
 
   const DEFAULT_COLUMNS = ['id', 'projectId', 'platformName', 'type', 'amount', 'currentValue', 'returnRate', 'status'];
   const { visibleColumns, columnWidths } = useTableColumns('cf-portfolio', DEFAULT_COLUMNS);
@@ -168,6 +151,25 @@ export default function CfPortfolio() {
       return true;
     });
   }, [enrichedInvestments, typeFilter, statusFilter, platformFilter, searchQuery]);
+
+  useEffect(() => {
+    const handleKeyDown = (e) => {
+      if (e.key === 'ArrowDown') {
+        if (selectedInv) {
+          const displayed = filteredInvestments;
+          if (displayed.length > 0) {
+            const lastItem = displayed[displayed.length - 1];
+            if (selectedInv.id === lastItem.id) {
+              e.preventDefault();
+              createNewRecord();
+            }
+          }
+        }
+      }
+    };
+    window.addEventListener('keydown', handleKeyDown);
+    return () => window.removeEventListener('keydown', handleKeyDown);
+  }, [selectedInv, filteredInvestments, investments, platforms, projects, user]);
 
   useEffect(() => {
     const onResize = () => setIsMobile(window.innerWidth < 768);

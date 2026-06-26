@@ -294,27 +294,6 @@ export default function Rentals() {
     }
   };
 
-  useEffect(() => {
-    const handleKeyDown = (e) => {
-      if (e.key === 'ArrowDown') {
-        if (selectedRental) {
-          const displayed = applyTableFilters(filteredRentals, 'rentals');
-          if (displayed.length > 0) {
-            const lastItem = displayed[displayed.length - 1];
-            const lastId = lastItem.reference;
-            const currentId = selectedRental.reference;
-            if (currentId === lastId) {
-              e.preventDefault();
-              createNewRecord();
-            }
-          }
-        }
-      }
-    };
-    window.addEventListener('keydown', handleKeyDown);
-    return () => window.removeEventListener('keydown', handleKeyDown);
-  }, [selectedRental, filteredRentals, rentals, properties, user]);
-
 
   const handleEdit = (rental) => {
     setFormData(rental);
@@ -411,6 +390,27 @@ export default function Rentals() {
       return true;
     });
   }, [rentals, statusFilter, propertyFilter, properties, searchQuery, customers]);
+
+  useEffect(() => {
+    const handleKeyDown = (e) => {
+      if (e.key === 'ArrowDown') {
+        if (selectedRental) {
+          const displayed = applyTableFilters(filteredRentals, 'rentals');
+          if (displayed.length > 0) {
+            const lastItem = displayed[displayed.length - 1];
+            const lastId = lastItem.reference;
+            const currentId = selectedRental.reference;
+            if (currentId === lastId) {
+              e.preventDefault();
+              createNewRecord();
+            }
+          }
+        }
+      }
+    };
+    window.addEventListener('keydown', handleKeyDown);
+    return () => window.removeEventListener('keydown', handleKeyDown);
+  }, [selectedRental, filteredRentals, rentals, properties, user]);
 
   useEffect(() => {
     const onExport = (e) => {

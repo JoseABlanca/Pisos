@@ -184,25 +184,6 @@ export default function RvTransactions() {
     }
   };
 
-  useEffect(() => {
-    const handleKeyDown = (e) => {
-      if (e.key === 'ArrowDown') {
-        if (selectedTx) {
-          const displayed = filteredTransactions;
-          if (displayed.length > 0) {
-            const lastItem = displayed[displayed.length - 1];
-            if (selectedTx.id === lastItem.id) {
-              e.preventDefault();
-              createNewRecord();
-            }
-          }
-        }
-      }
-    };
-    window.addEventListener('keydown', handleKeyDown);
-    return () => window.removeEventListener('keydown', handleKeyDown);
-  }, [selectedTx, filteredTransactions, transactions, assets, brokers, user]);
-
   // Filter & Search
   const filteredTransactions = useMemo(() => {
     return transactions
@@ -225,6 +206,25 @@ export default function RvTransactions() {
       })
       .sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime());
   }, [transactions, brokerFilter, assetFilter, typeFilter, searchQuery]);
+
+  useEffect(() => {
+    const handleKeyDown = (e) => {
+      if (e.key === 'ArrowDown') {
+        if (selectedTx) {
+          const displayed = filteredTransactions;
+          if (displayed.length > 0) {
+            const lastItem = displayed[displayed.length - 1];
+            if (selectedTx.id === lastItem.id) {
+              e.preventDefault();
+              createNewRecord();
+            }
+          }
+        }
+      }
+    };
+    window.addEventListener('keydown', handleKeyDown);
+    return () => window.removeEventListener('keydown', handleKeyDown);
+  }, [selectedTx, filteredTransactions, transactions, assets, brokers, user]);
 
   // Ribbon Actions
   useEffect(() => {

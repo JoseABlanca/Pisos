@@ -270,25 +270,6 @@ export default function Customers() {
     }
   };
 
-  useEffect(() => {
-    const handleKeyDown = (e) => {
-      if (e.key === 'ArrowDown') {
-        if (selectedCustomer) {
-          const displayed = applyTableFilters(filteredCustomers, 'customers');
-          if (displayed.length > 0) {
-            const lastItem = displayed[displayed.length - 1];
-            if (selectedCustomer.id === lastItem.id) {
-              e.preventDefault();
-              createNewRecord();
-            }
-          }
-        }
-      }
-    };
-    window.addEventListener('keydown', handleKeyDown);
-    return () => window.removeEventListener('keydown', handleKeyDown);
-  }, [selectedCustomer, filteredCustomers, customers, user]);
-
 
   const [formData, setFormData] = useState({
     id: '',
@@ -432,6 +413,25 @@ export default function Customers() {
         return val.includes(searchVal);
     }
   });
+
+  useEffect(() => {
+    const handleKeyDown = (e) => {
+      if (e.key === 'ArrowDown') {
+        if (selectedCustomer) {
+          const displayed = applyTableFilters(filteredCustomers, 'customers');
+          if (displayed.length > 0) {
+            const lastItem = displayed[displayed.length - 1];
+            if (selectedCustomer.id === lastItem.id) {
+              e.preventDefault();
+              createNewRecord();
+            }
+          }
+        }
+      }
+    };
+    window.addEventListener('keydown', handleKeyDown);
+    return () => window.removeEventListener('keydown', handleKeyDown);
+  }, [selectedCustomer, filteredCustomers, customers, user]);
 
   useEffect(() => {
     const onNew = () => handleNew();

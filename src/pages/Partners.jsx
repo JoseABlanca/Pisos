@@ -179,25 +179,6 @@ export default function Partners() {
     }
   };
 
-  useEffect(() => {
-    const handleKeyDown = (e) => {
-      if (e.key === 'ArrowDown') {
-        if (selectedPartner) {
-          const displayed = applyTableFilters(filteredPartners, 'partners');
-          if (displayed.length > 0) {
-            const lastItem = displayed[displayed.length - 1];
-            if (selectedPartner.id === lastItem.id) {
-              e.preventDefault();
-              createNewRecord();
-            }
-          }
-        }
-      }
-    };
-    window.addEventListener('keydown', handleKeyDown);
-    return () => window.removeEventListener('keydown', handleKeyDown);
-  }, [selectedPartner, filteredPartners, partners, user]);
-
   const DEFAULT_COLUMNS = ['dni', 'name', 'email', 'phone', 'status'];
   const { visibleColumns, toggleColumn, columnWidths, updateColumnWidth } = useTableColumns('partners', DEFAULT_COLUMNS);
   const { activeTableFilters, applyTableFilters, clearAllFilters, TableHeaderWithFilter, renderFilterMenu, openFilterMenu, setOpenFilterMenu } = useTableFilters({ columnWidths, updateColumnWidth });
@@ -315,6 +296,25 @@ export default function Partners() {
         return val.includes(searchVal);
     }
   });
+
+  useEffect(() => {
+    const handleKeyDown = (e) => {
+      if (e.key === 'ArrowDown') {
+        if (selectedPartner) {
+          const displayed = applyTableFilters(filteredPartners, 'partners');
+          if (displayed.length > 0) {
+            const lastItem = displayed[displayed.length - 1];
+            if (selectedPartner.id === lastItem.id) {
+              e.preventDefault();
+              createNewRecord();
+            }
+          }
+        }
+      }
+    };
+    window.addEventListener('keydown', handleKeyDown);
+    return () => window.removeEventListener('keydown', handleKeyDown);
+  }, [selectedPartner, filteredPartners, partners, user]);
 
   return (
     <div className={`w-full h-full bg-[#d4d0c8] min-h-screen font-sans flex flex-col p-1 overflow-hidden`}>
