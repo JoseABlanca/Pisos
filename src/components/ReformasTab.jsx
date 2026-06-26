@@ -125,8 +125,15 @@ export default function ReformasTab({
       const owed = totalCost * (percentage / 100);
       
       const paid = expenses
-        .filter(exp => exp.ownerId === owner.partnerId)
-        .reduce((acc, curr) => acc + (parseFloat(curr.amount) || 0), 0);
+        .reduce((acc, exp) => {
+          const amt = parseFloat(exp.amount) || 0;
+          if (exp.ownerId === owner.partnerId) {
+            return acc + amt;
+          } else if (exp.ownerId === 'todos') {
+            return acc + (amt * (percentage / 100));
+          }
+          return acc;
+        }, 0);
         
       const balance = paid - owed;
       
@@ -298,6 +305,7 @@ export default function ReformasTab({
                         <td className="p-2">
                           <select className="win-input w-full text-[11px]" value={exp.ownerId || ''} onChange={e => updateExpense(idx, 'ownerId', e.target.value)}>
                             <option value="">-- Seleccionar --</option>
+                            <option value="todos">Todos (Socio %)</option>
                             {owners.map(o => (
                               <option key={o.partnerId} value={o.partnerId}>{o.name}</option>
                             ))}

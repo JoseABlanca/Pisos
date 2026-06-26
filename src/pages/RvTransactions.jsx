@@ -1,13 +1,15 @@
 import { useState, useEffect, useMemo } from 'react';
 import { db } from '../firebase/config';
-import { collection, query, where, onSnapshot, doc, setDoc, deleteDoc } from 'firebase/firestore';
+import { collection, query, where, onSnapshot, doc, setDoc, deleteDoc, getDoc } from 'firebase/firestore';
 import { useAuth } from '../context/AuthContext';
 import Window from '../components/Window';
 import { Search, Plus, Trash2, Edit, Save, X, Download, PanelLeft, Filter, RefreshCw } from 'lucide-react';
 import { handleExportFormat } from '../utils/exportUtils';
 import ZoomControl from '../components/ZoomControl';
 import { useTableColumns } from '../hooks/useTableColumns';
+import { useTableFilters } from '../hooks/useTableFilters';
 import { exportToPDF } from '../utils/pdfExport';
+import RvTransactionModal from '../components/RvTransactionModal';
 
 export default function RvTransactions() {
   const { user, queryUserIds } = useAuth();
@@ -30,23 +32,11 @@ export default function RvTransactions() {
   const [showSidebar, setShowSidebar] = useState(true);
   const [isMobile, setIsMobile] = useState(window.innerWidth < 768);
 
-  // Form State
-  const [formData, setFormData] = useState({
-    id: '',
-    assetId: '',
-    brokerId: '',
-    type: 'Compra',
-    date: new Date().toISOString().split('T')[0],
-    quantity: '',
-    price: '',
-    fee: '0',
-    exchangeRate: '1.0',
-    currency: 'EUR',
-    notes: ''
-  });
 
-  const DEFAULT_COLUMNS = ['id', 'date', 'assetId', 'brokerName', 'type', 'quantity', 'price', 'fee', 'currency', 'exchangeRate', 'totalAmount'];
+
+  const DEFAULT_COLUMNS = ['id', 'date', 'assetId', 'brokerName', 'type', 'quantity', 'price', 'priceEUR', 'fee', 'currency', 'exchangeRate', 'totalAmount', 'totalAmountEUR'];
   const { visibleColumns, toggleColumn, columnWidths, updateColumnWidth } = useTableColumns('rv-transactions', DEFAULT_COLUMNS);
+  const { applyTableFilters, TableHeaderWithFilter, renderFilterMenu } = useTableFilters({ columnWidths, updateColumnWidth });
 
   useEffect(() => {
     const handleResize = () => setIsMobile(window.innerWidth < 768);
@@ -90,22 +80,11 @@ export default function RvTransactions() {
     };
   }, [user, queryUserIds]);
 
-  // Read broker currency on change
-  useEffect(() => {
-    if (formData.brokerId) {
-      const selectedBroker = brokers.find(b => b.id === formData.brokerId);
-      if (selectedBroker) {
-        setFormData(prev => ({
-          ...prev,
-          currency: selectedBroker.currency || 'EUR'
-        }));
-      }
-    }
-  }, [formData.brokerId, brokers]);
+
 
   // Filter & Search
   const filteredTransactions = useMemo(() => {
-    return transactions
+    const basicFiltered = transactions
       .filter((tx) => {
         if (brokerFilter !== 'todos' && tx.brokerId !== brokerFilter) return false;
         if (assetFilter !== 'todos' && tx.assetId !== assetFilter) return false;
@@ -124,7 +103,9 @@ export default function RvTransactions() {
         return true;
       })
       .sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime());
-  }, [transactions, brokerFilter, assetFilter, typeFilter, searchQuery]);
+
+    return applyTableFilters(basicFiltered, 'rv-transactions');
+  }, [transactions, brokerFilter, assetFilter, typeFilter, searchQuery, applyTableFilters]);
 
   // Ribbon Actions
   useEffect(() => {
@@ -174,88 +155,14 @@ export default function RvTransactions() {
 
   const handleNew = () => {
     setIsEditing(false);
-    const maxId = transactions.reduce((max, t) => {
-      const num = parseInt(t.id.replace('TX', '')) || 0;
-      return num > max ? num : max;
-    }, 0);
-
-    setFormData({
-      id: `TX${String(maxId + 1).padStart(3, '0')}`,
-      assetId: assets[0]?.id || '',
-      brokerId: brokers[0]?.id || '',
-      type: 'Compra',
-      date: new Date().toISOString().split('T')[0],
-      quantity: '',
-      price: '',
-      fee: '0',
-      exchangeRate: '1.0',
-      currency: brokers[0]?.currency || 'EUR',
-      notes: ''
-    });
     setShowForm(true);
   };
 
   const handleEdit = (tx) => {
     setIsEditing(true);
-    setFormData({ ...tx });
     setShowForm(true);
   };
 
-  const handleDelete = async (tx) => {
-    if (window.confirm(`¿Está seguro de que desea eliminar la transacción ${tx.id}?`)) {
-      try {
-        await deleteDoc(doc(db, 'rv_transactions', tx.id));
-        setSelectedTx(null);
-      } catch (error) {
-        console.error('Error deleting transaction:', error);
-        alert('Error al eliminar transacción: ' + error.message);
-      }
-    }
-  };
-
-  const handleSave = async (e) => {
-    e.preventDefault();
-    if (!formData.assetId || !formData.brokerId) {
-      alert('Debe seleccionar un activo y un broker.');
-      return;
-    }
-
-    try {
-      const selectedAsset = assets.find(a => a.id === formData.assetId);
-      const selectedBroker = brokers.find(b => b.id === formData.brokerId);
-
-      const qty = parseFloat(formData.quantity) || 0;
-      const prc = parseFloat(formData.price) || 0;
-      const feeVal = parseFloat(formData.fee) || 0;
-      const rate = parseFloat(formData.exchangeRate) || 1.0;
-
-      const totalAmt = formData.type === 'Compra'
-        ? qty * prc + feeVal
-        : formData.type === 'Venta'
-        ? qty * prc - feeVal
-        : qty * prc; // Dividendo total bruto/neto
-
-      const cleanData = {
-        ...formData,
-        assetName: selectedAsset?.name || formData.assetId,
-        brokerName: selectedBroker?.name || formData.brokerId,
-        quantity: qty,
-        price: prc,
-        fee: feeVal,
-        exchangeRate: rate,
-        totalAmount: totalAmt,
-        userId: user.uid,
-        updatedAt: new Date().toISOString()
-      };
-
-      await setDoc(doc(db, 'rv_transactions', formData.id), cleanData);
-      setShowForm(false);
-      setSelectedTx(null);
-    } catch (error) {
-      console.error('Error saving transaction:', error);
-      alert('Error al guardar la transacción: ' + error.message);
-    }
-  };
 
   return (
     <div className="w-full h-full bg-[#d4d0c8] flex flex-col p-1 overflow-hidden font-sans">
@@ -268,50 +175,104 @@ export default function RvTransactions() {
               <span>Filtros</span>
             </div>
             
-            <div className="p-4 text-[11px] space-y-4 flex-1 overflow-auto">
+            <div className="p-4 text-[11px] space-y-5 flex-1 overflow-auto">
               {/* Broker Filter */}
-              <div className="space-y-1">
-                <label className="text-slate-700 font-bold block mb-1">Filtrar por Broker:</label>
-                <select
-                  value={brokerFilter}
-                  onChange={(e) => setBrokerFilter(e.target.value)}
-                  className="win-input w-full"
-                >
-                  <option value="todos">Todos los Brokers</option>
-                  {brokers.map(b => (
-                    <option key={b.id} value={b.id}>{b.name}</option>
+              <div className="space-y-2">
+                <label className="text-slate-700 font-bold block border-b border-gray-200 pb-1">Filtrar por Broker:</label>
+                <div className="space-y-1">
+                  <label className="flex items-center space-x-2 cursor-pointer">
+                    <input
+                      type="radio"
+                      name="brokerFilter"
+                      checked={brokerFilter === 'todos'}
+                      onChange={() => setBrokerFilter('todos')}
+                      className="text-indigo-600 focus:ring-indigo-500 cursor-pointer text-xs"
+                    />
+                    <span className={brokerFilter === 'todos' ? 'text-indigo-700 font-bold' : 'text-slate-700'}>
+                      Todos los Brokers
+                    </span>
+                  </label>
+                  {brokers.map((b) => (
+                    <label key={b.id} className="flex items-center space-x-2 cursor-pointer">
+                      <input
+                        type="radio"
+                        name="brokerFilter"
+                        checked={brokerFilter === b.id}
+                        onChange={() => setBrokerFilter(b.id)}
+                        className="text-indigo-600 focus:ring-indigo-500 cursor-pointer text-xs"
+                      />
+                      <span className={brokerFilter === b.id ? 'text-indigo-700 font-bold' : 'text-slate-700'}>
+                        {b.name}
+                      </span>
+                    </label>
                   ))}
-                </select>
+                </div>
               </div>
 
               {/* Asset Filter */}
-              <div className="space-y-1">
-                <label className="text-slate-700 font-bold block mb-1">Filtrar por Activo:</label>
-                <select
-                  value={assetFilter}
-                  onChange={(e) => setAssetFilter(e.target.value)}
-                  className="win-input w-full"
-                >
-                  <option value="todos">Todos los Activos</option>
-                  {assets.map(a => (
-                    <option key={a.id} value={a.id}>{a.id} - {a.name}</option>
+              <div className="space-y-2">
+                <label className="text-slate-700 font-bold block border-b border-gray-200 pb-1">Filtrar por Activo:</label>
+                <div className="space-y-1">
+                  <label className="flex items-center space-x-2 cursor-pointer">
+                    <input
+                      type="radio"
+                      name="assetFilter"
+                      checked={assetFilter === 'todos'}
+                      onChange={() => setAssetFilter('todos')}
+                      className="text-indigo-600 focus:ring-indigo-500 cursor-pointer text-xs"
+                    />
+                    <span className={assetFilter === 'todos' ? 'text-indigo-700 font-bold' : 'text-slate-700'}>
+                      Todos los Activos
+                    </span>
+                  </label>
+                  {assets.map((a) => (
+                    <label key={a.id} className="flex items-center space-x-2 cursor-pointer">
+                      <input
+                        type="radio"
+                        name="assetFilter"
+                        checked={assetFilter === a.id}
+                        onChange={() => setAssetFilter(a.id)}
+                        className="text-indigo-600 focus:ring-indigo-500 cursor-pointer text-xs"
+                      />
+                      <span className={assetFilter === a.id ? 'text-indigo-700 font-bold' : 'text-slate-700'}>
+                        {a.id} - {a.name}
+                      </span>
+                    </label>
                   ))}
-                </select>
+                </div>
               </div>
 
               {/* Type Filter */}
-              <div className="space-y-1">
-                <label className="text-slate-700 font-bold block mb-1">Tipo de Operación:</label>
-                <select
-                  value={typeFilter}
-                  onChange={(e) => setTypeFilter(e.target.value)}
-                  className="win-input w-full"
-                >
-                  <option value="todos">Todos los Tipos</option>
-                  <option value="Compra">Compra</option>
-                  <option value="Venta">Venta</option>
-                  <option value="Dividendo">Dividendo</option>
-                </select>
+              <div className="space-y-2">
+                <label className="text-slate-700 font-bold block border-b border-gray-200 pb-1">Tipo de Operación:</label>
+                <div className="space-y-1">
+                  <label className="flex items-center space-x-2 cursor-pointer">
+                    <input
+                      type="radio"
+                      name="typeFilter"
+                      checked={typeFilter === 'todos'}
+                      onChange={() => setTypeFilter('todos')}
+                      className="text-indigo-600 focus:ring-indigo-500 cursor-pointer text-xs"
+                    />
+                    <span className={typeFilter === 'todos' ? 'text-indigo-700 font-bold' : 'text-slate-700'}>
+                      Todos los Tipos
+                    </span>
+                  </label>
+                  {['Compra', 'Venta', 'Dividendo'].map((t) => (
+                    <label key={t} className="flex items-center space-x-2 cursor-pointer">
+                      <input
+                        type="radio"
+                        name="typeFilter"
+                        checked={typeFilter === t}
+                        onChange={() => setTypeFilter(t)}
+                        className="text-indigo-600 focus:ring-indigo-500 cursor-pointer text-xs"
+                      />
+                      <span className={typeFilter === t ? 'text-indigo-700 font-bold' : 'text-slate-700'}>
+                        {t}
+                      </span>
+                    </label>
+                  ))}
+                </div>
               </div>
             </div>
           </div>
@@ -347,17 +308,121 @@ export default function RvTransactions() {
             <table className="clean-table">
               <thead>
                 <tr>
-                  {visibleColumns.includes('id') && <th style={{ width: columnWidths['id'] || '100px' }}>ID Transacción</th>}
-                  {visibleColumns.includes('date') && <th style={{ width: columnWidths['date'] || '110px' }}>Fecha</th>}
-                  {visibleColumns.includes('assetId') && <th style={{ width: columnWidths['assetId'] || '110px' }}>Activo (Ticker)</th>}
-                  {visibleColumns.includes('brokerName') && <th style={{ width: columnWidths['brokerName'] || '180px' }}>Broker</th>}
-                  {visibleColumns.includes('type') && <th style={{ width: columnWidths['type'] || '100px' }}>Tipo</th>}
-                  {visibleColumns.includes('quantity') && <th style={{ width: columnWidths['quantity'] || '100px', textAlign: 'right' }}>Cantidad</th>}
-                  {visibleColumns.includes('price') && <th style={{ width: columnWidths['price'] || '110px', textAlign: 'right' }}>Precio Unit.</th>}
-                  {visibleColumns.includes('fee') && <th style={{ width: columnWidths['fee'] || '90px', textAlign: 'right' }}>Comisiones</th>}
-                  {visibleColumns.includes('currency') && <th style={{ width: columnWidths['currency'] || '80px' }}>Divisa</th>}
-                  {visibleColumns.includes('exchangeRate') && <th style={{ width: columnWidths['exchangeRate'] || '90px', textAlign: 'right' }}>Cambio</th>}
-                  {visibleColumns.includes('totalAmount') && <th style={{ width: columnWidths['totalAmount'] || '130px', textAlign: 'right' }}>Total</th>}
+                  {visibleColumns.includes('id') && (
+                    <TableHeaderWithFilter 
+                      label="ID Transacción" 
+                      columnKey="id" 
+                      data={transactions} 
+                      tableId="rv-transactions" 
+                    />
+                  )}
+                  {visibleColumns.includes('date') && (
+                    <TableHeaderWithFilter 
+                      label="Fecha" 
+                      columnKey="date" 
+                      data={transactions} 
+                      tableId="rv-transactions" 
+                      className="text-left"
+                    />
+                  )}
+                  {visibleColumns.includes('assetId') && (
+                    <TableHeaderWithFilter 
+                      label="Activo (Ticker)" 
+                      columnKey="assetId" 
+                      data={transactions} 
+                      tableId="rv-transactions" 
+                      className="text-left"
+                    />
+                  )}
+                  {visibleColumns.includes('brokerName') && (
+                    <TableHeaderWithFilter 
+                      label="Broker" 
+                      columnKey="brokerName" 
+                      data={transactions} 
+                      tableId="rv-transactions" 
+                      className="text-left"
+                    />
+                  )}
+                  {visibleColumns.includes('type') && (
+                    <TableHeaderWithFilter 
+                      label="Tipo" 
+                      columnKey="type" 
+                      data={transactions} 
+                      tableId="rv-transactions" 
+                      className="text-left"
+                    />
+                  )}
+                  {visibleColumns.includes('quantity') && (
+                    <TableHeaderWithFilter 
+                      label="Cantidad" 
+                      columnKey="quantity" 
+                      data={transactions} 
+                      tableId="rv-transactions" 
+                      className="text-right"
+                    />
+                  )}
+                  {visibleColumns.includes('price') && (
+                    <TableHeaderWithFilter 
+                      label="Precio Unit." 
+                      columnKey="price" 
+                      data={transactions} 
+                      tableId="rv-transactions" 
+                      className="text-right"
+                    />
+                  )}
+                  {visibleColumns.includes('priceEUR') && (
+                    <TableHeaderWithFilter 
+                      label="Precio (EUR)" 
+                      columnKey="priceEUR" 
+                      data={transactions} 
+                      tableId="rv-transactions" 
+                      className="text-right"
+                    />
+                  )}
+                  {visibleColumns.includes('fee') && (
+                    <TableHeaderWithFilter 
+                      label="Comisiones" 
+                      columnKey="fee" 
+                      data={transactions} 
+                      tableId="rv-transactions" 
+                      className="text-right"
+                    />
+                  )}
+                  {visibleColumns.includes('exchangeRate') && (
+                    <TableHeaderWithFilter 
+                      label="Cambio" 
+                      columnKey="exchangeRate" 
+                      data={transactions} 
+                      tableId="rv-transactions" 
+                      className="text-right"
+                    />
+                  )}
+                  {visibleColumns.includes('currency') && (
+                    <TableHeaderWithFilter 
+                      label="Divisa" 
+                      columnKey="currency" 
+                      data={transactions} 
+                      tableId="rv-transactions" 
+                    />
+                  )}
+                  {visibleColumns.includes('totalAmount') && (
+                    <TableHeaderWithFilter 
+                      label="Total" 
+                      columnKey="totalAmount" 
+                      data={transactions} 
+                      tableId="rv-transactions" 
+                      className="text-right"
+                    />
+                  )}
+                  {visibleColumns.includes('totalAmountEUR') && (
+                    <TableHeaderWithFilter 
+                      label="Total (EUR)" 
+                      columnKey="totalAmountEUR" 
+                      data={transactions} 
+                      tableId="rv-transactions" 
+                      className="text-right"
+                    />
+                  )}
                 </tr>
               </thead>
               <tbody>
@@ -382,12 +447,12 @@ export default function RvTransactions() {
                       {visibleColumns.includes('type') && (
                         <td>
                           <span
-                            className={`px-1.5 py-0.5 rounded-sm text-[8px] font-bold uppercase tracking-wider ${
+                            className={`text-[9px] font-bold uppercase tracking-wider ${
                               tx.type === 'Compra'
-                                ? 'bg-blue-100 text-blue-800 border border-blue-200'
+                                ? 'text-blue-600'
                                 : tx.type === 'Venta'
-                                ? 'bg-orange-100 text-orange-800 border border-orange-200'
-                                : 'bg-green-100 text-green-800 border border-green-200'
+                                ? 'text-orange-600'
+                                : 'text-green-600'
                             }`}
                           >
                             {tx.type}
@@ -396,12 +461,22 @@ export default function RvTransactions() {
                       )}
                       {visibleColumns.includes('quantity') && <td className="font-mono text-right">{tx.quantity.toLocaleString('es-ES', { minimumFractionDigits: 0, maximumFractionDigits: 6 })}</td>}
                       {visibleColumns.includes('price') && <td className="font-mono text-right">{tx.price.toLocaleString('es-ES', { minimumFractionDigits: 2, maximumFractionDigits: 4 })}</td>}
+                      {visibleColumns.includes('priceEUR') && (
+                        <td className="font-mono text-right text-blue-800 font-semibold">
+                          {(tx.priceEUR !== undefined ? tx.priceEUR : (tx.price / (tx.exchangeRate || 1))).toLocaleString('es-ES', { minimumFractionDigits: 2, maximumFractionDigits: 4 })} €
+                        </td>
+                      )}
                       {visibleColumns.includes('fee') && <td className="font-mono text-right">{tx.fee.toLocaleString('es-ES', { minimumFractionDigits: 2 })}</td>}
-                      {visibleColumns.includes('currency') && <td>{tx.currency}</td>}
                       {visibleColumns.includes('exchangeRate') && <td className="font-mono text-right">{tx.exchangeRate.toLocaleString('es-ES', { minimumFractionDigits: 2, maximumFractionDigits: 4 })}</td>}
+                      {visibleColumns.includes('currency') && <td>{tx.currency}</td>}
                       {visibleColumns.includes('totalAmount') && (
                         <td className="font-mono text-right font-bold text-slate-800">
                           {tx.totalAmount.toLocaleString('es-ES', { minimumFractionDigits: 2, maximumFractionDigits: 2 })} {tx.currency}
+                        </td>
+                      )}
+                      {visibleColumns.includes('totalAmountEUR') && (
+                        <td className="font-mono text-right font-bold text-blue-900">
+                          {(tx.totalAmountEUR !== undefined ? tx.totalAmountEUR : (tx.totalAmount / (tx.exchangeRate || 1))).toLocaleString('es-ES', { minimumFractionDigits: 2 })} €
                         </td>
                       )}
                     </tr>
@@ -418,178 +493,20 @@ export default function RvTransactions() {
         <ZoomControl />
       </div>
 
-      {/* Transaction Entry Form Modal Window (Photo 3 design) */}
-      {showForm && (
-        <div className="fixed inset-0 bg-black/35 backdrop-blur-xs flex items-center justify-center z-[200]">
-          <Window
-            title={isEditing ? `Modificar Transacción: ${formData.id}` : 'Nueva Transacción de Renta Variable'}
-            onClose={() => setShowForm(false)}
-            width="550px"
-            height="auto"
-            initialPos={{ x: (window.innerWidth - 550) / 2, y: 100 }}
-          >
-            <form onSubmit={handleSave} className="p-4 space-y-3 bg-white">
-              
-              <div className="win-form-row">
-                <label className="win-form-label">ID Transacción:</label>
-                <input
-                  type="text"
-                  value={formData.id}
-                  onChange={(e) => setFormData({ ...formData, id: e.target.value })}
-                  placeholder="ej. TX001"
-                  disabled={isEditing}
-                  required
-                  className="win-input flex-1 uppercase font-mono"
-                />
-              </div>
-
-              <div className="win-form-row">
-                <label className="win-form-label">Activo (Ticker):</label>
-                <select
-                  value={formData.assetId}
-                  onChange={(e) => setFormData({ ...formData, assetId: e.target.value })}
-                  required
-                  className="win-input flex-1"
-                >
-                  <option value="" disabled>-- Seleccione un Activo --</option>
-                  {assets.map((a) => (
-                    <option key={a.id} value={a.id}>
-                      {a.id} - {a.name}
-                    </option>
-                  ))}
-                </select>
-              </div>
-
-              <div className="win-form-row">
-                <label className="win-form-label">Broker:</label>
-                <select
-                  value={formData.brokerId}
-                  onChange={(e) => setFormData({ ...formData, brokerId: e.target.value })}
-                  required
-                  className="win-input flex-1"
-                >
-                  <option value="" disabled>-- Seleccione un Broker --</option>
-                  {brokers.map((b) => (
-                    <option key={b.id} value={b.id}>
-                      {b.name} ({b.id})
-                    </option>
-                  ))}
-                </select>
-              </div>
-
-              <div className="win-form-row">
-                <label className="win-form-label">Tipo Operación:</label>
-                <select
-                  value={formData.type}
-                  onChange={(e) => setFormData({ ...formData, type: e.target.value })}
-                  required
-                  className="win-input flex-1"
-                >
-                  <option value="Compra">Compra</option>
-                  <option value="Venta">Venta</option>
-                  <option value="Dividendo">Dividendo</option>
-                </select>
-              </div>
-
-              <div className="win-form-row">
-                <label className="win-form-label">Fecha:</label>
-                <input
-                  type="date"
-                  value={formData.date}
-                  onChange={(e) => setFormData({ ...formData, date: e.target.value })}
-                  required
-                  className="win-input flex-1"
-                />
-              </div>
-
-              <div className="win-form-row">
-                <label className="win-form-label">Cantidad (Títulos):</label>
-                <input
-                  type="number"
-                  step="0.000001"
-                  value={formData.quantity}
-                  onChange={(e) => setFormData({ ...formData, quantity: e.target.value })}
-                  placeholder="ej. 10"
-                  required
-                  className="win-input flex-1"
-                />
-              </div>
-
-              <div className="win-form-row">
-                <label className="win-form-label">
-                  {formData.type === 'Dividendo' ? 'Importe bruto por Título:' : 'Precio Unitario:'}
-                </label>
-                <input
-                  type="number"
-                  step="0.0001"
-                  value={formData.price}
-                  onChange={(e) => setFormData({ ...formData, price: e.target.value })}
-                  placeholder="ej. 150.25"
-                  required
-                  className="win-input flex-1"
-                />
-              </div>
-
-              <div className="win-form-row">
-                <label className="win-form-label">Comisiones:</label>
-                <input
-                  type="number"
-                  step="0.01"
-                  value={formData.fee}
-                  onChange={(e) => setFormData({ ...formData, fee: e.target.value })}
-                  placeholder="0"
-                  required
-                  className="win-input flex-1"
-                />
-              </div>
-
-              <div className="win-form-row">
-                <label className="win-form-label">Tipo Cambio (USD/EUR...):</label>
-                <input
-                  type="number"
-                  step="0.0001"
-                  value={formData.exchangeRate}
-                  onChange={(e) => setFormData({ ...formData, exchangeRate: e.target.value })}
-                  placeholder="1,0"
-                  required
-                  className="win-input flex-1"
-                />
-              </div>
-
-              <div className="win-form-row">
-                <label className="win-form-label">Divisa:</label>
-                <input
-                  type="text"
-                  value={formData.currency}
-                  readOnly
-                  disabled
-                  className="win-input flex-1 bg-slate-100 font-bold text-slate-800"
-                />
-              </div>
-
-              {/* Action Buttons (Photo 3 design) */}
-              <div className="flex justify-end space-x-2 pt-3 border-t border-gray-200">
-                <button
-                  type="button"
-                  onClick={() => setShowForm(false)}
-                  className="px-4 py-1.5 bg-slate-100 hover:bg-slate-200 text-slate-800 text-[11px] font-bold border border-slate-300 rounded cursor-pointer transition-colors"
-                >
-                  Cancelar
-                </button>
-                <button
-                  type="submit"
-                  className="px-4 py-1.5 bg-[#4F46E5] hover:bg-[#4338CA] text-white text-[11px] font-bold rounded cursor-pointer transition-colors flex items-center space-x-1"
-                >
-                  <Save className="w-3.5 h-3.5" />
-                  <span>Guardar</span>
-                </button>
-              </div>
-
-            </form>
-          </Window>
-        </div>
-      )}
-
+      {/* Transaction Entry Form Modal Window */}
+      <RvTransactionModal
+        isOpen={showForm}
+        onClose={() => {
+          setShowForm(false);
+          setSelectedTx(null);
+        }}
+        userId={user.uid}
+        assets={assets}
+        brokers={brokers}
+        transactions={transactions}
+        editTx={isEditing ? selectedTx : null}
+      />
+      {renderFilterMenu()}
     </div>
   );
 }

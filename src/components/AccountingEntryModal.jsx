@@ -1,14 +1,14 @@
 import { useState, useEffect } from 'react';
 import { db } from '../firebase/config';
 import { collection, query, where, onSnapshot } from 'firebase/firestore';
-import { registerJournalEntry } from '../services/accounting';
+import { registerJournalEntry, updateJournalEntry } from '../services/accounting';
 import Window from './Window';
 import { Search, X, Plus, Check, BookOpen, Link as LinkIcon, Minus } from 'lucide-react';
 import Accounts from '../pages/Accounts';
 import ZoomControl from './ZoomControl';
 import { useAuth } from '../context/AuthContext';
 
-export default function AccountingEntryModal({ isOpen, onClose, onSaveSuccess, userId, defaultDate, defaultDescription, defaultAmount, linkedAccountId, defaultAnalytics }) {
+export default function AccountingEntryModal({ isOpen, onClose, onSaveSuccess, userId, defaultDate, defaultDescription, defaultAmount, linkedAccountId, defaultAnalytics, editEntry, defaultAccountCode }) {
   const { user, queryUserIds } = useAuth();
   const [linkMode, setLinkMode] = useState(false);
   const [searchTerm, setSearchTerm] = useState('');
@@ -16,20 +16,48 @@ export default function AccountingEntryModal({ isOpen, onClose, onSaveSuccess, u
   const [accounts, setAccounts] = useState([]);
   const [cebes, setCebes] = useState([]);
   const [cecos, setCecos] = useState([]);
-
+ 
   // Analytics state (editable in the form, initialized from defaultAnalytics prop)
   const [selectedCebe, setSelectedCebe] = useState(defaultAnalytics?.cebe || '');
   const [selectedCeco, setSelectedCeco] = useState(defaultAnalytics?.ceco || '');
-
+ 
   // Grid state
   const [date, setDate] = useState(defaultDate || new Date().toISOString().split('T')[0]);
   const [lines, setLines] = useState([
-    { account: '', description: defaultDescription || '', document: '', debit: defaultAmount ? defaultAmount.toString() : '', credit: '' },
+    { account: defaultAccountCode || '', description: defaultDescription || '', document: '', debit: defaultAmount ? defaultAmount.toString() : '', credit: '' },
     { account: '', description: defaultDescription || '', document: '', debit: '', credit: defaultAmount ? defaultAmount.toString() : '' }
   ]);
   const [showAccountsModal, setShowAccountsModal] = useState(false);
   const [activeLineIndex, setActiveLineIndex] = useState(null);
   const [selectedLineIndex, setSelectedLineIndex] = useState(null);
+ 
+  useEffect(() => {
+    if (!isOpen) return;
+    if (editEntry) {
+      setDate(editEntry.date || '');
+      setSelectedCebe(editEntry.analytics?.cebe || '');
+      setSelectedCeco(editEntry.analytics?.ceco || '');
+      if (editEntry.lines) {
+        setLines(editEntry.lines.map(l => ({
+          account: l.accountCode || l.accountId || '',
+          description: l.description || '',
+          document: l.document || '',
+          debit: l.debit ? l.debit.toString() : '',
+          credit: l.credit ? l.credit.toString() : ''
+        })));
+      }
+      setLinkMode(false);
+    } else {
+      setDate(defaultDate || new Date().toISOString().split('T')[0]);
+      setLines([
+        { account: defaultAccountCode || '', description: defaultDescription || '', document: '', debit: defaultAmount ? defaultAmount.toString() : '', credit: '' },
+        { account: '', description: defaultDescription || '', document: '', debit: '', credit: defaultAmount ? defaultAmount.toString() : '' }
+      ]);
+      setSelectedCebe(defaultAnalytics?.cebe || '');
+      setSelectedCeco(defaultAnalytics?.ceco || '');
+      setLinkMode(false);
+    }
+  }, [isOpen, editEntry, defaultDate, defaultDescription, defaultAmount, defaultAnalytics, defaultAccountCode]);
 
   useEffect(() => {
     if (!isOpen || !user) return;
@@ -170,6 +198,7 @@ export default function AccountingEntryModal({ isOpen, onClose, onSaveSuccess, u
 
     const formattedLines = validLines.map(l => ({
       accountId: accounts.find(a => a.code === l.account)?.id || l.account,
+      accountCode: l.account,
       debit: parseFloat(l.debit) || 0,
       credit: parseFloat(l.credit) || 0,
       description: l.description,
@@ -185,9 +214,16 @@ export default function AccountingEntryModal({ isOpen, onClose, onSaveSuccess, u
         ...(selectedCebe ? { cebe: selectedCebe } : {}),
         ...(selectedCeco ? { ceco: selectedCeco } : {})
       };
-      const result = await registerJournalEntry(user.uid, globalDesc, formattedLines, date, Object.keys(analytics).length > 0 ? analytics : null);
-      if (result.success && result.id) {
-        onSaveSuccess(result.id, { description: globalDesc, total: totalDebit, date });
+      
+      let result;
+      if (editEntry) {
+        result = await updateJournalEntry(user.uid, editEntry.id, globalDesc, formattedLines, editEntry.lines, date, Object.keys(analytics).length > 0 ? analytics : null, editEntry.documentUrl || null, editEntry.documentName || null);
+      } else {
+        result = await registerJournalEntry(user.uid, globalDesc, formattedLines, date, Object.keys(analytics).length > 0 ? analytics : null);
+      }
+
+      if (result.success) {
+        onSaveSuccess(result.id || editEntry?.id, { description: globalDesc, total: totalDebit, date });
         onClose();
       }
     } catch (error) {

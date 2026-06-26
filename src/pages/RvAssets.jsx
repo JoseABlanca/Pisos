@@ -7,7 +7,9 @@ import { Search, Plus, Trash2, Edit, Save, X, Download, Upload, RefreshCw, Calen
 import { handleExportFormat } from '../utils/exportUtils';
 import ZoomControl from '../components/ZoomControl';
 import { useTableColumns } from '../hooks/useTableColumns';
+import { useTableFilters } from '../hooks/useTableFilters';
 import { exportToPDF } from '../utils/pdfExport';
+import { syncAllAssetPrices } from '../services/assetSync';
 
 export default function RvAssets() {
   const { user, queryUserIds } = useAuth();
@@ -27,6 +29,7 @@ export default function RvAssets() {
   const [dbHistory, setDbHistory] = useState([]); // holds loaded prices from Firestore
   const [isGenerating, setIsGenerating] = useState(false);
   const [originalId, setOriginalId] = useState(null); // tracks original ticker when editing
+  const [isSyncing, setIsSyncing] = useState(false);
 
   const [formData, setFormData] = useState({
     id: '', // Ticker symbol
@@ -45,25 +48,30 @@ export default function RvAssets() {
 
   const DEFAULT_COLUMNS = ['id', 'name', 'type', 'sector', 'currency', 'apiSource'];
   const { visibleColumns, toggleColumn, columnWidths, updateColumnWidth } = useTableColumns('rv-assets', DEFAULT_COLUMNS);
+  const { applyTableFilters, TableHeaderWithFilter, renderFilterMenu } = useTableFilters({ columnWidths, updateColumnWidth });
 
   // Filter and search computation - declared early to avoid Temporal Dead Zone (TDZ)
-  const filteredAssets = assets.filter((asset) => {
-    // Type Filter
-    if (typeFilter !== 'todos' && asset.type !== typeFilter) return false;
+  const filteredAssets = useMemo(() => {
+    const basicFiltered = assets.filter((asset) => {
+      // Type Filter
+      if (typeFilter !== 'todos' && asset.type !== typeFilter) return false;
 
-    // Search Query
-    if (searchQuery) {
-      const queryStr = searchQuery.toLowerCase();
-      return (
-        asset.id.toLowerCase().includes(queryStr) ||
-        asset.name.toLowerCase().includes(queryStr) ||
-        (asset.isin || '').toLowerCase().includes(queryStr) ||
-        (asset.sector || '').toLowerCase().includes(queryStr)
-      );
-    }
+      // Search Query
+      if (searchQuery) {
+        const queryStr = searchQuery.toLowerCase();
+        return (
+          asset.id.toLowerCase().includes(queryStr) ||
+          asset.name.toLowerCase().includes(queryStr) ||
+          (asset.isin || '').toLowerCase().includes(queryStr) ||
+          (asset.sector || '').toLowerCase().includes(queryStr)
+        );
+      }
 
-    return true;
-  });
+      return true;
+    });
+
+    return applyTableFilters(basicFiltered, 'rv-assets');
+  }, [assets, typeFilter, searchQuery, applyTableFilters]);
 
   useEffect(() => {
     const handleResize = () => setIsMobile(window.innerWidth < 768);
@@ -142,18 +150,32 @@ export default function RvAssets() {
       }
     };
 
+    const onSyncApis = async () => {
+      setIsSyncing(true);
+      try {
+        const res = await syncAllAssetPrices(user.uid, queryUserIds?.length > 0 ? queryUserIds : [user.uid]);
+        alert(`✓ Sincronización finalizada.\nActivos actualizados: ${res.updatedCount}\nFallidos: ${res.failedCount}${res.errors.length > 0 ? '\nErrores:\n' + res.errors.join('\n') : ''}`);
+      } catch (err) {
+        alert(`Error al sincronizar: ${err.message}`);
+      } finally {
+        setIsSyncing(false);
+      }
+    };
+
     window.addEventListener('rv-asset:new', onNew);
     window.addEventListener('rv-asset:edit', onEdit);
     window.addEventListener('rv-asset:delete', onDelete);
     window.addEventListener('rv-asset:export', onExport);
+    window.addEventListener('rv-asset:sync-apis', onSyncApis);
 
     return () => {
       window.removeEventListener('rv-asset:new', onNew);
       window.removeEventListener('rv-asset:edit', onEdit);
       window.removeEventListener('rv-asset:delete', onDelete);
       window.removeEventListener('rv-asset:export', onExport);
+      window.removeEventListener('rv-asset:sync-apis', onSyncApis);
     };
-  }, [assets, selectedAsset, filteredAssets, visibleColumns]);
+  }, [assets, selectedAsset, filteredAssets, visibleColumns, user, queryUserIds]);
 
   const handleNew = () => {
     setIsEditing(false);
@@ -234,6 +256,12 @@ export default function RvAssets() {
 
         if (parsed.length > 0) {
           setTempHistory(parsed);
+          // Auto-set currentPrice from latest date in parsed CSV
+          const sorted = [...parsed].sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime());
+          const latestPrice = sorted[0]?.close;
+          if (latestPrice != null) {
+            setFormData(prev => ({ ...prev, currentPrice: latestPrice.toString() }));
+          }
           alert(`✓ Se leyeron con éxito ${parsed.length} filas del archivo CSV. Pulsa 'Guardar' para almacenarlas.`);
         } else {
           alert('No se pudo encontrar ninguna fila válida. El archivo debe contener columnas: Fecha, Cierre.');
@@ -347,6 +375,12 @@ export default function RvAssets() {
       }
 
       setTempHistory(data);
+      // Auto-set currentPrice from latest date in fetched API data
+      const sorted = [...data].sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime());
+      const latestPrice = sorted[0]?.close;
+      if (latestPrice != null) {
+        setFormData(prev => ({ ...prev, currentPrice: latestPrice.toString() }));
+      }
       alert(`✓ Se han descargado ${data.length} registros desde ${formData.apiSource} para ${ticker}.\nPulsa 'Guardar' para almacenarlos.`);
 
     } catch (e) {
@@ -418,7 +452,7 @@ export default function RvAssets() {
     return dbHistory;
   }, [tempHistory, dbHistory]);
 
-  const assetTypes = ['Acción', 'ETF', 'Fondo de Inversión', 'Criptomoneda', 'Otros'];
+  const assetTypes = ['Acción', 'ETF', 'Fondo de Inversión', 'Criptomoneda', 'Divisa', 'Otros'];
   const apiSources = ['Yahoo Finance', 'Alpha Vantage', 'Google Finance', 'Bloomberg', 'CoinGecko'];
 
   return (
@@ -496,12 +530,54 @@ export default function RvAssets() {
             <table className="clean-table">
               <thead>
                 <tr>
-                  {visibleColumns.includes('id') && <th style={{ width: columnWidths['id'] || '100px' }}>Ticker</th>}
-                  {visibleColumns.includes('name') && <th style={{ width: columnWidths['name'] || '200px' }}>Nombre</th>}
-                  {visibleColumns.includes('type') && <th style={{ width: columnWidths['type'] || '130px' }}>Tipo de activo</th>}
-                  {visibleColumns.includes('sector') && <th style={{ width: columnWidths['sector'] || '140px' }}>Sector</th>}
-                  {visibleColumns.includes('currency') && <th style={{ width: columnWidths['currency'] || '90px' }}>Divisa</th>}
-                  {visibleColumns.includes('apiSource') && <th style={{ width: columnWidths['apiSource'] || '130px' }}>Origen API</th>}
+                  {visibleColumns.includes('id') && (
+                    <TableHeaderWithFilter 
+                      label="Ticker" 
+                      columnKey="id" 
+                      data={assets} 
+                      tableId="rv-assets" 
+                    />
+                  )}
+                  {visibleColumns.includes('name') && (
+                    <TableHeaderWithFilter 
+                      label="Nombre" 
+                      columnKey="name" 
+                      data={assets} 
+                      tableId="rv-assets" 
+                    />
+                  )}
+                  {visibleColumns.includes('type') && (
+                    <TableHeaderWithFilter 
+                      label="Tipo de activo" 
+                      columnKey="type" 
+                      data={assets} 
+                      tableId="rv-assets" 
+                    />
+                  )}
+                  {visibleColumns.includes('sector') && (
+                    <TableHeaderWithFilter 
+                      label="Sector" 
+                      columnKey="sector" 
+                      data={assets} 
+                      tableId="rv-assets" 
+                    />
+                  )}
+                  {visibleColumns.includes('currency') && (
+                    <TableHeaderWithFilter 
+                      label="Divisa" 
+                      columnKey="currency" 
+                      data={assets} 
+                      tableId="rv-assets" 
+                    />
+                  )}
+                  {visibleColumns.includes('apiSource') && (
+                    <TableHeaderWithFilter 
+                      label="Origen API" 
+                      columnKey="apiSource" 
+                      data={assets} 
+                      tableId="rv-assets" 
+                    />
+                  )}
                 </tr>
               </thead>
               <tbody>
@@ -529,6 +605,18 @@ export default function RvAssets() {
                 )}
               </tbody>
             </table>
+          </div>
+          <div className="flex justify-between items-center bg-[#f0f0f0] p-1 border-t border-[#808080] text-[10px]">
+            <div className="flex items-center gap-2">
+              <span>{filteredAssets.length} activos encontrados</span>
+              {isSyncing && (
+                <span className="text-blue-600 font-bold flex items-center gap-1 animate-pulse">
+                  <RefreshCw className="w-3.5 h-3.5 animate-spin" />
+                  Sincronizando cotizaciones con APIs...
+                </span>
+              )}
+            </div>
+            <ZoomControl />
           </div>
         </div>
       </div>
@@ -709,6 +797,18 @@ export default function RvAssets() {
                             <input type="file" accept=".csv" onChange={handleCSVUpload} className="hidden" />
                           </label>
                         </div>
+
+                        <div className="win-form-row">
+                          <label className="win-form-label">Precio mercado actual:</label>
+                          <input
+                            type="number"
+                            step="0.000001"
+                            value={formData.currentPrice || ''}
+                            onChange={(e) => setFormData({ ...formData, currentPrice: e.target.value })}
+                            placeholder="ej. 15.42"
+                            className="win-input flex-1 min-w-0"
+                          />
+                        </div>
                       </form>
                     )}
 
@@ -803,6 +903,7 @@ export default function RvAssets() {
           </Window>
         </div>
       )}
+      {renderFilterMenu()}
     </div>
   );
 }

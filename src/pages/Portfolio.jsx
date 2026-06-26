@@ -5,13 +5,15 @@ import { useAuth } from '../context/AuthContext';
 import Window from '../components/Window';
 import { 
   Search, Plus, Trash2, Edit, Save, X, Download, 
-  TrendingUp, TrendingDown, Landmark, Briefcase, DollarSign, Calendar
+  TrendingUp, TrendingDown, Landmark, Briefcase, DollarSign, Calendar, PanelLeft
 } from 'lucide-react';
 import { handleExportFormat } from '../utils/exportUtils';
 import ZoomControl from '../components/ZoomControl';
 import { useTableColumns } from '../hooks/useTableColumns';
+import { useTableFilters } from '../hooks/useTableFilters';
 import { exportToPDF } from '../utils/pdfExport';
 import { PieChart, Pie, Cell, BarChart as ReBarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, Legend, ResponsiveContainer } from 'recharts';
+import RvTransactionModal from '../components/RvTransactionModal';
 
 export default function Portfolio() {
   const { user, queryUserIds } = useAuth();
@@ -22,13 +24,14 @@ export default function Portfolio() {
   const [brokers, setBrokers] = useState([]);
   const [config, setConfig] = useState({ exchangeRates: { USD: 1.08, GBP: 0.85, CHF: 0.95 } });
   
-  const [selectedTx, setSelectedTx] = useState(null);
   const [selectedHolding, setSelectedHolding] = useState(null);
   const [showTxForm, setShowTxForm] = useState(false);
   const [isEditingTx, setIsEditingTx] = useState(false);
-  const [portfolioTab, setPortfolioTab] = useState('posiciones'); // 'posiciones' | 'transacciones' | 'graficos'
+  const [portfolioTab, setPortfolioTab] = useState('posiciones'); // 'posiciones' | 'graficos'
   const [searchQuery, setSearchQuery] = useState('');
-  const [brokerFilter, setBrokerFilter] = useState('todos');
+  const [groupBy, setGroupBy] = useState('none'); // 'none' | 'symbol' | 'broker'
+  const [selectedBrokers, setSelectedBrokers] = useState([]);
+  const [selectedAssets, setSelectedAssets] = useState([]);
   const [showSidebar, setShowSidebar] = useState(true);
   const [isMobile, setIsMobile] = useState(window.innerWidth < 768);
 
@@ -47,10 +50,18 @@ export default function Portfolio() {
   });
 
   const DEFAULT_COLUMNS_PORTFOLIO = ['symbol', 'name', 'type', 'brokerName', 'quantity', 'pmc', 'currentPrice', 'totalCost', 'currentValue', 'pnl', 'pnlPercent'];
-  const { visibleColumns: visColsPortfolio, toggleColumn: toggleColPortfolio } = useTableColumns('rv-portfolio', DEFAULT_COLUMNS_PORTFOLIO);
+  const { 
+    visibleColumns: visColsPortfolio, 
+    toggleColumn: toggleColPortfolio, 
+    columnWidths: colWidthsPortfolio, 
+    updateColumnWidth: updateColWidthPortfolio 
+  } = useTableColumns('rv-portfolio', DEFAULT_COLUMNS_PORTFOLIO);
+  const { 
+    applyTableFilters: applyPortfolioFilters, 
+    TableHeaderWithFilter: PortfolioHeaderWithFilter, 
+    renderFilterMenu: renderPortfolioFilterMenu 
+  } = useTableFilters({ columnWidths: colWidthsPortfolio, updateColumnWidth: updateColWidthPortfolio });
 
-  const DEFAULT_COLUMNS_TX = ['id', 'date', 'assetId', 'brokerName', 'type', 'quantity', 'price', 'fee', 'currency', 'exchangeRate', 'totalAmount'];
-  const { visibleColumns: visColsTx, toggleColumn: toggleColTx } = useTableColumns('rv-transactions-grid', DEFAULT_COLUMNS_TX);
 
   // Compute Portfolio holdings dynamically - declared early to avoid TDZ
   const { holdings, summary } = useMemo(() => {
@@ -166,27 +177,66 @@ export default function Portfolio() {
     };
   }, [transactions, assets, brokers, config]);
 
-  // Transactions list sorting & filtering - declared early to avoid TDZ
-  const sortedTransactions = useMemo(() => {
-    return [...transactions]
-      .filter(tx => {
-        // Broker filter
-        if (brokerFilter !== 'todos' && tx.brokerId !== brokerFilter) return false;
-        
-        // Search query
-        if (searchQuery) {
-          const q = searchQuery.toLowerCase();
-          return (
-            tx.assetId.toLowerCase().includes(q) ||
-            (tx.assetName || '').toLowerCase().includes(q) ||
-            tx.brokerName.toLowerCase().includes(q) ||
-            tx.type.toLowerCase().includes(q)
-          );
-        }
-        return true;
-      })
-      .sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime());
-  }, [transactions, brokerFilter, searchQuery]);
+
+  const filteredHoldings = useMemo(() => {
+    let list = holdings;
+
+    // Broker filter (multi-selection)
+    if (selectedBrokers.length > 0) {
+      list = list.filter(h => selectedBrokers.includes(h.brokerId));
+    }
+
+    // Asset filter (multi-selection)
+    if (selectedAssets.length > 0) {
+      list = list.filter(h => selectedAssets.includes(h.symbol));
+    }
+
+    return applyPortfolioFilters(list, 'rv-portfolio');
+  }, [holdings, selectedBrokers, selectedAssets, applyPortfolioFilters]);
+
+  const groupedHoldings = useMemo(() => {
+    if (groupBy === 'none') return filteredHoldings;
+    
+    const groups = {};
+    filteredHoldings.forEach(h => {
+      const key = groupBy === 'symbol' ? h.symbol : h.brokerName;
+      if (!groups[key]) {
+        groups[key] = {
+          symbol: groupBy === 'symbol' ? h.symbol : 'Varios',
+          name: groupBy === 'symbol' ? h.name : 'Varios',
+          type: groupBy === 'symbol' ? h.type : 'Varios',
+          brokerName: groupBy === 'symbol' ? 'Varios' : h.brokerName,
+          quantity: 0,
+          totalCost: 0,
+          currentValue: 0,
+          pnl: 0,
+          pnlPercent: 0,
+          pmc: 0,
+          currentPrice: 0,
+          currency: groupBy === 'symbol' ? h.currency : 'EUR',
+          currentPriceRaw: 0,
+          isGrouped: true,
+          components: []
+        };
+      }
+      const g = groups[key];
+      g.quantity += h.quantity;
+      g.totalCost += h.totalCost;
+      g.currentValue += h.currentValue;
+      g.pnl += h.pnl;
+      g.components.push(h);
+    });
+
+    return Object.values(groups).map(g => {
+      g.pmc = g.quantity > 0 ? g.totalCost / g.quantity : 0;
+      g.currentPrice = g.quantity > 0 ? g.currentValue / g.quantity : 0;
+      g.pnlPercent = g.totalCost > 0 ? (g.pnl / g.totalCost) * 100 : 0;
+      if (groupBy === 'symbol' && g.components.length > 0) {
+        g.currentPriceRaw = g.components[0].currentPriceRaw;
+      }
+      return g;
+    });
+  }, [filteredHoldings, groupBy]);
 
   useEffect(() => {
     const handleResize = () => setIsMobile(window.innerWidth < 768);
@@ -233,85 +283,86 @@ export default function Portfolio() {
     };
   }, [user, queryUserIds]);
 
+  // Sync portfolio subtab to Layout
+  useEffect(() => {
+    window.dispatchEvent(new CustomEvent('portfolio:subtab-change', { detail: { subtab: portfolioTab } }));
+  }, [portfolioTab]);
+
   // Ribbon event handling
   useEffect(() => {
     const onNew = () => handleNewTx();
     const onEdit = () => {
-      if (portfolioTab === 'transacciones') {
-        if (selectedTx) handleEditTx(selectedTx);
-        else alert('Por favor, seleccione una transacción de la tabla primero.');
+      if (selectedHolding) {
+        const matchingTxs = transactions
+          .filter(t => {
+            const matchAsset = selectedHolding.symbol === 'Varios' || t.assetId === selectedHolding.symbol;
+            const matchBroker = selectedHolding.brokerId === 'Varios' || t.brokerId === selectedHolding.brokerId;
+            return matchAsset && matchBroker;
+          })
+          .sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime());
+        
+        if (matchingTxs.length > 0) {
+          handleEditTx(matchingTxs[0]);
+        } else {
+          alert('No se encontraron transacciones para esta posición.');
+        }
       } else {
-        alert('Para modificar, vaya a la sub-pestaña "Transacciones" y seleccione una fila.');
+        alert('Por favor, seleccione una fila (posición) para modificar.');
       }
     };
     const onDelete = () => {
-      if (portfolioTab === 'transacciones') {
-        if (selectedTx) handleDeleteTx(selectedTx);
-        else alert('Por favor, seleccione una transacción de la tabla primero.');
+      if (selectedHolding) {
+        const matchingTxs = transactions
+          .filter(t => {
+            const matchAsset = selectedHolding.symbol === 'Varios' || t.assetId === selectedHolding.symbol;
+            const matchBroker = selectedHolding.brokerId === 'Varios' || t.brokerId === selectedHolding.brokerId;
+            return matchAsset && matchBroker;
+          })
+          .sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime());
+        
+        if (matchingTxs.length > 0) {
+          handleDeleteTx(matchingTxs[0]);
+        } else {
+          alert('No se encontraron transacciones para esta posición.');
+        }
       } else {
-        alert('Para eliminar, vaya a la sub-pestaña "Transacciones" y seleccione una fila.');
+        alert('Por favor, seleccione una fila (posición) para eliminar.');
       }
     };
     const onExport = (e) => {
       const format = e.detail?.format || 'csv';
-      if (portfolioTab === 'posiciones') {
-        if (format === 'pdf') {
-          const cols = [
-            { header: 'Ticker', dataKey: 'symbol' },
-            { header: 'Nombre', dataKey: 'name' },
-            { header: 'Tipo', dataKey: 'type' },
-            { header: 'Broker', dataKey: 'brokerName' },
-            { header: 'Cant.', dataKey: 'quantity' },
-            { header: 'PMC (€)', dataKey: 'pmc' },
-            { header: 'Mercado (€)', dataKey: 'currentPrice' },
-            { header: 'Coste (€)', dataKey: 'totalCost' },
-            { header: 'Valor (€)', dataKey: 'currentValue' },
-            { header: 'PnL (€)', dataKey: 'pnl' },
-            { header: 'PnL (%)', dataKey: 'pnlPercent' }
-          ];
-          exportToPDF(holdings, cols, 'Cartera de Renta Variable', 'cartera.pdf');
-        } else {
-          handleExportFormat(holdings, 'Cartera Renta Variable', format);
-        }
+      if (format === 'pdf') {
+        const cols = [
+          { header: 'Ticker', dataKey: 'symbol' },
+          { header: 'Nombre', dataKey: 'name' },
+          { header: 'Tipo', dataKey: 'type' },
+          { header: 'Broker', dataKey: 'brokerName' },
+          { header: 'Cant.', dataKey: 'quantity' },
+          { header: 'PMC (€)', dataKey: 'pmc' },
+          { header: 'Mercado (€)', dataKey: 'currentPrice' },
+          { header: 'Coste (€)', dataKey: 'totalCost' },
+          { header: 'Valor (€)', dataKey: 'currentValue' },
+          { header: 'PnL (€)', dataKey: 'pnl' },
+          { header: 'PnL (%)', dataKey: 'pnlPercent' }
+        ];
+        exportToPDF(holdings, cols, 'Cartera de Renta Variable', 'cartera.pdf');
       } else {
-        if (format === 'pdf') {
-          const cols = [
-            { header: 'ID', dataKey: 'id' },
-            { header: 'Fecha', dataKey: 'date' },
-            { header: 'Activo', dataKey: 'assetId' },
-            { header: 'Broker', dataKey: 'brokerName' },
-            { header: 'Tipo', dataKey: 'type' },
-            { header: 'Cant.', dataKey: 'quantity' },
-            { header: 'Precio', dataKey: 'price' },
-            { header: 'Comis.', dataKey: 'fee' },
-            { header: 'Cambio', dataKey: 'exchangeRate' },
-            { header: 'Divisa', dataKey: 'currency' }
-          ];
-          exportToPDF(sortedTransactions, cols, 'Historial Transacciones Renta Variable', 'transacciones_rv.pdf');
-        } else {
-          handleExportFormat(sortedTransactions, 'Transacciones Renta Variable', format);
-        }
+        handleExportFormat(holdings, 'Cartera Renta Variable', format);
       }
-    };
-    const onToggleColumn = (e) => {
-      if (portfolioTab === 'posiciones') toggleColPortfolio(e.detail.columnId);
-      else toggleColTx(e.detail.columnId);
     };
 
     window.addEventListener('rv-transaction:new', onNew);
     window.addEventListener('rv-transaction:edit', onEdit);
     window.addEventListener('rv-transaction:delete', onDelete);
     window.addEventListener('rv-transaction:export', onExport);
-    window.addEventListener('toggle-column', onToggleColumn);
 
     return () => {
       window.removeEventListener('rv-transaction:new', onNew);
       window.removeEventListener('rv-transaction:edit', onEdit);
       window.removeEventListener('rv-transaction:delete', onDelete);
       window.removeEventListener('rv-transaction:export', onExport);
-      window.removeEventListener('toggle-column', onToggleColumn);
     };
-  }, [transactions, selectedTx, portfolioTab, config, assets, brokers, holdings, sortedTransactions]);
+  }, [transactions, selectedHolding, portfolioTab, config, assets, brokers, holdings]);
 
   // Transaction form triggers
   const handleNewTx = () => {
@@ -320,17 +371,22 @@ export default function Portfolio() {
       const num = parseInt(t.id.replace('TX', '')) || 0;
       return num > max ? num : max;
     }, 0);
+
+    const assetId = selectedHolding && selectedHolding.symbol !== 'Varios' ? selectedHolding.symbol : (assets[0]?.id || '');
+    const brokerId = selectedHolding && selectedHolding.brokerId !== 'Varios' ? selectedHolding.brokerId : (brokers[0]?.id || '');
+    const selectedAsset = assets.find(a => a.id === assetId);
+
     setTxFormData({
       id: `TX${String(maxId + 1).padStart(3, '0')}`,
-      assetId: assets[0]?.id || '',
-      brokerId: brokers[0]?.id || '',
+      assetId: assetId,
+      brokerId: brokerId,
       type: 'Compra',
       date: new Date().toISOString().split('T')[0],
       quantity: '',
       price: '',
       fee: '0',
       exchangeRate: '1.0',
-      currency: assets[0]?.currency || 'EUR',
+      currency: selectedAsset?.currency || 'EUR',
       notes: ''
     });
     setShowTxForm(true);
@@ -354,49 +410,6 @@ export default function Portfolio() {
     }
   };
 
-  const handleSaveTx = async (e) => {
-    e.preventDefault();
-    if (!txFormData.assetId || !txFormData.brokerId) {
-      alert('Debe seleccionar un activo y un broker.');
-      return;
-    }
-
-    try {
-      const selectedAsset = assets.find(a => a.id === txFormData.assetId);
-      const selectedBroker = brokers.find(b => b.id === txFormData.brokerId);
-
-      const qty = parseFloat(txFormData.quantity) || 0;
-      const prc = parseFloat(txFormData.price) || 0;
-      const feeVal = parseFloat(txFormData.fee) || 0;
-      const rate = parseFloat(txFormData.exchangeRate) || 1.0;
-
-      const totalAmt = txFormData.type === 'Compra' 
-        ? qty * prc + feeVal 
-        : txFormData.type === 'Venta' 
-        ? qty * prc - feeVal 
-        : qty * prc; // Dividendo total bruto/neto
-
-      const cleanData = {
-        ...txFormData,
-        assetName: selectedAsset?.name || txFormData.assetId,
-        brokerName: selectedBroker?.name || txFormData.brokerId,
-        quantity: qty,
-        price: prc,
-        fee: feeVal,
-        exchangeRate: rate,
-        totalAmount: totalAmt,
-        userId: user.uid,
-        updatedAt: new Date().toISOString()
-      };
-
-      await setDoc(doc(db, 'rv_transactions', txFormData.id), cleanData);
-      setShowTxForm(false);
-      setSelectedTx(null);
-    } catch (error) {
-      console.error('Error saving transaction:', error);
-      alert('Error al guardar la transacción: ' + error.message);
-    }
-  };
 
   // Recharts Chart Data Prep
   const chartsData = useMemo(() => {
@@ -405,7 +418,7 @@ export default function Portfolio() {
     const brokerAlloc = {};
     const assetCostValue = [];
 
-    holdings.forEach(h => {
+    filteredHoldings.forEach(h => {
       assetTypeAlloc[h.type] = (assetTypeAlloc[h.type] || 0) + h.currentValue;
       sectorAlloc[h.sector] = (sectorAlloc[h.sector] || 0) + h.currentValue;
       brokerAlloc[h.brokerName] = (brokerAlloc[h.brokerName] || 0) + h.currentValue;
@@ -431,7 +444,7 @@ export default function Portfolio() {
       brokers: formatPie(brokerAlloc),
       bars: assetCostValue
     };
-  }, [holdings]);
+  }, [filteredHoldings]);
 
   return (
     <div className="w-full h-full bg-[#d4d0c8] flex flex-col p-1 overflow-hidden font-sans select-none">
@@ -509,51 +522,108 @@ export default function Portfolio() {
               <span>Filtros</span>
             </div>
             <div className="p-4 text-[11px] space-y-4 flex-1 overflow-auto">
-              {/* Search */}
-              <div className="space-y-1">
-                <label className="text-slate-700 font-bold">Buscar:</label>
-                <div className="relative">
-                  <input
-                    type="text"
-                    value={searchQuery}
-                    onChange={(e) => setSearchQuery(e.target.value)}
-                    placeholder="Ticker, Nombre..."
-                    className="win-input w-full pl-7"
-                  />
-                  <Search className="absolute left-2 top-2 w-3.5 h-3.5 text-gray-400" />
-                </div>
-              </div>
-
-              {/* Broker Filter */}
-              <div className="space-y-2 pt-2 border-t border-gray-300">
-                <label className="text-slate-700 font-bold">Filtrar por Broker:</label>
+              {/* Group By Option */}
+              <div className="space-y-2 pb-2 border-b border-gray-300">
+                <label className="text-slate-700 font-bold block">Agrupar tabla posiciones:</label>
                 <div className="space-y-1">
                   <label className="flex items-center space-x-2 cursor-pointer">
                     <input
                       type="radio"
-                      name="brokerFilter"
-                      checked={brokerFilter === 'todos'}
-                      onChange={() => setBrokerFilter('todos')}
+                      name="groupBy"
+                      checked={groupBy === 'none'}
+                      onChange={() => setGroupBy('none')}
                       className="text-indigo-600 focus:ring-indigo-500 cursor-pointer text-xs"
                     />
-                    <span className={brokerFilter === 'todos' ? 'text-indigo-700 font-bold' : 'text-slate-700'}>
-                      Todos
+                    <span className={groupBy === 'none' ? 'text-indigo-700 font-bold' : 'text-slate-700'}>
+                      Sin agrupar (Detalle)
                     </span>
                   </label>
-                  {brokers.map((broker) => (
-                    <label key={broker.id} className="flex items-center space-x-2 cursor-pointer">
-                      <input
-                        type="radio"
-                        name="brokerFilter"
-                        checked={brokerFilter === broker.id}
-                        onChange={() => setBrokerFilter(broker.id)}
-                        className="text-indigo-600 focus:ring-indigo-500 cursor-pointer text-xs"
-                      />
-                      <span className={brokerFilter === broker.id ? 'text-indigo-700 font-bold' : 'text-slate-700'}>
-                        {broker.name}
-                      </span>
-                    </label>
-                  ))}
+                  <label className="flex items-center space-x-2 cursor-pointer">
+                    <input
+                      type="radio"
+                      name="groupBy"
+                      checked={groupBy === 'symbol'}
+                      onChange={() => setGroupBy('symbol')}
+                      className="text-indigo-600 focus:ring-indigo-500 cursor-pointer text-xs"
+                    />
+                    <span className={groupBy === 'symbol' ? 'text-indigo-700 font-bold' : 'text-slate-700'}>
+                      Agrupar por Acción (Ticker)
+                    </span>
+                  </label>
+                  <label className="flex items-center space-x-2 cursor-pointer">
+                    <input
+                      type="radio"
+                      name="groupBy"
+                      checked={groupBy === 'broker'}
+                      onChange={() => setGroupBy('broker')}
+                      className="text-indigo-600 focus:ring-indigo-500 cursor-pointer text-xs"
+                    />
+                    <span className={groupBy === 'broker' ? 'text-indigo-700 font-bold' : 'text-slate-700'}>
+                      Agrupar por Broker
+                    </span>
+                  </label>
+                </div>
+              </div>
+
+              {/* Broker Filter (Multi-select) */}
+              <div className="space-y-2 pb-2 border-b border-gray-300">
+                <label className="text-slate-700 font-bold block">Filtrar por Broker:</label>
+                <div className="flex justify-between items-center text-[9px] text-blue-600 mb-1">
+                  <button onClick={() => setSelectedBrokers([])} className="hover:underline cursor-pointer">Todos</button>
+                  <button onClick={() => setSelectedBrokers(brokers.map(b => b.id))} className="hover:underline cursor-pointer">Ninguno</button>
+                </div>
+                <div className="max-h-36 overflow-y-auto space-y-1">
+                  {brokers.map((broker) => {
+                    const isChecked = selectedBrokers.includes(broker.id);
+                    return (
+                      <label key={broker.id} className="flex items-center space-x-2 cursor-pointer">
+                        <input
+                          type="checkbox"
+                          checked={isChecked}
+                          onChange={() => {
+                            setSelectedBrokers(prev => 
+                              isChecked ? prev.filter(id => id !== broker.id) : [...prev, broker.id]
+                            );
+                          }}
+                          className="rounded text-indigo-600 focus:ring-indigo-500 cursor-pointer text-xs"
+                        />
+                        <span className={isChecked ? 'text-indigo-700 font-bold' : 'text-slate-700'}>
+                          {broker.name}
+                        </span>
+                      </label>
+                    );
+                  })}
+                </div>
+              </div>
+
+              {/* Asset Filter (Multi-select) */}
+              <div className="space-y-2">
+                <label className="text-slate-700 font-bold block">Filtrar por Acción:</label>
+                <div className="flex justify-between items-center text-[9px] text-blue-600 mb-1">
+                  <button onClick={() => setSelectedAssets([])} className="hover:underline cursor-pointer">Todos</button>
+                  <button onClick={() => setSelectedAssets(assets.map(a => a.id))} className="hover:underline cursor-pointer">Ninguno</button>
+                </div>
+                <div className="max-h-36 overflow-y-auto space-y-1">
+                  {assets.map((asset) => {
+                    const isChecked = selectedAssets.includes(asset.id);
+                    return (
+                      <label key={asset.id} className="flex items-center space-x-2 cursor-pointer">
+                        <input
+                          type="checkbox"
+                          checked={isChecked}
+                          onChange={() => {
+                            setSelectedAssets(prev => 
+                              isChecked ? prev.filter(id => id !== asset.id) : [...prev, asset.id]
+                            );
+                          }}
+                          className="rounded text-indigo-600 focus:ring-indigo-500 cursor-pointer text-xs"
+                        />
+                        <span className={isChecked ? 'text-indigo-700 font-bold' : 'text-slate-700'}>
+                          {asset.id} - {asset.name}
+                        </span>
+                      </label>
+                    );
+                  })}
                 </div>
               </div>
             </div>
@@ -564,44 +634,49 @@ export default function Portfolio() {
         <div className="flex-1 flex flex-col overflow-hidden bg-white">
           {/* Sub-tabs menu */}
           <div className="p-1.5 border-b border-gray-200 flex justify-between items-center bg-[#f8fafc]">
-            <div className="flex space-x-1">
-              <button
-                onClick={() => setPortfolioTab('posiciones')}
-                className={`px-3 py-1 text-[11px] font-bold border rounded-sm transition-all cursor-pointer ${
-                  portfolioTab === 'posiciones'
-                    ? 'bg-blue-600 text-white border-blue-700'
-                    : 'bg-white text-slate-700 border-slate-300 hover:bg-slate-50'
-                }`}
+            <div className="flex items-center space-x-3">
+              <button 
+                onClick={(e) => { e.stopPropagation(); setShowSidebar(!showSidebar); }}
+                className="p-1.5 hover:bg-gray-100 rounded text-gray-500 border border-transparent hover:border-gray-300 flex items-center justify-center cursor-pointer"
+                title={showSidebar ? "Ocultar panel" : "Mostrar panel"}
               >
-                Posiciones Abiertas
+                <PanelLeft className="w-4 h-4" />
               </button>
-              <button
-                onClick={() => setPortfolioTab('transacciones')}
-                className={`px-3 py-1 text-[11px] font-bold border rounded-sm transition-all cursor-pointer ${
-                  portfolioTab === 'transacciones'
-                    ? 'bg-blue-600 text-white border-blue-700'
-                    : 'bg-white text-slate-700 border-slate-300 hover:bg-slate-50'
-                }`}
-              >
-                Historial de Transacciones
-              </button>
-              <button
-                onClick={() => setPortfolioTab('graficos')}
-                className={`px-3 py-1 text-[11px] font-bold border rounded-sm transition-all cursor-pointer ${
-                  portfolioTab === 'graficos'
-                    ? 'bg-blue-600 text-white border-blue-700'
-                    : 'bg-white text-slate-700 border-slate-300 hover:bg-slate-50'
-                }`}
-              >
-                Gráficos de Distribución
-              </button>
+              <div className="flex space-x-1 border-l border-gray-300 pl-3">
+                <button
+                  onClick={() => setPortfolioTab('posiciones')}
+                  className={`px-3 py-1 text-[11px] font-bold border rounded-sm transition-all cursor-pointer ${
+                    portfolioTab === 'posiciones'
+                      ? 'bg-blue-600 text-white border-blue-700'
+                      : 'bg-white text-slate-700 border-slate-300 hover:bg-slate-50'
+                  }`}
+                >
+                  Posiciones Abiertas
+                </button>
+
+                <button
+                  onClick={() => setPortfolioTab('graficos')}
+                  className={`px-3 py-1 text-[11px] font-bold border rounded-sm transition-all cursor-pointer ${
+                    portfolioTab === 'graficos'
+                      ? 'bg-blue-600 text-white border-blue-700'
+                      : 'bg-white text-slate-700 border-slate-300 hover:bg-slate-50'
+                  }`}
+                >
+                  Gráficos de Distribución
+                </button>
+              </div>
             </div>
-            <button
-              onClick={() => setShowSidebar(!showSidebar)}
-              className="px-2 py-1 bg-slate-200 border border-slate-300 text-[10px] font-bold text-slate-700 rounded hover:bg-slate-300 transition-colors"
-            >
-              {showSidebar ? 'Ocultar Panel' : 'Mostrar Panel'}
-            </button>
+
+            <div className="relative" onClick={e => e.stopPropagation()}>
+              <input 
+                type="text" 
+                placeholder="Buscar en el fichero (Alt+B)"
+                value={searchQuery}
+                onChange={(e) => setSearchQuery(e.target.value)}
+                className="pl-2 pr-8 py-1 border-b border-gray-400 text-[12px] w-64 outline-none focus:border-blue-500 bg-transparent"
+              />
+              <Search className="w-4 h-4 absolute right-1 top-1/2 -translate-y-1/2 text-gray-500" />
+            </div>
           </div>
 
           {/* Holdings View */}
@@ -610,28 +685,112 @@ export default function Portfolio() {
               <table className="clean-table">
                 <thead>
                   <tr>
-                    {visColsPortfolio.includes('symbol') && <th style={{ width: '80px' }}>Ticker</th>}
-                    {visColsPortfolio.includes('name') && <th style={{ width: '180px' }}>Nombre</th>}
-                    {visColsPortfolio.includes('type') && <th style={{ width: '100px' }}>Tipo</th>}
-                    {visColsPortfolio.includes('brokerName') && <th style={{ width: '150px' }}>Broker</th>}
-                    {visColsPortfolio.includes('quantity') && <th style={{ width: '90px' }}>Títulos</th>}
-                    {visColsPortfolio.includes('pmc') && <th style={{ width: '110px' }}>P.Medio Compra</th>}
-                    {visColsPortfolio.includes('currentPrice') && <th style={{ width: '110px' }}>Precio Mercado</th>}
-                    {visColsPortfolio.includes('totalCost') && <th style={{ width: '110px' }}>Coste Total</th>}
-                    {visColsPortfolio.includes('currentValue') && <th style={{ width: '110px' }}>Valor Actual</th>}
-                    {visColsPortfolio.includes('pnl') && <th style={{ width: '110px' }}>Rentabilidad</th>}
-                    {visColsPortfolio.includes('pnlPercent') && <th style={{ width: '90px' }}>% PnL</th>}
+                    {visColsPortfolio.includes('symbol') && (
+                      <PortfolioHeaderWithFilter 
+                        label="Ticker" 
+                        columnKey="symbol" 
+                        data={holdings} 
+                        tableId="rv-portfolio" 
+                      />
+                    )}
+                    {visColsPortfolio.includes('name') && (
+                      <PortfolioHeaderWithFilter 
+                        label="Nombre" 
+                        columnKey="name" 
+                        data={holdings} 
+                        tableId="rv-portfolio" 
+                      />
+                    )}
+                    {visColsPortfolio.includes('type') && (
+                      <PortfolioHeaderWithFilter 
+                        label="Tipo" 
+                        columnKey="type" 
+                        data={holdings} 
+                        tableId="rv-portfolio" 
+                      />
+                    )}
+                    {visColsPortfolio.includes('brokerName') && (
+                      <PortfolioHeaderWithFilter 
+                        label="Broker" 
+                        columnKey="brokerName" 
+                        data={holdings} 
+                        tableId="rv-portfolio" 
+                      />
+                    )}
+                    {visColsPortfolio.includes('quantity') && (
+                      <PortfolioHeaderWithFilter 
+                        label="Títulos" 
+                        columnKey="quantity" 
+                        data={holdings} 
+                        tableId="rv-portfolio" 
+                        className="text-right"
+                      />
+                    )}
+                    {visColsPortfolio.includes('pmc') && (
+                      <PortfolioHeaderWithFilter 
+                        label="P.Medio Compra" 
+                        columnKey="pmc" 
+                        data={holdings} 
+                        tableId="rv-portfolio" 
+                        className="text-right"
+                      />
+                    )}
+                    {visColsPortfolio.includes('currentPrice') && (
+                      <PortfolioHeaderWithFilter 
+                        label="Precio Mercado" 
+                        columnKey="currentPrice" 
+                        data={holdings} 
+                        tableId="rv-portfolio" 
+                        className="text-right"
+                      />
+                    )}
+                    {visColsPortfolio.includes('totalCost') && (
+                      <PortfolioHeaderWithFilter 
+                        label="Coste Total" 
+                        columnKey="totalCost" 
+                        data={holdings} 
+                        tableId="rv-portfolio" 
+                        className="text-right"
+                      />
+                    )}
+                    {visColsPortfolio.includes('currentValue') && (
+                      <PortfolioHeaderWithFilter 
+                        label="Valor Actual" 
+                        columnKey="currentValue" 
+                        data={holdings} 
+                        tableId="rv-portfolio" 
+                        className="text-right"
+                      />
+                    )}
+                    {visColsPortfolio.includes('pnl') && (
+                      <PortfolioHeaderWithFilter 
+                        label="Rentabilidad" 
+                        columnKey="pnl" 
+                        data={holdings} 
+                        tableId="rv-portfolio" 
+                        className="text-right"
+                      />
+                    )}
+                    {visColsPortfolio.includes('pnlPercent') && (
+                      <PortfolioHeaderWithFilter 
+                        label="% PnL" 
+                        columnKey="pnlPercent" 
+                        data={holdings} 
+                        tableId="rv-portfolio" 
+                        className="text-right"
+                      />
+                    )}
                   </tr>
                 </thead>
                 <tbody>
-                  {holdings.length === 0 ? (
+                  {groupedHoldings.length === 0 ? (
                     <tr>
                       <td colSpan={visColsPortfolio.length} className="text-center py-8 text-gray-400 font-medium">
                         No hay posiciones abiertas en cartera. Registre una nueva compra o cargue datos de ejemplo.
                       </td>
                     </tr>
                   ) : (
-                    holdings.map((h, index) => (
+                    groupedHoldings.map((h, index) => (
                       <tr
                         key={index}
                         onClick={() => setSelectedHolding(selectedHolding?.symbol === h.symbol && selectedHolding?.brokerId === h.brokerId ? null : h)}
@@ -649,7 +808,18 @@ export default function Portfolio() {
                         )}
                         {visColsPortfolio.includes('currentPrice') && (
                           <td className="font-mono text-right">
-                            {h.currentPrice.toLocaleString('es-ES', { minimumFractionDigits: 2, maximumFractionDigits: 4 })} €
+                            {h.currency && h.currency !== 'EUR' && h.currentPriceRaw ? (
+                              <>
+                                <span className="font-semibold text-slate-800">
+                                  {h.currentPriceRaw.toLocaleString('es-ES', { minimumFractionDigits: 2, maximumFractionDigits: 4 })} {h.currency}
+                                </span>
+                                <span className="text-slate-400 text-[10px] block font-normal">
+                                  {h.currentPrice.toLocaleString('es-ES', { minimumFractionDigits: 2, maximumFractionDigits: 2 })} €
+                                </span>
+                              </>
+                            ) : (
+                              `${h.currentPrice.toLocaleString('es-ES', { minimumFractionDigits: 2, maximumFractionDigits: 2 })} €`
+                            )}
                           </td>
                         )}
                         {visColsPortfolio.includes('totalCost') && (
@@ -680,83 +850,7 @@ export default function Portfolio() {
             </div>
           )}
 
-          {/* Transactions View */}
-          {portfolioTab === 'transacciones' && (
-            <div className="win-table-container">
-              <table className="clean-table">
-                <thead>
-                  <tr>
-                    {visColsTx.includes('id') && <th style={{ width: '80px' }}>ID</th>}
-                    {visColsTx.includes('date') && <th style={{ width: '100px' }}>Fecha</th>}
-                    {visColsTx.includes('assetId') && <th style={{ width: '90px' }}>Activo</th>}
-                    {visColsTx.includes('brokerName') && <th style={{ width: '140px' }}>Broker</th>}
-                    {visColsTx.includes('type') && <th style={{ width: '90px' }}>Tipo</th>}
-                    {visColsTx.includes('quantity') && <th style={{ width: '90px' }}>Cantidad</th>}
-                    {visColsTx.includes('price') && <th style={{ width: '100px' }}>Precio</th>}
-                    {visColsTx.includes('fee') && <th style={{ width: '80px' }}>Comisión</th>}
-                    {visColsTx.includes('currency') && <th style={{ width: '80px' }}>Divisa</th>}
-                    {visColsTx.includes('exchangeRate') && <th style={{ width: '80px' }}>Cambio</th>}
-                    {visColsTx.includes('totalAmount') && <th style={{ width: '110px' }}>Importe Total</th>}
-                  </tr>
-                </thead>
-                <tbody>
-                  {sortedTransactions.length === 0 ? (
-                    <tr>
-                      <td colSpan={visColsTx.length} className="text-center py-8 text-gray-400 font-medium">
-                        No se encontraron transacciones. Registre una nueva.
-                      </td>
-                    </tr>
-                  ) : (
-                    sortedTransactions.map((tx) => (
-                      <tr
-                        key={tx.id}
-                        onClick={() => setSelectedTx(selectedTx?.id === tx.id ? null : tx)}
-                        className={selectedTx?.id === tx.id ? 'selected' : ''}
-                      >
-                        {visColsTx.includes('id') && <td>{tx.id}</td>}
-                        {visColsTx.includes('date') && <td>{tx.date}</td>}
-                        {visColsTx.includes('assetId') && <td className="font-bold">{tx.assetId}</td>}
-                        {visColsTx.includes('brokerName') && <td>{tx.brokerName}</td>}
-                        {visColsTx.includes('type') && (
-                          <td>
-                            <span
-                              className={`px-1.5 py-0.5 rounded-sm text-[9px] font-bold uppercase tracking-wider ${
-                                tx.type === 'Compra'
-                                  ? 'bg-blue-100 text-blue-800 border border-blue-200'
-                                  : tx.type === 'Venta'
-                                  ? 'bg-orange-100 text-orange-800 border border-orange-200'
-                                  : 'bg-green-100 text-green-800 border border-green-200'
-                              }`}
-                            >
-                              {tx.type}
-                            </span>
-                          </td>
-                        )}
-                        {visColsTx.includes('quantity') && <td className="font-mono text-right">{tx.quantity}</td>}
-                        {visColsTx.includes('price') && (
-                          <td className="font-mono text-right">
-                            {tx.price.toLocaleString('es-ES', { minimumFractionDigits: 2, maximumFractionDigits: 4 })}
-                          </td>
-                        )}
-                        {visColsTx.includes('fee') && (
-                          <td className="font-mono text-right">
-                            {tx.fee.toLocaleString('es-ES', { minimumFractionDigits: 2 })}
-                          </td>
-                        )}
-                        {visColsTx.includes('currency') && <td>{tx.currency}</td>}
-                        {visColsTx.includes('exchangeRate') && <td className="font-mono text-right">{tx.exchangeRate || 1}</td>}
-                        {visColsTx.includes('totalAmount') && (
-                          <td className="font-mono text-right font-bold text-slate-700">
-                            {tx.totalAmount.toLocaleString('es-ES', { minimumFractionDigits: 2, maximumFractionDigits: 2 })} {tx.currency}
-                          </td>
-                        )}
-                      </tr>
-                    ))
-                  )}
-                </tbody>
-              </table>
-            </div>
-          )}
+
 
           {/* Charts View */}
           {portfolioTab === 'graficos' && (
@@ -879,187 +973,33 @@ export default function Portfolio() {
               )}
             </div>
           )}
+          <div className="flex justify-between items-center bg-[#f0f0f0] p-1 border-t border-[#808080] text-[10px] shrink-0 select-none">
+            <div>
+              {portfolioTab === 'posiciones' 
+                ? `${groupedHoldings.length} posiciones encontradas` 
+                : ''
+              }
+            </div>
+            <ZoomControl />
+          </div>
         </div>
       </div>
 
       {/* Transaction Entry Form Modal */}
-      {showTxForm && (
-        <div className="fixed inset-0 bg-black/35 backdrop-blur-xs flex items-center justify-center z-[200]">
-          <Window
-            title={isEditingTx ? `Modificar Transacción: ${txFormData.id}` : 'Nueva Transacción de Renta Variable'}
-            onClose={() => setShowTxForm(false)}
-            width="550px"
-            height="auto"
-            initialPos={{ x: (window.innerWidth - 550) / 2, y: 100 }}
-          >
-            <form onSubmit={handleSaveTx} className="p-4 space-y-3">
-              <div className="win-form-row">
-                <label className="win-form-label">ID Transacción:</label>
-                <input
-                  type="text"
-                  value={txFormData.id}
-                  onChange={(e) => setTxFormData({ ...txFormData, id: e.target.value })}
-                  placeholder="ej. TX001"
-                  disabled={isEditingTx}
-                  required
-                  className="win-input flex-1 uppercase font-mono"
-                />
-              </div>
-
-              <div className="win-form-row">
-                <label className="win-form-label">Activo (Ticker):</label>
-                <select
-                  value={txFormData.assetId}
-                  onChange={(e) => {
-                    const selected = assets.find(a => a.id === e.target.value);
-                    setTxFormData({ 
-                      ...txFormData, 
-                      assetId: e.target.value,
-                      currency: selected?.currency || 'EUR'
-                    });
-                  }}
-                  className="win-input flex-1"
-                >
-                  {assets.map((a) => (
-                    <option key={a.id} value={a.id}>
-                      {a.id} - {a.name}
-                    </option>
-                  ))}
-                </select>
-              </div>
-
-              <div className="win-form-row">
-                <label className="win-form-label">Broker:</label>
-                <select
-                  value={txFormData.brokerId}
-                  onChange={(e) => setTxFormData({ ...txFormData, brokerId: e.target.value })}
-                  className="win-input flex-1"
-                >
-                  {brokers.map((b) => (
-                    <option key={b.id} value={b.id}>
-                      {b.name} ({b.id})
-                    </option>
-                  ))}
-                </select>
-              </div>
-
-              <div className="win-form-row">
-                <label className="win-form-label">Tipo Operación:</label>
-                <select
-                  value={txFormData.type}
-                  onChange={(e) => setTxFormData({ ...txFormData, type: e.target.value })}
-                  className="win-input flex-1"
-                >
-                  <option value="Compra">Compra</option>
-                  <option value="Venta">Venta</option>
-                  <option value="Dividendo">Dividendo</option>
-                </select>
-              </div>
-
-              <div className="win-form-row">
-                <label className="win-form-label">Fecha:</label>
-                <input
-                  type="date"
-                  value={txFormData.date}
-                  onChange={(e) => setTxFormData({ ...txFormData, date: e.target.value })}
-                  required
-                  className="win-input flex-1"
-                />
-              </div>
-
-              <div className="win-form-row">
-                <label className="win-form-label">Cantidad (Títulos):</label>
-                <input
-                  type="number"
-                  step="0.000001"
-                  value={txFormData.quantity}
-                  onChange={(e) => setTxFormData({ ...txFormData, quantity: e.target.value })}
-                  placeholder="ej. 10"
-                  required
-                  className="win-input flex-1"
-                />
-              </div>
-
-              <div className="win-form-row">
-                <label className="win-form-label">{txFormData.type === 'Dividendo' ? 'Importe bruto por Título:' : 'Precio Unitario:'}</label>
-                <input
-                  type="number"
-                  step="0.0001"
-                  value={txFormData.price}
-                  onChange={(e) => setTxFormData({ ...txFormData, price: e.target.value })}
-                  placeholder="ej. 150.25"
-                  required
-                  className="win-input flex-1"
-                />
-              </div>
-
-              <div className="win-form-row">
-                <label className="win-form-label">Comisiones:</label>
-                <input
-                  type="number"
-                  step="0.01"
-                  value={txFormData.fee}
-                  onChange={(e) => setTxFormData({ ...txFormData, fee: e.target.value })}
-                  placeholder="ej. 2.00"
-                  required
-                  className="win-input flex-1"
-                />
-              </div>
-
-              <div className="win-form-row">
-                <label className="win-form-label">Tipo Cambio (USD/EUR...):</label>
-                <input
-                  type="number"
-                  step="0.0001"
-                  value={txFormData.exchangeRate}
-                  onChange={(e) => setTxFormData({ ...txFormData, exchangeRate: e.target.value })}
-                  placeholder="ej. 1.08 (deje 1.0 si es en EUR)"
-                  required
-                  className="win-input flex-1"
-                />
-              </div>
-
-              <div className="win-form-row">
-                <label className="win-form-label">Divisa:</label>
-                <input
-                  type="text"
-                  value={txFormData.currency}
-                  readOnly
-                  className="win-input flex-1 bg-slate-100 font-bold"
-                />
-              </div>
-
-              <div className="win-form-row items-start">
-                <label className="win-form-label pt-1.5">Notas:</label>
-                <textarea
-                  value={txFormData.notes}
-                  onChange={(e) => setTxFormData({ ...txFormData, notes: e.target.value })}
-                  placeholder="Notas descriptivas..."
-                  rows={2}
-                  className="win-input flex-1 font-sans resize-none"
-                />
-              </div>
-
-              <div className="flex justify-end space-x-2 pt-3 border-t border-gray-200">
-                <button
-                  type="button"
-                  onClick={() => setShowTxForm(false)}
-                  className="px-4 py-1.5 bg-slate-100 hover:bg-slate-200 text-slate-800 text-[11px] font-bold border border-slate-300 rounded cursor-pointer transition-colors"
-                >
-                  Cancelar
-                </button>
-                <button
-                  type="submit"
-                  className="px-4 py-1.5 bg-blue-600 hover:bg-blue-700 text-white text-[11px] font-bold rounded cursor-pointer transition-colors flex items-center space-x-1"
-                >
-                  <Save className="w-3.5 h-3.5" />
-                  <span>Guardar</span>
-                </button>
-              </div>
-            </form>
-          </Window>
-        </div>
-      )}
+      <RvTransactionModal
+        isOpen={showTxForm}
+        onClose={() => {
+          setShowTxForm(false);
+        }}
+        userId={user.uid}
+        assets={assets}
+        brokers={brokers}
+        transactions={transactions}
+        editTx={isEditingTx ? txFormData : null}
+        defaultAssetId={selectedHolding && selectedHolding.symbol !== 'Varios' ? selectedHolding.symbol : ''}
+        defaultBrokerId={selectedHolding && selectedHolding.brokerId !== 'Varios' ? selectedHolding.brokerId : ''}
+      />
+      {renderPortfolioFilterMenu()}
     </div>
   );
 }

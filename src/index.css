@@ -110,7 +110,7 @@
   }
 
   .win-input {
-    @apply px-2 py-1 bg-white border border-outline text-xs focus:outline-none focus:border-primary focus:ring-1 focus:ring-primary rounded-sm transition-all shadow-sm;
+    @apply px-2 py-1 bg-white border border-outline text-xs focus:outline-none focus:border-primary focus:ring-1 focus:ring-primary rounded-sm transition-all shadow-sm min-w-0;
   }
 
   /* Sidebar and Table Layouts (Photo 2) */

@@ -3,7 +3,6 @@ import { FileText, Plus, Trash2, PieChart, Database, BarChart2, Upload, Eye } fr
 import { uploadFileToStorage } from '../utils/storageUtils';
 
 export default function FinanzasTab({ formData, setFormData, rentals, user, setPreviewDocument }) {
-  const [activeSubTab, setActiveSubTab] = useState('Datos');
   const [isUploading, setIsUploading] = useState(false);
   
   // Ensure adquisition expenses array exists
@@ -71,265 +70,212 @@ export default function FinanzasTab({ formData, setFormData, rentals, user, setP
     }
   };
 
-  const renderSubTab = () => {
-    if (activeSubTab === 'Datos') {
-      return (
-        <div className="flex flex-col gap-4 p-4 flex-1 overflow-auto bg-white">
-          <div className="space-y-4 max-w-sm">
-            <div className="space-y-1">
-              <label className="text-[10px] font-bold text-slate-700 uppercase">Fecha de compra:</label>
-              <input 
-                type="date" 
-                className="win-input w-full" 
-                value={formData.purchaseDate || ''} 
-                onChange={e => setFormData({ ...formData, purchaseDate: e.target.value })} 
-              />
-            </div>
-            <div className="space-y-1">
-              <label className="text-[10px] font-bold text-slate-700 uppercase">Precio de adquisición:</label>
-              <div className="relative">
-                <input 
-                  type="number" 
-                  className="win-input w-full text-right pr-6" 
-                  value={formData.acquisitionPrice || ''} 
-                  onChange={e => setFormData({ ...formData, acquisitionPrice: e.target.value })} 
-                />
-                <span className="absolute right-2 top-1/2 -translate-y-1/2 text-[11px] text-gray-500">€</span>
-              </div>
-            </div>
-            <div className="space-y-1">
-              <label className="text-[10px] font-bold text-slate-700 uppercase">Capital aportado:</label>
-              <div className="relative">
-                <input 
-                  type="number" 
-                  className="win-input w-full text-right pr-6" 
-                  value={formData.investedCapital || ''} 
-                  onChange={e => setFormData({ ...formData, investedCapital: e.target.value })} 
-                />
-                <span className="absolute right-2 top-1/2 -translate-y-1/2 text-[11px] text-gray-500">€</span>
-              </div>
-            </div>
-            <div className="space-y-1">
-              <label className="text-[10px] font-bold text-slate-700 uppercase" title="Suma automática de las reformas marcadas para capitalizar">Total reformas capitalizable:</label>
-              <div className="relative">
-                <input 
-                  type="text" 
-                  className="win-input w-full text-right pr-6 bg-slate-50 text-slate-500 cursor-not-allowed" 
-                  value={totalCapitalizedReforms.toLocaleString('es-ES', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
-                  readOnly 
-                />
-                <span className="absolute right-2 top-1/2 -translate-y-1/2 text-[11px] text-gray-500">€</span>
-              </div>
-            </div>
-            <div className="space-y-1">
-              <label className="text-[10px] font-bold text-slate-700 uppercase" title="Suma de Capital Aportado, Gastos de Adquisición y Reformas Capitalizables">Total Inversión:</label>
-              <div className="relative">
-                <input 
-                  type="text" 
-                  className="win-input w-full text-right pr-6 bg-blue-50 text-blue-900 font-bold cursor-not-allowed" 
-                  value={((parseFloat(formData.investedCapital) || 0) + totalCapitalizedReforms + totalAdquisitionExpenses).toLocaleString('es-ES', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
-                  readOnly 
-                />
-                <span className="absolute right-2 top-1/2 -translate-y-1/2 text-[11px] text-blue-900 font-bold">€</span>
-              </div>
-            </div>
-            <div className="space-y-1">
-              <label className="text-[10px] font-bold text-slate-700 uppercase">Precio teórico de venta:</label>
-              <div className="relative">
-                <input 
-                  type="number" 
-                  className="win-input w-full text-right pr-6" 
-                  value={formData.theoreticalSalePrice || ''} 
-                  onChange={e => setFormData({ ...formData, theoreticalSalePrice: e.target.value })} 
-                />
-                <span className="absolute right-2 top-1/2 -translate-y-1/2 text-[11px] text-gray-500">€</span>
-              </div>
-            </div>
-            <div className="space-y-1">
-              <label className="text-[10px] font-bold text-slate-700 uppercase">Honorarios de Agencia:</label>
-              <div className="relative">
-                <input 
-                  type="number" 
-                  className="win-input w-full text-right pr-6" 
-                  value={formData.agentFees || ''} 
-                  onChange={e => setFormData({ ...formData, agentFees: e.target.value })} 
-                />
-                <span className="absolute right-2 top-1/2 -translate-y-1/2 text-[11px] text-gray-500">€</span>
-              </div>
-            </div>
-            <div className="space-y-1">
-              <label className="text-[10px] font-bold text-slate-700 uppercase">Valor Actual:</label>
-              <div className="relative">
-                <input 
-                  type="number" 
-                  className="win-input w-full text-right pr-6" 
-                  value={formData.currentValue || ''} 
-                  onChange={e => setFormData({ ...formData, currentValue: e.target.value })} 
-                />
-                <span className="absolute right-2 top-1/2 -translate-y-1/2 text-[11px] text-gray-500">€</span>
-              </div>
-            </div>
-          </div>
-
-          {/* Gastos de Adquisición Table (Full Width) */}
-          <div className="space-y-2 mt-2">
-            <h3 className="text-[11px] font-bold text-[#000080] border-b border-[#000080] pb-1 uppercase flex items-center justify-between">
-              <div className="flex items-center">
-                <Database className="w-4 h-4 mr-1" />
-                Gastos de Adquisición
-              </div>
-              <button 
-                onClick={handleAddExpense}
-                className="btn-classic px-2 py-0.5 h-[20px] flex items-center text-[10px]"
-              >
-                <Plus className="w-3 h-3 mr-1" /> Añadir Gasto
-              </button>
-            </h3>
-            
-            <div className="bg-white border border-[#808080] shadow-[1px_1px_0px_#000] p-1 h-[300px] flex flex-col">
-              <div className="flex-1 overflow-auto">
-                <table className="clean-table w-full">
-                  <thead>
-                    <tr>
-                      <th className="w-28 text-center">Fecha</th>
-                      <th>Concepto</th>
-                      <th className="w-28 text-right">Cantidad (€)</th>
-                      <th className="w-16 text-center">Documento</th>
-                      <th className="w-8"></th>
-                    </tr>
-                  </thead>
-                  <tbody>
-                    {adquisitionExpenses.length === 0 ? (
-                      <tr>
-                        <td colSpan="5" className="text-center text-slate-500 py-4 italic text-[11px]">
-                          No hay gastos añadidos
-                        </td>
-                      </tr>
-                    ) : (
-                      adquisitionExpenses.map((exp, idx) => (
-                        <tr key={idx}>
-                          <td className="p-0 w-28">
-                            <input 
-                              type="date"
-                              value={exp.date || ''}
-                              onChange={(e) => updateExpense(idx, 'date', e.target.value)}
-                              className="win-input w-full bg-transparent border-transparent hover:border-gray-300 focus:bg-white text-[11px] px-1 m-0 h-[22px] text-center"
-                            />
-                          </td>
-                          <td className="p-0">
-                            <input 
-                              type="text"
-                              value={exp.concept || ''}
-                              onChange={(e) => updateExpense(idx, 'concept', e.target.value)}
-                              className="win-input w-full bg-transparent border-transparent hover:border-gray-300 focus:bg-white text-[11px] px-1 m-0 h-[22px]"
-                              placeholder="Ej: Notaría, ITP..."
-                            />
-                          </td>
-                          <td className="p-0 w-28">
-                            <input 
-                              type="number"
-                              value={exp.amount || ''}
-                              onChange={(e) => updateExpense(idx, 'amount', e.target.value)}
-                              className="win-input w-full bg-transparent border-transparent hover:border-gray-300 focus:bg-white text-[11px] text-right px-1 m-0 h-[22px]"
-                            />
-                          </td>
-                          <td className="text-center p-0 w-16 align-middle">
-                            {exp.url ? (
-                              <button
-                                onClick={() => setPreviewDocument({ url: exp.url, name: exp.name || exp.concept })}
-                                className="text-blue-600 hover:text-blue-800 p-1 mx-auto flex items-center justify-center"
-                                title="Ver documento"
-                              >
-                                <Eye className="w-4 h-4" />
-                              </button>
-                            ) : (
-                              <label className="cursor-pointer text-slate-400 hover:text-blue-600 p-1 mx-auto flex items-center justify-center" title="Subir documento">
-                                <Upload className="w-4 h-4" />
-                                <input
-                                  type="file"
-                                  className="hidden"
-                                  onChange={(e) => handleRowFileUpload(e, idx)}
-                                  disabled={isUploading}
-                                />
-                              </label>
-                            )}
-                          </td>
-                          <td className="text-center p-0 align-middle">
-                            <button 
-                              onClick={() => removeExpense(idx)}
-                              className="text-red-500 hover:text-red-700 p-1"
-                              title="Eliminar gasto"
-                            >
-                              <Trash2 className="w-3.5 h-3.5 mx-auto" />
-                            </button>
-                          </td>
-                        </tr>
-                      ))
-                    )}
-                  </tbody>
-                  <tfoot>
-                    <tr className="bg-slate-50 font-bold border-t-2 border-[#808080]">
-                      <td colSpan="2" className="text-[11px] text-[#000080] uppercase py-1 text-right pr-4">Total Gastos</td>
-                      <td className="text-right text-[11px] text-[#000080] py-1">{totalAdquisitionExpenses.toFixed(2)} €</td>
-                      <td colSpan="2"></td>
-                    </tr>
-                  </tfoot>
-                </table>
-              </div>
-            </div>
-          </div>
-        </div>
-      );
-    }
-
-    if (activeSubTab === 'Métricas') {
-      return (
-        <div className="flex justify-center items-center h-full bg-white text-slate-500">
-          <div className="flex flex-col items-center gap-2">
-            <BarChart2 className="w-8 h-8 opacity-50" />
-            <p>Sección de Métricas Financieras (En desarrollo...)</p>
-          </div>
-        </div>
-      );
-    }
-
-    if (activeSubTab === 'Extracto') {
-      return (
-        <div className="flex justify-center items-center h-full bg-white text-slate-500 py-10">
-          <p className="italic text-[11px]">Sección de Extracto (En desarrollo...)</p>
-        </div>
-      );
-    }
-  };
-
-  const subTabs = [
-    { id: 'Datos', label: 'Datos Financieros' },
-    { id: 'Métricas', label: 'Métricas' },
-    { id: 'Extracto', label: 'Extracto' }
-  ];
-
   return (
     <div className="flex flex-col h-full bg-white overflow-hidden">
-      {/* Sub-navigation bar */}
-      <div className="bg-white border-b border-gray-200 flex px-2 pt-2 gap-1">
-        {subTabs.map(tab => (
-          <button
-            key={tab.id}
-            onClick={() => setActiveSubTab(tab.id)}
-            className={`px-4 py-1.5 text-[12px] font-medium border-t border-x rounded-t-sm transition-colors ${
-              activeSubTab === tab.id
-                ? 'bg-white border-gray-200 text-blue-600 border-b-white -mb-[1px] relative z-10'
-                : 'bg-gray-50 border-transparent text-gray-500 hover:bg-gray-100'
-            }`}
-          >
-            {tab.label}
-          </button>
-        ))}
-      </div>
-      
-      {/* Main Content Area */}
-      <div className="flex-1 relative">
-        {renderSubTab()}
+      <div className="flex flex-col gap-4 p-4 flex-1 overflow-auto bg-white">
+        <div className="space-y-4 max-w-sm">
+          <div className="space-y-1">
+            <label className="text-[10px] font-bold text-slate-700 uppercase">Fecha de compra:</label>
+            <input 
+              type="date" 
+              className="win-input w-full" 
+              value={formData.purchaseDate || ''} 
+              onChange={e => setFormData({ ...formData, purchaseDate: e.target.value })} 
+            />
+          </div>
+          <div className="space-y-1">
+            <label className="text-[10px] font-bold text-slate-700 uppercase">Precio de adquisición:</label>
+            <div className="relative">
+              <input 
+                type="number" 
+                className="win-input w-full text-right pr-6" 
+                value={formData.acquisitionPrice || ''} 
+                onChange={e => setFormData({ ...formData, acquisitionPrice: e.target.value })} 
+              />
+              <span className="absolute right-2 top-1/2 -translate-y-1/2 text-[11px] text-gray-500">€</span>
+            </div>
+          </div>
+          <div className="space-y-1">
+            <label className="text-[10px] font-bold text-slate-700 uppercase">Capital aportado:</label>
+            <div className="relative">
+              <input 
+                type="number" 
+                className="win-input w-full text-right pr-6" 
+                value={formData.investedCapital || ''} 
+                onChange={e => setFormData({ ...formData, investedCapital: e.target.value })} 
+              />
+              <span className="absolute right-2 top-1/2 -translate-y-1/2 text-[11px] text-gray-500">€</span>
+            </div>
+          </div>
+          <div className="space-y-1">
+            <label className="text-[10px] font-bold text-slate-700 uppercase" title="Suma automática de las reformas marcadas para capitalizar">Total reformas capitalizable:</label>
+            <div className="relative">
+              <input 
+                type="text" 
+                className="win-input w-full text-right pr-6 bg-slate-50 text-slate-500 cursor-not-allowed" 
+                value={totalCapitalizedReforms.toLocaleString('es-ES', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+                readOnly 
+              />
+              <span className="absolute right-2 top-1/2 -translate-y-1/2 text-[11px] text-gray-500">€</span>
+            </div>
+          </div>
+          <div className="space-y-1">
+            <label className="text-[10px] font-bold text-slate-700 uppercase" title="Suma de Capital Aportado, Gastos de Adquisición y Reformas Capitalizables">Total Inversión:</label>
+            <div className="relative">
+              <input 
+                type="text" 
+                className="win-input w-full text-right pr-6 bg-blue-50 text-blue-900 font-bold cursor-not-allowed" 
+                value={((parseFloat(formData.investedCapital) || 0) + totalCapitalizedReforms + totalAdquisitionExpenses).toLocaleString('es-ES', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+                readOnly 
+              />
+              <span className="absolute right-2 top-1/2 -translate-y-1/2 text-[11px] text-blue-900 font-bold">€</span>
+            </div>
+          </div>
+          <div className="space-y-1">
+            <label className="text-[10px] font-bold text-slate-700 uppercase">Precio teórico de venta:</label>
+            <div className="relative">
+              <input 
+                type="number" 
+                className="win-input w-full text-right pr-6" 
+                value={formData.theoreticalSalePrice || ''} 
+                onChange={e => setFormData({ ...formData, theoreticalSalePrice: e.target.value })} 
+              />
+              <span className="absolute right-2 top-1/2 -translate-y-1/2 text-[11px] text-gray-500">€</span>
+            </div>
+          </div>
+          <div className="space-y-1">
+            <label className="text-[10px] font-bold text-slate-700 uppercase">Honorarios de Agencia:</label>
+            <div className="relative">
+              <input 
+                type="number" 
+                className="win-input w-full text-right pr-6" 
+                value={formData.agentFees || ''} 
+                onChange={e => setFormData({ ...formData, agentFees: e.target.value })} 
+              />
+              <span className="absolute right-2 top-1/2 -translate-y-1/2 text-[11px] text-gray-500">€</span>
+            </div>
+          </div>
+          <div className="space-y-1">
+            <label className="text-[10px] font-bold text-slate-700 uppercase">Valor Actual:</label>
+            <div className="relative">
+              <input 
+                type="number" 
+                className="win-input w-full text-right pr-6" 
+                value={formData.currentValue || ''} 
+                onChange={e => setFormData({ ...formData, currentValue: e.target.value })} 
+              />
+              <span className="absolute right-2 top-1/2 -translate-y-1/2 text-[11px] text-gray-500">€</span>
+            </div>
+          </div>
+        </div>
+
+        {/* Gastos de Adquisición Table (Full Width) */}
+        <div className="space-y-2 mt-2">
+          <h3 className="text-[11px] font-bold text-[#000080] border-b border-[#000080] pb-1 uppercase flex items-center justify-between">
+            <div className="flex items-center">
+              <Database className="w-4 h-4 mr-1" />
+              Gastos de Adquisición
+            </div>
+            <button 
+              onClick={handleAddExpense}
+              className="btn-classic px-2 py-0.5 h-[20px] flex items-center text-[10px]"
+            >
+              <Plus className="w-3 h-3 mr-1" /> Añadir Gasto
+            </button>
+          </h3>
+          
+          <div className="bg-white border border-[#808080] shadow-[1px_1px_0px_#000] p-1 h-[300px] flex flex-col">
+            <div className="flex-1 overflow-auto">
+              <table className="clean-table w-full">
+                <thead>
+                  <tr>
+                    <th className="w-28 text-center">Fecha</th>
+                    <th>Concepto</th>
+                    <th className="w-28 text-right">Cantidad (€)</th>
+                    <th className="w-16 text-center">Documento</th>
+                    <th className="w-8"></th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {adquisitionExpenses.length === 0 ? (
+                    <tr>
+                      <td colSpan="5" className="text-center text-slate-500 py-4 italic text-[11px]">
+                        No hay gastos añadidos
+                      </td>
+                    </tr>
+                  ) : (
+                    adquisitionExpenses.map((exp, idx) => (
+                      <tr key={idx}>
+                        <td className="p-0 w-28">
+                          <input 
+                            type="date"
+                            value={exp.date || ''}
+                            onChange={(e) => updateExpense(idx, 'date', e.target.value)}
+                            className="win-input w-full bg-transparent border-transparent hover:border-gray-300 focus:bg-white text-[11px] px-1 m-0 h-[22px] text-center"
+                          />
+                        </td>
+                        <td className="p-0">
+                          <input 
+                            type="text"
+                            value={exp.concept || ''}
+                            onChange={(e) => updateExpense(idx, 'concept', e.target.value)}
+                            className="win-input w-full bg-transparent border-transparent hover:border-gray-300 focus:bg-white text-[11px] px-1 m-0 h-[22px]"
+                            placeholder="Ej: Notaría, ITP..."
+                          />
+                        </td>
+                        <td className="p-0 w-28">
+                          <input 
+                            type="number"
+                            value={exp.amount || ''}
+                            onChange={(e) => updateExpense(idx, 'amount', e.target.value)}
+                            className="win-input w-full bg-transparent border-transparent hover:border-gray-300 focus:bg-white text-[11px] text-right px-1 m-0 h-[22px]"
+                          />
+                        </td>
+                        <td className="text-center p-0 w-16 align-middle">
+                          {exp.url ? (
+                            <button
+                              onClick={() => setPreviewDocument({ url: exp.url, name: exp.name || exp.concept })}
+                              className="text-blue-600 hover:text-blue-800 p-1 mx-auto flex items-center justify-center"
+                              title="Ver documento"
+                            >
+                              <Eye className="w-4 h-4" />
+                            </button>
+                          ) : (
+                            <label className="cursor-pointer text-slate-400 hover:text-blue-600 p-1 mx-auto flex items-center justify-center" title="Subir documento">
+                              <Upload className="w-4 h-4" />
+                              <input
+                                type="file"
+                                className="hidden"
+                                onChange={(e) => handleRowFileUpload(e, idx)}
+                                disabled={isUploading}
+                              />
+                            </label>
+                          )}
+                        </td>
+                        <td className="text-center p-0 align-middle">
+                          <button 
+                            onClick={() => removeExpense(idx)}
+                            className="text-red-500 hover:text-red-700 p-1"
+                            title="Eliminar gasto"
+                          >
+                            <Trash2 className="w-3.5 h-3.5 mx-auto" />
+                          </button>
+                        </td>
+                      </tr>
+                    ))
+                  )}
+                </tbody>
+                <tfoot>
+                  <tr className="bg-slate-50 font-bold border-t-2 border-[#808080]">
+                    <td colSpan="2" className="text-[11px] text-[#000080] uppercase py-1 text-right pr-4">Total Gastos</td>
+                    <td className="text-right text-[11px] text-[#000080] py-1">{totalAdquisitionExpenses.toFixed(2)} €</td>
+                    <td colSpan="2"></td>
+                  </tr>
+                </tfoot>
+              </table>
+            </div>
+          </div>
+        </div>
       </div>
     </div>
   );
