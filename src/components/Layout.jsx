@@ -599,7 +599,7 @@ export default function Layout() {
     'Inversiones inmobiliarias': ['Activos', 'Propietarios', 'Clientes', 'Alquileres'],
     'Renta variable': ['Portfolio', 'Broker', 'Activos RV', 'Transacciones', 'Métricas RV'],
     'Informes': ['Reportes', 'Dashboard'],
-    'Impuestos': ['Total', 'Inversiones inmobiliarias'],
+    'Impuestos': ['Total', 'Inversiones inmobiliarias', 'Renta variable'],
     'Herramientas': ['Calculadora'],
     'Ayuda': ['Manual', 'Soporte']
   };
@@ -622,6 +622,7 @@ export default function Layout() {
     'Dashboard': '/dashboard',
     'Total': '/taxes-total',
     'Inversiones inmobiliarias': '/taxes-real-estate',
+    'Renta variable': '/taxes-rv',
     'Calculadora': '#',
     'Manual': '#',
     'Soporte': '#'
@@ -724,6 +725,20 @@ export default function Layout() {
         items: [
           { name: 'Añadir columna', action: 'taxes-re:columns', path: '/taxes-real-estate', customIcon: 'AddColumn' },
           { name: 'Exportar', action: 'taxes-re:export', path: '/taxes-real-estate', customIcon: 'Exportar' }
+        ]
+      }
+    ],
+    'Renta variable': [
+      {
+        group: 'Impuestos',
+        items: [
+          { name: `Fecha\n(${taxYear})`, action: 'taxes:year-dropdown', icon: Calendar }
+        ]
+      },
+      {
+        group: 'Acciones',
+        items: [
+          { name: 'Exportar', action: 'taxes-rv:export', path: '/taxes-rv', customIcon: 'Exportar' }
         ]
       }
     ],
