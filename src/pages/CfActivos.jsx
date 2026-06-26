@@ -1,20 +1,20 @@
-import { useState, useEffect, useMemo } from 'react';
+import { useState, useEffect } from 'react';
 import { db } from '../firebase/config';
 import { collection, query, where, onSnapshot, doc, setDoc, deleteDoc } from 'firebase/firestore';
 import { useAuth } from '../context/AuthContext';
 import Window from '../components/Window';
-import { Search, PanelLeft } from 'lucide-react';
+import { Search, Plus, Trash2, Edit, Save, X, Download, PanelLeft, TrendingUp } from 'lucide-react';
 import { handleExportFormat } from '../utils/exportUtils';
 import { useTableColumns } from '../hooks/useTableColumns';
 import { exportToPDF } from '../utils/pdfExport';
 
-const fmt = (v) => (v || 0).toLocaleString('es-ES', { style: 'currency', currency: 'EUR' });
-const pct = (v) => `${(v || 0).toLocaleString('es-ES', { minimumFractionDigits: 2, maximumFractionDigits: 2 })} %`;
+const fmt = (v, dec = 2) =>
+  (v || 0).toLocaleString('es-ES', { minimumFractionDigits: dec, maximumFractionDigits: dec });
 
-const TYPES = ['Inmobiliario', 'Préstamo empresarial', 'Equity', 'Mixto', 'Otros'];
+const TYPES = ['Inmobiliario', 'Préstamo empresarial', 'Equity', 'Otros'];
+const SECTORS = ['Residencial', 'Comercial', 'Industrial', 'Tecnología', 'Energía', 'Otros'];
 const STATUSES = ['activo', 'finalizado', 'moroso', 'amortizado'];
-const SECTORS = ['Residencial', 'Comercial', 'Industrial', 'Hostelería', 'Tecnología', 'Energía', 'Salud', 'Otros'];
-const GUARANTEES = ['Hipoteca 1ª', 'Hipoteca 2ª', 'Aval personal', 'Sin garantía', 'Garantía real', 'Otra'];
+const GUARANTEE_TYPES = ['Hipoteca 1ª', 'Hipoteca 2ª', 'Garantía personal', 'Sin garantía', 'Aval'];
 
 const EMPTY_FORM = {
   id: '',
@@ -39,7 +39,7 @@ export default function CfActivos() {
   const { user, queryUserIds } = useAuth();
   const [projects, setProjects] = useState([]);
   const [platforms, setPlatforms] = useState([]);
-  const [selected, setSelected] = useState(null);
+  const [selectedProject, setSelectedProject] = useState(null);
   const [showForm, setShowForm] = useState(false);
   const [isEditing, setIsEditing] = useState(false);
   const [formData, setFormData] = useState(EMPTY_FORM);
@@ -54,44 +54,82 @@ export default function CfActivos() {
   const DEFAULT_COLUMNS = ['id', 'name', 'platformName', 'type', 'targetAmount', 'annualRate', 'term', 'status'];
   const { visibleColumns, columnWidths } = useTableColumns('cf-activos', DEFAULT_COLUMNS);
 
+  // Enriched projects with platform name - declared early to avoid TDZ
+  const enrichedProjects = projects.map(proj => {
+    const platform = platforms.find(p => p.id === proj.platformId);
+    return { ...proj, platformName: platform?.name || proj.platformId || '-' };
+  });
+
+  // Filtered projects - declared early to avoid TDZ
+  const filteredProjects = enrichedProjects.filter((proj) => {
+    if (typeFilter !== 'todos' && proj.type !== typeFilter) return false;
+    if (statusFilter !== 'todos' && proj.status !== statusFilter) return false;
+    if (searchQuery) {
+      const q = searchQuery.toLowerCase();
+      return (
+        (proj.id || '').toLowerCase().includes(q) ||
+        (proj.name || '').toLowerCase().includes(q) ||
+        (proj.platformName || '').toLowerCase().includes(q) ||
+        (proj.sector || '').toLowerCase().includes(q) ||
+        (proj.country || '').toLowerCase().includes(q)
+      );
+    }
+    return true;
+  });
+
   useEffect(() => {
     const onResize = () => setIsMobile(window.innerWidth < 768);
     window.addEventListener('resize', onResize);
     return () => window.removeEventListener('resize', onResize);
   }, []);
 
+  // Fetch from Firestore
   useEffect(() => {
     if (!user) return;
-    const qIds = queryUserIds?.length > 0 ? queryUserIds : [user.uid];
-    const u1 = onSnapshot(query(collection(db, 'cf_projects'), where('userId', 'in', qIds)), s => setProjects(s.docs.map(d => ({ ...d.data(), id: d.id }))));
-    const u2 = onSnapshot(query(collection(db, 'cf_platforms'), where('userId', 'in', qIds)), s => setPlatforms(s.docs.map(d => ({ ...d.data(), id: d.id }))));
-    return () => { u1(); u2(); };
+    const targetUserIds = queryUserIds?.length > 0 ? queryUserIds : [user.uid];
+
+    const unsubProj = onSnapshot(
+      query(collection(db, 'cf_projects'), where('userId', 'in', targetUserIds)),
+      (snap) => setProjects(snap.docs.map(d => ({ ...d.data(), id: d.id }))),
+      (err) => console.error('Error fetching cf_projects:', err)
+    );
+    const unsubPlt = onSnapshot(
+      query(collection(db, 'cf_platforms'), where('userId', 'in', targetUserIds)),
+      (snap) => setPlatforms(snap.docs.map(d => ({ ...d.data(), id: d.id }))),
+      (err) => console.error('Error fetching cf_platforms:', err)
+    );
+
+    return () => { unsubProj(); unsubPlt(); };
   }, [user, queryUserIds]);
 
-  const enriched = useMemo(() => projects.map(p => {
-    const platform = platforms.find(pl => pl.id === p.platformId);
-    return { ...p, platformName: platform?.name || p.platformId || '—' };
-  }), [projects, platforms]);
-
-  const filtered = useMemo(() => enriched.filter(p => {
-    if (typeFilter !== 'todos' && p.type !== typeFilter) return false;
-    if (statusFilter !== 'todos' && p.status !== statusFilter) return false;
-    if (searchQuery) {
-      const q = searchQuery.toLowerCase();
-      return p.id?.toLowerCase().includes(q) || p.name?.toLowerCase().includes(q) || p.platformName?.toLowerCase().includes(q);
-    }
-    return true;
-  }), [enriched, typeFilter, statusFilter, searchQuery]);
-
+  // Ribbon event listeners
   useEffect(() => {
-    const onNew    = () => { setIsEditing(false); setFormData(EMPTY_FORM); setActiveFormTab('datos'); setShowForm(true); };
-    const onEdit   = () => { if (selected) { setIsEditing(true); setFormData({ ...selected }); setActiveFormTab('datos'); setShowForm(true); } else alert('Seleccione un activo primero.'); };
-    const onDelete = () => { if (selected) handleDelete(selected); else alert('Seleccione un activo primero.'); };
+    const onNew = () => handleNew();
+    const onEdit = () => {
+      if (selectedProject) handleEdit(selectedProject);
+      else alert('Por favor, seleccione un proyecto de la lista primero.');
+    };
+    const onDelete = () => {
+      if (selectedProject) handleDelete(selectedProject);
+      else alert('Por favor, seleccione un proyecto de la lista primero.');
+    };
     const onExport = (e) => {
       const format = e.detail?.format || 'csv';
-      const data = filtered.map(r => ({ ID: r.id, Nombre: r.name, Plataforma: r.platformName, Tipo: r.type, 'Objetivo (€)': r.targetAmount, 'TIR (%)': r.annualRate, 'Plazo (m)': r.term, Estado: r.status }));
-      if (format === 'pdf') exportToPDF(data, [{ header: 'ID', dataKey: 'ID' }, { header: 'Nombre', dataKey: 'Nombre' }, { header: 'Plataforma', dataKey: 'Plataforma' }, { header: 'Tipo', dataKey: 'Tipo' }, { header: 'Objetivo (€)', dataKey: 'Objetivo (€)' }, { header: 'TIR (%)', dataKey: 'TIR (%)' }, { header: 'Plazo (m)', dataKey: 'Plazo (m)' }, { header: 'Estado', dataKey: 'Estado' }], 'Activos Crowdfunding', 'cf_activos.pdf');
-      else handleExportFormat(data, 'Activos Crowdfunding', format);
+      if (format === 'pdf') {
+        const cols = [
+          { header: 'ID', dataKey: 'id' },
+          { header: 'Nombre', dataKey: 'name' },
+          { header: 'Plataforma', dataKey: 'platformName' },
+          { header: 'Tipo', dataKey: 'type' },
+          { header: 'Objetivo (€)', dataKey: 'targetAmount' },
+          { header: 'Tasa anual (%)', dataKey: 'annualRate' },
+          { header: 'Plazo (m)', dataKey: 'term' },
+          { header: 'Estado', dataKey: 'status' },
+        ].filter(c => visibleColumns.includes(c.dataKey));
+        exportToPDF(filteredProjects, cols, 'Activos / Proyectos Crowdfunding', 'cf_activos.pdf');
+      } else {
+        handleExportFormat(filteredProjects, 'Activos Crowdfunding', format);
+      }
     };
     window.addEventListener('cf-activo:new', onNew);
     window.addEventListener('cf-activo:edit', onEdit);
@@ -103,21 +141,51 @@ export default function CfActivos() {
       window.removeEventListener('cf-activo:delete', onDelete);
       window.removeEventListener('cf-activo:export', onExport);
     };
-  }, [selected, filtered]);
+  }, [projects, selectedProject, filteredProjects, visibleColumns]);
+
+  const handleNew = () => {
+    setIsEditing(false);
+    setActiveFormTab('datos');
+    const maxId = projects.reduce((max, p) => {
+      const num = parseInt((p.id || '').replace(/\D/g, '')) || 0;
+      return num > max ? num : max;
+    }, 0);
+    setFormData({ ...EMPTY_FORM, id: `CF${String(maxId + 1).padStart(3, '0')}` });
+    setShowForm(true);
+  };
+
+  const handleEdit = (project) => {
+    setIsEditing(true);
+    setActiveFormTab('datos');
+    setFormData({ ...project });
+    setShowForm(true);
+  };
 
   const handleDelete = async (project) => {
-    if (window.confirm(`¿Eliminar el proyecto ${project.name}?`)) {
-      try { await deleteDoc(doc(db, 'cf_projects', project.id)); setSelected(null); }
-      catch (e) { alert('Error al eliminar: ' + e.message); }
+    if (window.confirm(`¿Está seguro de que desea eliminar el proyecto ${project.name} (${project.id})?`)) {
+      try {
+        await deleteDoc(doc(db, 'cf_projects', project.id));
+        setSelectedProject(null);
+      } catch (error) {
+        console.error('Error deleting project:', error);
+        alert('Error al eliminar el proyecto: ' + error.message);
+      }
     }
   };
 
   const handleSave = async (e) => {
     e.preventDefault();
-    if (!formData.id || !formData.name) { alert('ID y Nombre son obligatorios.'); return; }
+    if (!formData.id || !formData.name) {
+      alert('Por favor, rellene el ID y el Nombre del proyecto.');
+      return;
+    }
     try {
-      await setDoc(doc(db, 'cf_projects', formData.id), {
+      const docId = formData.id.trim().toUpperCase();
+      const selectedPlatform = platforms.find(p => p.id === formData.platformId);
+      await setDoc(doc(db, 'cf_projects', docId), {
         ...formData,
+        id: docId,
+        platformName: selectedPlatform?.name || formData.platformId,
         targetAmount: parseFloat(formData.targetAmount) || 0,
         raisedAmount: parseFloat(formData.raisedAmount) || 0,
         annualRate: parseFloat(formData.annualRate) || 0,
@@ -126,151 +194,319 @@ export default function CfActivos() {
         userId: user.uid,
         updatedAt: new Date().toISOString(),
       });
-      setShowForm(false); setSelected(null);
-    } catch (e) { alert('Error al guardar: ' + e.message); }
+      setShowForm(false);
+      setSelectedProject(null);
+    } catch (error) {
+      console.error('Error saving project:', error);
+      alert('Error al guardar el proyecto: ' + error.message);
+    }
   };
 
-  const statusColor = (s) => ({ activo: 'text-green-700', finalizado: 'text-blue-700', moroso: 'text-red-700', amortizado: 'text-gray-500' }[s] || '');
+  const statusBadge = (status) => {
+    const map = {
+      activo: 'bg-green-100 text-green-800 border border-green-200',
+      finalizado: 'bg-blue-100 text-blue-800 border border-blue-200',
+      moroso: 'bg-red-100 text-red-800 border border-red-200',
+      amortizado: 'bg-gray-100 text-gray-700 border border-gray-200',
+    };
+    return map[status] || 'bg-gray-100 text-gray-700 border border-gray-200';
+  };
+
+  const typeBadge = (type) => {
+    const map = {
+      Inmobiliario: 'bg-blue-100 text-blue-800 border border-blue-200',
+      'Préstamo empresarial': 'bg-amber-100 text-amber-800 border border-amber-200',
+      Equity: 'bg-purple-100 text-purple-800 border border-purple-200',
+    };
+    return map[type] || 'bg-gray-100 text-gray-700 border border-gray-200';
+  };
 
   return (
     <div className="w-full h-full bg-[#d4d0c8] flex flex-col p-1 overflow-hidden font-sans">
       <div className="flex flex-row flex-1 overflow-hidden bg-white relative">
-        {/* Sidebar */}
+
+        {/* Left Sidebar */}
         {showSidebar && (
-          <div className="w-52 bg-[#f0f4f9] border-r border-gray-200 flex flex-col shrink-0">
-            <div className="bg-[#e4ebf5] border-b border-gray-200 p-2 text-[12px] font-bold text-slate-700">Filtros</div>
-            <div className="p-3 text-[11px] space-y-4 flex-1 overflow-auto">
-              <div className="space-y-1">
-                <label className="font-bold text-slate-700">Tipo:</label>
-                {['todos', ...TYPES].map(t => (
-                  <label key={t} className="flex items-center gap-2 cursor-pointer">
-                    <input type="radio" name="cfActType" checked={typeFilter === t} onChange={() => setTypeFilter(t)} className="text-indigo-600" />
-                    <span className={typeFilter === t ? 'text-indigo-700 font-bold' : 'text-slate-700'}>{t === 'todos' ? 'Todos' : t}</span>
+          <div className="w-64 bg-[#f0f4f9] border-r border-gray-200 flex flex-col shrink-0 transition-all">
+            <div className="bg-[#e4ebf5] border-b border-gray-200 p-2 text-[12px] font-bold text-slate-700">
+              Filtros
+            </div>
+            <div className="p-4 text-[11px] space-y-4 flex-1 overflow-auto">
+
+              {/* Type Filter */}
+              <div className="space-y-2">
+                <label className="text-slate-700 font-bold">Tipo de proyecto:</label>
+                <div className="space-y-1">
+                  <label className="flex items-center space-x-2 cursor-pointer">
+                    <input type="radio" name="cfActivoType" checked={typeFilter === 'todos'} onChange={() => setTypeFilter('todos')} className="text-indigo-600 focus:ring-indigo-500 cursor-pointer text-xs" />
+                    <span className={typeFilter === 'todos' ? 'text-indigo-700 font-bold' : 'text-slate-700'}>Todos los tipos</span>
                   </label>
-                ))}
+                  {TYPES.map((t) => (
+                    <label key={t} className="flex items-center space-x-2 cursor-pointer">
+                      <input type="radio" name="cfActivoType" checked={typeFilter === t} onChange={() => setTypeFilter(t)} className="text-indigo-600 focus:ring-indigo-500 cursor-pointer text-xs" />
+                      <span className={typeFilter === t ? 'text-indigo-700 font-bold' : 'text-slate-700'}>{t}</span>
+                    </label>
+                  ))}
+                </div>
               </div>
-              <div className="space-y-1">
-                <label className="font-bold text-slate-700">Estado:</label>
-                {['todos', ...STATUSES].map(s => (
-                  <label key={s} className="flex items-center gap-2 cursor-pointer">
-                    <input type="radio" name="cfActStatus" checked={statusFilter === s} onChange={() => setStatusFilter(s)} className="text-indigo-600" />
-                    <span className={statusFilter === s ? 'text-indigo-700 font-bold' : 'text-slate-700'}>{s === 'todos' ? 'Todos' : s.charAt(0).toUpperCase() + s.slice(1)}</span>
+
+              {/* Status Filter */}
+              <div className="space-y-2 pt-2 border-t border-gray-300">
+                <label className="text-slate-700 font-bold">Estado:</label>
+                <div className="space-y-1">
+                  <label className="flex items-center space-x-2 cursor-pointer">
+                    <input type="radio" name="cfActivoStatus" checked={statusFilter === 'todos'} onChange={() => setStatusFilter('todos')} className="text-indigo-600 focus:ring-indigo-500 cursor-pointer text-xs" />
+                    <span className={statusFilter === 'todos' ? 'text-indigo-700 font-bold' : 'text-slate-700'}>Todos</span>
                   </label>
-                ))}
+                  {STATUSES.map((s) => (
+                    <label key={s} className="flex items-center space-x-2 cursor-pointer">
+                      <input type="radio" name="cfActivoStatus" checked={statusFilter === s} onChange={() => setStatusFilter(s)} className="text-indigo-600 focus:ring-indigo-500 cursor-pointer text-xs" />
+                      <span className={statusFilter === s ? 'text-indigo-700 font-bold' : 'text-slate-700'}>{s.charAt(0).toUpperCase() + s.slice(1)}</span>
+                    </label>
+                  ))}
+                </div>
+              </div>
+
+              {/* Stats */}
+              <div className="pt-2 border-t border-gray-300 space-y-1">
+                <p className="text-slate-500 font-bold uppercase text-[10px]">Estadísticas</p>
+                <p className="text-slate-700">Total proyectos: <span className="font-bold text-slate-900">{projects.length}</span></p>
+                <p className="text-slate-700">Activos: <span className="font-bold text-green-700">{projects.filter(p => p.status === 'activo').length}</span></p>
+                <p className="text-slate-700">Finalizados: <span className="font-bold text-blue-700">{projects.filter(p => p.status === 'finalizado').length}</span></p>
+                <p className="text-slate-700">Morosos: <span className="font-bold text-red-700">{projects.filter(p => p.status === 'moroso').length}</span></p>
+                {projects.length > 0 && (
+                  <p className="text-slate-700 pt-1 border-t border-gray-200">
+                    Tasa media: <span className="font-bold text-slate-900">
+                      {fmt(projects.reduce((s, p) => s + (parseFloat(p.annualRate) || 0), 0) / projects.length)} %
+                    </span>
+                  </p>
+                )}
               </div>
             </div>
           </div>
         )}
 
-        {/* Main */}
+        {/* Main Content */}
         <div className="flex-1 flex flex-col overflow-hidden bg-white">
           <div className="flex justify-between items-center px-4 py-2 border-b border-gray-200 bg-[#f8fafc]">
-            <button onClick={() => setShowSidebar(!showSidebar)} className="p-1.5 hover:bg-gray-100 rounded text-gray-500 border border-transparent hover:border-gray-300">
-              <PanelLeft className="w-4 h-4" />
-            </button>
+            <div className="flex items-center space-x-3">
+              <button
+                onClick={(e) => { e.stopPropagation(); setShowSidebar(!showSidebar); }}
+                className="p-1.5 hover:bg-gray-100 rounded text-gray-500 border border-transparent hover:border-gray-300 flex items-center justify-center"
+                title={showSidebar ? 'Ocultar panel' : 'Mostrar panel'}
+              >
+                <PanelLeft className="w-4 h-4" />
+              </button>
+              <div className="flex items-center space-x-1.5 text-[11px] text-slate-500">
+                <TrendingUp className="w-3.5 h-3.5" />
+                <span>Proyectos / Activos Crowdfunding</span>
+              </div>
+            </div>
             <div className="relative" onClick={e => e.stopPropagation()}>
-              <input type="text" placeholder="Buscar proyecto..." value={searchQuery} onChange={e => setSearchQuery(e.target.value)} className="pl-2 pr-8 py-1 border-b border-gray-400 text-[12px] w-56 outline-none focus:border-blue-500 bg-transparent" />
+              <input
+                type="text"
+                placeholder="Buscar en el fichero (Alt+B)"
+                value={searchQuery}
+                onChange={(e) => setSearchQuery(e.target.value)}
+                className="pl-2 pr-8 py-1 border-b border-gray-400 text-[12px] w-64 outline-none focus:border-blue-500 bg-transparent"
+              />
               <Search className="w-4 h-4 absolute right-1 top-1/2 -translate-y-1/2 text-gray-500" />
             </div>
           </div>
+
           <div className="win-table-container">
             <table className="clean-table">
               <thead>
                 <tr>
-                  {visibleColumns.includes('id')           && <th>ID</th>}
-                  {visibleColumns.includes('name')         && <th>Nombre</th>}
-                  {visibleColumns.includes('platformName') && <th>Plataforma</th>}
-                  {visibleColumns.includes('type')         && <th>Tipo</th>}
-                  {visibleColumns.includes('targetAmount') && <th className="text-right">Objetivo</th>}
-                  {visibleColumns.includes('annualRate')   && <th className="text-right">TIR %</th>}
-                  {visibleColumns.includes('term')         && <th className="text-center">Plazo</th>}
-                  {visibleColumns.includes('status')       && <th>Estado</th>}
+                  {visibleColumns.includes('id') && <th style={{ width: columnWidths['id'] || '80px' }}>ID</th>}
+                  {visibleColumns.includes('name') && <th style={{ width: columnWidths['name'] || '200px' }}>Nombre</th>}
+                  {visibleColumns.includes('platformName') && <th style={{ width: columnWidths['platformName'] || '130px' }}>Plataforma</th>}
+                  {visibleColumns.includes('type') && <th style={{ width: columnWidths['type'] || '140px' }}>Tipo</th>}
+                  {visibleColumns.includes('targetAmount') && <th style={{ width: columnWidths['targetAmount'] || '120px' }} className="text-right">Objetivo (€)</th>}
+                  {visibleColumns.includes('annualRate') && <th style={{ width: columnWidths['annualRate'] || '110px' }} className="text-right">Tasa anual (%)</th>}
+                  {visibleColumns.includes('term') && <th style={{ width: columnWidths['term'] || '80px' }} className="text-right">Plazo (m)</th>}
+                  {visibleColumns.includes('status') && <th style={{ width: columnWidths['status'] || '90px' }}>Estado</th>}
                 </tr>
               </thead>
               <tbody>
-                {filtered.length === 0 ? (
-                  <tr><td colSpan={visibleColumns.length} className="text-center py-8 text-gray-400">No hay proyectos registrados. Usa el ribbon para añadir uno nuevo.</td></tr>
-                ) : filtered.map(p => (
-                  <tr key={p.id} onClick={() => setSelected(selected?.id === p.id ? null : p)} className={selected?.id === p.id ? 'selected' : ''}>
-                    {visibleColumns.includes('id')           && <td className="font-mono font-bold">{p.id}</td>}
-                    {visibleColumns.includes('name')         && <td className="font-medium">{p.name}</td>}
-                    {visibleColumns.includes('platformName') && <td>{p.platformName}</td>}
-                    {visibleColumns.includes('type')         && <td>{p.type}</td>}
-                    {visibleColumns.includes('targetAmount') && <td className="text-right">{fmt(parseFloat(p.targetAmount))}</td>}
-                    {visibleColumns.includes('annualRate')   && <td className="text-right font-semibold text-green-700">{pct(parseFloat(p.annualRate))}</td>}
-                    {visibleColumns.includes('term')         && <td className="text-center">{p.term ? `${p.term} m` : '—'}</td>}
-                    {visibleColumns.includes('status')       && <td className={`font-semibold ${statusColor(p.status)}`}>{p.status}</td>}
+                {filteredProjects.length === 0 ? (
+                  <tr>
+                    <td colSpan={visibleColumns.length} className="text-center py-8 text-gray-400 font-medium">
+                      No se encontraron proyectos. Añade uno nuevo desde el menú superior.
+                    </td>
                   </tr>
-                ))}
+                ) : (
+                  filteredProjects.map((proj) => (
+                    <tr
+                      key={proj.id}
+                      onClick={() => setSelectedProject(selectedProject?.id === proj.id ? null : proj)}
+                      className={selectedProject?.id === proj.id ? 'selected' : ''}
+                    >
+                      {visibleColumns.includes('id') && <td className="font-mono font-bold">{proj.id}</td>}
+                      {visibleColumns.includes('name') && <td className="font-semibold">{proj.name}</td>}
+                      {visibleColumns.includes('platformName') && <td>{proj.platformName}</td>}
+                      {visibleColumns.includes('type') && (
+                        <td><span className={`px-1.5 py-0.5 rounded-sm text-[9px] font-bold uppercase tracking-wider ${typeBadge(proj.type)}`}>{proj.type}</span></td>
+                      )}
+                      {visibleColumns.includes('targetAmount') && (
+                        <td className="font-mono text-right">{fmt(parseFloat(proj.targetAmount) || 0)}</td>
+                      )}
+                      {visibleColumns.includes('annualRate') && (
+                        <td className="font-mono text-right font-bold text-emerald-700">{fmt(parseFloat(proj.annualRate) || 0)} %</td>
+                      )}
+                      {visibleColumns.includes('term') && (
+                        <td className="font-mono text-right">{proj.term || '-'}</td>
+                      )}
+                      {visibleColumns.includes('status') && (
+                        <td><span className={`px-1.5 py-0.5 rounded-sm text-[9px] font-bold uppercase tracking-wider ${statusBadge(proj.status)}`}>{proj.status}</span></td>
+                      )}
+                    </tr>
+                  ))
+                )}
               </tbody>
             </table>
+          </div>
+
+          {/* Status Bar */}
+          <div className="flex items-center justify-between px-4 py-1 border-t border-gray-200 bg-[#f8fafc] text-[10px] text-gray-500 shrink-0">
+            <span>{filteredProjects.length} registro(s){projects.length !== filteredProjects.length ? ` de ${projects.length}` : ''}</span>
+            {selectedProject && <span className="font-semibold text-slate-600">Seleccionado: {selectedProject.name}</span>}
           </div>
         </div>
       </div>
 
-      <div className="flex justify-between items-center bg-[#f0f0f0] p-1 border-t border-[#808080] text-[10px] shrink-0">
-        <span>{filtered.length} proyectos</span>
-        <span className="text-gray-500">Crowdfunding · Activos</span>
-      </div>
-
-      {/* Form Window */}
+      {/* Project Form Window */}
       {showForm && (
         <div className="fixed inset-0 bg-black/35 backdrop-blur-xs flex items-center justify-center z-[200]">
-          <Window title={isEditing ? `Modificar Proyecto: ${formData.id}` : 'Nuevo Proyecto Crowdfunding'} onClose={() => setShowForm(false)} width={isMobile ? '100%' : '850px'} height={isMobile ? '100%' : '580px'} initialPos={{ x: (window.innerWidth - 850) / 2, y: 60 }} onMenuClick={() => setShowModalSidebar(!showModalSidebar)}>
+          <Window
+            title={isEditing ? `Modificar Proyecto: ${formData.id}` : 'Nuevo Proyecto Crowdfunding'}
+            onClose={() => setShowForm(false)}
+            width={isMobile ? '100%' : '850px'}
+            height={isMobile ? '100%' : '580px'}
+            initialPos={{ x: (window.innerWidth - (isMobile ? window.innerWidth : 850)) / 2, y: 100 }}
+            onMenuClick={() => setShowModalSidebar(!showModalSidebar)}
+          >
             <div className="flex flex-1 h-full min-h-0 bg-[#d4d0c8] relative">
+              {/* Modal Sidebar */}
               {showModalSidebar && (
-                <div className={`bg-[#f0f0f0] border-r border-[#808080] shrink-0 overflow-y-auto p-2 flex flex-col ${isMobile ? 'absolute inset-y-0 left-0 z-30 w-48' : 'w-48'}`}>
+                <div className={`bg-[#f0f0f0] border-r border-[#808080] shrink-0 overflow-y-auto p-2 flex flex-col shadow-[inset_-1px_0_0_rgba(0,0,0,0.1)] ${isMobile ? 'absolute inset-y-0 left-0 z-30 w-56' : 'w-56'}`}>
                   <div className="bg-white border border-[#a0a0a0] flex flex-col">
-                    {['datos', 'financiero', 'garantias'].map(tab => (
-                      <button key={tab} onClick={() => { setActiveFormTab(tab); if (isMobile) setShowModalSidebar(false); }}
-                        className={`w-full text-left px-4 py-2.5 text-[12px] transition-colors border-y ${activeFormTab === tab ? 'bg-[#c0c0c0] text-black border-[#a0a0a0] shadow-[inset_0px_1px_1px_rgba(0,0,0,0.1)] font-semibold' : 'bg-white text-slate-700 border-transparent hover:bg-[#f8f8f8]'}`}>
-                        {tab === 'datos' ? 'Datos' : tab === 'financiero' ? 'Financiero' : 'Garantías'}
-                      </button>
-                    ))}
+                    <button
+                      onClick={() => { setActiveFormTab('datos'); if (isMobile) setShowModalSidebar(false); }}
+                      className={`w-full text-left px-4 py-2.5 text-[12px] transition-colors border-y ${activeFormTab === 'datos' ? 'bg-[#c0c0c0] text-black border-[#a0a0a0] shadow-[inset_0px_1px_1px_rgba(0,0,0,0.1)] font-semibold' : 'bg-white text-slate-700 border-transparent hover:bg-[#f8f8f8]'}`}
+                    >
+                      Datos
+                    </button>
+                    <button
+                      onClick={() => { setActiveFormTab('financiero'); if (isMobile) setShowModalSidebar(false); }}
+                      className={`w-full text-left px-4 py-2.5 text-[12px] transition-colors border-y ${activeFormTab === 'financiero' ? 'bg-[#c0c0c0] text-black border-[#a0a0a0] shadow-[inset_0px_1px_1px_rgba(0,0,0,0.1)] font-semibold' : 'bg-white text-slate-700 border-transparent hover:bg-[#f8f8f8]'}`}
+                    >
+                      Financiero
+                    </button>
                   </div>
                 </div>
               )}
+              {isMobile && showModalSidebar && (
+                <div className="absolute inset-0 z-20 bg-black/30" onClick={() => setShowModalSidebar(false)} />
+              )}
+
+              {/* Form Content */}
               <div className="flex-1 bg-[#d4d0c8] flex flex-col relative overflow-hidden">
-                <div className="flex-1 overflow-auto p-3">
-                  <div className="bg-[#d4d0c8] border border-white shadow-[1px_1px_0px_#000] p-4">
-                    <form id="cf-activo-form" onSubmit={handleSave} className="space-y-3">
-                      {activeFormTab === 'datos' && (<>
-                        <div className="win-form-row"><label className="win-form-label">ID Proyecto:</label><input type="text" value={formData.id} onChange={e => setFormData({ ...formData, id: e.target.value.toUpperCase() })} placeholder="ej. CF001" required disabled={isEditing} className="win-input flex-1 uppercase" /></div>
-                        <div className="win-form-row"><label className="win-form-label">Nombre:</label><input type="text" value={formData.name} onChange={e => setFormData({ ...formData, name: e.target.value })} placeholder="Nombre del proyecto" required className="win-input flex-1" /></div>
-                        <div className="win-form-row"><label className="win-form-label">Plataforma:</label>
-                          <select value={formData.platformId} onChange={e => setFormData({ ...formData, platformId: e.target.value })} className="win-input flex-1">
-                            <option value="">— Sin plataforma —</option>
-                            {platforms.map(p => <option key={p.id} value={p.id}>{p.name || p.id}</option>)}
+                <div className="flex-1 overflow-auto bg-[#d4d0c8] p-3">
+                  <div className="bg-[#d4d0c8] border border-white shadow-[1px_1px_0px_#000] p-4 min-h-full flex flex-col">
+
+                    {activeFormTab === 'datos' && (
+                      <form id="cfactivo-form" onSubmit={handleSave} className="space-y-3 flex-1">
+                        <div className="win-form-row">
+                          <label className="win-form-label">ID Proyecto:</label>
+                          <input type="text" value={formData.id} onChange={(e) => setFormData({ ...formData, id: e.target.value })} placeholder="ej. CF001" disabled={isEditing} required className="win-input flex-1 uppercase font-mono" />
+                        </div>
+                        <div className="win-form-row">
+                          <label className="win-form-label">Nombre:</label>
+                          <input type="text" value={formData.name} onChange={(e) => setFormData({ ...formData, name: e.target.value })} placeholder="ej. Residencial Madrid Norte" required className="win-input flex-1" />
+                        </div>
+                        <div className="win-form-row">
+                          <label className="win-form-label">Plataforma:</label>
+                          <select value={formData.platformId} onChange={(e) => setFormData({ ...formData, platformId: e.target.value })} className="win-input flex-1">
+                            <option value="">-- Seleccionar --</option>
+                            {platforms.map(p => <option key={p.id} value={p.id}>{p.name} ({p.id})</option>)}
                           </select>
                         </div>
-                        <div className="win-form-row"><label className="win-form-label">Tipo:</label><select value={formData.type} onChange={e => setFormData({ ...formData, type: e.target.value })} className="win-input flex-1">{TYPES.map(t => <option key={t} value={t}>{t}</option>)}</select></div>
-                        <div className="win-form-row"><label className="win-form-label">Sector:</label><select value={formData.sector} onChange={e => setFormData({ ...formData, sector: e.target.value })} className="win-input flex-1">{SECTORS.map(s => <option key={s} value={s}>{s}</option>)}</select></div>
-                        <div className="win-form-row"><label className="win-form-label">País:</label><input type="text" value={formData.country} onChange={e => setFormData({ ...formData, country: e.target.value })} placeholder="España" className="win-input flex-1" /></div>
-                        <div className="win-form-row"><label className="win-form-label">Estado:</label><select value={formData.status} onChange={e => setFormData({ ...formData, status: e.target.value })} className="win-input flex-1">{STATUSES.map(s => <option key={s} value={s}>{s.charAt(0).toUpperCase() + s.slice(1)}</option>)}</select></div>
-                      </>)}
-                      {activeFormTab === 'financiero' && (<>
-                        <div className="win-form-row"><label className="win-form-label">Objetivo de financiación (€):</label><input type="number" step="0.01" value={formData.targetAmount} onChange={e => setFormData({ ...formData, targetAmount: e.target.value })} placeholder="0.00" className="win-input flex-1" /></div>
-                        <div className="win-form-row"><label className="win-form-label">Financiación obtenida (€):</label><input type="number" step="0.01" value={formData.raisedAmount} onChange={e => setFormData({ ...formData, raisedAmount: e.target.value })} placeholder="0.00" className="win-input flex-1" /></div>
-                        <div className="win-form-row"><label className="win-form-label">TIR / Tipo anual (%):</label><input type="number" step="0.01" value={formData.annualRate} onChange={e => setFormData({ ...formData, annualRate: e.target.value })} placeholder="0.00" className="win-input flex-1" /></div>
-                        <div className="win-form-row"><label className="win-form-label">Plazo (meses):</label><input type="number" step="1" value={formData.term} onChange={e => setFormData({ ...formData, term: e.target.value })} placeholder="12" className="win-input flex-1" /></div>
-                        <div className="win-form-row"><label className="win-form-label">Fecha inicio:</label><input type="date" value={formData.startDate} onChange={e => setFormData({ ...formData, startDate: e.target.value })} className="win-input flex-1" /></div>
-                        <div className="win-form-row"><label className="win-form-label">Fecha fin:</label><input type="date" value={formData.endDate} onChange={e => setFormData({ ...formData, endDate: e.target.value })} className="win-input flex-1" /></div>
-                      </>)}
-                      {activeFormTab === 'garantias' && (<>
-                        <div className="win-form-row"><label className="win-form-label">Tipo de garantía:</label><select value={formData.guaranteeType} onChange={e => setFormData({ ...formData, guaranteeType: e.target.value })} className="win-input flex-1">{GUARANTEES.map(g => <option key={g} value={g}>{g}</option>)}</select></div>
-                        <div className="win-form-row"><label className="win-form-label">LTV (%):</label><input type="number" step="0.01" value={formData.ltv} onChange={e => setFormData({ ...formData, ltv: e.target.value })} placeholder="0.00" className="win-input flex-1" /></div>
-                        <div className="win-form-row"><label className="win-form-label">Notas:</label><textarea value={formData.notes} onChange={e => setFormData({ ...formData, notes: e.target.value })} rows={4} className="win-input flex-1 resize-none" /></div>
-                      </>)}
-                    </form>
+                        <div className="win-form-row">
+                          <label className="win-form-label">Tipo:</label>
+                          <select value={formData.type} onChange={(e) => setFormData({ ...formData, type: e.target.value })} className="win-input flex-1">
+                            {TYPES.map(t => <option key={t} value={t}>{t}</option>)}
+                          </select>
+                        </div>
+                        <div className="win-form-row">
+                          <label className="win-form-label">Sector:</label>
+                          <select value={formData.sector} onChange={(e) => setFormData({ ...formData, sector: e.target.value })} className="win-input flex-1">
+                            {SECTORS.map(s => <option key={s} value={s}>{s}</option>)}
+                          </select>
+                        </div>
+                        <div className="win-form-row">
+                          <label className="win-form-label">País:</label>
+                          <input type="text" value={formData.country} onChange={(e) => setFormData({ ...formData, country: e.target.value })} placeholder="ej. España" className="win-input flex-1" />
+                        </div>
+                        <div className="win-form-row">
+                          <label className="win-form-label">Estado:</label>
+                          <select value={formData.status} onChange={(e) => setFormData({ ...formData, status: e.target.value })} className="win-input flex-1">
+                            {STATUSES.map(s => <option key={s} value={s}>{s.charAt(0).toUpperCase() + s.slice(1)}</option>)}
+                          </select>
+                        </div>
+                        <div className="win-form-row">
+                          <label className="win-form-label">Notas:</label>
+                          <textarea value={formData.notes} onChange={(e) => setFormData({ ...formData, notes: e.target.value })} placeholder="Comentarios adicionales..." rows={3} className="win-input flex-1 resize-none" />
+                        </div>
+                      </form>
+                    )}
+
+                    {activeFormTab === 'financiero' && (
+                      <form id="cfactivo-form" onSubmit={handleSave} className="space-y-3 flex-1">
+                        <div className="win-form-row">
+                          <label className="win-form-label">Objetivo (€):</label>
+                          <input type="number" value={formData.targetAmount} onChange={(e) => setFormData({ ...formData, targetAmount: e.target.value })} placeholder="0.00" step="0.01" className="win-input flex-1 font-mono" />
+                        </div>
+                        <div className="win-form-row">
+                          <label className="win-form-label">Captado (€):</label>
+                          <input type="number" value={formData.raisedAmount} onChange={(e) => setFormData({ ...formData, raisedAmount: e.target.value })} placeholder="0.00" step="0.01" className="win-input flex-1 font-mono" />
+                        </div>
+                        <div className="win-form-row">
+                          <label className="win-form-label">Tasa anual (%):</label>
+                          <input type="number" value={formData.annualRate} onChange={(e) => setFormData({ ...formData, annualRate: e.target.value })} placeholder="0.00" step="0.01" className="win-input flex-1 font-mono" />
+                        </div>
+                        <div className="win-form-row">
+                          <label className="win-form-label">Plazo (meses):</label>
+                          <input type="number" value={formData.term} onChange={(e) => setFormData({ ...formData, term: e.target.value })} placeholder="ej. 24" step="1" className="win-input flex-1 font-mono" />
+                        </div>
+                        <div className="win-form-row">
+                          <label className="win-form-label">Fecha inicio:</label>
+                          <input type="date" value={formData.startDate} onChange={(e) => setFormData({ ...formData, startDate: e.target.value })} className="win-input flex-1" />
+                        </div>
+                        <div className="win-form-row">
+                          <label className="win-form-label">Fecha fin:</label>
+                          <input type="date" value={formData.endDate} onChange={(e) => setFormData({ ...formData, endDate: e.target.value })} className="win-input flex-1" />
+                        </div>
+                        <div className="win-form-row">
+                          <label className="win-form-label">Tipo de garantía:</label>
+                          <select value={formData.guaranteeType} onChange={(e) => setFormData({ ...formData, guaranteeType: e.target.value })} className="win-input flex-1">
+                            {GUARANTEE_TYPES.map(g => <option key={g} value={g}>{g}</option>)}
+                          </select>
+                        </div>
+                        <div className="win-form-row">
+                          <label className="win-form-label">LTV (%):</label>
+                          <input type="number" value={formData.ltv} onChange={(e) => setFormData({ ...formData, ltv: e.target.value })} placeholder="ej. 70.00" step="0.01" className="win-input flex-1 font-mono" />
+                        </div>
+                      </form>
+                    )}
+
                   </div>
                 </div>
+
+                {/* Action Buttons */}
                 <div className="flex justify-end gap-2 shrink-0 pt-2 pb-1 pr-1 bg-[#d4d0c8] border-t border-[#808080]">
-                  {activeFormTab === 'datos' ? (<>
-                    <button type="submit" form="cf-activo-form" className="px-6 py-1 border border-gray-400 bg-gray-100 hover:bg-gray-200 shadow-sm text-[11px] font-bold uppercase cursor-pointer">Aceptar</button>
-                    <button type="button" onClick={() => setShowForm(false)} className="px-6 py-1 border border-gray-400 bg-gray-100 hover:bg-gray-200 shadow-sm text-[11px] font-bold uppercase cursor-pointer">Cancelar</button>
-                  </>) : (
-                    <button type="button" onClick={() => setShowForm(false)} className="px-6 py-1 border border-gray-400 bg-gray-100 hover:bg-gray-200 shadow-sm text-[11px] font-bold uppercase cursor-pointer">Cerrar</button>
-                  )}
+                  <button type="submit" form="cfactivo-form" className="px-6 py-1 border border-gray-400 bg-gray-100 hover:bg-gray-200 shadow-sm text-[11px] font-bold uppercase cursor-pointer">Aceptar</button>
+                  <button type="button" onClick={() => setShowForm(false)} className="px-6 py-1 border border-gray-400 bg-gray-100 hover:bg-gray-200 shadow-sm text-[11px] font-bold uppercase cursor-pointer">Cancelar</button>
                 </div>
               </div>
             </div>

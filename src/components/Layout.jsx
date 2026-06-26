@@ -601,7 +601,7 @@ export default function Layout() {
     'Renta variable': ['Portfolio', 'Broker', 'Activos RV', 'Transacciones', 'Métricas RV'],
     'Crowdfunding': ['CF Portfolio', 'Empresas', 'CF Activos'],
     'Informes': ['Reportes', 'Dashboard'],
-    'Impuestos': ['Total', 'Inversiones inmobiliarias', 'Renta variable'],
+    'Impuestos': ['Total', 'Inversiones inmobiliarias', 'Renta variable', 'Crowdfunding'],
     'Herramientas': ['Calculadora'],
     'Ayuda': ['Manual', 'Soporte']
   };
@@ -628,6 +628,7 @@ export default function Layout() {
     'Total': '/taxes-total',
     'Inversiones inmobiliarias': '/taxes-real-estate',
     'Renta variable': '/taxes-rv',
+    'Crowdfunding': '/taxes-cf',
     'Calculadora': '#',
     'Manual': '#',
     'Soporte': '#'
@@ -744,6 +745,20 @@ export default function Layout() {
         group: 'Acciones',
         items: [
           { name: 'Exportar', action: 'taxes-rv:export', path: '/taxes-rv', customIcon: 'Exportar' }
+        ]
+      }
+    ],
+    'Crowdfunding': [
+      {
+        group: 'Impuestos',
+        items: [
+          { name: `Fecha\n(${taxYear})`, action: 'taxes:year-dropdown', icon: Calendar }
+        ]
+      },
+      {
+        group: 'Acciones',
+        items: [
+          { name: 'Exportar', action: 'taxes-cf:export', path: '/taxes-cf', customIcon: 'Exportar' }
         ]
       }
     ],
