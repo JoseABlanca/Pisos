@@ -27,6 +27,9 @@ import RvTransactions from './pages/RvTransactions';
 import RvMetrics from './pages/RvMetrics';
 import { ErrorBoundary } from './components/ErrorBoundary';
 import TaxesRv from './pages/TaxesRv';
+import CfPortfolio from './pages/CfPortfolio';
+import CfEmpresas from './pages/CfEmpresas';
+import CfActivos from './pages/CfActivos';
 
 const ProtectedRoute = ({ children }) => {
   const { user, queryUserIds, loading } = useAuth();
@@ -60,6 +63,9 @@ function App() {
             <Route path="taxes-real-estate" element={<TaxesRealEstate />} />
             <Route path="taxes-total" element={<TaxesTotal />} />
             <Route path="taxes-rv" element={<TaxesRv />} />
+            <Route path="cf-portfolio" element={<CfPortfolio />} />
+            <Route path="cf-empresas" element={<CfEmpresas />} />
+            <Route path="cf-activos" element={<CfActivos />} />
             <Route path="rentals" element={<Rentals />} />
             <Route path="partners" element={<Partners />} />
             <Route path="ledger" element={<Ledger />} />

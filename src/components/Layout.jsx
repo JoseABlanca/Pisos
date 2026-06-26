@@ -588,6 +588,7 @@ export default function Layout() {
     'Contabilidad',
     'Inversiones inmobiliarias',
     'Renta variable',
+    'Crowdfunding',
     'Impuestos',
     'Informes',
     'Herramientas',
@@ -598,6 +599,7 @@ export default function Layout() {
     'Contabilidad': ['Cuentas contables', 'Diario', 'Mayor', 'Sumas y saldos'],
     'Inversiones inmobiliarias': ['Activos', 'Propietarios', 'Clientes', 'Alquileres'],
     'Renta variable': ['Portfolio', 'Broker', 'Activos RV', 'Transacciones', 'Métricas RV'],
+    'Crowdfunding': ['CF Portfolio', 'Empresas', 'CF Activos'],
     'Informes': ['Reportes', 'Dashboard'],
     'Impuestos': ['Total', 'Inversiones inmobiliarias', 'Renta variable'],
     'Herramientas': ['Calculadora'],
@@ -618,6 +620,9 @@ export default function Layout() {
     'Activos RV': '/rv-assets',
     'Transacciones': '/rv-transactions',
     'Métricas RV': '/rv-metrics',
+    'CF Portfolio': '/cf-portfolio',
+    'Empresas': '/cf-empresas',
+    'CF Activos': '/cf-activos',
     'Reportes': '/reports',
     'Dashboard': '/dashboard',
     'Total': '/taxes-total',
@@ -867,6 +872,54 @@ export default function Layout() {
         items: [
           { name: 'Calcular\nmétricas', action: 'rv-metrics:calculate', icon: BarChart3 },
           { name: 'Exportar', action: 'rv-metrics:export', customIcon: 'Exportar' }
+        ]
+      }
+    ],
+    'CF Portfolio': [
+      {
+        group: 'Mantenimiento',
+        items: [
+          { name: 'Nuevo', action: 'cf-portfolio:new', path: '/cf-portfolio', customIcon: 'Nuevo' },
+          { name: 'Modificar', action: 'cf-portfolio:edit', path: '/cf-portfolio', customIcon: 'Modificar' },
+          { name: 'Eliminar', action: 'cf-portfolio:delete', path: '/cf-portfolio', customIcon: 'Eliminar' }
+        ]
+      },
+      {
+        group: 'Acciones',
+        items: [
+          { name: 'Exportar', action: 'cf-portfolio:export', path: '/cf-portfolio', customIcon: 'Exportar' }
+        ]
+      }
+    ],
+    'Empresas': [
+      {
+        group: 'Mantenimiento',
+        items: [
+          { name: 'Nuevo', action: 'cf-empresa:new', path: '/cf-empresas', customIcon: 'Nuevo' },
+          { name: 'Modificar', action: 'cf-empresa:edit', path: '/cf-empresas', customIcon: 'Modificar' },
+          { name: 'Eliminar', action: 'cf-empresa:delete', path: '/cf-empresas', customIcon: 'Eliminar' }
+        ]
+      },
+      {
+        group: 'Acciones',
+        items: [
+          { name: 'Exportar', action: 'cf-empresa:export', path: '/cf-empresas', customIcon: 'Exportar' }
+        ]
+      }
+    ],
+    'CF Activos': [
+      {
+        group: 'Mantenimiento',
+        items: [
+          { name: 'Nuevo', action: 'cf-activo:new', path: '/cf-activos', customIcon: 'Nuevo' },
+          { name: 'Modificar', action: 'cf-activo:edit', path: '/cf-activos', customIcon: 'Modificar' },
+          { name: 'Eliminar', action: 'cf-activo:delete', path: '/cf-activos', customIcon: 'Eliminar' }
+        ]
+      },
+      {
+        group: 'Acciones',
+        items: [
+          { name: 'Exportar', action: 'cf-activo:export', path: '/cf-activos', customIcon: 'Exportar' }
         ]
       }
     ],
