@@ -18,7 +18,7 @@ import TaxesRealEstate from './pages/TaxesRealEstate';
 import TaxesTotal from './pages/TaxesTotal';
 import Partners from './pages/Partners';
 import Rentals from './pages/Rentals';
-
+import Ledger from './pages/Ledger';
 import Home from './pages/Home';
 import Portfolio from './pages/Portfolio';
 import Broker from './pages/Broker';
@@ -60,13 +60,13 @@ function App() {
             <Route path="taxes-total" element={<TaxesTotal />} />
             <Route path="rentals" element={<Rentals />} />
             <Route path="partners" element={<Partners />} />
-
+            <Route path="ledger" element={<Ledger />} />
             <Route path="portfolio" element={<Portfolio />} />
             <Route path="broker" element={<Broker />} />
             <Route path="rv-assets" element={<RvAssets />} />
             <Route path="rv-transactions" element={<RvTransactions />} />
             <Route path="rv-metrics" element={<RvMetrics />} />
-
+            <Route path="account-statement" element={<Ledger initialMode="detail" />} />
           </Route>
           </Routes>
         </Router>

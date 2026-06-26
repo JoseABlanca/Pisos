@@ -13,7 +13,6 @@ import FinanzasTab from '../components/FinanzasTab';
 import ExtractoTab from '../components/ExtractoTab';
 import ClienteTab from '../components/ClienteTab';
 import ReformasTab from '../components/ReformasTab';
-import ExtractoPnLTab from '../components/ExtractoPnLTab';
 import { ErrorBoundary } from '../components/ErrorBoundary';
 import { uploadFileToStorage } from '../utils/storageUtils';
 import { useTableColumns } from '../hooks/useTableColumns';
@@ -241,10 +240,6 @@ export default function RealEstate() {
     mortgageDocs: [],
     mortgageReceipts: [],
     mortgagePending: '',
-    interestCeco: '',
-    interestCebe: '',
-    principalCeco: '',
-    principalCebe: '',
     services: [],
     community: {
       admin: '',
@@ -637,8 +632,7 @@ export default function RealEstate() {
     { id: 'Comunidad', icon: UsersIcon },
     { id: 'Reformas', icon: Wrench },
     { id: 'Propietarios', icon: UserCircle },
-    { id: 'Adquisicion', icon: PieChart },
-    { id: 'Ingresos/Gastos', icon: FileText }
+    { id: 'Finanzas', icon: PieChart }
   ];
 
   const renderTabContent = () => {
@@ -780,53 +774,12 @@ export default function RealEstate() {
       );
     }
     
-    if (activeTab === 'Hipoteca') return (
-      <HipotecaTab 
-        formData={formData} 
-        setFormData={setFormData} 
-        user={user} 
-        queryUserIds={queryUserIds}
-        isMobile={isMobile} 
-        setPreviewDocument={setPreviewDocument} 
-        isUploading={isUploading} 
-        setIsUploading={setIsUploading} 
-        cebes={cebes}
-        cecos={cecos}
-      />
-    );
-    if (activeTab === 'Servicios') return (
-      <ServiciosTab 
-        formData={formData} 
-        setFormData={setFormData} 
-        user={user} 
-        queryUserIds={queryUserIds}
-        isMobile={isMobile} 
-        setPreviewDocument={setPreviewDocument} 
-        isUploading={isUploading} 
-        setIsUploading={setIsUploading} 
-        availableAccounts={availableAccounts} 
-        cebes={cebes}
-        cecos={cecos}
-      />
-    );
-    if (activeTab === 'Comunidad') return (
-      <ComunidadTab 
-        formData={formData} 
-        setFormData={setFormData} 
-        user={user} 
-        queryUserIds={queryUserIds}
-        isMobile={isMobile} 
-        setPreviewDocument={setPreviewDocument} 
-        isUploading={isUploading} 
-        setIsUploading={setIsUploading} 
-        availableAccounts={availableAccounts} 
-        cecos={cecos}
-        cebes={cebes}
-      />
-    );
+    if (activeTab === 'Hipoteca') return <HipotecaTab formData={formData} setFormData={setFormData} user={user} isMobile={isMobile} setPreviewDocument={setPreviewDocument} isUploading={isUploading} setIsUploading={setIsUploading} />;
+    if (activeTab === 'Servicios') return <ServiciosTab formData={formData} setFormData={setFormData} user={user} isMobile={isMobile} setPreviewDocument={setPreviewDocument} isUploading={isUploading} setIsUploading={setIsUploading} availableAccounts={availableAccounts} />;
+    if (activeTab === 'Comunidad') return <ComunidadTab formData={formData} setFormData={setFormData} user={user} isMobile={isMobile} setPreviewDocument={setPreviewDocument} isUploading={isUploading} setIsUploading={setIsUploading} availableAccounts={availableAccounts} />;
     if (activeTab === 'Cliente') return <ClienteTab formData={formData} user={user} queryUserIds={queryUserIds} />;
     if (activeTab === 'Propietarios') return <PropietariosTab formData={accessoryFormData ? combinedFormData : formData} setFormData={setFormData} user={user} queryUserIds={queryUserIds} />;
-    if (activeTab === 'Adquisicion') {
+    if (activeTab === 'Finanzas') {
       if (accessoryFormData) {
         return (
           <div className="flex flex-col h-full bg-white">
@@ -846,7 +799,6 @@ export default function RealEstate() {
       return <FinanzasTab formData={formData} setFormData={setFormData} rentals={rentals} user={user} setPreviewDocument={setPreviewDocument} />;
     }
     if (activeTab === 'Reformas') return <ReformasTab formData={formData} setFormData={setFormData} user={user} isUploading={isUploading} setIsUploading={setIsUploading} setPreviewDocument={setPreviewDocument} />;
-    if (activeTab === 'Ingresos/Gastos') return <ExtractoPnLTab formData={formData} user={user} queryUserIds={queryUserIds} setPreviewDocument={setPreviewDocument} />;
     return <div className="flex justify-center items-center h-full text-slate-500">Contenido de la pestaña {activeTab} (En desarrollo...)</div>;
   };
 

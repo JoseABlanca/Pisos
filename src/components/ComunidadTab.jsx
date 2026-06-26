@@ -1,24 +1,24 @@
-import React, { useState, useEffect } from 'react';
-import { useNavigate } from 'react-router-dom';
-import { db } from '../firebase/config';
-import { collection, query, where, onSnapshot, doc, updateDoc } from 'firebase/firestore';
-import { deleteJournalEntry } from '../services/accounting';
-import { Upload, Trash2, Eye, Plus, Calendar, FileText, Euro, Users, Check, X, Edit, FolderOpen } from 'lucide-react';
+import React, { useState } from 'react';
+import { Upload, Trash2, Eye, Plus, Calendar, FileText, Euro, Users, Check } from 'lucide-react';
 import { uploadFileToStorage } from '../utils/storageUtils';
+import Window from './Window';
+import Accounts from '../pages/Accounts';
 
 export default function ComunidadTab({ 
   formData, 
   setFormData, 
   user, 
-  queryUserIds,
   isMobile, 
   setPreviewDocument,
   isUploading,
   setIsUploading,
-  cecos = [],
-  cebes = []
+  availableAccounts
 }) {
-  const [activeBottomTab, setActiveBottomTab] = useState('docs'); // docs, ordinario, derrama
+  const [showAccountsModal, setShowAccountsModal] = useState(false);
+  const [activeAccountField, setActiveAccountField] = useState(null); // 'community' or derrama index
+  
+  const [activeDropdown, setActiveDropdown] = useState(null);
+  const [searchValue, setSearchValue] = useState('');
 
   // Ensure community object exists
   const community = formData.community || {};
@@ -36,7 +36,7 @@ export default function ComunidadTab({
   };
 
   const addDerrama = () => {
-    const newDerramas = [...derramas, { id: Date.now().toString(), amount: '', endDate: '' }];
+    const newDerramas = [...derramas, { id: Date.now().toString(), amount: '', endDate: '', accountingAccount: '' }];
     updateCommunityField('derramas', newDerramas);
   };
 
@@ -148,6 +148,71 @@ export default function ComunidadTab({
     return diffDays > 0 ? diffDays : 0;
   };
 
+  const getAccountDisplay = (code) => {
+    if (!code) return '';
+    const acc = (availableAccounts || []).find(a => a.code === code);
+    return acc ? `${acc.code} - ${acc.name}` : code;
+  };
+
+  const renderAccountSelector = (fieldId, currentValue, onChangeCallback) => {
+    const isDropdownOpen = activeDropdown === fieldId;
+    return (
+      <div className="relative">
+        <input 
+          type="text"
+          className="win-input w-full cursor-pointer"
+          value={isDropdownOpen ? searchValue : getAccountDisplay(currentValue)}
+          onChange={e => {
+            setSearchValue(e.target.value);
+            setActiveDropdown(fieldId);
+          }}
+          onClick={() => {
+            setActiveDropdown(fieldId);
+            setSearchValue('');
+          }}
+          onBlur={() => setTimeout(() => { if (activeDropdown === fieldId) setActiveDropdown(null) }, 200)}
+          onDoubleClick={() => {
+            setActiveAccountField(fieldId);
+            setShowAccountsModal(true);
+          }}
+          placeholder="Buscar o doble clic para añadir..."
+          title="Doble clic para buscar o añadir una cuenta contable"
+        />
+        
+        {isDropdownOpen && (
+          <div className="absolute z-50 w-full mt-1 bg-white border border-[#808080] shadow-lg max-h-48 overflow-y-auto">
+            {(availableAccounts || [])
+              .filter(acc => 
+                !searchValue || 
+                acc.code.toLowerCase().includes(searchValue.toLowerCase()) || 
+                acc.name.toLowerCase().includes(searchValue.toLowerCase())
+              )
+              .map(acc => (
+                <div 
+                  key={acc.code}
+                  className="px-2 py-1 text-[11px] cursor-pointer hover:bg-[#316ac5] hover:text-white"
+                  onMouseDown={(e) => {
+                    e.preventDefault();
+                    onChangeCallback(acc.code);
+                    setActiveDropdown(null);
+                  }}
+                >
+                  {acc.code} - {acc.name}
+                </div>
+            ))}
+            {(availableAccounts || []).filter(acc => 
+                !searchValue || 
+                acc.code.toLowerCase().includes(searchValue.toLowerCase()) || 
+                acc.name.toLowerCase().includes(searchValue.toLowerCase())
+            ).length === 0 && (
+              <div className="px-2 py-1 text-[11px] text-gray-500 italic">No hay resultados</div>
+            )}
+          </div>
+        )}
+      </div>
+    );
+  };
+
   return (
     <div className="flex flex-col h-full bg-[#d4d0c8]">
       <div className="flex-1 overflow-auto p-4 flex flex-col gap-4">
@@ -191,7 +256,7 @@ export default function ComunidadTab({
               </div>
             </div>
 
-            <div className="grid grid-cols-2 gap-3">
+            <div className="grid grid-cols-3 gap-3">
               <div className="space-y-1">
                 <label className="text-[10px] font-bold text-slate-700 uppercase">Cuota Ordinaria (€):</label>
                 <input 
@@ -213,6 +278,15 @@ export default function ComunidadTab({
                   onChange={e => updateCommunityField('paymentDay', e.target.value)} 
                   placeholder="1-31"
                 />
+              </div>
+              <div className="space-y-1 relative">
+                <label 
+                  className="text-[10px] font-bold text-slate-700 uppercase cursor-help"
+                  title="Doble clic en la caja de abajo para ir a la configuración de cuentas"
+                >
+                  Cuenta Contable:
+                </label>
+                {renderAccountSelector('communityAccount', community.accountingAccount, (val) => updateCommunityField('accountingAccount', val))}
               </div>
             </div>
 
@@ -280,12 +354,16 @@ export default function ComunidadTab({
                       />
                     </div>
                   </div>
-                  <div className="grid grid-cols-1 gap-3 pr-4">
-                    <div className="space-y-1 col-span-1">
+                  <div className="grid grid-cols-2 gap-3 pr-4">
+                    <div className="space-y-1">
                       <label className="text-[10px] font-bold text-slate-700 uppercase">Días Restantes:</label>
-                      <div className="win-input w-[150px] bg-gray-100 flex items-center justify-center font-bold text-[12px] text-blue-800 h-[22px]">
+                      <div className="win-input w-full bg-gray-100 flex items-center justify-center font-bold text-[12px] text-blue-800 h-[22px]">
                         {calculateRemainingDays(derrama.endDate)} días
                       </div>
+                    </div>
+                    <div className="space-y-1">
+                      <label className="text-[10px] font-bold text-slate-700 uppercase">Cuenta Contable:</label>
+                      {renderAccountSelector(`derrama_${idx}`, derrama.accountingAccount, (val) => updateDerrama(idx, 'accountingAccount', val))}
                     </div>
                   </div>
                 </div>
@@ -295,422 +373,216 @@ export default function ComunidadTab({
 
         </div>
 
-        {/* Bottom Section: Expediente Digital & Registros Analíticos */}
-        <div className="w-full flex flex-col h-full min-h-[350px]">
+        {/* Bottom Section: Expediente Digital */}
+        <div className="w-full flex flex-col h-full min-h-[300px]">
           <div className="flex flex-col h-full pt-4">
-            {/* Sub-tabs header for bottom section */}
-            <div className="flex bg-[#cbd5e0] border-b border-[#808080] shrink-0">
-              <button
-                onClick={() => setActiveBottomTab('docs')}
-                className={`px-4 py-2 text-[11px] font-bold flex items-center gap-2 border-r border-[#808080] ${activeBottomTab === 'docs' ? 'bg-white text-blue-800 border-b-2 border-b-blue-500' : 'text-slate-700 hover:bg-[#b0c0d0]'}`}
-              >
-                <FileText className="w-3 h-3" /> Expediente Digital (Docs)
-              </button>
-              <button
-                onClick={() => setActiveBottomTab('ordinario')}
-                className={`px-4 py-2 text-[11px] font-bold flex items-center gap-2 border-r border-[#808080] ${activeBottomTab === 'ordinario' ? 'bg-white text-blue-800 border-b-2 border-b-blue-500' : 'text-slate-700 hover:bg-[#b0c0d0]'}`}
-              >
-                <FolderOpen className="w-3 h-3" /> Registros Comunidad
-              </button>
-              <button
-                onClick={() => setActiveBottomTab('derrama')}
-                className={`px-4 py-2 text-[11px] font-bold flex items-center gap-2 border-r border-[#808080] ${activeBottomTab === 'derrama' ? 'bg-white text-blue-800 border-b-2 border-b-blue-500' : 'text-slate-700 hover:bg-[#b0c0d0]'}`}
-              >
-                <FolderOpen className="w-3 h-3" /> Registros Derrama
-              </button>
+            <div className="bg-[#cbd5e0] font-bold p-1 border-b border-[#808080] shrink-0 text-[11px] uppercase flex items-center">
+              <FileText className="w-3 h-3 mr-1" />
+              Expediente Digital Comunidad
             </div>
             
-            <div className="bg-white flex-1 flex flex-col p-3 border-x border-b border-[#808080]">
-              {activeBottomTab === 'docs' && (
-                <div className="flex-1 flex flex-col">
-                  {/* Upload form */}
-                  <div className="p-2 border-b border-slate-200 bg-[#f0f0f0] shrink-0 flex items-center space-x-2 mb-2">
-                    <input 
-                      type="file" 
-                      id="community-file-upload"
-                      className="hidden" 
-                      onChange={handleFileUpload}
-                      disabled={isUploading || !formData.id}
-                    />
-                    <label 
-                      htmlFor="community-file-upload" 
-                      className={`btn-classic px-4 py-1 text-[11px] font-bold flex items-center shrink-0 ${(!formData.id || isUploading) ? 'opacity-50 cursor-not-allowed' : 'cursor-pointer'}`}
-                      title="Sube un archivo y crea el registro asociado"
-                    >
-                      <Upload className="w-3 h-3 mr-2" />
-                      {isUploading ? 'Subiendo...' : 'Subir Archivo'}
-                    </label>
+            {/* Upload form */}
+            <div className="p-2 border-b border-[#808080] bg-[#f0f0f0] shrink-0 flex items-center space-x-2">
+              <input 
+                type="file" 
+                id="community-file-upload"
+                className="hidden" 
+                onChange={handleFileUpload}
+                disabled={isUploading || !formData.id}
+              />
+              <label 
+                htmlFor="community-file-upload" 
+                className={`btn-classic px-4 py-1 text-[11px] font-bold flex items-center shrink-0 ${(!formData.id || isUploading) ? 'opacity-50 cursor-not-allowed' : 'cursor-pointer'}`}
+                title="Sube un archivo y crea el registro asociado"
+              >
+                <Upload className="w-3 h-3 mr-2" />
+                {isUploading ? 'Subiendo...' : 'Subir Archivo'}
+              </label>
 
-                    <button
-                      onClick={() => {
-                        const newDoc = {
-                          id: Date.now().toString(),
-                          name: null,
-                          url: null,
-                          type: null,
-                          path: null,
-                          concept: 'Nuevo Registro Manual',
-                          date: new Date().toISOString().split('T')[0],
-                          amount: '',
-                          uploadedAt: new Date().toISOString()
-                        };
-                        setFormData(prev => ({
-                          ...prev,
-                          community: {
-                            ...(prev.community || {}),
-                            documents: [...(prev.community?.documents || []), newDoc]
-                          }
-                        }));
-                      }}
-                      className={`btn-classic px-4 py-1 text-[11px] font-bold flex items-center shrink-0 ${!formData.id ? 'opacity-50 cursor-not-allowed' : 'cursor-pointer'}`}
-                      disabled={!formData.id}
-                      title="Añade una línea al expediente sin subir ningún archivo"
-                    >
-                      <FileText className="w-3 h-3 mr-2" />
-                      Añadir Registro Manual
-                    </button>
+              <button
+                onClick={() => {
+                  const newDoc = {
+                    id: Date.now().toString(),
+                    name: null,
+                    url: null,
+                    type: null,
+                    path: null,
+                    concept: 'Nuevo Registro Manual',
+                    date: new Date().toISOString().split('T')[0],
+                    amount: '',
+                    uploadedAt: new Date().toISOString()
+                  };
+                  setFormData(prev => ({
+                    ...prev,
+                    community: {
+                      ...(prev.community || {}),
+                      documents: [...(prev.community?.documents || []), newDoc]
+                    }
+                  }));
+                }}
+                className={`btn-classic px-4 py-1 text-[11px] font-bold flex items-center shrink-0 ${!formData.id ? 'opacity-50 cursor-not-allowed' : 'cursor-pointer'}`}
+                disabled={!formData.id}
+                title="Añade una línea al expediente sin subir ningún archivo"
+              >
+                <FileText className="w-3 h-3 mr-2" />
+                Añadir Registro Manual
+              </button>
 
-                    {!formData.id && (
-                      <span className="text-[10px] text-red-600 font-bold ml-2">
-                        Guarda la propiedad primero
-                      </span>
-                    )}
-                  </div>
+              {!formData.id && (
+                <span className="text-[10px] text-red-600 font-bold ml-2">
+                  Guarda la propiedad primero
+                </span>
+              )}
+            </div>
 
-                  {/* Documents Table */}
-                  <div className="flex-1 overflow-auto bg-white p-1 min-h-[200px]">
-                    <table className="clean-table w-full">
-                      <thead>
-                        <tr>
-                          <th className="w-10"></th>
-                          <th>Concepto</th>
-                          <th className="w-24 text-center">Fecha</th>
-                          <th className="w-24 text-right">Cantidad</th>
-                          <th className="w-16 text-center">Docs</th>
-                        </tr>
-                      </thead>
-                      <tbody>
-                        {documents.length === 0 ? (
-                          <tr>
-                            <td colSpan="5" className="text-center text-slate-500 py-4 italic text-[11px]">
-                              No hay documentos guardados
-                            </td>
-                          </tr>
-                        ) : (
-                          documents.map((doc, idx) => (
-                            <tr key={doc.id || idx}>
-                              <td className="text-center">
-                                <button 
-                                  onClick={() => removeDocument(doc.id)}
-                                  className="text-red-500 hover:text-red-700"
-                                  title="Eliminar documento"
+            {/* Documents Table */}
+            <div className="flex-1 overflow-auto bg-white p-1 min-h-[200px]">
+              <table className="clean-table w-full">
+                <thead>
+                  <tr>
+                    <th className="w-10"></th>
+                    <th>Concepto</th>
+                    <th className="w-24 text-center">Fecha</th>
+                    <th className="w-24 text-right">Cantidad</th>
+                    <th className="w-16 text-center">Docs</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {documents.length === 0 ? (
+                    <tr>
+                      <td colSpan="5" className="text-center text-slate-500 py-4 italic text-[11px]">
+                        No hay documentos guardados
+                      </td>
+                    </tr>
+                  ) : (
+                    documents.map((doc, idx) => (
+                      <tr key={doc.id || idx}>
+                        <td className="text-center">
+                          <button 
+                            onClick={() => removeDocument(doc.id)}
+                            className="text-red-500 hover:text-red-700"
+                            title="Eliminar documento"
+                          >
+                            <Trash2 className="w-3.5 h-3.5" />
+                          </button>
+                        </td>
+                        <td className="p-0">
+                          <input 
+                            type="text"
+                            value={doc.concept || ''}
+                            onChange={(e) => updateDocument(doc.id, 'concept', e.target.value)}
+                            className="win-input w-full bg-transparent border-transparent hover:border-gray-300 focus:bg-white text-[11px] font-bold px-1 m-0 h-[22px]"
+                          />
+                        </td>
+                        <td className="text-center w-28 p-0">
+                          <input 
+                            type="date"
+                            value={doc.date ? doc.date.split('T')[0] : ''}
+                            onChange={(e) => updateDocument(doc.id, 'date', e.target.value)}
+                            className="win-input w-full bg-transparent border-transparent hover:border-gray-300 focus:bg-white text-[11px] text-center px-1 m-0 h-[22px]"
+                          />
+                        </td>
+                        <td className="text-right w-24 p-0">
+                          <input 
+                            type="number"
+                            value={doc.amount || ''}
+                            onChange={(e) => updateDocument(doc.id, 'amount', e.target.value)}
+                            className="win-input w-full bg-transparent border-transparent hover:border-gray-300 focus:bg-white text-[11px] text-right px-1 m-0 h-[22px]"
+                            placeholder="0.00"
+                          />
+                        </td>
+                        <td className="text-center">
+                          {doc.url ? (
+                            <div className="flex justify-center items-center space-x-2">
+                              <button 
+                                onClick={() => setPreviewDocument({ url: doc.url, type: doc.type, name: doc.name })}
+                                className="text-blue-600 hover:text-blue-800"
+                                title="Ver documento"
+                              >
+                                <Eye className="w-4 h-4" />
+                              </button>
+                              <div className="flex items-center">
+                                <input 
+                                  type="file" 
+                                  id={`row-file-replace-${doc.id}`}
+                                  className="hidden" 
+                                  onChange={(e) => handleRowFileUpload(e, doc.id)}
+                                  disabled={isUploading || !formData.id}
+                                />
+                                <label 
+                                  htmlFor={`row-file-replace-${doc.id}`}
+                                  className="cursor-pointer text-orange-500 hover:text-orange-700 m-0 leading-none"
+                                  title="Reemplazar documento"
                                 >
-                                  <Trash2 className="w-3.5 h-3.5" />
-                                </button>
-                              </td>
-                              <td className="p-0">
-                                <input 
-                                  type="text"
-                                  value={doc.concept || ''}
-                                  onChange={(e) => updateDocument(doc.id, 'concept', e.target.value)}
-                                  className="win-input w-full bg-transparent border-transparent hover:border-gray-300 focus:bg-white text-[11px] font-bold px-1 m-0 h-[22px]"
-                                />
-                              </td>
-                              <td className="text-center w-28 p-0">
-                                <input 
-                                  type="date"
-                                  value={doc.date ? doc.date.split('T')[0] : ''}
-                                  onChange={(e) => updateDocument(doc.id, 'date', e.target.value)}
-                                  className="win-input w-full bg-transparent border-transparent hover:border-gray-300 focus:bg-white text-[11px] text-center px-1 m-0 h-[22px]"
-                                />
-                              </td>
-                              <td className="text-right w-24 p-0">
-                                <input 
-                                  type="number"
-                                  value={doc.amount || ''}
-                                  onChange={(e) => updateDocument(doc.id, 'amount', e.target.value)}
-                                  className="win-input w-full bg-transparent border-transparent hover:border-gray-300 focus:bg-white text-[11px] text-right px-1 m-0 h-[22px]"
-                                  placeholder="0.00"
-                                />
-                              </td>
-                              <td className="text-center">
-                                {doc.url ? (
-                                  <div className="flex justify-center items-center space-x-2">
-                                    <button 
-                                      onClick={() => setPreviewDocument({ url: doc.url, type: doc.type, name: doc.name })}
-                                      className="text-blue-600 hover:text-blue-800"
-                                      title="Ver documento"
-                                    >
-                                      <Eye className="w-4 h-4" />
-                                    </button>
-                                    <div className="flex items-center">
-                                      <input 
-                                        type="file" 
-                                        id={`row-file-replace-${doc.id}`}
-                                        className="hidden" 
-                                        onChange={(e) => handleRowFileUpload(e, doc.id)}
-                                        disabled={isUploading || !formData.id}
-                                      />
-                                      <label 
-                                        htmlFor={`row-file-replace-${doc.id}`}
-                                        className="cursor-pointer text-orange-500 hover:text-orange-700 m-0 leading-none"
-                                        title="Reemplazar documento"
-                                      >
-                                        <Upload className="w-4 h-4" />
-                                      </label>
-                                    </div>
-                                  </div>
-                                ) : (
-                                  <div className="flex justify-center">
-                                    <input 
-                                      type="file" 
-                                      id={`row-file-upload-${doc.id}`}
-                                      className="hidden" 
-                                      onChange={(e) => handleRowFileUpload(e, doc.id)}
-                                      disabled={isUploading || !formData.id}
-                                    />
-                                    <label 
-                                      htmlFor={`row-file-upload-${doc.id}`}
-                                      className="cursor-pointer text-blue-600 hover:text-blue-800"
-                                      title="Subir documento a este registro"
-                                    >
-                                      <Upload className="w-3.5 h-3.5 mx-auto" />
-                                    </label>
-                                  </div>
-                                )}
-                              </td>
-                            </tr>
-                          ))
-                        )}
-                      </tbody>
-                    </table>
-                  </div>
-                </div>
-              )}
-
-              {activeBottomTab === 'ordinario' && (
-                <div className="flex-1 flex flex-col space-y-3">
-                  <div className="bg-[#f0f0f0] p-2 border border-[#a0a0a0] rounded shadow-sm max-w-md">
-                    <h4 className="text-[10px] font-bold text-slate-800 uppercase mb-2">Imputación Analítica Comunidad</h4>
-                    <div className="flex items-center gap-2">
-                      <label className="text-[10px] font-bold text-slate-700 uppercase w-12">CECO:</label>
-                      <select 
-                        className="win-input flex-1 min-w-0 text-[11px] h-6 py-0.5" 
-                        value={community.ceco || ""} 
-                        onChange={(e) => updateCommunityField('ceco', e.target.value)}
-                      >
-                        <option value="">-- Seleccionar CECO --</option>
-                        {cecos.map(c => <option key={c.id} value={c.code}>{c.code} - {c.name}</option>)}
-                      </select>
-                    </div>
-                  </div>
-                  <ComunidadJournalViewer 
-                    cecoCode={community.ceco}
-                    userIds={queryUserIds?.length > 0 ? queryUserIds : (user ? [user.uid] : [])}
-                    setPreviewDocument={setPreviewDocument}
-                  />
-                </div>
-              )}
-
-              {activeBottomTab === 'derrama' && (
-                <div className="flex-1 flex flex-col space-y-3">
-                  <div className="bg-[#f0f0f0] p-2 border border-[#a0a0a0] rounded shadow-sm max-w-md">
-                    <h4 className="text-[10px] font-bold text-slate-800 uppercase mb-2">Imputación Analítica Derramas</h4>
-                    <div className="flex items-center gap-2">
-                      <label className="text-[10px] font-bold text-slate-700 uppercase w-12">CECO:</label>
-                      <select 
-                        className="win-input flex-1 min-w-0 text-[11px] h-6 py-0.5" 
-                        value={community.derramaCeco || ""} 
-                        onChange={(e) => updateCommunityField('derramaCeco', e.target.value)}
-                      >
-                        <option value="">-- Seleccionar CECO --</option>
-                        {cecos.map(c => <option key={c.id} value={c.code}>{c.code} - {c.name}</option>)}
-                      </select>
-                    </div>
-                  </div>
-                  <ComunidadJournalViewer 
-                    cecoCode={community.derramaCeco}
-                    userIds={queryUserIds?.length > 0 ? queryUserIds : (user ? [user.uid] : [])}
-                    setPreviewDocument={setPreviewDocument}
-                  />
-                </div>
-              )}
+                                  <Upload className="w-4 h-4" />
+                                </label>
+                              </div>
+                            </div>
+                          ) : (
+                            <div className="flex justify-center">
+                              <input 
+                                type="file" 
+                                id={`row-file-upload-${doc.id}`}
+                                className="hidden" 
+                                onChange={(e) => handleRowFileUpload(e, doc.id)}
+                                disabled={isUploading || !formData.id}
+                              />
+                              <label 
+                                htmlFor={`row-file-upload-${doc.id}`}
+                                className="cursor-pointer text-blue-600 hover:text-blue-800"
+                                title="Subir documento a este registro"
+                              >
+                                <Upload className="w-3.5 h-3.5 mx-auto" />
+                              </label>
+                            </div>
+                          )}
+                        </td>
+                      </tr>
+                    ))
+                  )}
+                </tbody>
+              </table>
             </div>
           </div>
         </div>
-
       </div>
-    </div>
-  );
-}
 
-function ComunidadJournalViewer({ cecoCode, userIds, setPreviewDocument }) {
-  const [entries, setEntries] = useState([]);
-  const [uploadingId, setUploadingId] = useState(null);
-  const navigate = useNavigate();
-
-  useEffect(() => {
-    if (!cecoCode) {
-      setEntries([]);
-      return;
-    }
-    if (!userIds || userIds.length === 0) {
-      setEntries([]);
-      return;
-    }
-
-    const q = query(
-      collection(db, 'journal_entries'), 
-      where('userId', 'in', userIds)
-    );
-    const unsubscribe = onSnapshot(q, (snap) => {
-      const all = snap.docs.map(d => ({ id: d.id, ...d.data() }));
-      const filtered = all.filter(entry => {
-        if (!entry.ceco) return false;
-        const normField = String(entry.ceco).trim().replace(/^(CEBE|CECO)/i, '');
-        const normValue = String(cecoCode).trim().replace(/^(CEBE|CECO)/i, '');
-        return normField.startsWith(normValue);
-      });
-      setEntries(filtered.sort((a,b) => new Date(b.date) - new Date(a.date)));
-    });
-    return () => unsubscribe();
-  }, [cecoCode, userIds]);
-
-  const handleUploadDoc = async (e, entry) => {
-    const file = e.target.files?.[0];
-    if (!file) return;
-    setUploadingId(entry.id);
-    try {
-      const url = await uploadFileToStorage(file, entry.userId || userIds[0], 'journal_entries', entry.id, 'docs');
-      const entryRef = doc(db, 'journal_entries', entry.id);
-      await updateDoc(entryRef, {
-        documentUrl: url,
-        documentName: file.name
-      });
-    } catch (err) {
-      console.error(err);
-      alert('Error al subir el documento: ' + err.message);
-    } finally {
-      setUploadingId(null);
-    }
-  };
-
-  const handleDeleteDoc = async (entry) => {
-    if (!window.confirm('¿Eliminar el documento asociado a este asiento?')) return;
-    try {
-      const entryRef = doc(db, 'journal_entries', entry.id);
-      await updateDoc(entryRef, {
-        documentUrl: null,
-        documentName: null
-      });
-    } catch (err) {
-      alert('Error al eliminar el documento: ' + err.message);
-    }
-  };
-
-  const handleDelete = async (entry) => {
-    if (!window.confirm(`¿Eliminar el asiento "${entry.description || 'sin descripción'}"? Esta acción revertirá los saldos contables.`)) return;
-    try {
-      await deleteJournalEntry(entry.userId || userIds[0], entry.id, entry.lines || []);
-    } catch (err) {
-      alert('Error al eliminar el asiento: ' + err.message);
-    }
-  };
-
-  const handleEdit = (entry) => {
-    navigate('/journal-entry', { state: { editEntry: entry } });
-  };
-
-  if (!cecoCode) return null;
-
-  return (
-    <div className="space-y-3">
-      <div className="flex items-center justify-between">
-        <h3 className="text-[12px] font-bold text-slate-800 uppercase">Extracto de Asientos Contables</h3>
-      </div>
-      {entries.length === 0 ? (
-        <p className="text-[11px] text-gray-500 italic">No hay asientos contables registrados para este CECO.</p>
-      ) : (
-        <div className="overflow-x-auto border border-[#808080]">
-          <table className="w-full win-table bg-white">
-            <thead className="bg-[#e7e1d3] sticky top-0">
-              <tr>
-                <th className="text-left p-1.5 w-24 text-[10px]">Fecha</th>
-                <th className="text-left p-1.5 text-[10px]">Concepto</th>
-                <th className="text-left p-1.5 w-40 text-[10px]">Documento</th>
-                <th className="text-right p-1.5 w-24 text-[10px]">Importe</th>
-                <th className="w-16 p-1 text-center text-[10px]">Acción</th>
-              </tr>
-            </thead>
-            <tbody>
-              {entries.map(e => (
-                <tr key={e.id} className="border-b border-gray-200 hover:bg-blue-50">
-                  <td className="p-1.5 whitespace-nowrap text-[10px]">{new Date(e.date).toLocaleDateString()}</td>
-                  <td className="p-1.5 truncate max-w-[200px] text-[10px]" title={e.description}>{e.description}</td>
-                  
-                  {/* Attached Document cell */}
-                  <td className="p-1.5 text-[10px] border-r border-gray-200">
-                    <div className="flex items-center gap-1.5">
-                      {e.documentUrl ? (
-                        <>
-                          <button 
-                            onClick={() => setPreviewDocument?.({ url: e.documentUrl, name: e.documentName || 'Documento' })} 
-                            className="text-blue-600 hover:text-blue-800 flex items-center gap-1 font-medium underline"
-                            title="Previsualizar documento"
-                          >
-                            <FileText className="w-3.5 h-3.5 shrink-0" />
-                            <span className="truncate max-w-[120px]" title={e.documentName}>{e.documentName}</span>
-                          </button>
-                          <button 
-                            onClick={() => handleDeleteDoc(e)} 
-                            className="text-red-500 hover:text-red-700 ml-auto p-0.5 hover:bg-red-50 rounded"
-                            title="Quitar documento"
-                          >
-                            <X className="w-3 h-3" />
-                          </button>
-                        </>
-                      ) : (
-                        <label className="flex items-center gap-1 cursor-pointer text-slate-400 hover:text-blue-600 select-none">
-                          {uploadingId === e.id ? (
-                            <span className="text-[9px] text-slate-500 animate-pulse">Subiendo...</span>
-                          ) : (
-                            <>
-                              <Upload className="w-3.5 h-3.5 shrink-0" />
-                              <span className="text-[9px]">Adjuntar doc</span>
-                            </>
-                          )}
-                          <input 
-                            type="file" 
-                            className="hidden" 
-                            onChange={(evt) => handleUploadDoc(evt, e)} 
-                            disabled={uploadingId === e.id}
-                          />
-                        </label>
-                      )}
-                    </div>
-                  </td>
-
-                  <td className="p-1.5 text-right font-mono text-slate-700 font-bold text-[10px]">{Number(e.total).toLocaleString('es-ES', {minimumFractionDigits:2})} &euro;</td>
-                  <td className="p-1.5 text-center flex justify-center items-center gap-2">
-                    <button 
-                      onClick={() => handleEdit(e)} 
-                      className="text-blue-600 hover:text-blue-800 hover:bg-blue-50 rounded p-0.5" 
-                      title="Editar asiento"
-                    >
-                      <Edit className="w-3.5 h-3.5" />
-                    </button>
-                    <button 
-                      onClick={() => handleDelete(e)} 
-                      className="text-red-500 hover:text-red-700 hover:bg-red-50 rounded p-0.5" 
-                      title="Eliminar asiento"
-                    >
-                      <Trash2 className="w-3.5 h-3.5" />
-                    </button>
-                  </td>
-                </tr>
-              ))}
-            </tbody>
-          </table>
+      {/* Accounts Modal */}
+      {showAccountsModal && (
+        <div className="fixed inset-0 bg-black/40 backdrop-blur-sm flex items-center justify-center z-[70]">
+          <Window 
+            title="Configuración de Cuentas Contables"
+            width={isMobile ? "100%" : "900px"}
+            initialPos={{ x: isMobile ? 0 : 50, y: isMobile ? 0 : 20 }}
+            onClose={() => setShowAccountsModal(false)}
+          >
+            <div className="bg-[#d4d0c8] flex flex-col h-[600px]">
+              <div className="flex-1 overflow-auto p-1">
+                <div className="bg-white border border-[#808080] shadow-[1px_1px_0px_#000] min-h-full h-full relative">
+                  <Accounts 
+                    isModal={true} 
+                    onAccountSelect={(code) => {
+                      if (activeAccountField === 'communityAccount') {
+                        updateCommunityField('accountingAccount', code);
+                      } else if (activeAccountField.startsWith('derrama_')) {
+                        const idx = parseInt(activeAccountField.split('_')[1]);
+                        updateDerrama(idx, 'accountingAccount', code);
+                      }
+                      setShowAccountsModal(false);
+                    }} 
+                  />
+                </div>
+              </div>
+              <div className="flex justify-end gap-2 shrink-0 pt-2 pb-1 pr-1 bg-[#d4d0c8] border-t border-[#808080]">
+                <button 
+                  className="px-6 py-1 border border-gray-400 bg-gray-100 hover:bg-gray-200 shadow-sm text-[11px] font-bold uppercase" 
+                  onClick={() => setShowAccountsModal(false)}
+                >
+                  Cerrar
+                </button>
+              </div>
+            </div>
+          </Window>
         </div>
       )}
     </div>

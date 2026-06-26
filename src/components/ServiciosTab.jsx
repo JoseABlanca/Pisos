@@ -1,9 +1,5 @@
-import React, { useState, useEffect } from 'react';
-import { useNavigate } from 'react-router-dom';
-import { db } from '../firebase/config';
-import { collection, query, where, onSnapshot, doc, updateDoc } from 'firebase/firestore';
-import { deleteJournalEntry } from '../services/accounting';
-import { Upload, Trash2, Eye, FileText, Plus, Zap, Droplet, Wifi, Shield, Package, Power, X, Edit } from 'lucide-react';
+import React, { useState } from 'react';
+import { Upload, Trash2, Eye, FileText, Plus, Zap, Droplet, Wifi, Shield, Package, Power } from 'lucide-react';
 import { uploadFileToStorage } from '../utils/storageUtils';
 import Window from './Window';
 import Accounts from '../pages/Accounts';
@@ -12,14 +8,11 @@ export default function ServiciosTab({
   formData, 
   setFormData, 
   user, 
-  queryUserIds,
   isMobile, 
   setPreviewDocument,
   isUploading,
   setIsUploading,
-  availableAccounts,
-  cebes = [],
-  cecos = []
+  availableAccounts
 }) {
   const [selectedIndex, setSelectedIndex] = useState(null);
   const [showAccountsModal, setShowAccountsModal] = useState(false);
@@ -42,8 +35,6 @@ export default function ServiciosTab({
       company: '',
       contract: '',
       active: true,
-      ceco: '',
-      cebe: '',
       docs: []
     };
     
@@ -82,6 +73,7 @@ export default function ServiciosTab({
     try {
       const newDocs = [];
       for (const file of files) {
+        // Guardamos en /properties/{propertyId}/services/
         const url = await uploadFileToStorage(file, user.uid, 'properties', formData.id, 'services');
         newDocs.push({
           id: Date.now() + Math.random().toString(36).substring(7),
@@ -319,32 +311,6 @@ export default function ServiciosTab({
                   </div>
                 </div>
 
-                {/* CECO Selector */}
-                <div className="space-y-1">
-                  <label className="text-[10px] font-bold text-slate-700 uppercase">CECO:</label>
-                  <select 
-                    className="win-input w-full"
-                    value={selectedService.ceco || ''}
-                    onChange={e => updateServiceField(selectedIndex, 'ceco', e.target.value)}
-                  >
-                    <option value="">-- Seleccionar CECO --</option>
-                    {cecos.map(c => <option key={c.id} value={c.code}>{c.code} - {c.name}</option>)}
-                  </select>
-                </div>
-
-                {/* CEBE Selector */}
-                <div className="space-y-1">
-                  <label className="text-[10px] font-bold text-slate-700 uppercase">CEBE:</label>
-                  <select 
-                    className="win-input w-full"
-                    value={selectedService.cebe || ''}
-                    onChange={e => updateServiceField(selectedIndex, 'cebe', e.target.value)}
-                  >
-                    <option value="">-- Seleccionar CEBE --</option>
-                    {cebes.map(c => <option key={c.id} value={c.code}>{c.code} - {c.name}</option>)}
-                  </select>
-                </div>
-
                 <div className="space-y-1 flex flex-col justify-end">
                   <label className="flex items-center space-x-2 cursor-pointer p-1">
                     <input 
@@ -359,18 +325,8 @@ export default function ServiciosTab({
               </div>
             </div>
 
-            {/* Extracto Contable del Servicio */}
-            <div className="p-4 bg-white border-b border-[#e0e0e0]">
-              <ServiciosJournalViewer 
-                cecoCode={selectedService.ceco}
-                cebeCode={selectedService.cebe}
-                userIds={queryUserIds?.length > 0 ? queryUserIds : (user ? [user.uid] : [])}
-                setPreviewDocument={setPreviewDocument}
-              />
-            </div>
-
             {/* Expediente Digital del Servicio */}
-            <div className="p-4 flex-1 flex flex-col bg-slate-50 min-h-[250px]">
+            <div className="p-4 flex-1 flex flex-col bg-slate-50">
               <div className="flex justify-between items-center mb-3">
                 <h3 className="text-[12px] font-bold text-slate-800 uppercase italic">Documentos ({selectedService.company || selectedService.type})</h3>
                 <div className="relative">
@@ -392,7 +348,7 @@ export default function ServiciosTab({
                 </div>
               </div>
 
-              <div className="flex-1 border border-[#808080] bg-white overflow-hidden flex flex-col min-h-[200px]">
+              <div className="flex-1 border border-[#808080] bg-white overflow-hidden flex flex-col min-h-[250px]">
                 <div className="bg-[#f0f0f0] grid grid-cols-12 gap-2 p-2 border-b border-[#808080] text-[10px] font-bold uppercase">
                   <div className="col-span-4">Documento</div>
                   <div className="col-span-4">Concepto</div>
@@ -483,197 +439,6 @@ export default function ServiciosTab({
               </div>
             </div>
           </Window>
-        </div>
-      )}
-    </div>
-  );
-}
-
-function ServiciosJournalViewer({ cecoCode, cebeCode, userIds, setPreviewDocument }) {
-  const [entries, setEntries] = useState([]);
-  const [uploadingId, setUploadingId] = useState(null);
-  const navigate = useNavigate();
-
-  useEffect(() => {
-    if (!cecoCode && !cebeCode) {
-      setEntries([]);
-      return;
-    }
-    if (!userIds || userIds.length === 0) {
-      setEntries([]);
-      return;
-    }
-
-    const q = query(
-      collection(db, 'journal_entries'), 
-      where('userId', 'in', userIds)
-    );
-    const unsubscribe = onSnapshot(q, (snap) => {
-      const all = snap.docs.map(d => ({ id: d.id, ...d.data() }));
-      const filtered = all.filter(entry => {
-        let matchesCeco = false;
-        if (cecoCode && entry.ceco) {
-          const normField = String(entry.ceco).trim().replace(/^(CEBE|CECO)/i, '');
-          const normValue = String(cecoCode).trim().replace(/^(CEBE|CECO)/i, '');
-          matchesCeco = normField.startsWith(normValue);
-        }
-
-        let matchesCebe = false;
-        if (cebeCode && entry.cebe) {
-          const normField = String(entry.cebe).trim().replace(/^(CEBE|CECO)/i, '');
-          const normValue = String(cebeCode).trim().replace(/^(CEBE|CECO)/i, '');
-          matchesCebe = normField.startsWith(normValue);
-        }
-
-        if (cecoCode && cebeCode) {
-          return matchesCeco || matchesCebe;
-        } else if (cecoCode) {
-          return matchesCeco;
-        } else if (cebeCode) {
-          return matchesCebe;
-        }
-        return false;
-      });
-      setEntries(filtered.sort((a,b) => new Date(b.date) - new Date(a.date)));
-    });
-    return () => unsubscribe();
-  }, [cecoCode, cebeCode, userIds]);
-
-  const handleUploadDoc = async (e, entry) => {
-    const file = e.target.files?.[0];
-    if (!file) return;
-    setUploadingId(entry.id);
-    try {
-      const url = await uploadFileToStorage(file, entry.userId || userIds[0], 'journal_entries', entry.id, 'docs');
-      const entryRef = doc(db, 'journal_entries', entry.id);
-      await updateDoc(entryRef, {
-        documentUrl: url,
-        documentName: file.name
-      });
-    } catch (err) {
-      console.error(err);
-      alert('Error al subir el documento: ' + err.message);
-    } finally {
-      setUploadingId(null);
-    }
-  };
-
-  const handleDeleteDoc = async (entry) => {
-    if (!window.confirm('¿Eliminar el documento asociado a este asiento?')) return;
-    try {
-      const entryRef = doc(db, 'journal_entries', entry.id);
-      await updateDoc(entryRef, {
-        documentUrl: null,
-        documentName: null
-      });
-    } catch (err) {
-      alert('Error al eliminar el documento: ' + err.message);
-    }
-  };
-
-  const handleDelete = async (entry) => {
-    if (!window.confirm(`¿Eliminar el asiento "${entry.description || 'sin descripción'}"? Esta acción revertirá los saldos contables.`)) return;
-    try {
-      await deleteJournalEntry(entry.userId || userIds[0], entry.id, entry.lines || []);
-    } catch (err) {
-      alert('Error al eliminar el asiento: ' + err.message);
-    }
-  };
-
-  const handleEdit = (entry) => {
-    navigate('/journal-entry', { state: { editEntry: entry } });
-  };
-
-  if (!cecoCode && !cebeCode) return null;
-
-  return (
-    <div className="space-y-3">
-      <div className="flex items-center justify-between">
-        <h3 className="text-[12px] font-bold text-slate-800 uppercase">Extracto de Asientos Contables del Servicio</h3>
-      </div>
-      {entries.length === 0 ? (
-        <p className="text-[11px] text-gray-500 italic">No hay asientos contables registrados para este servicio.</p>
-      ) : (
-        <div className="overflow-x-auto border border-[#808080]">
-          <table className="w-full win-table bg-white">
-            <thead className="bg-[#e7e1d3] sticky top-0">
-              <tr>
-                <th className="text-left p-1.5 w-24 text-[10px]">Fecha</th>
-                <th className="text-left p-1.5 text-[10px]">Concepto</th>
-                <th className="text-left p-1.5 w-40 text-[10px]">Documento</th>
-                <th className="text-right p-1.5 w-24 text-[10px]">Importe</th>
-                <th className="w-16 p-1 text-center text-[10px]">Acción</th>
-              </tr>
-            </thead>
-            <tbody>
-              {entries.map(e => (
-                <tr key={e.id} className="border-b border-gray-200 hover:bg-blue-50">
-                  <td className="p-1.5 whitespace-nowrap text-[10px]">{new Date(e.date).toLocaleDateString()}</td>
-                  <td className="p-1.5 truncate max-w-[200px] text-[10px]" title={e.description}>{e.description}</td>
-                  
-                  {/* Attached Document cell */}
-                  <td className="p-1.5 text-[10px] border-r border-gray-200">
-                    <div className="flex items-center gap-1.5">
-                      {e.documentUrl ? (
-                        <>
-                          <button 
-                            onClick={() => setPreviewDocument?.({ url: e.documentUrl, name: e.documentName || 'Documento' })} 
-                            className="text-blue-600 hover:text-blue-800 flex items-center gap-1 font-medium underline"
-                            title="Previsualizar documento"
-                          >
-                            <FileText className="w-3.5 h-3.5 shrink-0" />
-                            <span className="truncate max-w-[120px]" title={e.documentName}>{e.documentName}</span>
-                          </button>
-                          <button 
-                            onClick={() => handleDeleteDoc(e)} 
-                            className="text-red-500 hover:text-red-700 ml-auto p-0.5 hover:bg-red-50 rounded"
-                            title="Quitar documento"
-                          >
-                            <X className="w-3 h-3" />
-                          </button>
-                        </>
-                      ) : (
-                        <label className="flex items-center gap-1 cursor-pointer text-slate-400 hover:text-blue-600 select-none">
-                          {uploadingId === e.id ? (
-                            <span className="text-[9px] text-slate-500 animate-pulse">Subiendo...</span>
-                          ) : (
-                            <>
-                              <Upload className="w-3.5 h-3.5 shrink-0" />
-                              <span className="text-[9px]">Adjuntar doc</span>
-                            </>
-                          )}
-                          <input 
-                            type="file" 
-                            className="hidden" 
-                            onChange={(evt) => handleUploadDoc(evt, e)} 
-                            disabled={uploadingId === e.id}
-                          />
-                        </label>
-                      )}
-                    </div>
-                  </td>
-
-                  <td className="p-1.5 text-right font-mono text-slate-700 font-bold text-[10px]">{Number(e.total).toLocaleString('es-ES', {minimumFractionDigits:2})} &euro;</td>
-                  <td className="p-1.5 text-center flex justify-center items-center gap-2">
-                    <button 
-                      onClick={() => handleEdit(e)} 
-                      className="text-blue-600 hover:text-blue-800 hover:bg-blue-50 rounded p-0.5" 
-                      title="Editar asiento"
-                    >
-                      <Edit className="w-3.5 h-3.5" />
-                    </button>
-                    <button 
-                      onClick={() => handleDelete(e)} 
-                      className="text-red-500 hover:text-red-700 hover:bg-red-50 rounded p-0.5" 
-                      title="Eliminar asiento"
-                    >
-                      <Trash2 className="w-3.5 h-3.5" />
-                    </button>
-                  </td>
-                </tr>
-              ))}
-            </tbody>
-          </table>
         </div>
       )}
     </div>

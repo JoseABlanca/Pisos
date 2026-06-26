@@ -32,7 +32,6 @@ import {
 import PunteoModal from './PunteoModal';
 import BankReconciliationModal from './BankReconciliationModal';
 import SettingsModal from './SettingsModal';
-import { syncAllAssetPrices } from '../services/assetSync';
 
 const RibbonCustomIcon = ({ type }) => {
   switch (type) {
@@ -218,14 +217,6 @@ const RibbonCustomIcon = ({ type }) => {
           </g>
         </svg>
       );
-    case 'ActualizarApis':
-      return (
-        <svg width="32" height="32" viewBox="0 0 32 32" fill="none" xmlns="http://www.w3.org/2000/svg">
-          <circle cx="16" cy="16" r="13.5" fill="#3b82f6"/>
-          <path d="M 22.5 19.5 A 7.5 7.5 0 1 1 20.5 10" fill="none" stroke="white" strokeWidth="2.8" strokeLinecap="round"/>
-          <path d="M 18.5 5.5 L 24.5 10 L 19.5 14.5 Z" fill="white"/>
-        </svg>
-      );
     case 'Nuevo':
       return (
         <svg width="32" height="32" viewBox="0 0 32 32" fill="none" xmlns="http://www.w3.org/2000/svg">
@@ -322,34 +313,12 @@ export default function Layout() {
   const [activeColumns, setActiveColumns] = useState({});
   const [tableZoom, setTableZoom] = useState(1);
 
-
   useEffect(() => {
     document.documentElement.style.setProperty('--table-zoom', tableZoom);
   }, [tableZoom]);
   const [showPunteoModal, setShowPunteoModal] = useState(false);
   const [showBankReconciliationModal, setShowBankReconciliationModal] = useState(false);
   const [isSettingsOpen, setIsSettingsOpen] = useState(false);
-
-  useEffect(() => {
-    if (!user) return;
-    
-    // Initial background sync after 5 seconds to get latest quotes
-    const initialSyncTimeout = setTimeout(() => {
-      syncAllAssetPrices(user.uid, queryUserIds?.length > 0 ? queryUserIds : [user.uid])
-        .catch(err => console.error("Initial background asset sync failed:", err));
-    }, 5000);
-    
-    // Auto-update price of assets every 60 seconds (1 minute)
-    const syncInterval = setInterval(() => {
-      syncAllAssetPrices(user.uid, queryUserIds?.length > 0 ? queryUserIds : [user.uid])
-        .catch(err => console.error("Periodic background asset sync failed:", err));
-    }, 60000);
-    
-    return () => {
-      clearTimeout(initialSyncTimeout);
-      clearInterval(syncInterval);
-    };
-  }, [user, queryUserIds]);
 
   useEffect(() => {
     const handleSync = (e) => setActiveColumns(prev => ({ ...prev, [e.detail.tab]: e.detail.columns }));
@@ -607,12 +576,10 @@ export default function Layout() {
         { id: 'type', name: 'Tipo Operación' },
         { id: 'quantity', name: 'Cantidad (Títulos)' },
         { id: 'price', name: 'Precio Unitario' },
-        { id: 'priceEUR', name: 'Precio Unitario (EUR)' },
         { id: 'fee', name: 'Comisiones' },
         { id: 'exchangeRate', name: 'Tipo Cambio' },
         { id: 'currency', name: 'Divisa' },
-        { id: 'totalAmount', name: 'Total' },
-        { id: 'totalAmountEUR', name: 'Total (EUR)' }
+        { id: 'totalAmount', name: 'Total' }
       ]}
     ]
   };
@@ -628,7 +595,7 @@ export default function Layout() {
   ];
 
   const moduleTabs = {
-    'Contabilidad': ['Cuentas contables', 'Diario', 'Sumas y saldos'],
+    'Contabilidad': ['Cuentas contables', 'Diario', 'Mayor', 'Sumas y saldos'],
     'Inversiones inmobiliarias': ['Activos', 'Propietarios', 'Clientes', 'Alquileres'],
     'Renta variable': ['Portfolio', 'Broker', 'Activos RV', 'Transacciones', 'Métricas RV'],
     'Informes': ['Reportes', 'Dashboard'],
@@ -640,7 +607,7 @@ export default function Layout() {
   const tabDefaultPaths = {
     'Cuentas contables': '/accounts',
     'Diario': '/journal-entry',
-
+    'Mayor': '/ledger',
     'Sumas y saldos': '/trial-balance',
     'Clientes': '/customers',
     'Activos': '/real-estate',
@@ -693,7 +660,15 @@ export default function Layout() {
         ]
       }
     ],
-
+    'Mayor': [
+      { 
+        group: 'Mayor', 
+        items: [
+          { name: 'Mayor', path: '/ledger', icon: Library },
+          { name: 'Extracto de\nmovimientos', path: '/account-statement', customIcon: 'ExtractoMov' }
+        ] 
+      }
+    ],
     'Sumas y saldos': [
       { 
         group: 'Consultas', 
@@ -851,8 +826,7 @@ export default function Layout() {
         group: 'Acciones',
         items: [
           { name: 'Añadir columna', action: 'rv-asset:columns', path: '/rv-assets', customIcon: 'AddColumn' },
-          { name: 'Exportar', action: 'rv-asset:export', path: '/rv-assets', customIcon: 'Exportar' },
-          { name: 'Actualizar\nAPIs', action: 'rv-asset:sync-apis', path: '/rv-assets', customIcon: 'ActualizarApis' }
+          { name: 'Exportar', action: 'rv-asset:export', path: '/rv-assets', customIcon: 'Exportar' }
         ]
       }
     ],
@@ -1118,60 +1092,53 @@ export default function Layout() {
         </div>
       )}
 
-      {dropdownConfig?.type === 'column' && (() => {
-        let displayTab = dropdownConfig.tab;
-        if (!availableColumnsByTab[displayTab]) return null;
-
-        return (
-          <div 
-            className="fixed bg-white border border-gray-300 shadow-lg rounded z-[100] py-1 w-56 flex flex-col text-[11px] max-h-64 overflow-y-auto" 
-            style={{ top: dropdownConfig.rect.top + 4, left: dropdownConfig.rect.left }}
-            onMouseDown={e => e.stopPropagation()}
-          >
-            {availableColumnsByTab[displayTab].map((colOrGroup, idx) => {
-              if (colOrGroup.group) {
-                return (
-                  <div key={idx} className="mb-1">
-                    <div className="px-2 py-1 bg-slate-200/80 font-bold text-slate-700 uppercase tracking-tight sticky top-0 border-y border-slate-300 text-[9px]">{colOrGroup.group}</div>
-                    {colOrGroup.items.map(col => {
-                      const isVisible = activeColumns[displayTab]?.includes(col.id);
-                      return (
-                        <div 
-                          key={col.id}
-                          className="px-4 py-1.5 hover:bg-gray-100 cursor-pointer text-left flex items-center" 
-                          onClick={() => { 
-                            let finalAction = dropdownConfig.action;
-                            window.dispatchEvent(new CustomEvent('toggle-column', { detail: { columnId: col.id, action: finalAction } })); 
-                          }}
-                        >
-                          <input type="checkbox" checked={!!isVisible} readOnly className="mr-2 pointer-events-none" />
-                          <span>{col.name}</span>
-                        </div>
-                      )
-                    })}
-                  </div>
-                );
-              } else {
-                const col = colOrGroup;
-                const isVisible = activeColumns[displayTab]?.includes(col.id);
-                return (
-                  <div 
-                    key={col.id}
-                    className="px-3 py-1.5 hover:bg-gray-100 cursor-pointer text-left flex items-center" 
-                    onClick={() => { 
-                      let finalAction = dropdownConfig.action;
-                      window.dispatchEvent(new CustomEvent('toggle-column', { detail: { columnId: col.id, action: finalAction } })); 
-                    }}
-                  >
-                    <input type="checkbox" checked={!!isVisible} readOnly className="mr-2 pointer-events-none" />
-                    <span>{col.name}</span>
-                  </div>
-                )
-              }
-            })}
-          </div>
-        );
-      })()}
+      {dropdownConfig?.type === 'column' && availableColumnsByTab[dropdownConfig.tab] && (
+        <div 
+          className="fixed bg-white border border-gray-300 shadow-lg rounded z-[100] py-1 w-56 flex flex-col text-[11px] max-h-64 overflow-y-auto" 
+          style={{ top: dropdownConfig.rect.top + 4, left: dropdownConfig.rect.left }}
+          onMouseDown={e => e.stopPropagation()}
+        >
+          {availableColumnsByTab[dropdownConfig.tab].map((colOrGroup, idx) => {
+            if (colOrGroup.group) {
+              return (
+                <div key={idx} className="mb-1">
+                  <div className="px-2 py-1 bg-slate-200/80 font-bold text-slate-700 uppercase tracking-tight sticky top-0 border-y border-slate-300 text-[9px]">{colOrGroup.group}</div>
+                  {colOrGroup.items.map(col => {
+                    const isVisible = activeColumns[dropdownConfig.tab]?.includes(col.id);
+                    return (
+                      <div 
+                        key={col.id}
+                        className="px-4 py-1.5 hover:bg-gray-100 cursor-pointer text-left flex items-center" 
+                        onClick={() => { 
+                          window.dispatchEvent(new CustomEvent('toggle-column', { detail: { columnId: col.id, action: dropdownConfig.action } })); 
+                        }}
+                      >
+                        <input type="checkbox" checked={!!isVisible} readOnly className="mr-2 pointer-events-none" />
+                        <span>{col.name}</span>
+                      </div>
+                    )
+                  })}
+                </div>
+              );
+            } else {
+              const col = colOrGroup;
+              const isVisible = activeColumns[dropdownConfig.tab]?.includes(col.id);
+              return (
+                <div 
+                  key={col.id}
+                  className="px-3 py-1.5 hover:bg-gray-100 cursor-pointer text-left flex items-center" 
+                  onClick={() => { 
+                    window.dispatchEvent(new CustomEvent('toggle-column', { detail: { columnId: col.id, action: dropdownConfig.action } })); 
+                  }}
+                >
+                  <input type="checkbox" checked={!!isVisible} readOnly className="mr-2 pointer-events-none" />
+                  <span>{col.name}</span>
+                </div>
+              )
+            }
+          })}
+        </div>
+      )}
 
       {dropdownConfig?.type === 'dash-cont' && (
         <div 

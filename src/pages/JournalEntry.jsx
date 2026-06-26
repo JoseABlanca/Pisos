@@ -9,40 +9,6 @@ import ZoomControl from '../components/ZoomControl';
 import { registerJournalEntry, updateJournalEntry } from '../services/accounting';
 import { uploadFileToStorage } from '../utils/storageUtils';
 
-const evaluateMathExpression = (str) => {
-  if (str === null || str === undefined || str === '') return 0;
-  if (typeof str === 'number') return str;
-  
-  let sanitized = String(str).replace(/,/g, '.');
-  sanitized = sanitized.replace(/[^0-9+\-*/().\s]/g, '');
-  
-  if (!sanitized.trim()) return 0;
-  
-  try {
-    if (/^\d+(\.\d+)?$/.test(sanitized.trim())) {
-      return parseFloat(sanitized);
-    }
-    
-    if (!/[+\-*/()]/.test(sanitized)) {
-      return parseFloat(sanitized) || 0;
-    }
-    
-    if (/^[0-9+\-*/().\s]+$/.test(sanitized)) {
-      const result = new Function(`return (${sanitized})`)();
-      if (isFinite(result)) {
-        return result;
-      }
-    }
-  } catch (e) {
-    const match = sanitized.match(/^([0-9.]+)/);
-    if (match) {
-      return parseFloat(match[1]) || 0;
-    }
-  }
-  
-  return parseFloat(sanitized) || 0;
-};
-
 export default function JournalEntry() {
   const { user, queryUserIds } = useAuth();
   const location = useLocation();
@@ -223,16 +189,6 @@ export default function JournalEntry() {
     
     setLines(newLines);
   };
-
-  const handleCellBlur = (index, field, value) => {
-    if (value === '' || value === undefined || value === null) {
-      updateLine(index, field, 0);
-      return;
-    }
-    const evaluated = evaluateMathExpression(value);
-    const rounded = Math.round(evaluated * 100) / 100;
-    updateLine(index, field, rounded);
-  };
   
   const addLine = () => {
     const maxId = lines.length > 0 ? Math.max(...lines.map(l => l.id)) : 0;
@@ -249,8 +205,8 @@ export default function JournalEntry() {
     }
   };
   
-  const totalDebit = lines.reduce((sum, l) => sum + (evaluateMathExpression(l.debit) || 0), 0);
-  const totalCredit = lines.reduce((sum, l) => sum + (evaluateMathExpression(l.credit) || 0), 0);
+  const totalDebit = lines.reduce((sum, l) => sum + (parseFloat(l.debit) || 0), 0);
+  const totalCredit = lines.reduce((sum, l) => sum + (parseFloat(l.credit) || 0), 0);
   const isBalanced = Math.abs(totalDebit - totalCredit) < 0.01 && totalDebit > 0;
   const imbalance = totalDebit - totalCredit;
 
@@ -263,24 +219,12 @@ export default function JournalEntry() {
       alert("Por favor, introduzca una fecha.");
       return;
     }
-
-    // Evaluate all math expressions first to get final numbers
-    const evaluatedLines = lines.map(l => ({
-      ...l,
-      debit: Math.round(evaluateMathExpression(l.debit) * 100) / 100,
-      credit: Math.round(evaluateMathExpression(l.credit) * 100) / 100,
-    }));
-
-    const evalTotalDebit = evaluatedLines.reduce((sum, l) => sum + l.debit, 0);
-    const evalTotalCredit = evaluatedLines.reduce((sum, l) => sum + l.credit, 0);
-    const evalIsBalanced = Math.abs(evalTotalDebit - evalTotalCredit) < 0.01 && evalTotalDebit > 0;
-
-    if (!evalIsBalanced) {
+    if (!isBalanced) {
       alert("El asiento está descuadrado.");
       return;
     }
     
-    const validLines = evaluatedLines.filter(l => l.account && (l.debit > 0 || l.credit > 0));
+    const validLines = lines.filter(l => l.account && (Number(l.debit) > 0 || Number(l.credit) > 0));
     if (validLines.length < 2) {
       alert("Se requieren al menos dos apuntes para guardar un asiento.");
       return;
@@ -298,8 +242,8 @@ export default function JournalEntry() {
           document: line.document,
           ceco: '',
           cebe: '',
-          debit: line.debit,
-          credit: line.credit,
+          debit: Number(line.debit) || 0,
+          credit: Number(line.credit) || 0,
         };
       });
 
@@ -483,41 +427,22 @@ export default function JournalEntry() {
 
       {/* Toolbar */}
       <div className="flex items-center px-2 py-1 border-b border-gray-200 bg-gray-50 space-x-2 overflow-x-auto w-full scrollbar-hide shrink-0">
-        {isEditing ? (
-          <button 
-            onClick={handleSave}
-            disabled={!isBalanced || !date}
-            className={`p-1 rounded flex items-center justify-center ${(!isBalanced || !date) ? 'opacity-50 cursor-not-allowed' : 'hover:bg-gray-200'}`}
-            title="Guardar modificaciones del asiento (Actualizar)"
-          >
-            <div className="relative">
-              <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="#0ea5e9" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round">
-                <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"></path>
-                <polyline points="14 2 14 8 20 8"></polyline>
-              </svg>
-              <div className="absolute -bottom-1 -right-1 bg-white rounded-full p-0.5 shadow-[0_1px_3px_rgba(0,0,0,0.15)] flex items-center justify-center">
-                <Edit2 className="w-3 h-3 text-blue-600 stroke-[3]" />
-              </div>
+        <button 
+          onClick={handleSave}
+          disabled={!isBalanced || !date}
+          className={`p-1 rounded flex items-center justify-center ${(!isBalanced || !date) ? 'opacity-50 cursor-not-allowed' : 'hover:bg-gray-200'}`}
+          title="Aceptar asiento y crear uno nuevo"
+        >
+          <div className="relative">
+            <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="#0ea5e9" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round">
+              <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"></path>
+              <polyline points="14 2 14 8 20 8"></polyline>
+            </svg>
+            <div className="absolute -bottom-1 -right-1 bg-white rounded-full">
+              <Plus className="w-3.5 h-3.5 text-green-500 stroke-[3]" />
             </div>
-          </button>
-        ) : (
-          <button 
-            onClick={handleSave}
-            disabled={!isBalanced || !date}
-            className={`p-1 rounded flex items-center justify-center ${(!isBalanced || !date) ? 'opacity-50 cursor-not-allowed' : 'hover:bg-gray-200'}`}
-            title="Aceptar asiento y crear uno nuevo (Añadir)"
-          >
-            <div className="relative">
-              <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="#0ea5e9" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round">
-                <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"></path>
-                <polyline points="14 2 14 8 20 8"></polyline>
-              </svg>
-              <div className="absolute -bottom-1 -right-1 bg-white rounded-full">
-                <Plus className="w-3.5 h-3.5 text-green-500 stroke-[3]" />
-              </div>
-            </div>
-          </button>
-        )}
+          </div>
+        </button>
         <div className="w-px h-5 bg-gray-300 mx-1"></div>
         <button onClick={addLine} className="p-1 hover:bg-gray-200 rounded text-gray-600" title="Añadir línea">
           <Plus className="w-5 h-5" />
@@ -607,23 +532,21 @@ export default function JournalEntry() {
                   <td className="p-0">
                     <input 
                       id={`debit-${idx}`}
-                      type="text" 
+                      type="number" 
                       value={line.debit || ''}
                       onChange={(e) => updateLine(idx, 'debit', e.target.value)}
-                      onBlur={(e) => handleCellBlur(idx, 'debit', e.target.value)}
                       onKeyDown={(e) => handleKeyDown(e, idx, 'debit')}
-                      className="w-full h-full px-2 py-1.5 outline-none focus:bg-blue-50 focus:ring-1 focus:ring-blue-400 text-right text-gray-800 font-mono"
+                      className="w-full h-full px-2 py-1.5 outline-none focus:bg-blue-50 focus:ring-1 focus:ring-blue-400 text-right text-gray-800"
                     />
                   </td>
                   <td className="p-0">
                     <input 
                       id={`credit-${idx}`}
-                      type="text" 
+                      type="number" 
                       value={line.credit || ''}
                       onChange={(e) => updateLine(idx, 'credit', e.target.value)}
-                      onBlur={(e) => handleCellBlur(idx, 'credit', e.target.value)}
                       onKeyDown={(e) => handleKeyDown(e, idx, 'credit')}
-                      className="w-full h-full px-2 py-1.5 outline-none focus:bg-blue-50 focus:ring-1 focus:ring-blue-400 text-right text-gray-800 font-mono"
+                      className="w-full h-full px-2 py-1.5 outline-none focus:bg-blue-50 focus:ring-1 focus:ring-blue-400 text-right text-gray-800"
                     />
                   </td>
                   {/* Removed IMAGEN cell */}
