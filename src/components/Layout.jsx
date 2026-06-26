@@ -29,7 +29,9 @@ import {
   ChevronDown,
   ChevronUp,
   LayoutGrid,
-  BarChart
+  BarChart,
+  Upload,
+  FileSpreadsheet
 } from 'lucide-react';
 import PunteoModal from './PunteoModal';
 import BankReconciliationModal from './BankReconciliationModal';
@@ -958,8 +960,8 @@ export default function Layout() {
     ],
     'Importador': [
       { group: 'Acciones', items: [
-        { name: 'Limpiar', action: 'imports:clear', icon: X },
-        { name: 'Descargar\nTodo', action: 'templates:download-all', icon: Download }
+        { name: 'Importar\nDatos', path: '/importador', icon: Upload },
+        { name: 'Descargar\nPlantillas', path: '/importador?tab=plantillas', icon: FileSpreadsheet }
       ]}
     ],
     'Manual': [

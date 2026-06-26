@@ -1,4 +1,5 @@
 import { useState, useEffect } from 'react';
+import { useSearchParams } from 'react-router-dom';
 import * as XLSX from 'xlsx';
 import { db } from '../firebase/config';
 import { collection, query, where, getDocs, doc, setDoc, deleteDoc, writeBatch } from 'firebase/firestore';
@@ -272,7 +273,15 @@ function parseBoolean(val) {
 
 export default function Importer() {
   const { user, queryUserIds } = useAuth();
-  const [activeSubTab, setActiveSubTab] = useState('importaciones'); // 'importaciones' | 'plantillas'
+  const [searchParams, setSearchParams] = useSearchParams();
+  const activeSubTab = searchParams.get('tab') === 'plantillas' ? 'plantillas' : 'importaciones';
+  const setActiveSubTab = (newTab) => {
+    if (newTab === 'plantillas') {
+      setSearchParams({ tab: 'plantillas' });
+    } else {
+      setSearchParams({});
+    }
+  };
   
   // Imports state
   const [selectedModule, setSelectedModule] = useState('Inversiones inmobiliarias');
