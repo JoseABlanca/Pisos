@@ -12,6 +12,8 @@ import {
   Settings, 
   LogOut,
   PlusCircle,
+  X,
+  Download,
   Hash,
   FileText,
   Users,
@@ -602,7 +604,7 @@ export default function Layout() {
     'Crowdfunding': ['CF Portfolio', 'Empresas', 'CF Activos'],
     'Informes': ['Reportes', 'Dashboard'],
     'Impuestos': ['Total', 'Inversiones inmobiliarias', 'Renta variable', 'Crowdfunding'],
-    'Herramientas': ['Calculadora'],
+    'Herramientas': ['Calculadora', 'Importaciones', 'Plantillas importaciones'],
     'Ayuda': ['Manual', 'Soporte']
   };
 
@@ -630,6 +632,8 @@ export default function Layout() {
     'Renta variable': '/taxes-rv',
     'Crowdfunding': '/taxes-cf',
     'Calculadora': '#',
+    'Importaciones': '/imports',
+    'Plantillas importaciones': '/import-templates',
     'Manual': '#',
     'Soporte': '#'
   };
@@ -952,6 +956,16 @@ export default function Layout() {
     ],
     'Calculadora': [
       { group: 'Útiles', items: [{ name: 'Calculadora', path: '#', icon: PlusCircle }] }
+    ],
+    'Importaciones': [
+      { group: 'Acciones', items: [
+        { name: 'Limpiar', action: 'imports:clear', icon: X }
+      ]}
+    ],
+    'Plantillas importaciones': [
+      { group: 'Acciones', items: [
+        { name: 'Descargar\nTodo', action: 'templates:download-all', icon: Download }
+      ]}
     ],
     'Manual': [
       { group: 'Ayuda', items: [{ name: 'Manual', path: '#', icon: BookOpen }] }
