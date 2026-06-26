@@ -604,7 +604,7 @@ export default function Layout() {
     'Crowdfunding': ['CF Portfolio', 'Empresas', 'CF Activos'],
     'Informes': ['Reportes', 'Dashboard'],
     'Impuestos': ['Total', 'Inversiones inmobiliarias', 'Renta variable', 'Crowdfunding'],
-    'Herramientas': ['Calculadora', 'Importaciones', 'Plantillas importaciones'],
+    'Herramientas': ['Calculadora', 'Importador'],
     'Ayuda': ['Manual', 'Soporte']
   };
 
@@ -632,8 +632,7 @@ export default function Layout() {
     'Renta variable': '/taxes-rv',
     'Crowdfunding': '/taxes-cf',
     'Calculadora': '#',
-    'Importaciones': '/imports',
-    'Plantillas importaciones': '/import-templates',
+    'Importador': '/importador',
     'Manual': '#',
     'Soporte': '#'
   };
@@ -957,13 +956,9 @@ export default function Layout() {
     'Calculadora': [
       { group: 'Útiles', items: [{ name: 'Calculadora', path: '#', icon: PlusCircle }] }
     ],
-    'Importaciones': [
+    'Importador': [
       { group: 'Acciones', items: [
-        { name: 'Limpiar', action: 'imports:clear', icon: X }
-      ]}
-    ],
-    'Plantillas importaciones': [
-      { group: 'Acciones', items: [
+        { name: 'Limpiar', action: 'imports:clear', icon: X },
         { name: 'Descargar\nTodo', action: 'templates:download-all', icon: Download }
       ]}
     ],
