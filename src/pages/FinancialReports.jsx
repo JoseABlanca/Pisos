@@ -12,8 +12,7 @@ import {
   Mail,
   Calendar,
   Layers,
-  Sliders,
-  ChevronDown
+  Sliders
 } from 'lucide-react';
 
 export default function FinancialReports() {
@@ -168,20 +167,6 @@ export default function FinancialReports() {
     return pgcNames[code] || `Grupo ${code}`;
   };
 
-  // Subgroup Classification for Assets/Liabilities
-  const getSubGroup = (account) => {
-    const code = account.code || '';
-    if (account.type === 'Activo') {
-      if (code.startsWith('2')) return 'Activo No Corriente';
-      return 'Activo Corriente';
-    }
-    if (account.type === 'Pasivo') {
-      if (code.startsWith('1')) return 'Pasivo No Corriente';
-      return 'Pasivo Corriente';
-    }
-    return account.type;
-  };
-
   // Compute period balance of accounts
   const computedBalances = useMemo(() => {
     const bMap = {};
@@ -226,7 +211,176 @@ export default function FinancialReports() {
     return bMap;
   }, [accounts, entries, selectedYear, startMonth, endMonth]);
 
-  // Hierarchical rows generator for a list of accounts
+  // General PGC Taxonomy for Balance Sheet
+  const balanceSheetTaxonomy = useMemo(() => {
+    return {
+      activo: {
+        label: 'I. ACTIVO',
+        subgroups: {
+          no_corriente: {
+            label: 'A) ACTIVO NO CORRIENTE',
+            visible: showNoCorriente,
+            groups: [
+              { label: 'I. Inmovilizado intangible.', prefix: '20' },
+              { label: 'II. Inmovilizado material.', prefix: '21' },
+              { label: 'III. Inversiones inmobiliarias.', prefix: '22' },
+              { label: 'IV. Inversiones en empresas del grupo y asociadas LP.', prefix: '24' },
+              { label: 'V. Inversiones financieras a largo plazo.', prefix: '25' },
+              { label: 'VI. Activos por impuesto diferido.', prefix: '474' },
+              { label: 'VII. Deudores comerciales no corrientes.', prefix: '43' }
+            ]
+          },
+          corriente: {
+            label: 'B) ACTIVO CORRIENTE',
+            visible: showCorriente,
+            groups: [
+              { label: 'I. Existencias.', prefix: '3' },
+              { label: 'II. Deudores comerciales y otras cuentas a cobrar.', prefixes: ['43', '44', '470', '471', '472'] },
+              { label: 'III. Inversiones financieras a corto plazo.', prefixes: ['53', '54', '55', '56'] },
+              { label: 'IV. Periodificaciones a corto plazo.', prefixes: ['480', '567'] },
+              { label: 'V. Efectivo y otros activos líquidos equivalentes.', prefix: '57' }
+            ]
+          }
+        }
+      },
+      pasivo: {
+        label: 'II. PASIVO',
+        subgroups: {
+          no_corriente: {
+            label: 'A) PASIVO NO CORRIENTE',
+            visible: showNoCorriente,
+            groups: [
+              { label: 'I. Provisiones a largo plazo.', prefix: '14' },
+              { label: 'II. Deudas a largo plazo.', prefixes: ['17', '18'] },
+              { label: 'III. Deudas con empresas del grupo y asociadas LP.', prefix: '16' }
+            ]
+          },
+          corriente: {
+            label: 'B) PASIVO CORRIENTE',
+            visible: showCorriente,
+            groups: [
+              { label: 'I. Provisiones a corto plazo.', prefix: '529' },
+              { label: 'II. Deudas a corto plazo.', prefixes: ['50', '51', '52'], exclude: ['529'] },
+              { label: 'III. Deudas con empresas del grupo y asociadas CP.', prefix: '55' },
+              { label: 'V. Acreedores comerciales y otras cuentas a pagar.', prefixes: ['40', '41', '475', '476', '477'] }
+            ]
+          }
+        }
+      },
+      patrimonio: {
+        label: 'III. PATRIMONIO NETO',
+        subgroups: {
+          fondos_propios: {
+            label: 'A-1) Fondos propios.',
+            visible: true,
+            groups: [
+              { label: 'I. Capital.', prefix: '10' },
+              { label: 'II. Prima de emisión.', prefix: '110' },
+              { label: 'III. Reservas.', prefixes: ['111', '112', '113', '114', '115', '116', '117', '118', '119'] },
+              { label: 'V. Resultados de ejercicios anteriores.', prefix: '12' },
+              { label: 'VII. Resultado del ejercicio.', isProfitLoss: true }
+            ]
+          }
+        }
+      }
+    };
+  }, [showNoCorriente, showCorriente]);
+
+  // General PGC Taxonomy for Income Statement
+  const incomeStatementTaxonomy = useMemo(() => {
+    return {
+      ingresos: {
+        label: 'I. INGRESOS DE EXPLOTACIÓN',
+        groups: [
+          { label: '1. Importe neto de la cifra de negocios.', prefix: '70' },
+          { label: '2. Variación de existencias de productos terminados.', prefix: '71' },
+          { label: '3. Trabajos realizados por la empresa para su activo.', prefix: '73' },
+          { label: '4. Aprovisionamientos (devoluciones/ingresos).', prefix: '708' },
+          { label: '5. Otros ingresos de explotación.', prefixes: ['74', '75'] },
+          { label: '6. Ingresos financieros.', prefix: '76' }
+        ]
+      },
+      gastos: {
+        label: 'II. GASTOS DE EXPLOTACIÓN',
+        groups: [
+          { label: '1. Aprovisionamientos.', prefix: '60' },
+          { label: '2. Gastos de personal.', prefix: '64' },
+          { label: '3. Servicios exteriores.', prefix: '62' },
+          { label: '4. Tributos.', prefix: '63' },
+          { label: '5. Pérdidas, deterioro y variación de provisiones comerciales.', prefix: '65' },
+          { label: '6. Otros gastos corrientes de gestión.', prefix: '65', exclude: ['650', '651'] },
+          { label: '7. Amortización del inmovilizado.', prefix: '68' },
+          { label: '8. Gastos financieros.', prefix: '66' }
+        ]
+      }
+    };
+  }, []);
+
+  // Filter accounts belonging to a taxonomy group
+  const getAccountsForGroup = (groupObj, categoryKey) => {
+    if (groupObj.isProfitLoss) {
+      return accounts.filter(a => ['Ingreso', 'Gasto'].includes(a.type));
+    }
+
+    const prefixes = groupObj.prefixes || (groupObj.prefix ? [groupObj.prefix] : []);
+    const excludes = groupObj.exclude || [];
+
+    return accounts.filter(a => {
+      const code = a.code || '';
+      
+      // Strict category classification checks
+      if (categoryKey === 'activo') {
+        const isAsset = a.type === 'Activo';
+        if (!isAsset) return false;
+      }
+      if (categoryKey === 'pasivo') {
+        const isLiability = a.type === 'Pasivo' && !((a.code || '').startsWith('10') || (a.code || '').startsWith('11') || (a.code || '').startsWith('12') || (a.code || '').startsWith('13'));
+        if (!isLiability) return false;
+      }
+      if (categoryKey === 'patrimonio') {
+        const isEquity = a.type === 'Patrimonio' || (a.type === 'Pasivo' && ((a.code || '').startsWith('10') || (a.code || '').startsWith('11') || (a.code || '').startsWith('12') || (a.code || '').startsWith('13')));
+        if (!isEquity) return false;
+      }
+
+      const matchesPrefix = prefixes.some(p => code.startsWith(p));
+      const matchesExclude = excludes.some(e => code.startsWith(e));
+      return matchesPrefix && !matchesExclude;
+    });
+  };
+
+  // Get the sum of a taxonomy group
+  const getGroupValue = (groupObj, categoryKey) => {
+    if (groupObj.isProfitLoss) {
+      const revenues = accounts.filter(a => a.type === 'Ingreso').reduce((sum, a) => sum + (computedBalances[a.id] || 0), 0);
+      const expenses = accounts.filter(a => a.type === 'Gasto').reduce((sum, a) => sum + (computedBalances[a.id] || 0), 0);
+      return revenues - expenses;
+    }
+
+    const groupAccounts = getAccountsForGroup(groupObj, categoryKey);
+    const roots = groupAccounts.filter(a => !groupAccounts.some(parent => String(a.parentId) === String(parent.id)));
+    return roots.reduce((sum, a) => sum + (computedBalances[a.id] || 0), 0);
+  };
+
+  // Build the list of child accounts/sub-accounts inside a group
+  const getGroupDetailRows = (groupObj, categoryKey) => {
+    if (groupObj.isProfitLoss) return [];
+    const groupAccounts = getAccountsForGroup(groupObj, categoryKey);
+    return getAccountRowsForList(groupAccounts).filter(node => node.level > 2); // Exclude 2-digit root nodes to avoid duplicate displays
+  };
+
+  // Calculate Subgroup values
+  const getSubGroupValue = (subGroupObj, categoryKey) => {
+    return subGroupObj.groups.reduce((sum, g) => sum + getGroupValue(g, categoryKey), 0);
+  };
+
+  // Calculate Masa values
+  const getMasaValue = (masaObj, categoryKey) => {
+    return Object.values(masaObj.subgroups)
+      .filter(sg => sg.visible)
+      .reduce((sum, sg) => sum + getSubGroupValue(sg, categoryKey), 0);
+  };
+
+  // Hierarchical list builder for accounts
   const getAccountRowsForList = (accountList) => {
     const activeLeafs = accountList.filter(acc => Math.abs(computedBalances[acc.id] || 0) > 0.01);
     const nodeMap = {};
@@ -263,132 +417,7 @@ export default function FinancialReports() {
       .sort((a, b) => a.code.localeCompare(b.code));
   };
 
-  // Get account rows for specific Balance Sheet categories
-  const getAccountRowsForSubGroup = (subGroupName) => {
-    let list = [];
-    if (subGroupName === 'Activo No Corriente') {
-      list = accounts.filter(a => a.type === 'Activo' && (a.code || '').startsWith('2'));
-    } else if (subGroupName === 'Activo Corriente') {
-      list = accounts.filter(a => a.type === 'Activo' && !(a.code || '').startsWith('2'));
-    } else if (subGroupName === 'Pasivo No Corriente') {
-      list = accounts.filter(a => a.type === 'Pasivo' && (a.code || '').startsWith('1'));
-    } else if (subGroupName === 'Pasivo Corriente') {
-      list = accounts.filter(a => a.type === 'Pasivo' && !(a.code || '').startsWith('1'));
-    } else if (subGroupName === 'Patrimonio Neto') {
-      list = accounts.filter(a => a.type === 'Patrimonio' || (a.type === 'Pasivo' && ((a.code || '').startsWith('10') || (a.code || '').startsWith('11') || (a.code || '').startsWith('12') || (a.code || '').startsWith('13'))));
-    }
-    return getAccountRowsForList(list);
-  };
-
-  const getSubGroupTotal = (subGroupName) => {
-    const rows = getAccountRowsForSubGroup(subGroupName);
-    // Sum level 2 rows to get the correct sub-total
-    return rows.reduce((sum, r) => r.level === 2 ? sum + r.value : sum, 0);
-  };
-
-  // Build Balance Sheet rows
-  const getBalanceSheetRows = () => {
-    const rows = [];
-    
-    // 1. ACTIVO
-    if (showActivo) {
-      rows.push({ type: 'header', label: 'I. ACTIVO', level: 0 });
-      
-      if (showNoCorriente) {
-        const ancRows = getAccountRowsForSubGroup('Activo No Corriente');
-        const ancTotal = ancRows.reduce((sum, r) => r.level === 2 ? sum + r.value : sum, 0);
-        rows.push({ type: 'subheader', label: 'A) ACTIVO NO CORRIENTE', level: 1 });
-        rows.push(...ancRows);
-        rows.push({ type: 'total', label: 'Total Activo No Corriente', value: ancTotal, level: 1 });
-      }
-      
-      if (showCorriente) {
-        const acRows = getAccountRowsForSubGroup('Activo Corriente');
-        const acTotal = acRows.reduce((sum, r) => r.level === 2 ? sum + r.value : sum, 0);
-        rows.push({ type: 'subheader', label: 'B) ACTIVO CORRIENTE', level: 1 });
-        rows.push(...acRows);
-        rows.push({ type: 'total', label: 'Total Activo Corriente', value: acTotal, level: 1 });
-      }
-      
-      const totalAssets = (showNoCorriente ? getSubGroupTotal('Activo No Corriente') : 0) + 
-                          (showCorriente ? getSubGroupTotal('Activo Corriente') : 0);
-      rows.push({ type: 'total', label: 'Total Activo', value: totalAssets, level: 0, hasDoubleLine: true });
-    }
-
-    // 2. PASIVO
-    if (showPasivo) {
-      rows.push({ type: 'header', label: 'II. PASIVO', level: 0 });
-      
-      if (showNoCorriente) {
-        const pncRows = getAccountRowsForSubGroup('Pasivo No Corriente');
-        const pncTotal = pncRows.reduce((sum, r) => r.level === 2 ? sum + r.value : sum, 0);
-        rows.push({ type: 'subheader', label: 'A) PASIVO NO CORRIENTE', level: 1 });
-        rows.push(...pncRows);
-        rows.push({ type: 'total', label: 'Total Pasivo No Corriente', value: pncTotal, level: 1 });
-      }
-      
-      if (showCorriente) {
-        const pcRows = getAccountRowsForSubGroup('Pasivo Corriente');
-        const pcTotal = pcRows.reduce((sum, r) => r.level === 2 ? sum + r.value : sum, 0);
-        rows.push({ type: 'subheader', label: 'B) PASIVO CORRIENTE', level: 1 });
-        rows.push(...pcRows);
-        rows.push({ type: 'total', label: 'Total Pasivo Corriente', value: pcTotal, level: 1 });
-      }
-      
-      const totalLiabilities = (showNoCorriente ? getSubGroupTotal('Pasivo No Corriente') : 0) + 
-                               (showCorriente ? getSubGroupTotal('Pasivo Corriente') : 0);
-      rows.push({ type: 'total', label: 'Total Pasivo', value: totalLiabilities, level: 0, hasDoubleLine: true });
-    }
-
-    // 3. PATRIMONIO NETO
-    if (showPatrimonio) {
-      rows.push({ type: 'header', label: 'III. PATRIMONIO NETO', level: 0 });
-      const pnRows = getAccountRowsForSubGroup('Patrimonio Neto');
-      const pnTotal = pnRows.reduce((sum, r) => r.level === 2 ? sum + r.value : sum, 0);
-      rows.push(...pnRows);
-      rows.push({ type: 'total', label: 'Total Patrimonio Neto', value: pnTotal, level: 0, hasDoubleLine: true });
-    }
-
-    return rows;
-  };
-
-  // Build Income Statement rows
-  const getIncomeStatementRows = (type) => {
-    const list = accounts.filter(a => a.type === type);
-    const nodes = getAccountRowsForList(list);
-    const total = nodes.reduce((sum, r) => r.level === 2 ? sum + r.value : sum, 0);
-    return [
-      ...nodes,
-      { type: 'total', label: `Total ${type === 'Ingreso' ? 'Ingresos' : 'Gastos'}`, value: total, level: 1 }
-    ];
-  };
-
-  const getIncomeStatementTotal = (type) => {
-    const list = accounts.filter(a => a.type === type);
-    const nodes = getAccountRowsForList(list);
-    return nodes.reduce((sum, r) => r.level === 2 ? sum + r.value : sum, 0);
-  };
-
-  // Cash Flow Calculations helper (returns balance up to a date for Group 57)
-  const getCashBalance = (untilDate) => {
-    let balance = 0;
-    entries.forEach(entry => {
-      const entryDate = new Date(entry.date);
-      if (entryDate < untilDate && entry.lines) {
-        entry.lines.forEach(line => {
-          const account = accounts.find(a => a.id === line.accountId);
-          if (account && account.code && account.code.startsWith('57')) {
-            const debit = parseFloat(line.debit) || 0;
-            const credit = parseFloat(line.credit) || 0;
-            balance += (debit - credit);
-          }
-        });
-      }
-    });
-    return balance;
-  };
-
-  // Direct Method Cash Flow calculations categorizer
+  // Direct Method Cash Flow calculations
   const cashFlowCategories = useMemo(() => {
     const cats = {
       explotacion: {
@@ -404,8 +433,8 @@ export default function FinancialReports() {
       inversion: {
         title: '2. FLUJOS DE EFECTIVO DE LAS ACTIVIDADES DE INVERSIÓN',
         items: [
-          { key: 'inversion_cobros', label: '(+) Cobros por desinversiones (venta de activos)', val: 0, accounts: {} },
-          { key: 'inversion_pagos', label: '(-) Pagos por inversiones (adquisición de activos)', val: 0, accounts: {} }
+          { key: 'inversion_cobros', label: '(+) Cobros por desinversiones (venta de inmovilizado)', val: 0, accounts: {} },
+          { key: 'inversion_pagos', label: '(-) Pagos por inversiones (adquisición de inmovilizado)', val: 0, accounts: {} }
         ],
         total: 0
       },
@@ -526,7 +555,7 @@ export default function FinancialReports() {
 
   // Aggregate counterparts helper for Cash Flow
   const getCounterpartRows = (itemsMap) => {
-    if (detailLevel <= 1) return []; // Hide if Masa or Submasa is chosen
+    if (detailLevel <= 1) return []; // Hide detailed accounts if level is 0 or 1
     
     const nodeMap = {};
     const list = Object.values(itemsMap);
@@ -564,11 +593,11 @@ export default function FinancialReports() {
 
   const formatCurrency = (amount) => {
     const formatted = Math.abs(amount).toLocaleString('es-ES', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
-    return amount < 0 ? `(${formatted}) €` : `${formatted} €`;
+    return amount < 0 ? `-${formatted} €` : `${formatted} €`;
   };
 
-  // Row Renderer
-  const ReportRow = ({ label, value, isTotal = false, indent = 0, isHeader = false, isSubHeader = false, hasTopLine = false, hasBottomLine = false }) => {
+  // Clean Typography Row Renderer (NO borders, inline header totals)
+  const ReportRow = ({ label, value, isHeader = false, isSubHeader = false, isGroupHeader = false, indent = 0 }) => {
     const paddingMap = {
       0: 'pl-0',
       1: 'pl-3',
@@ -578,132 +607,214 @@ export default function FinancialReports() {
     };
     const paddingClass = paddingMap[indent] || 'pl-0';
 
+    const fontClass = isHeader 
+      ? 'font-bold text-blue-900 text-sm uppercase tracking-wider' 
+      : isSubHeader 
+        ? 'font-bold text-slate-800 text-xs uppercase italic mt-4' 
+        : isGroupHeader 
+          ? 'font-bold text-slate-700 text-xs mt-2' 
+          : 'text-slate-650 text-xs';
+
     return (
-      <div className={`flex justify-between py-1.5 ${isHeader ? 'mb-2 mt-4 text-[#4a69bd] border-b border-[#4a69bd]' : ''} ${isSubHeader ? 'font-bold italic mt-2 text-slate-800' : ''} ${isTotal ? 'mt-1 font-bold pt-2' : ''} ${hasTopLine ? 'border-t border-black pt-2' : ''} ${hasBottomLine ? 'border-b-2 border-black pb-2' : ''}`}>
-        <span className={`${paddingClass} ${isHeader ? 'font-bold text-lg' : 'text-[13px]'} ${!isHeader && !isSubHeader && !isTotal ? 'text-slate-800' : ''}`}>
+      <div className={`flex justify-between py-1 hover:bg-slate-50 transition-colors ${fontClass}`}>
+        <span className={`${paddingClass}`}>
           {label}
         </span>
-        {!isHeader && !isSubHeader && (
-          <span className={`font-mono text-[13px] ${isTotal ? 'font-bold' : 'text-slate-700'}`}>
-            {formatCurrency(value)}
-          </span>
-        )}
+        <span className="font-mono text-right shrink-0 pl-4">
+          {formatCurrency(value)}
+        </span>
       </div>
     );
   };
 
   const renderBalanceSheet = () => {
-    const rows = getBalanceSheetRows();
+    const tax = balanceSheetTaxonomy;
     
-    if (rows.length === 0) {
-      return (
-        <div className="max-w-4xl mx-auto bg-white p-8 text-center text-slate-400 italic font-sans border border-dashed border-slate-200">
-          No hay cuentas con saldo para mostrar en este informe.
-        </div>
-      );
-    }
-
     return (
       <div className="max-w-4xl mx-auto bg-white p-10 text-black font-sans shadow-sm border border-slate-100">
-        <div className="flex justify-between border-b-2 border-slate-900 pb-2 mb-8">
-          <span className="font-bold text-lg uppercase tracking-tight text-slate-850">BALANCE DE SITUACIÓN</span>
-          <span className="font-mono text-xs text-slate-500">Emitido: {new Date().toLocaleDateString()}</span>
+        <div className="flex justify-between border-b border-slate-300 pb-2 mb-6">
+          <span className="font-bold text-md uppercase tracking-wide text-slate-800">BALANCE DE SITUACIÓN</span>
+          <span className="font-mono text-xs text-slate-400">Emitido: {new Date().toLocaleDateString()}</span>
         </div>
 
-        <div className="grid grid-cols-1 gap-10">
-          {rows.map((row, idx) => {
-            if (row.type === 'header') {
-              return (
-                <div key={idx} className="text-[#3b6bb8] py-1 font-bold uppercase tracking-wider text-md border-b border-[#3b6bb8]">
-                  {row.label}
+        <div className="flex flex-col gap-6">
+          {/* I. ACTIVIVO */}
+          {showActivo && (
+            <div className="flex flex-col">
+              <ReportRow label={tax.activo.label} value={getMasaValue(tax.activo, 'activo')} isHeader indent={0} />
+              
+              {/* Activo No Corriente */}
+              {showNoCorriente && (
+                <div className="flex flex-col">
+                  <ReportRow label={tax.activo.subgroups.no_corriente.label} value={getSubGroupValue(tax.activo.subgroups.no_corriente, 'activo')} isSubHeader indent={1} />
+                  {tax.activo.subgroups.no_corriente.groups.map((group, idx) => {
+                    const groupVal = getGroupValue(group, 'activo');
+                    const details = getGroupDetailRows(group, 'activo');
+                    return (
+                      <div key={idx} className="flex flex-col">
+                        <ReportRow label={group.label} value={groupVal} isGroupHeader indent={2} />
+                        {details.map((node, nIdx) => (
+                          <ReportRow key={nIdx} label={`${node.code} - ${node.name}`} value={node.value} indent={node.level} />
+                        ))}
+                      </div>
+                    );
+                  })}
                 </div>
-              );
-            }
-            if (row.type === 'subheader') {
-              return (
-                <ReportRow key={idx} label={row.label} isSubHeader />
-              );
-            }
-            return (
-              <ReportRow 
-                key={idx} 
-                label={row.type === 'total' ? row.label : `${row.code} - ${row.name}`} 
-                value={row.value} 
-                indent={row.level} 
-                isTotal={row.type === 'total'} 
-                hasTopLine={row.type === 'total'} 
-                hasBottomLine={row.hasDoubleLine} 
-              />
-            );
-          })}
+              )}
+
+              {/* Activo Corriente */}
+              {showCorriente && (
+                <div className="flex flex-col">
+                  <ReportRow label={tax.activo.subgroups.corriente.label} value={getSubGroupValue(tax.activo.subgroups.corriente, 'activo')} isSubHeader indent={1} />
+                  {tax.activo.subgroups.corriente.groups.map((group, idx) => {
+                    const groupVal = getGroupValue(group, 'activo');
+                    const details = getGroupDetailRows(group, 'activo');
+                    return (
+                      <div key={idx} className="flex flex-col">
+                        <ReportRow label={group.label} value={groupVal} isGroupHeader indent={2} />
+                        {details.map((node, nIdx) => (
+                          <ReportRow key={nIdx} label={`${node.code} - ${node.name}`} value={node.value} indent={node.level} />
+                        ))}
+                      </div>
+                    );
+                  })}
+                </div>
+              )}
+            </div>
+          )}
+
+          {/* II. PASIVO */}
+          {showPasivo && (
+            <div className="flex flex-col">
+              <ReportRow label={tax.pasivo.label} value={getMasaValue(tax.pasivo, 'pasivo')} isHeader indent={0} />
+              
+              {/* Pasivo No Corriente */}
+              {showNoCorriente && (
+                <div className="flex flex-col">
+                  <ReportRow label={tax.pasivo.subgroups.no_corriente.label} value={getSubGroupValue(tax.pasivo.subgroups.no_corriente, 'pasivo')} isSubHeader indent={1} />
+                  {tax.pasivo.subgroups.no_corriente.groups.map((group, idx) => {
+                    const groupVal = getGroupValue(group, 'pasivo');
+                    const details = getGroupDetailRows(group, 'pasivo');
+                    return (
+                      <div key={idx} className="flex flex-col">
+                        <ReportRow label={group.label} value={groupVal} isGroupHeader indent={2} />
+                        {details.map((node, nIdx) => (
+                          <ReportRow key={nIdx} label={`${node.code} - ${node.name}`} value={node.value} indent={node.level} />
+                        ))}
+                      </div>
+                    );
+                  })}
+                </div>
+              )}
+
+              {/* Pasivo Corriente */}
+              {showCorriente && (
+                <div className="flex flex-col">
+                  <ReportRow label={tax.pasivo.subgroups.corriente.label} value={getSubGroupValue(tax.pasivo.subgroups.corriente, 'pasivo')} isSubHeader indent={1} />
+                  {tax.pasivo.subgroups.corriente.groups.map((group, idx) => {
+                    const groupVal = getGroupValue(group, 'pasivo');
+                    const details = getGroupDetailRows(group, 'pasivo');
+                    return (
+                      <div key={idx} className="flex flex-col">
+                        <ReportRow label={group.label} value={groupVal} isGroupHeader indent={2} />
+                        {details.map((node, nIdx) => (
+                          <ReportRow key={nIdx} label={`${node.code} - ${node.name}`} value={node.value} indent={node.level} />
+                        ))}
+                      </div>
+                    );
+                  })}
+                </div>
+              )}
+            </div>
+          )}
+
+          {/* III. PATRIMONIO NETO */}
+          {showPatrimonio && (
+            <div className="flex flex-col">
+              <ReportRow label={tax.patrimonio.label} value={getMasaValue(tax.patrimonio, 'patrimonio')} isHeader indent={0} />
+              
+              {/* Fondos Propios */}
+              <div className="flex flex-col">
+                <ReportRow label={tax.patrimonio.subgroups.fondos_propios.label} value={getSubGroupValue(tax.patrimonio.subgroups.fondos_propios, 'patrimonio')} isSubHeader indent={1} />
+                {tax.patrimonio.subgroups.fondos_propios.groups.map((group, idx) => {
+                  const groupVal = getGroupValue(group, 'patrimonio');
+                  const details = getGroupDetailRows(group, 'patrimonio');
+                  return (
+                    <div key={idx} className="flex flex-col">
+                      <ReportRow label={group.label} value={groupVal} isGroupHeader indent={2} />
+                      {details.map((node, nIdx) => (
+                        <ReportRow key={nIdx} label={`${node.code} - ${node.name}`} value={node.value} indent={node.level} />
+                      ))}
+                    </div>
+                  );
+                })}
+              </div>
+            </div>
+          )}
         </div>
       </div>
     );
   };
 
   const renderIncomeStatement = () => {
-    const totalIncomes = getIncomeStatementTotal('Ingreso');
-    const totalExpenses = getIncomeStatementTotal('Gasto');
-    const result = totalIncomes - totalExpenses;
-
-    if (Math.abs(totalIncomes) < 0.01 && Math.abs(totalExpenses) < 0.01) {
-      return (
-        <div className="max-w-4xl mx-auto bg-white p-8 text-center text-slate-400 italic font-sans border border-dashed border-slate-200">
-          No hay movimientos de ingresos o gastos para mostrar en este informe.
-        </div>
-      );
-    }
-
-    const incomeRows = getIncomeStatementRows('Ingreso');
-    const expenseRows = getIncomeStatementRows('Gasto');
+    const tax = incomeStatementTaxonomy;
+    
+    // Sum Revenues
+    const totalRevenues = tax.ingresos.groups.reduce((sum, g) => sum + getGroupValue(g, 'ingreso'), 0);
+    // Sum Expenses
+    const totalExpenses = tax.gastos.groups.reduce((sum, g) => sum + getGroupValue(g, 'gasto'), 0);
+    const result = totalRevenues - totalExpenses;
 
     return (
       <div className="max-w-4xl mx-auto bg-white p-10 text-black font-sans shadow-sm border border-slate-100">
-        <div className="flex justify-between border-b-2 border-slate-900 pb-2 mb-8">
-          <span className="font-bold text-lg uppercase tracking-tight text-slate-850">CUENTA DE PÉRDIDAS Y GANANCIAS</span>
-          <span className="font-mono text-xs text-slate-500">Emitido: {new Date().toLocaleDateString()}</span>
+        <div className="flex justify-between border-b border-slate-300 pb-2 mb-6">
+          <span className="font-bold text-md uppercase tracking-wide text-slate-800">CUENTA DE PÉRDIDAS Y GANANCIAS</span>
+          <span className="font-mono text-xs text-slate-400">Emitido: {new Date().toLocaleDateString()}</span>
         </div>
 
-        <div className="grid grid-cols-1 gap-6">
+        <div className="flex flex-col gap-6">
+          {/* I. INGRESOS DE EXPLOTACIÓN */}
           {showIngreso && (
-            <section>
-              <ReportRow label="INGRESOS DE EXPLOTACIÓN" isHeader />
-              <div className="mb-4 pl-4">
-                {incomeRows.map((r, idx) => (
-                  <ReportRow 
-                    key={idx} 
-                    label={r.type === 'total' ? r.label : `${r.code} - ${r.name}`} 
-                    value={r.value} 
-                    indent={r.level} 
-                    isTotal={r.type === 'total'} 
-                    hasTopLine={r.type === 'total'} 
-                  />
-                ))}
-              </div>
-            </section>
-          )}
-          
-          {showGasto && (
-            <section className="mt-4">
-              <ReportRow label="GASTOS DE EXPLOTACIÓN" isHeader />
-              <div className="mb-4 pl-4">
-                {expenseRows.map((r, idx) => (
-                  <ReportRow 
-                    key={idx} 
-                    label={r.type === 'total' ? r.label : `${r.code} - ${r.name}`} 
-                    value={r.value} 
-                    indent={r.level} 
-                    isTotal={r.type === 'total'} 
-                    hasTopLine={r.type === 'total'} 
-                  />
-                ))}
-              </div>
-            </section>
+            <div className="flex flex-col">
+              <ReportRow label={tax.ingresos.label} value={totalRevenues} isHeader indent={0} />
+              {tax.ingresos.groups.map((group, idx) => {
+                const groupVal = getGroupValue(group, 'ingreso');
+                const details = getGroupDetailRows(group, 'ingreso');
+                return (
+                  <div key={idx} className="flex flex-col">
+                    <ReportRow label={group.label} value={groupVal} isGroupHeader indent={2} />
+                    {details.map((node, nIdx) => (
+                      <ReportRow key={nIdx} label={`${node.code} - ${node.name}`} value={node.value} indent={node.level} />
+                    ))}
+                  </div>
+                );
+              })}
+            </div>
           )}
 
-          <section className="mt-8 pt-4 border-t-2 border-black">
-            <ReportRow label="RESULTADO DEL EJERCICIO (Pérdidas o Ganancias)" value={result} isTotal />
-          </section>
+          {/* II. GASTOS DE EXPLOTACIÓN */}
+          {showGasto && (
+            <div className="flex flex-col">
+              <ReportRow label={tax.gastos.label} value={totalExpenses} isHeader indent={0} />
+              {tax.gastos.groups.map((group, idx) => {
+                const groupVal = getGroupValue(group, 'gasto');
+                const details = getGroupDetailRows(group, 'gasto');
+                return (
+                  <div key={idx} className="flex flex-col">
+                    <ReportRow label={group.label} value={groupVal} isGroupHeader indent={2} />
+                    {details.map((node, nIdx) => (
+                      <ReportRow key={nIdx} label={`${node.code} - ${node.name}`} value={node.value} indent={node.level} />
+                    ))}
+                  </div>
+                );
+              })}
+            </div>
+          )}
+
+          {/* RESULTADO FINAL */}
+          <div className="flex flex-col mt-4">
+            <ReportRow label="RESULTADO DEL EJERCICIO (Pérdidas o Ganancias)" value={result} isHeader indent={0} />
+          </div>
         </div>
       </div>
     );
@@ -719,113 +830,81 @@ export default function FinancialReports() {
 
     return (
       <div className="max-w-4xl mx-auto bg-white p-10 text-black font-sans shadow-sm border border-slate-100">
-        <div className="flex justify-between border-b-2 border-slate-900 pb-2 mb-8">
-          <span className="font-bold text-lg uppercase tracking-tight text-slate-850">ESTADO DE FLUJOS DE EFECTIVO</span>
-          <span className="font-mono text-xs text-slate-500">Emitido: {new Date().toLocaleDateString()}</span>
+        <div className="flex justify-between border-b border-slate-300 pb-2 mb-6">
+          <span className="font-bold text-md uppercase tracking-wide text-slate-800">ESTADO DE FLUJOS DE EFECTIVO</span>
+          <span className="font-mono text-xs text-slate-400">Emitido: {new Date().toLocaleDateString()}</span>
         </div>
 
         <div className="flex flex-col gap-6">
           {/* A. ACTIVIDADES DE EXPLOTACIÓN */}
           {showExplotacion && (
-            <section>
-              <div className="text-blue-900 font-bold uppercase tracking-wider text-xs border-b border-blue-100 pb-1 mb-2">
-                {cats.explotacion.title}
-              </div>
-              <div className="pl-4">
-                {cats.explotacion.items.map(it => {
-                  const itemSign = it.label.startsWith('(-)') ? -1 : 1;
-                  const cPartRows = getCounterpartRows(it.accounts);
-                  
-                  // If we are at level 0/1 (no account detail) or no counterpart matches, just render parent row
-                  if (it.val < 0.01) return null;
-                  
-                  return (
-                    <div key={it.key} className="mb-2">
-                      <ReportRow label={it.label} value={itemSign * it.val} isTotal={cPartRows.length > 0} />
-                      {cPartRows.map((node, nIdx) => (
-                        <ReportRow 
-                          key={nIdx} 
-                          label={`${node.code} - ${node.name}`} 
-                          value={itemSign * node.value} 
-                          indent={node.level} 
-                        />
-                      ))}
-                    </div>
-                  );
-                })}
-                <ReportRow label="Flujo de Efectivo Neto de Actividades de Explotación" value={cats.explotacion.total} isTotal hasTopLine />
-              </div>
-            </section>
+            <div className="flex flex-col">
+              <ReportRow label={cats.explotacion.title} value={cats.explotacion.total} isHeader indent={0} />
+              {cats.explotacion.items.map(it => {
+                const itemSign = it.label.startsWith('(-)') ? -1 : 1;
+                const cPartRows = getCounterpartRows(it.accounts);
+                if (it.val < 0.01) return null;
+                
+                return (
+                  <div key={it.key} className="flex flex-col">
+                    <ReportRow label={it.label} value={itemSign * it.val} isGroupHeader indent={2} />
+                    {cPartRows.map((node, nIdx) => (
+                      <ReportRow key={nIdx} label={`${node.code} - ${node.name}`} value={itemSign * node.value} indent={node.level} />
+                    ))}
+                  </div>
+                );
+              })}
+            </div>
           )}
 
           {/* B. ACTIVIDADES DE INVERSIÓN */}
           {showInversion && (
-            <section className="mt-4">
-              <div className="text-blue-900 font-bold uppercase tracking-wider text-xs border-b border-blue-100 pb-1 mb-2">
-                {cats.inversion.title}
-              </div>
-              <div className="pl-4">
-                {cats.inversion.items.map(it => {
-                  const itemSign = it.label.startsWith('(-)') ? -1 : 1;
-                  const cPartRows = getCounterpartRows(it.accounts);
-                  if (it.val < 0.01) return null;
-                  
-                  return (
-                    <div key={it.key} className="mb-2">
-                      <ReportRow label={it.label} value={itemSign * it.val} isTotal={cPartRows.length > 0} />
-                      {cPartRows.map((node, nIdx) => (
-                        <ReportRow 
-                          key={nIdx} 
-                          label={`${node.code} - ${node.name}`} 
-                          value={itemSign * node.value} 
-                          indent={node.level} 
-                        />
-                      ))}
-                    </div>
-                  );
-                })}
-                <ReportRow label="Flujo de Efectivo Neto de Actividades de Inversión" value={cats.inversion.total} isTotal hasTopLine />
-              </div>
-            </section>
+            <div className="flex flex-col">
+              <ReportRow label={cats.inversion.title} value={cats.inversion.total} isHeader indent={0} />
+              {cats.inversion.items.map(it => {
+                const itemSign = it.label.startsWith('(-)') ? -1 : 1;
+                const cPartRows = getCounterpartRows(it.accounts);
+                if (it.val < 0.01) return null;
+                
+                return (
+                  <div key={it.key} className="flex flex-col">
+                    <ReportRow label={it.label} value={itemSign * it.val} isGroupHeader indent={2} />
+                    {cPartRows.map((node, nIdx) => (
+                      <ReportRow key={nIdx} label={`${node.code} - ${node.name}`} value={itemSign * node.value} indent={node.level} />
+                    ))}
+                  </div>
+                );
+              })}
+            </div>
           )}
 
           {/* C. ACTIVIDADES DE FINANCIACIÓN */}
           {showFinanciacion && (
-            <section className="mt-4">
-              <div className="text-blue-900 font-bold uppercase tracking-wider text-xs border-b border-blue-100 pb-1 mb-2">
-                {cats.financiacion.title}
-              </div>
-              <div className="pl-4">
-                {cats.financiacion.items.map(it => {
-                  const itemSign = it.label.startsWith('(-)') ? -1 : 1;
-                  const cPartRows = getCounterpartRows(it.accounts);
-                  if (it.val < 0.01) return null;
-                  
-                  return (
-                    <div key={it.key} className="mb-2">
-                      <ReportRow label={it.label} value={itemSign * it.val} isTotal={cPartRows.length > 0} />
-                      {cPartRows.map((node, nIdx) => (
-                        <ReportRow 
-                          key={nIdx} 
-                          label={`${node.code} - ${node.name}`} 
-                          value={itemSign * node.value} 
-                          indent={node.level} 
-                        />
-                      ))}
-                    </div>
-                  );
-                })}
-                <ReportRow label="Flujo de Efectivo Neto de Actividades de Financiación" value={cats.financiacion.total} isTotal hasTopLine />
-              </div>
-            </section>
+            <div className="flex flex-col">
+              <ReportRow label={cats.financiacion.title} value={cats.financiacion.total} isHeader indent={0} />
+              {cats.financiacion.items.map(it => {
+                const itemSign = it.label.startsWith('(-)') ? -1 : 1;
+                const cPartRows = getCounterpartRows(it.accounts);
+                if (it.val < 0.01) return null;
+                
+                return (
+                  <div key={it.key} className="flex flex-col">
+                    <ReportRow label={it.label} value={itemSign * it.val} isGroupHeader indent={2} />
+                    {cPartRows.map((node, nIdx) => (
+                      <ReportRow key={nIdx} label={`${node.code} - ${node.name}`} value={itemSign * node.value} indent={node.level} />
+                    ))}
+                  </div>
+                );
+              })}
+            </div>
           )}
 
           {/* TOTALS */}
-          <section className="mt-8 pt-4 border-t-2 border-slate-800">
-            <ReportRow label="INCREMENTO (DISMINUCIÓN) NETO DEL EFECTIVO" value={netIncrease} isTotal />
-            <ReportRow label="Efectivo al inicio del ejercicio (Saldo anterior)" value={initialCash} />
-            <ReportRow label="Efectivo al final del ejercicio (Saldo actual)" value={finalCash} isTotal hasBottomLine />
-          </section>
+          <div className="flex flex-col mt-4 pt-4 border-t border-slate-300">
+            <ReportRow label="INCREMENTO (DISMINUCIÓN) NETO DEL EFECTIVO" value={netIncrease} isHeader indent={0} />
+            <ReportRow label="Efectivo al inicio del ejercicio (Saldo anterior)" value={initialCash} isGroupHeader indent={2} />
+            <ReportRow label="Efectivo al final del ejercicio (Saldo actual)" value={finalCash} isHeader indent={0} />
+          </div>
         </div>
       </div>
     );
@@ -853,7 +932,7 @@ export default function FinancialReports() {
             <select 
               value={selectedYear}
               onChange={(e) => setSelectedYear(parseInt(e.target.value))}
-              className="w-full bg-slate-50 border border-slate-200 rounded-none px-4 py-3 font-bold text-slate-700 outline-none focus:border-blue-500 transition-all"
+              className="w-full bg-slate-50 border border-slate-200 rounded-none px-4 py-3 font-bold text-slate-700 outline-none focus:border-blue-500 transition-all cursor-pointer"
             >
               {years.map(y => <option key={y} value={y}>{y}</option>)}
             </select>
@@ -864,7 +943,7 @@ export default function FinancialReports() {
             <select 
               value={startMonth}
               onChange={(e) => setStartMonth(parseInt(e.target.value))}
-              className="w-full bg-slate-50 border border-slate-200 rounded-none px-4 py-3 font-bold text-slate-700 outline-none focus:border-blue-500 transition-all"
+              className="w-full bg-slate-50 border border-slate-200 rounded-none px-4 py-3 font-bold text-slate-700 outline-none focus:border-blue-500 transition-all cursor-pointer"
             >
               {months.map((m, i) => <option key={i} value={i} disabled={i > endMonth}>{m}</option>)}
             </select>
@@ -875,7 +954,7 @@ export default function FinancialReports() {
             <select 
               value={endMonth}
               onChange={(e) => setEndMonth(parseInt(e.target.value))}
-              className="w-full bg-slate-50 border border-slate-200 rounded-none px-4 py-3 font-bold text-slate-700 outline-none focus:border-blue-500 transition-all"
+              className="w-full bg-slate-50 border border-slate-200 rounded-none px-4 py-3 font-bold text-slate-700 outline-none focus:border-blue-500 transition-all cursor-pointer"
             >
               {months.map((m, i) => <option key={i} value={i} disabled={i < startMonth}>{m}</option>)}
             </select>
@@ -1045,7 +1124,7 @@ export default function FinancialReports() {
         
         {/* Tab Selector with Toggle Button */}
         <div className="flex items-center space-x-2 mb-6">
-          {/* Foto 3 Toggle Icon */}
+          {/* Toggle Icon */}
           <button 
             onClick={() => setShowSidebar(!showSidebar)}
             className="p-2.5 border rounded bg-white shadow-sm transition-all hover:bg-slate-50 border-slate-300 flex items-center justify-center shrink-0"
