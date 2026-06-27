@@ -216,7 +216,7 @@ export default function FinancialReports() {
   const balanceSheetTaxonomy = useMemo(() => {
     return {
       activo: {
-        label: 'I. ACTIVO',
+        label: 'ACTIVO',
         subgroups: {
           no_corriente: {
             label: 'A) ACTIVO NO CORRIENTE',
@@ -245,7 +245,7 @@ export default function FinancialReports() {
         }
       },
       pasivo: {
-        label: 'II. PASIVO',
+        label: 'PASIVO',
         subgroups: {
           no_corriente: {
             label: 'A) PASIVO NO CORRIENTE',
@@ -269,7 +269,7 @@ export default function FinancialReports() {
         }
       },
       patrimonio: {
-        label: 'III. PATRIMONIO NETO',
+        label: 'PATRIMONIO NETO',
         subgroups: {
           fondos_propios: {
             label: 'A-1) Fondos propios.',
@@ -594,10 +594,16 @@ export default function FinancialReports() {
 
   const formatCurrency = (amount) => {
     const formatted = Math.abs(amount).toLocaleString('es-ES', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
-    return amount < 0 ? `-${formatted} €` : `${formatted} €`;
+    return amount < 0 ? `-${formatted}` : `${formatted}`;
   };
 
-  // Clean Typography Row Renderer (NO borders, inline header totals)
+  const formatAccountName = (name) => {
+    if (!name) return '';
+    const lower = name.toLowerCase();
+    return lower.charAt(0).toUpperCase() + lower.slice(1);
+  };
+
+  // Clean Typography Row Renderer (NO borders, inline header totals, NO italics)
   const ReportRow = ({ label, value, isHeader = false, isSubHeader = false, isGroupHeader = false, indent = 0 }) => {
     const paddingMap = {
       0: 'pl-0',
@@ -611,7 +617,7 @@ export default function FinancialReports() {
     const fontClass = isHeader 
       ? 'font-bold text-blue-900 text-sm uppercase tracking-wider' 
       : isSubHeader 
-        ? 'font-bold text-slate-800 text-xs uppercase italic mt-4' 
+        ? 'font-bold text-slate-800 text-xs uppercase mt-4' 
         : isGroupHeader 
           ? 'font-bold text-slate-700 text-xs mt-2' 
           : 'text-slate-650 text-xs';
@@ -663,7 +669,7 @@ export default function FinancialReports() {
                         {details.map((node, nIdx) => {
                           if (hideZeroBalances && Math.abs(node.value) < 0.01) return null;
                           return (
-                            <ReportRow key={nIdx} label={`${node.code} - ${node.name}`} value={node.value} indent={node.level} />
+                            <ReportRow key={nIdx} label={`${node.code} - ${formatAccountName(node.name)}`} value={node.value} indent={node.level} />
                           );
                         })}
                       </div>
@@ -686,7 +692,7 @@ export default function FinancialReports() {
                         {details.map((node, nIdx) => {
                           if (hideZeroBalances && Math.abs(node.value) < 0.01) return null;
                           return (
-                            <ReportRow key={nIdx} label={`${node.code} - ${node.name}`} value={node.value} indent={node.level} />
+                            <ReportRow key={nIdx} label={`${node.code} - ${formatAccountName(node.name)}`} value={node.value} indent={node.level} />
                           );
                         })}
                       </div>
@@ -716,7 +722,7 @@ export default function FinancialReports() {
                         {details.map((node, nIdx) => {
                           if (hideZeroBalances && Math.abs(node.value) < 0.01) return null;
                           return (
-                            <ReportRow key={nIdx} label={`${node.code} - ${node.name}`} value={node.value} indent={node.level} />
+                            <ReportRow key={nIdx} label={`${node.code} - ${formatAccountName(node.name)}`} value={node.value} indent={node.level} />
                           );
                         })}
                       </div>
@@ -739,7 +745,7 @@ export default function FinancialReports() {
                         {details.map((node, nIdx) => {
                           if (hideZeroBalances && Math.abs(node.value) < 0.01) return null;
                           return (
-                            <ReportRow key={nIdx} label={`${node.code} - ${node.name}`} value={node.value} indent={node.level} />
+                            <ReportRow key={nIdx} label={`${node.code} - ${formatAccountName(node.name)}`} value={node.value} indent={node.level} />
                           );
                         })}
                       </div>
@@ -769,7 +775,7 @@ export default function FinancialReports() {
                         {details.map((node, nIdx) => {
                           if (hideZeroBalances && Math.abs(node.value) < 0.01) return null;
                           return (
-                            <ReportRow key={nIdx} label={`${node.code} - ${node.name}`} value={node.value} indent={node.level} />
+                            <ReportRow key={nIdx} label={`${node.code} - ${formatAccountName(node.name)}`} value={node.value} indent={node.level} />
                           );
                         })}
                       </div>
@@ -783,6 +789,7 @@ export default function FinancialReports() {
       </div>
     );
   };
+
 
   const renderIncomeStatement = () => {
     const tax = incomeStatementTaxonomy;
@@ -815,7 +822,7 @@ export default function FinancialReports() {
                     {details.map((node, nIdx) => {
                       if (hideZeroBalances && Math.abs(node.value) < 0.01) return null;
                       return (
-                        <ReportRow key={nIdx} label={`${node.code} - ${node.name}`} value={node.value} indent={node.level} />
+                        <ReportRow key={nIdx} label={`${node.code} - ${formatAccountName(node.name)}`} value={node.value} indent={node.level} />
                       );
                     })}
                   </div>
@@ -838,7 +845,7 @@ export default function FinancialReports() {
                     {details.map((node, nIdx) => {
                       if (hideZeroBalances && Math.abs(node.value) < 0.01) return null;
                       return (
-                        <ReportRow key={nIdx} label={`${node.code} - ${node.name}`} value={node.value} indent={node.level} />
+                        <ReportRow key={nIdx} label={`${node.code} - ${formatAccountName(node.name)}`} value={node.value} indent={node.level} />
                       );
                     })}
                   </div>
@@ -857,6 +864,7 @@ export default function FinancialReports() {
       </div>
     );
   };
+
 
   const renderCashFlow = () => {
     const cats = cashFlowCategories;
@@ -889,7 +897,7 @@ export default function FinancialReports() {
                     {cPartRows.map((node, nIdx) => {
                       if (hideZeroBalances && Math.abs(node.value) < 0.01) return null;
                       return (
-                        <ReportRow key={nIdx} label={`${node.code} - ${node.name}`} value={itemSign * node.value} indent={node.level} />
+                        <ReportRow key={nIdx} label={`${node.code} - ${formatAccountName(node.name)}`} value={itemSign * node.value} indent={node.level} />
                       );
                     })}
                   </div>
@@ -913,7 +921,7 @@ export default function FinancialReports() {
                     {cPartRows.map((node, nIdx) => {
                       if (hideZeroBalances && Math.abs(node.value) < 0.01) return null;
                       return (
-                        <ReportRow key={nIdx} label={`${node.code} - ${node.name}`} value={itemSign * node.value} indent={node.level} />
+                        <ReportRow key={nIdx} label={`${node.code} - ${formatAccountName(node.name)}`} value={itemSign * node.value} indent={node.level} />
                       );
                     })}
                   </div>
@@ -937,7 +945,7 @@ export default function FinancialReports() {
                     {cPartRows.map((node, nIdx) => {
                       if (hideZeroBalances && Math.abs(node.value) < 0.01) return null;
                       return (
-                        <ReportRow key={nIdx} label={`${node.code} - ${node.name}`} value={itemSign * node.value} indent={node.level} />
+                        <ReportRow key={nIdx} label={`${node.code} - ${formatAccountName(node.name)}`} value={itemSign * node.value} indent={node.level} />
                       );
                     })}
                   </div>
@@ -945,6 +953,7 @@ export default function FinancialReports() {
               })}
             </div>
           )}
+
 
           {/* TOTALS */}
           <div className="flex flex-col mt-4 pt-4 border-t border-slate-300">
