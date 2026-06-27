@@ -645,7 +645,7 @@ export default function FinancialReports() {
         <span className={`${paddingClass}`}>
           {label}
         </span>
-        <span className="font-mono text-right shrink-0 pl-4">
+        <span className="font-sans tabular-nums text-right shrink-0 pl-4">
           {formatCurrency(value)}
         </span>
       </div>
