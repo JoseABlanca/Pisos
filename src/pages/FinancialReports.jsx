@@ -612,7 +612,7 @@ export default function FinancialReports() {
 
   const formatCurrency = (amount) => {
     const formatted = Math.abs(amount).toLocaleString('es-ES', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
-    return amount < 0 ? `${formatted}-` : `${formatted}`;
+    return amount < 0 ? `${formatted}-` : `${formatted}\u00a0`;
   };
 
   const formatAccountName = (name) => {
@@ -629,6 +629,10 @@ export default function FinancialReports() {
       2: 'pl-6',
       3: 'pl-9',
       4: 'pl-12',
+      5: 'pl-16',
+      6: 'pl-20',
+      7: 'pl-24',
+      8: 'pl-28'
     };
     const paddingClass = paddingMap[indent] || 'pl-0';
 
@@ -638,7 +642,7 @@ export default function FinancialReports() {
         ? 'font-bold text-slate-800 text-xs uppercase mt-4' 
         : isGroupHeader 
           ? 'font-bold text-slate-700 text-xs mt-2' 
-          : 'text-slate-650 text-xs';
+          : 'text-slate-650 text-[10px]';
 
     return (
       <div className={`flex justify-between py-1 hover:bg-slate-50 transition-colors ${fontClass}`}>
