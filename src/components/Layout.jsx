@@ -33,7 +33,8 @@ import {
   Upload,
   FileSpreadsheet,
   TrendingUp,
-  Landmark
+  Landmark,
+  Printer
 } from 'lucide-react';
 import PunteoModal from './PunteoModal';
 import BankReconciliationModal from './BankReconciliationModal';
@@ -692,7 +693,7 @@ export default function Layout() {
     'Inversiones inmobiliarias': ['Activos', 'Propietarios', 'Clientes', 'Alquileres'],
     'Renta variable': ['Portfolio', 'Broker', 'Activos RV', 'Transacciones', 'Métricas RV'],
     'Crowdfunding': ['CF Portfolio', 'Plataforma', 'CF Activos', 'Transacciones CF'],
-    'Informes': ['Reportes', 'Dashboard'],
+    'Informes': ['Reportes', 'Dashboard', 'Impresion'],
     'Impuestos': ['Total', 'Inversiones inmobiliarias', 'Renta variable', 'Crowdfunding'],
     'Herramientas': ['Importador'],
     'Ayuda': ['Manual', 'Soporte']
@@ -718,6 +719,7 @@ export default function Layout() {
     'Transacciones CF': '/cf-transactions',
     'Reportes': '/reports',
     'Dashboard': '/dashboard',
+    'Impresion': '/print',
     'Total': '/taxes-total',
     'Inversiones inmobiliarias': '/taxes-real-estate',
     'Renta variable': '/taxes-rv',
@@ -1071,6 +1073,14 @@ export default function Layout() {
           { name: 'Inversiones\ninmobiliarias', action: 'dashboard:inversiones', icon: Building2 },
           { name: 'Renta\nvariable', action: 'dashboard:rv', icon: TrendingUp },
           { name: 'Crowdfunding', action: 'dashboard:cf', icon: Landmark }
+        ] 
+      }
+    ],
+    'Impresion': [
+      { 
+        group: 'Acciones', 
+        items: [
+          { name: 'Imprimir\nReporte', action: 'print:execute', icon: Printer }
         ] 
       }
     ],

@@ -8,6 +8,7 @@ import Accounts from './pages/Accounts';
 import AnalyticalCenters from './pages/AnalyticalCenters';
 import TrialBalance from './pages/TrialBalance';
 import FinancialReports from './pages/FinancialReports';
+import PrintPage from './pages/PrintPage';
 import Settings from './pages/Settings';
 import Login from './pages/Login';
 import Register from './pages/Register';
@@ -60,6 +61,7 @@ function App() {
             <Route path="cebes" element={<AnalyticalCenters type="cebe" />} />
             <Route path="trial-balance" element={<TrialBalance />} />
             <Route path="reports" element={<FinancialReports />} />
+            <Route path="print" element={<PrintPage />} />
             <Route path="settings" element={<Settings />} />
             <Route path="customers" element={<Customers />} />
             <Route path="real-estate" element={<RealEstate />} />
