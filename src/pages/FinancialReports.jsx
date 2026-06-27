@@ -168,17 +168,16 @@ export default function FinancialReports() {
     return pgcNames[code] || `Grupo ${code}`;
   };
 
-  // Compute period balance of accounts
-  const computedBalances = useMemo(() => {
-    const bMap = {};
+  // Compute direct movements and aggregated balances of accounts
+  const accountBalances = useMemo(() => {
+    const directMap = {};
+    const aggregatedMap = {};
+    
     const startLimit = new Date(selectedYear, startMonth, 1);
     const endLimit = new Date(selectedYear, endMonth + 1, 0, 23, 59, 59);
 
-    const calc = (id) => {
-      if (bMap[id] !== undefined) return bMap[id];
-      const account = accounts.find(a => a.id === id);
-      if (!account) return 0;
-
+    // 1. Calculate direct movements
+    accounts.forEach(account => {
       let movementSum = 0;
       entries.forEach(entry => {
         const entryDate = new Date(entry.date);
@@ -189,7 +188,7 @@ export default function FinancialReports() {
 
         if (isInRange && entry.lines) {
           entry.lines.forEach(line => {
-            if (line.accountId === id) {
+            if (line.accountId === account.id) {
               const debit = parseFloat(line.debit) || 0;
               const credit = parseFloat(line.credit) || 0;
               const isAssetOrExpense = ['Activo', 'Gasto'].includes(account.type);
@@ -198,19 +197,29 @@ export default function FinancialReports() {
           });
         }
       });
+      directMap[account.id] = movementSum;
+    });
 
-      let sum = movementSum;
+    // 2. Calculate aggregated balances
+    const calcAggregated = (id) => {
+      if (aggregatedMap[id] !== undefined) return aggregatedMap[id];
+      let sum = directMap[id] || 0;
       const children = accounts.filter(a => String(a.parentId) === String(id));
       for (const child of children) {
-        sum += calc(child.id);
+        sum += calcAggregated(child.id);
       }
-      bMap[id] = sum;
+      aggregatedMap[id] = sum;
       return sum;
     };
 
-    accounts.forEach(a => calc(a.id));
-    return bMap;
+    accounts.forEach(a => calcAggregated(a.id));
+
+    return { direct: directMap, aggregated: aggregatedMap };
   }, [accounts, entries, selectedYear, startMonth, endMonth]);
+
+  // Maintain computedBalances reference for compatibility
+  const computedBalances = useMemo(() => accountBalances.aggregated, [accountBalances]);
+
 
   // General PGC Taxonomy for Balance Sheet
   const balanceSheetTaxonomy = useMemo(() => {
@@ -352,14 +361,13 @@ export default function FinancialReports() {
   // Get the sum of a taxonomy group
   const getGroupValue = (groupObj, categoryKey) => {
     if (groupObj.isProfitLoss) {
-      const revenues = accounts.filter(a => a.type === 'Ingreso').reduce((sum, a) => sum + (computedBalances[a.id] || 0), 0);
-      const expenses = accounts.filter(a => a.type === 'Gasto').reduce((sum, a) => sum + (computedBalances[a.id] || 0), 0);
+      const revenues = accounts.filter(a => a.type === 'Ingreso').reduce((sum, a) => sum + (accountBalances.direct[a.id] || 0), 0);
+      const expenses = accounts.filter(a => a.type === 'Gasto').reduce((sum, a) => sum + (accountBalances.direct[a.id] || 0), 0);
       return revenues - expenses;
     }
 
     const groupAccounts = getAccountsForGroup(groupObj, categoryKey);
-    const roots = groupAccounts.filter(a => !groupAccounts.some(parent => String(a.parentId) === String(parent.id)));
-    return roots.reduce((sum, a) => sum + (computedBalances[a.id] || 0), 0);
+    return groupAccounts.reduce((sum, a) => sum + (accountBalances.direct[a.id] || 0), 0);
   };
 
   // Build the list of child accounts/sub-accounts inside a group
@@ -383,12 +391,10 @@ export default function FinancialReports() {
 
   // Hierarchical list builder for accounts
   const getAccountRowsForList = (accountList) => {
-    const activeLeafs = accountList.filter(acc => Math.abs(computedBalances[acc.id] || 0) > 0.01);
     const nodeMap = {};
 
-    activeLeafs.forEach(acc => {
+    accountList.forEach(acc => {
       const code = acc.code || '';
-      
       const prefixes = [];
       if (code.length >= 2) prefixes.push(code.substring(0, 2));
       if (code.length >= 3) prefixes.push(code.substring(0, 3));
@@ -408,13 +414,14 @@ export default function FinancialReports() {
     });
 
     Object.keys(nodeMap).forEach(pref => {
-      nodeMap[pref].value = activeLeafs
+      nodeMap[pref].value = accountList
         .filter(acc => (acc.code || '').startsWith(pref))
-        .reduce((sum, acc) => sum + (computedBalances[acc.id] || 0), 0);
+        .reduce((sum, acc) => sum + (accountBalances.direct[acc.id] || 0), 0);
     });
 
     return Object.values(nodeMap)
       .filter(node => node.level <= detailLevel)
+      .filter(node => !hideZeroBalances || Math.abs(node.value) >= 0.01)
       .sort((a, b) => a.code.localeCompare(b.code));
   };
 
@@ -1091,6 +1098,36 @@ export default function FinancialReports() {
             </select>
           </div>
 
+          {/* Rango de Meses Filter */}
+          <div>
+            <h3 className="text-[11px] font-bold text-slate-400 uppercase tracking-widest mb-3 flex items-center gap-1.5">
+              <Calendar className="w-3.5 h-3.5 text-slate-400" />
+              <span>Rango de Meses</span>
+            </h3>
+            <div className="grid grid-cols-2 gap-2">
+              <div>
+                <label className="block text-[9px] font-bold text-slate-500 uppercase mb-1">Desde</label>
+                <select 
+                  value={startMonth}
+                  onChange={(e) => setStartMonth(parseInt(e.target.value))}
+                  className="w-full bg-white border border-slate-300 rounded px-2 py-1 text-xs font-bold text-slate-700 outline-none focus:border-blue-500 transition-all cursor-pointer"
+                >
+                  {months.map((m, i) => <option key={i} value={i} disabled={i > endMonth}>{m}</option>)}
+                </select>
+              </div>
+              <div>
+                <label className="block text-[9px] font-bold text-slate-500 uppercase mb-1">Hasta</label>
+                <select 
+                  value={endMonth}
+                  onChange={(e) => setEndMonth(parseInt(e.target.value))}
+                  className="w-full bg-white border border-slate-300 rounded px-2 py-1 text-xs font-bold text-slate-700 outline-none focus:border-blue-500 transition-all cursor-pointer"
+                >
+                  {months.map((m, i) => <option key={i} value={i} disabled={i < startMonth}>{m}</option>)}
+                </select>
+              </div>
+            </div>
+          </div>
+
           <hr className="border-slate-200" />
 
           {/* Opciones de Visualización */}
@@ -1199,8 +1236,8 @@ export default function FinancialReports() {
       {/* Main Content Area */}
       <div className="flex-1 min-w-0">
         
-        {/* Tab Selector with Toggle Button */}
-        <div className="flex items-center space-x-2 mb-6">
+        {/* Toggle Button for Sidebar */}
+        <div className="flex items-center mb-6">
           {/* Toggle Icon */}
           <button 
             onClick={() => setShowSidebar(!showSidebar)}
@@ -1212,33 +1249,6 @@ export default function FinancialReports() {
               <line x1="9" y1="3" x2="9" y2="21" />
             </svg>
           </button>
-
-          <div className="flex-1 overflow-x-auto scrollbar-hide">
-            <div className="flex min-w-max space-x-px bg-slate-300 p-0.5 shadow-sm rounded">
-              {[
-                { id: 'balance', label: 'Balance de Situación', icon: Columns },
-                { id: 'income', label: 'Resultados (P&G)', icon: PieChart },
-                { id: 'cashflow', label: 'Flujo de Caja', icon: Activity },
-                { id: 'dates', label: 'Período', icon: Calendar }
-              ].map(tab => (
-                <button
-                  key={tab.id}
-                  onClick={() => {
-                    setActiveTab(tab.id);
-                    navigate(`/reports?tab=${tab.id}`);
-                  }}
-                  className={`flex items-center space-x-2 px-6 py-2.5 transition-all font-black uppercase text-[10px] tracking-widest ${
-                    activeTab === tab.id 
-                    ? 'bg-white text-slate-900 shadow-sm rounded-sm' 
-                    : 'bg-slate-200 text-slate-500 hover:bg-slate-100 hover:text-slate-800'
-                  }`}
-                >
-                  <tab.icon className="w-4 h-4" />
-                  <span>{tab.label}</span>
-                </button>
-              ))}
-            </div>
-          </div>
         </div>
 
         {/* Content Sheet Area */}
