@@ -882,7 +882,26 @@ export default function FinancialReports() {
       </div>
     );
   };
+  const getCashBalance = (untilDate) => {
+    let sum = 0;
+    const cashAccounts = accounts.filter(a => a.code && a.code.startsWith('57'));
+    const cashAccountIds = new Set(cashAccounts.map(a => a.id));
 
+    entries.forEach(entry => {
+      const entryDate = new Date(entry.date);
+      if (entryDate < untilDate && entry.lines) {
+        entry.lines.forEach(line => {
+          if (cashAccountIds.has(line.accountId)) {
+            const debit = parseFloat(line.debit) || 0;
+            const credit = parseFloat(line.credit) || 0;
+            sum += (debit - credit);
+          }
+        });
+      }
+    });
+
+    return sum;
+  };
 
   const renderCashFlow = () => {
     const cats = cashFlowCategories;
