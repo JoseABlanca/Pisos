@@ -381,11 +381,25 @@ export default function FinancialReports() {
     return groupAccounts.reduce((sum, a) => sum + (accountBalances.direct[a.id] || 0), 0);
   };
 
+  // Get database hierarchical depth for a given account
+  const getAccountDepth = (acc, allAccounts) => {
+    let depth = 0;
+    let current = acc;
+    const visited = new Set();
+    while (current && current.parentId && !visited.has(current.id)) {
+      visited.add(current.id);
+      depth++;
+      current = allAccounts.find(a => a.id === current.parentId);
+    }
+    return depth;
+  };
+
   // Build the list of child accounts/sub-accounts inside a group
   const getGroupDetailRows = (groupObj, categoryKey) => {
     if (groupObj.isProfitLoss) return [];
     const groupAccounts = getAccountsForGroup(groupObj, categoryKey);
-    return getAccountRowsForList(groupAccounts).filter(node => node.level > 2); // Exclude 2-digit root nodes to avoid duplicate displays
+    const prefixes = groupObj.prefixes || (groupObj.prefix ? [groupObj.prefix] : []);
+    return getAccountRowsForList(groupAccounts).filter(node => !prefixes.includes(node.code));
   };
 
   // Calculate Subgroup values
@@ -400,38 +414,20 @@ export default function FinancialReports() {
       .reduce((sum, sg) => sum + getSubGroupValue(sg, categoryKey), 0);
   };
 
-  // Hierarchical list builder for accounts
+  // Hierarchical list builder for accounts (renders ONLY accounts present in the database configuration)
   const getAccountRowsForList = (accountList) => {
-    const nodeMap = {};
-
-    accountList.forEach(acc => {
-      const code = acc.code || '';
-      const prefixes = [];
-      for (let len = 1; len <= code.length; len++) {
-        prefixes.push(code.substring(0, len));
-      }
-
-      prefixes.forEach(pref => {
-        const level = pref.length;
-        if (!nodeMap[pref]) {
-          nodeMap[pref] = {
-            code: pref,
-            name: getPrefixName(pref, accounts),
-            value: 0,
-            level: level
-          };
-        }
-      });
-    });
-
-    Object.keys(nodeMap).forEach(pref => {
-      nodeMap[pref].value = accountList
-        .filter(acc => (acc.code || '').startsWith(pref))
-        .reduce((sum, acc) => sum + (accountBalances.direct[acc.id] || 0), 0);
-    });
-
-    return Object.values(nodeMap)
-      .filter(node => node.level <= detailLevel)
+    return accountList
+      .map(acc => {
+        const depth = getAccountDepth(acc, accounts);
+        return {
+          code: acc.code,
+          name: acc.name,
+          value: accountBalances.aggregated[acc.id] || 0,
+          level: depth + 2, // offset by 2 to align with group header indentation (indent = 2)
+          codeLength: (acc.code || '').length
+        };
+      })
+      .filter(node => node.codeLength <= detailLevel)
       .filter(node => !hideZeroBalances || Math.abs(node.value) >= 0.01)
       .sort((a, b) => a.code.localeCompare(b.code));
   };
