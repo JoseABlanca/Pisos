@@ -110,106 +110,230 @@ export default function PrintPage() {
     return () => window.removeEventListener('print:execute', handleExecutePrint);
   }, []);
 
-  // Helper to format currency
+  // Helper to format currency (no € symbol, trailing minus sign, clean alignment)
   const formatCurrency = (amount) => {
-    return (Number(amount) || 0).toLocaleString('es-ES', { minimumFractionDigits: 2, maximumFractionDigits: 2 }) + ' €';
+    const num = Number(amount) || 0;
+    const formatted = Math.abs(num).toLocaleString('es-ES', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+    return num < 0 ? `${formatted}-` : `${formatted}\u00a0`;
   };
 
-  // Render different templates inside print area
-  const renderPrintContent = () => {
+  // Helper for sentence case names
+  const formatAccountName = (name) => {
+    if (!name) return '';
+    const lower = name.toLowerCase();
+    return lower.charAt(0).toUpperCase() + lower.slice(1);
+  };
+
+  // Chunking helper for Diario de Movimientos
+  const chunkDiario = (entriesList, maxRowsPerPage = 18) => {
+    const pages = [];
+    let currentPage = [];
+    let currentRowCount = 0;
+    
+    entriesList.forEach(entry => {
+      const entryRowsCount = 1 + (entry.lines ? entry.lines.length : 0);
+      if (currentRowCount + entryRowsCount > maxRowsPerPage && currentPage.length > 0) {
+        pages.push(currentPage);
+        currentPage = [entry];
+        currentRowCount = entryRowsCount;
+      } else {
+        currentPage.push(entry);
+        currentRowCount += entryRowsCount;
+      }
+    });
+    if (currentPage.length > 0) {
+      pages.push(currentPage);
+    }
+    return pages;
+  };
+
+  // Chunking helper for Libro Mayor
+  const chunkMayor = (activeAccounts, maxLinesPerPage = 20) => {
+    const pages = [];
+    let currentPageBlocks = [];
+    let currentLineCount = 0;
+
+    activeAccounts.forEach(am => {
+      const totalMovementLines = am.lines.length;
+      if (currentLineCount + totalMovementLines + 3 <= maxLinesPerPage) {
+        currentPageBlocks.push({
+          account: am.account,
+          lines: am.lines,
+          debitSum: am.debitSum,
+          creditSum: am.creditSum,
+          isFirst: true,
+          isLast: true
+        });
+        currentLineCount += totalMovementLines + 3;
+      } else {
+        let remainingLines = [...am.lines];
+        let pageIdx = 0;
+        
+        while (remainingLines.length > 0) {
+          if (currentPageBlocks.length > 0 && currentLineCount + 4 > maxLinesPerPage) {
+            pages.push(currentPageBlocks);
+            currentPageBlocks = [];
+            currentLineCount = 0;
+          }
+          
+          const availableSlots = maxLinesPerPage - currentLineCount - 3;
+          if (availableSlots <= 0) {
+            pages.push(currentPageBlocks);
+            currentPageBlocks = [];
+            currentLineCount = 0;
+            continue;
+          }
+
+          const chunkLines = remainingLines.slice(0, availableSlots);
+          remainingLines = remainingLines.slice(availableSlots);
+          
+          currentPageBlocks.push({
+            account: am.account,
+            lines: chunkLines,
+            debitSum: am.debitSum,
+            creditSum: am.creditSum,
+            isFirst: pageIdx === 0,
+            isLast: remainingLines.length === 0,
+            pageIdx: pageIdx
+          });
+          
+          currentLineCount += chunkLines.length + 3;
+          pageIdx++;
+        }
+      }
+    });
+
+    if (currentPageBlocks.length > 0) {
+      pages.push(currentPageBlocks);
+    }
+    return pages;
+  };
+
+  // Flat list chunker
+  const chunkFlatList = (list, itemsPerPage = 22) => {
+    const pages = [];
+    for (let i = 0; i < list.length; i += itemsPerPage) {
+      pages.push(list.slice(i, i + itemsPerPage));
+    }
+    return pages;
+  };
+
+  // Reusable Page Header
+  const renderPageHeader = (title) => {
+    return (
+      <div className="border-b-2 border-slate-800 pb-3 flex justify-between items-end mb-4 select-none">
+        <div>
+          <h2 className="text-xl font-bold uppercase tracking-tight text-slate-900">{title}</h2>
+          <p className="text-[10px] text-slate-500 font-bold uppercase">Ejercicio Contable: {selectedYear}</p>
+        </div>
+        <div className="text-right text-[10px] text-slate-500 font-mono">
+          Fecha Emisión: {new Date().toLocaleDateString()}
+        </div>
+      </div>
+    );
+  };
+
+  // Reusable Page Footer
+  const renderPageFooter = (currentPage, totalPages, auditNumber) => {
+    return (
+      <div className="mt-auto pt-6 border-t border-slate-200 flex justify-between items-end text-[8px] text-slate-400 select-none">
+        <div>
+          <p className="font-bold text-slate-500">NEXO FINANCE CORP</p>
+          <p>Generado mediante el módulo oficial de informes y auditoría contable.</p>
+        </div>
+        <div className="text-right">
+          <p>Página {currentPage} de {totalPages}</p>
+          <p className="font-mono">Auditoría Nº NEXO-{auditNumber}</p>
+        </div>
+      </div>
+    );
+  };
+
+  // Paginated Rendering
+  const renderPages = () => {
+    const pageViews = [];
+    const auditNumber = useMemo(() => Math.floor(Math.random() * 900000 + 100000), [selectedTemplate, selectedYear]);
+
     // 1. DIARIO DE MOVIMIENTOS
     if (selectedTemplate === 'diario') {
       const yearEntries = journalEntries
         .filter(entry => entry.date && new Date(entry.date).getFullYear() === selectedYear)
         .sort((a, b) => new Date(a.date) - new Date(b.date));
+      const entryPages = chunkDiario(yearEntries, 18);
+      const totalPages = entryPages.length || 1;
 
-      return (
-        <div className="flex flex-col gap-6">
-          <div className="border-b-2 border-slate-800 pb-3 flex justify-between items-end">
-            <div>
-              <h2 className="text-xl font-bold uppercase tracking-tight text-slate-900">Diario de Movimientos</h2>
-              <p className="text-[10px] text-slate-500 font-bold uppercase">Ejercicio Contable: {selectedYear}</p>
-            </div>
-            <div className="text-right text-[10px] text-slate-500 font-mono">
-              Fecha Emisión: {new Date().toLocaleDateString()}
-            </div>
+      if (entryPages.length === 0) {
+        pageViews.push(
+          <div key="empty" className="page-sheet w-[794px] h-[1123px] bg-white border border-slate-350 p-10 flex flex-col justify-between text-black shadow-lg relative print:m-0 print:border-none print:shadow-none mb-6">
+            {renderPageHeader('Diario de Movimientos')}
+            <p className="text-center py-12 text-slate-450 italic text-[10px]">No hay asientos contables registrados para este año.</p>
+            {renderPageFooter(1, 1, auditNumber)}
           </div>
-
-          <table className="w-full text-[10px] border-collapse">
-            <thead>
-              <tr className="border-b border-slate-400 bg-slate-100 font-bold text-slate-700">
-                <th className="py-2 px-1 text-left w-16">Fecha</th>
-                <th className="py-2 px-1 text-left w-16">Asiento Nº</th>
-                <th className="py-2 px-1 text-left">Concepto / Cuenta</th>
-                <th className="py-2 px-1 text-left w-20">CEBE/CECO</th>
-                <th className="py-2 px-1 text-right w-24">Debe</th>
-                <th className="py-2 px-1 text-right w-24">Haber</th>
-              </tr>
-            </thead>
-            <tbody>
-              {yearEntries.length === 0 ? (
-                <tr>
-                  <td colSpan="6" className="text-center py-12 text-slate-450 italic">No hay asientos contables registrados para este año.</td>
-                </tr>
-              ) : (
-                yearEntries.flatMap((entry, entryIndex) => {
-                  const rows = [];
-                  
-                  // Primary entry row
-                  rows.push(
-                    <tr key={`entry-${entry.id}`} className="font-bold border-t border-slate-200">
-                      <td className="py-1 px-1 text-slate-600">{new Date(entry.date).toLocaleDateString()}</td>
-                      <td className="py-1 px-1 text-slate-600">{entry.number || entryIndex + 1}</td>
-                      <td className="py-1 px-1 text-slate-900 uppercase" colSpan="2">{entry.description}</td>
-                      <td className="py-1 px-1 text-right font-mono text-slate-900">{formatCurrency(entry.total)}</td>
-                      <td className="py-1 px-1 text-right font-mono text-slate-900">{formatCurrency(entry.total)}</td>
+        );
+      } else {
+        entryPages.forEach((pageEntries, pageIdx) => {
+          pageViews.push(
+            <div key={pageIdx} className="page-sheet w-[794px] h-[1123px] bg-white border border-slate-350 p-10 flex flex-col justify-between text-black shadow-lg relative print:m-0 print:border-none print:shadow-none mb-6">
+              <div>
+                {renderPageHeader('Diario de Movimientos')}
+                <table className="w-full text-[10px] border-collapse">
+                  <thead>
+                    <tr className="border-b border-slate-400 bg-slate-100 font-bold text-slate-700">
+                      <th className="py-2 px-1 text-left w-16">Fecha</th>
+                      <th className="py-2 px-1 text-left w-16">Asiento Nº</th>
+                      <th className="py-2 px-1 text-left">Concepto / Cuenta</th>
+                      <th className="py-2 px-1 text-left w-20">CEBE/CECO</th>
+                      <th className="py-2 px-1 text-right w-24">Debe</th>
+                      <th className="py-2 px-1 text-right w-24">Haber</th>
                     </tr>
-                  );
-
-                  // Line rows
-                  if (entry.lines) {
-                    entry.lines.forEach((line, lineIndex) => {
-                      const account = accounts.find(a => a.id === line.accountId);
-                      const accDisplay = account ? `${account.code} - ${account.name}` : line.accountId || 'Cuenta';
-                      const centerDisplay = entry.cebe ? `CEBE: ${entry.cebe}` : (entry.ceco ? `CECO: ${entry.ceco}` : '');
-                      
+                  </thead>
+                  <tbody>
+                    {pageEntries.flatMap((entry, entryIndex) => {
+                      const rows = [];
                       rows.push(
-                        <tr key={`line-${entry.id}-${lineIndex}`} className="hover:bg-slate-50">
-                          <td className="py-0.5 px-1" colSpan="2"></td>
-                          <td className="py-0.5 px-1 text-slate-600 pl-4">{accDisplay}</td>
-                          <td className="py-0.5 px-1 font-mono text-[9px] text-slate-500">{centerDisplay}</td>
-                          <td className="py-0.5 px-1 text-right font-mono text-slate-600">{line.debit > 0 ? formatCurrency(line.debit) : ''}</td>
-                          <td className="py-0.5 px-1 text-right font-mono text-slate-600">{line.credit > 0 ? formatCurrency(line.credit) : ''}</td>
+                        <tr key={`entry-${entry.id}`} className="font-bold border-t border-slate-200">
+                          <td className="py-1 px-1 text-slate-600">{new Date(entry.date).toLocaleDateString()}</td>
+                          <td className="py-1 px-1 text-slate-600">{entry.number || entryIndex + 1}</td>
+                          <td className="py-1 px-1 text-slate-900 uppercase" colSpan="2">{entry.description}</td>
+                          <td className="py-1 px-1 text-right font-sans tabular-nums text-slate-900">{formatCurrency(entry.total)}</td>
+                          <td className="py-1 px-1 text-right font-sans tabular-nums text-slate-900">{formatCurrency(entry.total)}</td>
                         </tr>
                       );
-                    });
-                  }
-
-                  return rows;
-                })
-              )}
-            </tbody>
-          </table>
-        </div>
-      );
+                      if (entry.lines) {
+                        entry.lines.forEach((line, lineIndex) => {
+                          const account = accounts.find(a => a.id === line.accountId);
+                          const accDisplay = account ? `${account.code} - ${formatAccountName(account.name)}` : line.accountId || 'Cuenta';
+                          const centerDisplay = entry.cebe ? `CEBE: ${entry.cebe}` : (entry.ceco ? `CECO: ${entry.ceco}` : '');
+                          rows.push(
+                            <tr key={`line-${entry.id}-${lineIndex}`} className="hover:bg-slate-50">
+                              <td className="py-0.5 px-1" colSpan="2"></td>
+                              <td className="py-0.5 px-1 text-slate-600 pl-4">{accDisplay}</td>
+                              <td className="py-0.5 px-1 font-mono text-[9px] text-slate-500">{centerDisplay}</td>
+                              <td className="py-0.5 px-1 text-right font-sans tabular-nums text-slate-600">{line.debit > 0 ? formatCurrency(line.debit) : ''}</td>
+                              <td className="py-0.5 px-1 text-right font-sans tabular-nums text-slate-600">{line.credit > 0 ? formatCurrency(line.credit) : ''}</td>
+                            </tr>
+                          );
+                        });
+                      }
+                      return rows;
+                    })}
+                  </tbody>
+                </table>
+              </div>
+              {renderPageFooter(pageIdx + 1, totalPages, auditNumber)}
+            </div>
+          );
+        });
+      }
     }
 
     // 2. LIBRO MAYOR
     if (selectedTemplate === 'mayor') {
       const yearEntries = journalEntries.filter(entry => entry.date && new Date(entry.date).getFullYear() === selectedYear);
-      
-      // Group movements by account code
       const accountMovements = {};
-      
       accounts.forEach(acc => {
-        accountMovements[acc.id] = {
-          account: acc,
-          lines: [],
-          debitSum: 0,
-          creditSum: 0
-        };
+        accountMovements[acc.id] = { account: acc, lines: [], debitSum: 0, creditSum: 0 };
       });
-
       yearEntries.forEach(entry => {
         if (entry.lines) {
           entry.lines.forEach(line => {
@@ -230,97 +354,106 @@ export default function PrintPage() {
         }
       });
 
-      // Filter accounts that have movements
       const activeAccounts = Object.values(accountMovements)
         .filter(am => am.lines.length > 0)
         .sort((a, b) => (a.account.code || '').localeCompare(b.account.code || ''));
 
-      return (
-        <div className="flex flex-col gap-6">
-          <div className="border-b-2 border-slate-800 pb-3 flex justify-between items-end">
-            <div>
-              <h2 className="text-xl font-bold uppercase tracking-tight text-slate-900">Libro Mayor de Cuentas</h2>
-              <p className="text-[10px] text-slate-500 font-bold uppercase">Ejercicio Contable: {selectedYear}</p>
-            </div>
-            <div className="text-right text-[10px] text-slate-500 font-mono">
-              Fecha Emisión: {new Date().toLocaleDateString()}
-            </div>
+      const mayorPages = chunkMayor(activeAccounts, 20);
+      const totalPages = mayorPages.length || 1;
+
+      if (mayorPages.length === 0) {
+        pageViews.push(
+          <div key="empty" className="page-sheet w-[794px] h-[1123px] bg-white border border-slate-350 p-10 flex flex-col justify-between text-black shadow-lg relative print:m-0 print:border-none print:shadow-none mb-6">
+            {renderPageHeader('Libro Mayor de Cuentas')}
+            <p className="text-center py-12 text-slate-450 italic text-[10px]">No hay movimientos registrados para este año.</p>
+            {renderPageFooter(1, 1, auditNumber)}
           </div>
+        );
+      } else {
+        mayorPages.forEach((pageBlocks, pageIdx) => {
+          pageViews.push(
+            <div key={pageIdx} className="page-sheet w-[794px] h-[1123px] bg-white border border-slate-350 p-10 flex flex-col justify-between text-black shadow-lg relative print:m-0 print:border-none print:shadow-none mb-6">
+              <div className="flex flex-col gap-4">
+                {renderPageHeader('Libro Mayor de Cuentas')}
+                {pageBlocks.map((block, bIdx) => {
+                  let runningBalance = 0;
+                  const isAssetOrExpense = ['Activo', 'Gasto'].includes(block.account.type);
+                  
+                  if (!block.isFirst) {
+                    const allAccLines = accountMovements[block.account.id].lines;
+                    const precedingLines = allAccLines.slice(0, allAccLines.indexOf(block.lines[0]));
+                    precedingLines.forEach(l => {
+                      const move = l.debit - l.credit;
+                      runningBalance += isAssetOrExpense ? move : -move;
+                    });
+                  }
 
-          {activeAccounts.length === 0 ? (
-            <p className="text-center py-12 text-slate-450 italic">No hay movimientos registrados para este año.</p>
-          ) : (
-            activeAccounts.map(am => {
-              let runningBalance = 0;
-              const isAssetOrExpense = ['Activo', 'Gasto'].includes(am.account.type);
-              
-              return (
-                <div key={am.account.id} className="mb-6 break-inside-avoid">
-                  <div className="bg-slate-100 p-1.5 border border-slate-300 font-bold text-slate-800 flex justify-between text-[11px] mb-2 uppercase">
-                    <span>Cuenta: {am.account.code} - {am.account.name}</span>
-                    <span>Tipo: {am.account.type}</span>
-                  </div>
-
-                  <table className="w-full text-[9px] border-collapse">
-                    <thead>
-                      <tr className="border-b border-slate-300 font-semibold text-slate-600">
-                        <th className="py-1 px-1 text-left w-16">Fecha</th>
-                        <th className="py-1 px-1 text-center w-12">Asiento</th>
-                        <th className="py-1 px-1 text-left">Concepto</th>
-                        <th className="py-1 px-1 text-right w-20">Debe</th>
-                        <th className="py-1 px-1 text-right w-20">Haber</th>
-                        <th className="py-1 px-1 text-right w-24">Saldo Acum.</th>
-                      </tr>
-                    </thead>
-                    <tbody>
-                      {am.lines
-                        .sort((a, b) => new Date(a.date) - new Date(b.date))
-                        .map((line, idx) => {
-                          const movement = line.debit - line.credit;
-                          runningBalance += isAssetOrExpense ? movement : -movement;
-
-                          return (
-                            <tr key={idx} className="border-b border-slate-100 hover:bg-slate-50">
-                              <td className="py-1 px-1">{new Date(line.date).toLocaleDateString()}</td>
-                              <td className="py-1 px-1 text-center font-mono">{line.entryNo || '-'}</td>
-                              <td className="py-1 px-1 truncate max-w-[200px] uppercase">{line.description}</td>
-                              <td className="py-1 px-1 text-right font-mono text-slate-650">{line.debit > 0 ? formatCurrency(line.debit) : ''}</td>
-                              <td className="py-1 px-1 text-right font-mono text-slate-650">{line.credit > 0 ? formatCurrency(line.credit) : ''}</td>
-                              <td className="py-1 px-1 text-right font-mono font-bold text-slate-800">{formatCurrency(runningBalance)}</td>
+                  return (
+                    <div key={bIdx} className="mb-2 break-inside-avoid">
+                      <div className="bg-slate-100 p-1 border border-slate-300 font-bold text-slate-800 flex justify-between text-[9px] mb-1.5 uppercase">
+                        <span>Cuenta: {block.account.code} - {formatAccountName(block.account.name)} {!block.isFirst && `(Continuación - Pág. ${block.pageIdx + 1})`}</span>
+                        <span>Tipo: {block.account.type}</span>
+                      </div>
+                      <table className="w-full text-[8.5px] border-collapse">
+                        <thead>
+                          <tr className="border-b border-slate-300 font-semibold text-slate-600">
+                            <th className="py-0.5 px-1 text-left w-16">Fecha</th>
+                            <th className="py-0.5 px-1 text-center w-12">Asiento</th>
+                            <th className="py-0.5 px-1 text-left">Concepto</th>
+                            <th className="py-0.5 px-1 text-right w-20">Debe</th>
+                            <th className="py-0.5 px-1 text-right w-20">Haber</th>
+                            <th className="py-0.5 px-1 text-right w-24">Saldo Acum.</th>
+                          </tr>
+                        </thead>
+                        <tbody>
+                          {!block.isFirst && (
+                            <tr className="bg-slate-50 italic font-semibold text-slate-500">
+                              <td className="py-0.5 px-1" colSpan="3">Saldo anterior (Arrastrado):</td>
+                              <td className="py-0.5 px-1 text-right font-sans tabular-nums" colSpan="3">{formatCurrency(runningBalance)}</td>
                             </tr>
-                          );
-                        })}
-                      <tr className="bg-slate-50 font-bold border-t border-slate-300 text-[10px]">
-                        <td className="py-1 px-1" colSpan="3">Suma de Movimientos y Saldo Final:</td>
-                        <td className="py-1 px-1 text-right font-mono text-slate-900">{formatCurrency(am.debitSum)}</td>
-                        <td className="py-1 px-1 text-right font-mono text-slate-900">{formatCurrency(am.creditSum)}</td>
-                        <td className="py-1 px-1 text-right font-mono text-slate-900">{formatCurrency(runningBalance)}</td>
-                      </tr>
-                    </tbody>
-                  </table>
-                </div>
-              );
-            })
-          )}
-        </div>
-      );
+                          )}
+                          {block.lines.map((line, idx) => {
+                            const movement = line.debit - line.credit;
+                            runningBalance += isAssetOrExpense ? movement : -movement;
+                            return (
+                              <tr key={idx} className="border-b border-slate-100 hover:bg-slate-50">
+                                <td className="py-0.5 px-1">{new Date(line.date).toLocaleDateString()}</td>
+                                <td className="py-0.5 px-1 text-center font-mono">{line.entryNo || '-'}</td>
+                                <td className="py-0.5 px-1 truncate max-w-[200px] uppercase">{line.description}</td>
+                                <td className="py-0.5 px-1 text-right font-sans tabular-nums text-slate-650">{line.debit > 0 ? formatCurrency(line.debit) : ''}</td>
+                                <td className="py-0.5 px-1 text-right font-sans tabular-nums text-slate-650">{line.credit > 0 ? formatCurrency(line.credit) : ''}</td>
+                                <td className="py-0.5 px-1 text-right font-sans tabular-nums font-bold text-slate-850">{formatCurrency(runningBalance)}</td>
+                              </tr>
+                            );
+                          })}
+                          {block.isLast && (
+                            <tr className="bg-slate-50 font-bold border-t border-slate-300 text-[8.5px]">
+                              <td className="py-0.5 px-1" colSpan="3">Suma de Movimientos y Saldo Final:</td>
+                              <td className="py-0.5 px-1 text-right font-sans tabular-nums text-slate-900">{formatCurrency(block.debitSum)}</td>
+                              <td className="py-0.5 px-1 text-right font-sans tabular-nums text-slate-900">{formatCurrency(block.creditSum)}</td>
+                              <td className="py-0.5 px-1 text-right font-sans tabular-nums text-slate-900">{formatCurrency(runningBalance)}</td>
+                            </tr>
+                          )}
+                        </tbody>
+                      </table>
+                    </div>
+                  );
+                })}
+              </div>
+              {renderPageFooter(pageIdx + 1, totalPages, auditNumber)}
+            </div>
+          );
+        });
+      }
     }
 
     // 3. BALANCE DE SUMAS Y SALDOS
     if (selectedTemplate === 'sumas_saldos') {
       const yearEntries = journalEntries.filter(entry => entry.date && new Date(entry.date).getFullYear() === selectedYear);
-      
       const sumsMap = {};
       accounts.forEach(acc => {
-        sumsMap[acc.id] = {
-          code: acc.code,
-          name: acc.name,
-          type: acc.type,
-          debit: 0,
-          credit: 0
-        };
+        sumsMap[acc.id] = { code: acc.code, name: acc.name, type: acc.type, debit: 0, credit: 0 };
       });
-
       yearEntries.forEach(entry => {
         if (entry.lines) {
           entry.lines.forEach(line => {
@@ -337,7 +470,6 @@ export default function PrintPage() {
         .map(s => {
           const isAssetOrExpense = ['Activo', 'Gasto'].includes(s.type);
           const balanceDiff = s.debit - s.credit;
-          
           return {
             ...s,
             debitBalance: isAssetOrExpense ? (balanceDiff > 0 ? balanceDiff : 0) : (balanceDiff < 0 ? Math.abs(balanceDiff) : 0),
@@ -354,228 +486,245 @@ export default function PrintPage() {
         return t;
       }, { debitSum: 0, creditSum: 0, debitBalSum: 0, creditBalSum: 0 });
 
-      return (
-        <div className="flex flex-col gap-6">
-          <div className="border-b-2 border-slate-800 pb-3 flex justify-between items-end">
-            <div>
-              <h2 className="text-xl font-bold uppercase tracking-tight text-slate-900">Balance de Sumas y Saldos</h2>
-              <p className="text-[10px] text-slate-500 font-bold uppercase">Ejercicio Contable: {selectedYear}</p>
-            </div>
-            <div className="text-right text-[10px] text-slate-500 font-mono">
-              Fecha Emisión: {new Date().toLocaleDateString()}
-            </div>
-          </div>
+      const listPages = chunkFlatList(list, 20);
+      const totalPages = listPages.length || 1;
 
-          <table className="w-full text-[10px] border-collapse">
-            <thead>
-              <tr className="border-b border-slate-400 bg-slate-100 font-bold text-slate-700">
-                <th className="py-2 px-1 text-left w-20">Código</th>
-                <th className="py-2 px-1 text-left">Cuenta</th>
-                <th className="py-2 px-1 text-right w-24">Sumas Debe</th>
-                <th className="py-2 px-1 text-right w-24">Sumas Haber</th>
-                <th className="py-2 px-1 text-right w-24">Saldo Deudor</th>
-                <th className="py-2 px-1 text-right w-24">Saldo Acreedor</th>
-              </tr>
-            </thead>
-            <tbody>
-              {list.length === 0 ? (
-                <tr>
-                  <td colSpan="6" className="text-center py-12 text-slate-450 italic">No hay cuentas con saldos para este ejercicio.</td>
-                </tr>
-              ) : (
-                list.map(acc => (
-                  <tr key={acc.code} className="border-b border-slate-150 hover:bg-slate-50">
-                    <td className="py-1.5 px-1 font-mono">{acc.code}</td>
-                    <td className="py-1.5 px-1 font-bold text-slate-850 uppercase">{acc.name}</td>
-                    <td className="py-1.5 px-1 text-right font-mono text-slate-650">{acc.debit > 0 ? formatCurrency(acc.debit) : '0,00 €'}</td>
-                    <td className="py-1.5 px-1 text-right font-mono text-slate-650">{acc.credit > 0 ? formatCurrency(acc.credit) : '0,00 €'}</td>
-                    <td className="py-1.5 px-1 text-right font-mono font-semibold text-blue-800">{acc.debitBalance > 0 ? formatCurrency(acc.debitBalance) : '0,00 €'}</td>
-                    <td className="py-1.5 px-1 text-right font-mono font-semibold text-amber-900">{acc.creditBalance > 0 ? formatCurrency(acc.creditBalance) : '0,00 €'}</td>
-                  </tr>
-                ))
-              )}
-              <tr className="bg-slate-100 font-bold border-t-2 border-slate-400 text-[11px]">
-                <td className="py-2 px-1" colSpan="2">TOTAL GENERAL:</td>
-                <td className="py-2 px-1 text-right font-mono">{formatCurrency(totals.debitSum)}</td>
-                <td className="py-2 px-1 text-right font-mono">{formatCurrency(totals.creditSum)}</td>
-                <td className="py-2 px-1 text-right font-mono text-blue-900">{formatCurrency(totals.debitBalSum)}</td>
-                <td className="py-2 px-1 text-right font-mono text-amber-950">{formatCurrency(totals.creditBalSum)}</td>
-              </tr>
-            </tbody>
-          </table>
-        </div>
-      );
+      if (listPages.length === 0) {
+        pageViews.push(
+          <div key="empty" className="page-sheet w-[794px] h-[1123px] bg-white border border-slate-350 p-10 flex flex-col justify-between text-black shadow-lg relative print:m-0 print:border-none print:shadow-none mb-6">
+            {renderPageHeader('Balance de Sumas y Saldos')}
+            <p className="text-center py-12 text-slate-450 italic text-[10px]">No hay cuentas con saldos para este ejercicio.</p>
+            {renderPageFooter(1, 1, auditNumber)}
+          </div>
+        );
+      } else {
+        listPages.forEach((pageItems, pageIdx) => {
+          const isLastPage = pageIdx === listPages.length - 1;
+          pageViews.push(
+            <div key={pageIdx} className="page-sheet w-[794px] h-[1123px] bg-white border border-slate-350 p-10 flex flex-col justify-between text-black shadow-lg relative print:m-0 print:border-none print:shadow-none mb-6">
+              <div>
+                {renderPageHeader('Balance de Sumas y Saldos')}
+                <table className="w-full text-[10px] border-collapse">
+                  <thead>
+                    <tr className="border-b border-slate-400 bg-slate-100 font-bold text-slate-700">
+                      <th className="py-2 px-1 text-left w-20">Código</th>
+                      <th className="py-2 px-1 text-left">Cuenta</th>
+                      <th className="py-2 px-1 text-right w-24">Sumas Debe</th>
+                      <th className="py-2 px-1 text-right w-24">Sumas Haber</th>
+                      <th className="py-2 px-1 text-right w-24">Saldo Deudor</th>
+                      <th className="py-2 px-1 text-right w-24">Saldo Acreedor</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {pageItems.map(acc => (
+                      <tr key={acc.code} className="border-b border-slate-150 hover:bg-slate-50">
+                        <td className="py-1.5 px-1 font-mono">{acc.code}</td>
+                        <td className="py-1.5 px-1 font-bold text-slate-800 uppercase">{formatAccountName(acc.name)}</td>
+                        <td className="py-1.5 px-1 text-right font-sans tabular-nums text-slate-650">{acc.debit > 0 ? formatCurrency(acc.debit) : '0,00'}</td>
+                        <td className="py-1.5 px-1 text-right font-sans tabular-nums text-slate-650">{acc.credit > 0 ? formatCurrency(acc.credit) : '0,00'}</td>
+                        <td className="py-1.5 px-1 text-right font-sans tabular-nums font-semibold text-blue-800">{acc.debitBalance > 0 ? formatCurrency(acc.debitBalance) : '0,00'}</td>
+                        <td className="py-1.5 px-1 text-right font-sans tabular-nums font-semibold text-amber-900">{acc.creditBalance > 0 ? formatCurrency(acc.creditBalance) : '0,00'}</td>
+                      </tr>
+                    ))}
+                    {isLastPage && (
+                      <tr className="bg-slate-100 font-bold border-t-2 border-slate-400 text-[11px]">
+                        <td className="py-2 px-1" colSpan="2">TOTAL GENERAL:</td>
+                        <td className="py-2 px-1 text-right font-sans tabular-nums">{formatCurrency(totals.debitSum)}</td>
+                        <td className="py-2 px-1 text-right font-sans tabular-nums">{formatCurrency(totals.creditSum)}</td>
+                        <td className="py-2 px-1 text-right font-sans tabular-nums text-blue-900">{formatCurrency(totals.debitBalSum)}</td>
+                        <td className="py-2 px-1 text-right font-sans tabular-nums text-amber-955">{formatCurrency(totals.creditBalSum)}</td>
+                      </tr>
+                    )}
+                  </tbody>
+                </table>
+              </div>
+              {renderPageFooter(pageIdx + 1, totalPages, auditNumber)}
+            </div>
+          );
+        });
+      }
     }
 
     // 4. INVENTARIO DE ACTIVOS INMOBILIARIOS
     if (selectedTemplate === 'activos') {
-      return (
-        <div className="flex flex-col gap-6">
-          <div className="border-b-2 border-slate-800 pb-3 flex justify-between items-end">
-            <div>
-              <h2 className="text-xl font-bold uppercase tracking-tight text-slate-900">Inventario de Activos Inmobiliarios</h2>
-              <p className="text-[10px] text-slate-500 font-bold uppercase">Estado actual de la cartera de inmuebles</p>
-            </div>
-            <div className="text-right text-[10px] text-slate-500 font-mono">
-              Fecha Emisión: {new Date().toLocaleDateString()}
-            </div>
-          </div>
+      const listPages = chunkFlatList(properties, 20);
+      const totalPages = listPages.length || 1;
 
-          <table className="w-full text-[10px] border-collapse">
-            <thead>
-              <tr className="border-b border-slate-400 bg-slate-100 font-bold text-slate-700">
-                <th className="py-2 px-1 text-left w-16">ID</th>
-                <th className="py-2 px-1 text-left w-32">Nombre Finca</th>
-                <th className="py-2 px-1 text-left">Dirección</th>
-                <th className="py-2 px-1 text-left w-20">CEBE/CECO</th>
-                <th className="py-2 px-1 text-center w-24">Cuenta Contable</th>
-                <th className="py-2 px-1 text-right w-24">Hip. Pendiente</th>
-              </tr>
-            </thead>
-            <tbody>
-              {properties.length === 0 ? (
-                <tr>
-                  <td colSpan="6" className="text-center py-12 text-slate-450 italic">No hay activos registrados.</td>
-                </tr>
-              ) : (
-                properties.map(p => (
-                  <tr key={p.id} className="border-b border-slate-150 hover:bg-slate-50">
-                    <td className="py-2 px-1 font-mono font-bold text-slate-650">{p.id}</td>
-                    <td className="py-2 px-1 font-bold text-slate-800 uppercase">{p.name}</td>
-                    <td className="py-2 px-1 uppercase">{p.address}, {p.city}</td>
-                    <td className="py-2 px-1 font-mono text-[9px] text-slate-500">
-                      <div>BE: {p.cebe || '---'}</div>
-                      <div>CO: {p.ceco || '---'}</div>
-                    </td>
-                    <td className="py-2 px-1 text-center font-mono">{p.accountingAccount || '---'}</td>
-                    <td className="py-2 px-1 text-right font-mono font-semibold text-red-650">
-                      {p.mortgagePending > 0 ? formatCurrency(p.mortgagePending) : '0,00 €'}
-                    </td>
-                  </tr>
-                ))
-              )}
-            </tbody>
-          </table>
-        </div>
-      );
+      if (listPages.length === 0) {
+        pageViews.push(
+          <div key="empty" className="page-sheet w-[794px] h-[1123px] bg-white border border-slate-350 p-10 flex flex-col justify-between text-black shadow-lg relative print:m-0 print:border-none print:shadow-none mb-6">
+            {renderPageHeader('Inventario de Activos Inmobiliarios')}
+            <p className="text-center py-12 text-slate-450 italic text-[10px]">No hay activos registrados.</p>
+            {renderPageFooter(1, 1, auditNumber)}
+          </div>
+        );
+      } else {
+        listPages.forEach((pageItems, pageIdx) => {
+          pageViews.push(
+            <div key={pageIdx} className="page-sheet w-[794px] h-[1123px] bg-white border border-slate-350 p-10 flex flex-col justify-between text-black shadow-lg relative print:m-0 print:border-none print:shadow-none mb-6">
+              <div>
+                {renderPageHeader('Inventario de Activos Inmobiliarios')}
+                <table className="w-full text-[10px] border-collapse">
+                  <thead>
+                    <tr className="border-b border-slate-400 bg-slate-100 font-bold text-slate-700">
+                      <th className="py-2 px-1 text-left w-16">ID</th>
+                      <th className="py-2 px-1 text-left w-32">Nombre Finca</th>
+                      <th className="py-2 px-1 text-left">Dirección</th>
+                      <th className="py-2 px-1 text-left w-20">CEBE/CECO</th>
+                      <th className="py-2 px-1 text-center w-24">Cuenta Contable</th>
+                      <th className="py-2 px-1 text-right w-24">Hip. Pendiente</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {pageItems.map(p => (
+                      <tr key={p.id} className="border-b border-slate-150 hover:bg-slate-50">
+                        <td className="py-2 px-1 font-mono font-bold text-slate-650">{p.id}</td>
+                        <td className="py-2 px-1 font-bold text-slate-800 uppercase">{p.name}</td>
+                        <td className="py-2 px-1 uppercase">{p.address}, {p.city}</td>
+                        <td className="py-2 px-1 font-mono text-[9px] text-slate-500">
+                          <div>BE: {p.cebe || '---'}</div>
+                          <div>CO: {p.ceco || '---'}</div>
+                        </td>
+                        <td className="py-2 px-1 text-center font-mono">{p.accountingAccount || '---'}</td>
+                        <td className="py-2 px-1 text-right font-sans tabular-nums font-semibold text-red-650">
+                          {p.mortgagePending > 0 ? formatCurrency(p.mortgagePending) : '0,00'}
+                        </td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </div>
+              {renderPageFooter(pageIdx + 1, totalPages, auditNumber)}
+            </div>
+          );
+        });
+      }
     }
 
     // 5. CONTRATOS DE ALQUILER
     if (selectedTemplate === 'alquileres') {
-      return (
-        <div className="flex flex-col gap-6">
-          <div className="border-b-2 border-slate-800 pb-3 flex justify-between items-end">
-            <div>
-              <h2 className="text-xl font-bold uppercase tracking-tight text-slate-900">Listado de Contratos de Alquiler</h2>
-              <p className="text-[10px] text-slate-500 font-bold uppercase">Cartera de alquileres y arrendamientos activos/inactivos</p>
-            </div>
-            <div className="text-right text-[10px] text-slate-500 font-mono">
-              Fecha Emisión: {new Date().toLocaleDateString()}
-            </div>
-          </div>
+      const listPages = chunkFlatList(rentals, 18);
+      const totalPages = listPages.length || 1;
 
-          <table className="w-full text-[10px] border-collapse">
-            <thead>
-              <tr className="border-b border-slate-400 bg-slate-100 font-bold text-slate-700">
-                <th className="py-2 px-1 text-left w-16">Referencia</th>
-                <th className="py-2 px-1 text-left w-36">Inmueble</th>
-                <th className="py-2 px-1 text-left">Inquilinos</th>
-                <th className="py-2 px-1 text-center w-24">Período</th>
-                <th className="py-2 px-1 text-right w-20">Fianza</th>
-                <th className="py-2 px-1 text-right w-20">Renta</th>
-                <th className="py-2 px-1 text-center w-16">Estado</th>
-              </tr>
-            </thead>
-            <tbody>
-              {rentals.length === 0 ? (
-                <tr>
-                  <td colSpan="7" className="text-center py-12 text-slate-450 italic">No hay contratos registrados.</td>
-                </tr>
-              ) : (
-                rentals.map(r => {
-                  const prop = properties.find(p => p.id === r.propertyId);
-                  const cust = customers.find(c => c.id === r.tenantId);
-                  const tenantDisplay = r.tenants?.length > 0 
-                    ? r.tenants.map(t => t.name).join(', ') 
-                    : (cust ? cust.name : 'Ninguno');
-                  
-                  return (
-                    <tr key={r.id || r.reference} className="border-b border-slate-150 hover:bg-slate-50">
-                      <td className="py-2 px-1 font-mono font-bold text-slate-650">{r.reference || '---'}</td>
-                      <td className="py-2 px-1 uppercase font-bold text-slate-800">{prop ? prop.name : r.propertyId}</td>
-                      <td className="py-2 px-1 uppercase">{tenantDisplay}</td>
-                      <td className="py-2 px-1 text-center font-mono text-[9px]">
-                        {r.startDate ? new Date(r.startDate).toLocaleDateString() : '---'} al <br/>
-                        {r.endDate ? new Date(r.endDate).toLocaleDateString() : 'INDET.'}
-                      </td>
-                      <td className="py-2 px-1 text-right font-mono">{r.depositAmount > 0 ? formatCurrency(r.depositAmount) : '---'}</td>
-                      <td className="py-2 px-1 text-right font-mono font-bold text-green-700">{formatCurrency(r.rentAmount)}</td>
-                      <td className="py-2 px-1 text-center uppercase font-bold text-[9px]">
-                        <span className={`px-1 py-0.5 rounded ${r.status === 'activo' ? 'bg-green-100 text-green-800' : 'bg-slate-100 text-slate-600'}`}>
-                          {r.status || 'activo'}
-                        </span>
-                      </td>
+      if (listPages.length === 0) {
+        pageViews.push(
+          <div key="empty" className="page-sheet w-[794px] h-[1123px] bg-white border border-slate-350 p-10 flex flex-col justify-between text-black shadow-lg relative print:m-0 print:border-none print:shadow-none mb-6">
+            {renderPageHeader('Listado de Contratos de Alquiler')}
+            <p className="text-center py-12 text-slate-450 italic text-[10px]">No hay contratos registrados.</p>
+            {renderPageFooter(1, 1, auditNumber)}
+          </div>
+        );
+      } else {
+        listPages.forEach((pageItems, pageIdx) => {
+          pageViews.push(
+            <div key={pageIdx} className="page-sheet w-[794px] h-[1123px] bg-white border border-slate-350 p-10 flex flex-col justify-between text-black shadow-lg relative print:m-0 print:border-none print:shadow-none mb-6">
+              <div>
+                {renderPageHeader('Listado de Contratos de Alquiler')}
+                <table className="w-full text-[10px] border-collapse">
+                  <thead>
+                    <tr className="border-b border-slate-400 bg-slate-100 font-bold text-slate-700">
+                      <th className="py-2 px-1 text-left w-16">Referencia</th>
+                      <th className="py-2 px-1 text-left w-36">Inmueble</th>
+                      <th className="py-2 px-1 text-left">Inquilinos</th>
+                      <th className="py-2 px-1 text-center w-24">Período</th>
+                      <th className="py-2 px-1 text-right w-20">Fianza</th>
+                      <th className="py-2 px-1 text-right w-20">Renta</th>
+                      <th className="py-2 px-1 text-center w-16">Estado</th>
                     </tr>
-                  );
-                })
-              )}
-            </tbody>
-          </table>
-        </div>
-      );
+                  </thead>
+                  <tbody>
+                    {pageItems.map(r => {
+                      const prop = properties.find(p => p.id === r.propertyId);
+                      const cust = customers.find(c => c.id === r.tenantId);
+                      const tenantDisplay = r.tenants?.length > 0 
+                        ? r.tenants.map(t => t.name).join(', ') 
+                        : (cust ? cust.name : 'Ninguno');
+                      
+                      return (
+                        <tr key={r.id || r.reference} className="border-b border-slate-150 hover:bg-slate-50">
+                          <td className="py-2 px-1 font-mono font-bold text-slate-650">{r.reference || '---'}</td>
+                          <td className="py-2 px-1 uppercase font-bold text-slate-800">{prop ? prop.name : r.propertyId}</td>
+                          <td className="py-2 px-1 uppercase">{tenantDisplay}</td>
+                          <td className="py-2 px-1 text-center font-mono text-[9px]">
+                            {r.startDate ? new Date(r.startDate).toLocaleDateString() : '---'} al <br/>
+                            {r.endDate ? new Date(r.endDate).toLocaleDateString() : 'INDET.'}
+                          </td>
+                          <td className="py-2 px-1 text-right font-sans tabular-nums">{r.depositAmount > 0 ? formatCurrency(r.depositAmount) : '---'}</td>
+                          <td className="py-2 px-1 text-right font-sans tabular-nums font-bold text-green-700">{formatCurrency(r.rentAmount)}</td>
+                          <td className="py-2 px-1 text-center uppercase font-bold text-[9px]">
+                            <span className={`px-1 py-0.5 rounded ${r.status === 'activo' ? 'bg-green-100 text-green-800' : 'bg-slate-100 text-slate-600'}`}>
+                              {r.status || 'activo'}
+                            </span>
+                          </td>
+                        </tr>
+                      );
+                    })}
+                  </tbody>
+                </table>
+              </div>
+              {renderPageFooter(pageIdx + 1, totalPages, auditNumber)}
+            </div>
+          );
+        });
+      }
     }
 
     // 6. FICHERO DE CLIENTES / INQUILINOS
     if (selectedTemplate === 'clientes') {
-      return (
-        <div className="flex flex-col gap-6">
-          <div className="border-b-2 border-slate-800 pb-3 flex justify-between items-end">
-            <div>
-              <h2 className="text-xl font-bold uppercase tracking-tight text-slate-900">Fichero General de Clientes / Arrendatarios</h2>
-              <p className="text-[10px] text-slate-500 font-bold uppercase">Datos de contacto de clientes e inquilinos registrados</p>
-            </div>
-            <div className="text-right text-[10px] text-slate-500 font-mono">
-              Fecha Emisión: {new Date().toLocaleDateString()}
-            </div>
-          </div>
+      const listPages = chunkFlatList(customers, 20);
+      const totalPages = listPages.length || 1;
 
-          <table className="w-full text-[10px] border-collapse">
-            <thead>
-              <tr className="border-b border-slate-400 bg-slate-100 font-bold text-slate-700">
-                <th className="py-2 px-1 text-left w-16">ID</th>
-                <th className="py-2 px-1 text-left w-36">Nombre Completo</th>
-                <th className="py-2 px-1 text-left w-24">NIF/DNI</th>
-                <th className="py-2 px-1 text-left w-24">Teléfono</th>
-                <th className="py-2 px-1 text-left">Correo Electrónico</th>
-                <th className="py-2 px-1 text-center w-16">Estado</th>
-              </tr>
-            </thead>
-            <tbody>
-              {customers.length === 0 ? (
-                <tr>
-                  <td colSpan="6" className="text-center py-12 text-slate-450 italic">No hay inquilinos registrados.</td>
-                </tr>
-              ) : (
-                customers.map(c => (
-                  <tr key={c.id} className="border-b border-slate-150 hover:bg-slate-50">
-                    <td className="py-2 px-1 font-mono text-slate-650">{c.id?.substring(0, 6)}</td>
-                    <td className="py-2 px-1 font-bold text-slate-800 uppercase">{c.name} {c.lastName || ''}</td>
-                    <td className="py-2 px-1 font-mono uppercase">{c.dni || '---'}</td>
-                    <td className="py-2 px-1 font-mono">{c.phone || '---'}</td>
-                    <td className="py-2 px-1 lowercase truncate max-w-[150px] text-slate-600" title={c.email}>{c.email || '---'}</td>
-                    <td className="py-2 px-1 text-center uppercase font-bold text-[9px]">
-                      <span className={`px-1.5 py-0.5 rounded ${c.status === 'activo' ? 'bg-blue-100 text-blue-800' : 'bg-slate-100 text-slate-600'}`}>
-                        {c.status || 'activo'}
-                      </span>
-                    </td>
-                  </tr>
-                ))
-              )}
-            </tbody>
-          </table>
-        </div>
-      );
+      if (listPages.length === 0) {
+        pageViews.push(
+          <div key="empty" className="page-sheet w-[794px] h-[1123px] bg-white border border-slate-350 p-10 flex flex-col justify-between text-black shadow-lg relative print:m-0 print:border-none print:shadow-none mb-6">
+            {renderPageHeader('Fichero General de Clientes / Arrendatarios')}
+            <p className="text-center py-12 text-slate-450 italic text-[10px]">No hay inquilinos registrados.</p>
+            {renderPageFooter(1, 1, auditNumber)}
+          </div>
+        );
+      } else {
+        listPages.forEach((pageItems, pageIdx) => {
+          pageViews.push(
+            <div key={pageIdx} className="page-sheet w-[794px] h-[1123px] bg-white border border-slate-350 p-10 flex flex-col justify-between text-black shadow-lg relative print:m-0 print:border-none print:shadow-none mb-6">
+              <div>
+                {renderPageHeader('Fichero General de Clientes / Arrendatarios')}
+                <table className="w-full text-[10px] border-collapse">
+                  <thead>
+                    <tr className="border-b border-slate-400 bg-slate-100 font-bold text-slate-700">
+                      <th className="py-2 px-1 text-left w-16">ID</th>
+                      <th className="py-2 px-1 text-left w-36">Nombre Completo</th>
+                      <th className="py-2 px-1 text-left w-24">NIF/DNI</th>
+                      <th className="py-2 px-1 text-left w-24">Teléfono</th>
+                      <th className="py-2 px-1 text-left">Correo Electrónico</th>
+                      <th className="py-2 px-1 text-center w-16">Estado</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {pageItems.map(c => (
+                      <tr key={c.id} className="border-b border-slate-150 hover:bg-slate-50">
+                        <td className="py-2 px-1 font-mono text-slate-650">{c.id?.substring(0, 6)}</td>
+                        <td className="py-2 px-1 font-bold text-slate-800 uppercase">{c.name} {c.lastName || ''}</td>
+                        <td className="py-2 px-1 font-mono uppercase">{c.dni || '---'}</td>
+                        <td className="py-2 px-1 font-mono">{c.phone || '---'}</td>
+                        <td className="py-2 px-1 lowercase truncate max-w-[150px] text-slate-600" title={c.email}>{c.email || '---'}</td>
+                        <td className="py-2 px-1 text-center uppercase font-bold text-[9px]">
+                          <span className={`px-1.5 py-0.5 rounded ${c.status === 'activo' ? 'bg-blue-100 text-blue-800' : 'bg-slate-100 text-slate-600'}`}>
+                            {c.status || 'activo'}
+                          </span>
+                        </td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </div>
+              {renderPageFooter(pageIdx + 1, totalPages, auditNumber)}
+            </div>
+          );
+        });
+      }
     }
+
+    return pageViews;
   };
 
   return (
@@ -586,19 +735,26 @@ export default function PrintPage() {
           body * {
             visibility: hidden !important;
           }
-          #print-sheet, #print-sheet * {
+          #print-area, #print-area * {
             visibility: visible !important;
           }
-          #print-sheet {
+          #print-area {
             position: absolute !important;
             left: 0 !important;
             top: 0 !important;
             width: 100% !important;
+            margin: 0 !important;
+            padding: 0 !important;
+            background: white !important;
+          }
+          .page-sheet {
             box-shadow: none !important;
             border: none !important;
             margin: 0 !important;
-            padding: 20px !important;
-            background: white !important;
+            page-break-after: always !important;
+            break-after: page !important;
+            height: auto !important;
+            min-h-[1123px] !important;
           }
           .no-print {
             display: none !important;
@@ -688,29 +844,10 @@ export default function PrintPage() {
         {/* Paper Sheet Preview Area */}
         <div className="flex-1 overflow-auto p-4 flex justify-center bg-slate-400/30">
           <div 
-            id="print-sheet" 
-            className="w-[794px] min-h-[1123px] bg-white border border-slate-350 p-10 flex flex-col gap-4 text-black shadow-lg relative"
+            id="print-area" 
+            className="flex flex-col gap-6 items-center animate-fadeIn"
           >
-            {/* Header info */}
-            <div className="flex justify-between items-start text-[8px] text-slate-400 no-print absolute top-2 inset-x-10 border-b border-slate-100 pb-1">
-              <span>Nexo Real Estate & Finance - Sistema de Reportes Oficiales</span>
-              <span>Vista previa de impresión</span>
-            </div>
-
-            {/* Main content generated based on template */}
-            {renderPrintContent()}
-
-            {/* Corporate Footer */}
-            <div className="mt-auto pt-6 border-t border-slate-200 flex justify-between items-end text-[8px] text-slate-400">
-              <div>
-                <p className="font-bold text-slate-500">NEXO FINANCE CORP</p>
-                <p>Generado mediante el módulo oficial de informes y auditoría contable.</p>
-              </div>
-              <div className="text-right">
-                <p>Página 1 de 1</p>
-                <p className="font-mono">Auditoría Nº NEXO-{Math.floor(Math.random() * 900000 + 100000)}</p>
-              </div>
-            </div>
+            {renderPages()}
           </div>
         </div>
       </div>
