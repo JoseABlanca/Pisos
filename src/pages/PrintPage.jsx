@@ -264,7 +264,7 @@ export default function PrintPage() {
 
       if (entryPages.length === 0) {
         pageViews.push(
-          <div key="empty" className="page-sheet w-[794px] h-[1123px] bg-white border border-slate-350 p-10 flex flex-col justify-between text-black shadow-lg relative print:m-0 print:border-none print:shadow-none mb-6">
+          <div key="empty" className="page-sheet relative">
             {renderPageHeader('Diario de Movimientos')}
             <p className="text-center py-12 text-slate-450 italic text-[10px]">No hay asientos contables registrados para este año.</p>
             {renderPageFooter(1, 1, auditNumber)}
@@ -273,7 +273,7 @@ export default function PrintPage() {
       } else {
         entryPages.forEach((pageEntries, pageIdx) => {
           pageViews.push(
-            <div key={pageIdx} className="page-sheet w-[794px] h-[1123px] bg-white border border-slate-350 p-10 flex flex-col justify-between text-black shadow-lg relative print:m-0 print:border-none print:shadow-none mb-6">
+            <div key={pageIdx} className="page-sheet relative">
               <div>
                 {renderPageHeader('Diario de Movimientos')}
                 <table className="w-full text-[10px] border-collapse">
@@ -309,8 +309,8 @@ export default function PrintPage() {
                               <td className="py-0.5 px-1" colSpan="2"></td>
                               <td className="py-0.5 px-1 text-slate-600 pl-4">{accDisplay}</td>
                               <td className="py-0.5 px-1 font-mono text-[9px] text-slate-500">{centerDisplay}</td>
-                              <td className="py-0.5 px-1 text-right font-sans tabular-nums text-slate-660">{line.debit > 0 ? formatCurrency(line.debit) : ''}</td>
-                              <td className="py-0.5 px-1 text-right font-sans tabular-nums text-slate-660">{line.credit > 0 ? formatCurrency(line.credit) : ''}</td>
+                              <td className="py-0.5 px-1 text-right font-sans tabular-nums text-slate-600">{line.debit > 0 ? formatCurrency(line.debit) : ''}</td>
+                              <td className="py-0.5 px-1 text-right font-sans tabular-nums text-slate-600">{line.credit > 0 ? formatCurrency(line.credit) : ''}</td>
                             </tr>
                           );
                         });
@@ -363,7 +363,7 @@ export default function PrintPage() {
 
       if (mayorPages.length === 0) {
         pageViews.push(
-          <div key="empty" className="page-sheet w-[794px] h-[1123px] bg-white border border-slate-350 p-10 flex flex-col justify-between text-black shadow-lg relative print:m-0 print:border-none print:shadow-none mb-6">
+          <div key="empty" className="page-sheet relative">
             {renderPageHeader('Libro Mayor de Cuentas')}
             <p className="text-center py-12 text-slate-450 italic text-[10px]">No hay movimientos registrados para este año.</p>
             {renderPageFooter(1, 1, auditNumber)}
@@ -372,7 +372,7 @@ export default function PrintPage() {
       } else {
         mayorPages.forEach((pageBlocks, pageIdx) => {
           pageViews.push(
-            <div key={pageIdx} className="page-sheet w-[794px] h-[1123px] bg-white border border-slate-350 p-10 flex flex-col justify-between text-black shadow-lg relative print:m-0 print:border-none print:shadow-none mb-6">
+            <div key={pageIdx} className="page-sheet relative">
               <div className="flex flex-col gap-4">
                 {renderPageHeader('Libro Mayor de Cuentas')}
                 {pageBlocks.map((block, bIdx) => {
@@ -447,7 +447,7 @@ export default function PrintPage() {
       }
     }
 
-    // 3. BALANCE DE SUMAS Y SALDOS (increased limit to 34 and softened borders to border-slate-100)
+    // 3. BALANCE DE SUMAS Y SALDOS
     if (selectedTemplate === 'sumas_saldos') {
       const yearEntries = journalEntries.filter(entry => entry.date && new Date(entry.date).getFullYear() === selectedYear);
       const sumsMap = {};
@@ -491,7 +491,7 @@ export default function PrintPage() {
 
       if (listPages.length === 0) {
         pageViews.push(
-          <div key="empty" className="page-sheet w-[794px] h-[1123px] bg-white border border-slate-350 p-10 flex flex-col justify-between text-black shadow-lg relative print:m-0 print:border-none print:shadow-none mb-6">
+          <div key="empty" className="page-sheet relative">
             {renderPageHeader('Balance de Sumas y Saldos')}
             <p className="text-center py-12 text-slate-450 italic text-[10px]">No hay cuentas con saldos para este ejercicio.</p>
             {renderPageFooter(1, 1, auditNumber)}
@@ -501,7 +501,7 @@ export default function PrintPage() {
         listPages.forEach((pageItems, pageIdx) => {
           const isLastPage = pageIdx === listPages.length - 1;
           pageViews.push(
-            <div key={pageIdx} className="page-sheet w-[794px] h-[1123px] bg-white border border-slate-350 p-10 flex flex-col justify-between text-black shadow-lg relative print:m-0 print:border-none print:shadow-none mb-6">
+            <div key={pageIdx} className="page-sheet relative">
               <div>
                 {renderPageHeader('Balance de Sumas y Saldos')}
                 <table className="w-full text-[10px] border-collapse">
@@ -545,14 +545,14 @@ export default function PrintPage() {
       }
     }
 
-    // 4. INVENTARIO DE ACTIVOS INMOBILIARIOS (increased limit to 34 and softened borders to border-slate-100)
+    // 4. INVENTARIO DE ACTIVOS INMOBILIARIOS
     if (selectedTemplate === 'activos') {
       const listPages = chunkFlatList(properties, 34);
       const totalPages = listPages.length || 1;
 
       if (listPages.length === 0) {
         pageViews.push(
-          <div key="empty" className="page-sheet w-[794px] h-[1123px] bg-white border border-slate-350 p-10 flex flex-col justify-between text-black shadow-lg relative print:m-0 print:border-none print:shadow-none mb-6">
+          <div key="empty" className="page-sheet relative">
             {renderPageHeader('Inventario de Activos Inmobiliarios')}
             <p className="text-center py-12 text-slate-450 italic text-[10px]">No hay activos registrados.</p>
             {renderPageFooter(1, 1, auditNumber)}
@@ -561,7 +561,7 @@ export default function PrintPage() {
       } else {
         listPages.forEach((pageItems, pageIdx) => {
           pageViews.push(
-            <div key={pageIdx} className="page-sheet w-[794px] h-[1123px] bg-white border border-slate-350 p-10 flex flex-col justify-between text-black shadow-lg relative print:m-0 print:border-none print:shadow-none mb-6">
+            <div key={pageIdx} className="page-sheet relative">
               <div>
                 {renderPageHeader('Inventario de Activos Inmobiliarios')}
                 <table className="w-full text-[10px] border-collapse">
@@ -601,14 +601,14 @@ export default function PrintPage() {
       }
     }
 
-    // 5. CONTRATOS DE ALQUILER (increased limit to 32 and softened borders to border-slate-100)
+    // 5. CONTRATOS DE ALQUILER
     if (selectedTemplate === 'alquileres') {
       const listPages = chunkFlatList(rentals, 32);
       const totalPages = listPages.length || 1;
 
       if (listPages.length === 0) {
         pageViews.push(
-          <div key="empty" className="page-sheet w-[794px] h-[1123px] bg-white border border-slate-350 p-10 flex flex-col justify-between text-black shadow-lg relative print:m-0 print:border-none print:shadow-none mb-6">
+          <div key="empty" className="page-sheet relative">
             {renderPageHeader('Listado de Contratos de Alquiler')}
             <p className="text-center py-12 text-slate-450 italic text-[10px]">No hay contratos registrados.</p>
             {renderPageFooter(1, 1, auditNumber)}
@@ -617,7 +617,7 @@ export default function PrintPage() {
       } else {
         listPages.forEach((pageItems, pageIdx) => {
           pageViews.push(
-            <div key={pageIdx} className="page-sheet w-[794px] h-[1123px] bg-white border border-slate-350 p-10 flex flex-col justify-between text-black shadow-lg relative print:m-0 print:border-none print:shadow-none mb-6">
+            <div key={pageIdx} className="page-sheet relative">
               <div>
                 {renderPageHeader('Listado de Contratos de Alquiler')}
                 <table className="w-full text-[10px] border-collapse">
@@ -669,14 +669,14 @@ export default function PrintPage() {
       }
     }
 
-    // 6. FICHERO DE CLIENTES / INQUILINOS (increased limit to 34 and softened borders to border-slate-100)
+    // 6. FICHERO DE CLIENTES / INQUILINOS
     if (selectedTemplate === 'clientes') {
       const listPages = chunkFlatList(customers, 34);
       const totalPages = listPages.length || 1;
 
       if (listPages.length === 0) {
         pageViews.push(
-          <div key="empty" className="page-sheet w-[794px] h-[1123px] bg-white border border-slate-350 p-10 flex flex-col justify-between text-black shadow-lg relative print:m-0 print:border-none print:shadow-none mb-6">
+          <div key="empty" className="page-sheet relative">
             {renderPageHeader('Fichero General de Clientes / Arrendatarios')}
             <p className="text-center py-12 text-slate-450 italic text-[10px]">No hay inquilinos registrados.</p>
             {renderPageFooter(1, 1, auditNumber)}
@@ -685,7 +685,7 @@ export default function PrintPage() {
       } else {
         listPages.forEach((pageItems, pageIdx) => {
           pageViews.push(
-            <div key={pageIdx} className="page-sheet w-[794px] h-[1123px] bg-white border border-slate-350 p-10 flex flex-col justify-between text-black shadow-lg relative print:m-0 print:border-none print:shadow-none mb-6">
+            <div key={pageIdx} className="page-sheet relative">
               <div>
                 {renderPageHeader('Fichero General de Clientes / Arrendatarios')}
                 <table className="w-full text-[10px] border-collapse">
@@ -731,6 +731,27 @@ export default function PrintPage() {
     <div className="flex flex-1 h-full min-h-0 bg-[#d4d0c8] overflow-hidden font-sans select-none p-2 gap-3 relative">
       {/* Print Stylesheet injection */}
       <style>{`
+        .page-sheet {
+          width: 210mm !important;
+          height: 297mm !important;
+          padding: 20mm !important;
+          box-sizing: border-box !important;
+          display: flex !important;
+          flex-direction: column !important;
+          justify-content: space-between !important;
+          background-color: white !important;
+          color: black !important;
+          position: relative !important;
+        }
+
+        @media screen {
+          .page-sheet {
+            box-shadow: 0 10px 15px -3px rgba(0, 0, 0, 0.1), 0 4px 6px -2px rgba(0, 0, 0, 0.05) !important;
+            border: 1px solid #cbd5e1 !important;
+            margin-bottom: 24px !important;
+          }
+        }
+
         @media print {
           body * {
             visibility: hidden !important;
@@ -742,7 +763,7 @@ export default function PrintPage() {
             position: absolute !important;
             left: 0 !important;
             top: 0 !important;
-            width: 100% !important;
+            width: 210mm !important;
             margin: 0 !important;
             padding: 0 !important;
             background: white !important;
@@ -753,8 +774,6 @@ export default function PrintPage() {
             margin: 0 !important;
             page-break-after: always !important;
             break-after: page !important;
-            height: auto !important;
-            min-h-[1123px] !important;
           }
           .no-print {
             display: none !important;
