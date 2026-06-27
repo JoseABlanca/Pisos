@@ -37,6 +37,7 @@ export default function FinancialReports() {
   // Sidebar Filter States
   const [showSidebar, setShowSidebar] = useState(true);
   const [detailLevel, setDetailLevel] = useState(4); // 0: Masas, 1: Submasas, 2: 2-dígitos, 3: 3-dígitos, 4: 4-dígitos
+  const [hideZeroBalances, setHideZeroBalances] = useState(false);
   
   // Section visibility states
   const [showActivo, setShowActivo] = useState(true);
@@ -630,6 +631,11 @@ export default function FinancialReports() {
   const renderBalanceSheet = () => {
     const tax = balanceSheetTaxonomy;
     
+    // Masa values
+    const activoVal = getMasaValue(tax.activo, 'activo');
+    const pasivoVal = getMasaValue(tax.pasivo, 'pasivo');
+    const patrimonioVal = getMasaValue(tax.patrimonio, 'patrimonio');
+
     return (
       <div className="max-w-4xl mx-auto bg-white p-10 text-black font-sans shadow-sm border border-slate-100">
         <div className="flex justify-between border-b border-slate-300 pb-2 mb-6">
@@ -638,24 +644,28 @@ export default function FinancialReports() {
         </div>
 
         <div className="flex flex-col gap-6">
-          {/* I. ACTIVIVO */}
-          {showActivo && (
+          {/* I. ACTIVO */}
+          {showActivo && (!hideZeroBalances || Math.abs(activoVal) >= 0.01) && (
             <div className="flex flex-col">
-              <ReportRow label={tax.activo.label} value={getMasaValue(tax.activo, 'activo')} isHeader indent={0} />
+              <ReportRow label={tax.activo.label} value={activoVal} isHeader indent={0} />
               
               {/* Activo No Corriente */}
-              {showNoCorriente && (
+              {showNoCorriente && (!hideZeroBalances || Math.abs(getSubGroupValue(tax.activo.subgroups.no_corriente, 'activo')) >= 0.01) && (
                 <div className="flex flex-col">
                   <ReportRow label={tax.activo.subgroups.no_corriente.label} value={getSubGroupValue(tax.activo.subgroups.no_corriente, 'activo')} isSubHeader indent={1} />
                   {tax.activo.subgroups.no_corriente.groups.map((group, idx) => {
                     const groupVal = getGroupValue(group, 'activo');
+                    if (hideZeroBalances && Math.abs(groupVal) < 0.01) return null;
                     const details = getGroupDetailRows(group, 'activo');
                     return (
                       <div key={idx} className="flex flex-col">
                         <ReportRow label={group.label} value={groupVal} isGroupHeader indent={2} />
-                        {details.map((node, nIdx) => (
-                          <ReportRow key={nIdx} label={`${node.code} - ${node.name}`} value={node.value} indent={node.level} />
-                        ))}
+                        {details.map((node, nIdx) => {
+                          if (hideZeroBalances && Math.abs(node.value) < 0.01) return null;
+                          return (
+                            <ReportRow key={nIdx} label={`${node.code} - ${node.name}`} value={node.value} indent={node.level} />
+                          );
+                        })}
                       </div>
                     );
                   })}
@@ -663,18 +673,22 @@ export default function FinancialReports() {
               )}
 
               {/* Activo Corriente */}
-              {showCorriente && (
+              {showCorriente && (!hideZeroBalances || Math.abs(getSubGroupValue(tax.activo.subgroups.corriente, 'activo')) >= 0.01) && (
                 <div className="flex flex-col">
                   <ReportRow label={tax.activo.subgroups.corriente.label} value={getSubGroupValue(tax.activo.subgroups.corriente, 'activo')} isSubHeader indent={1} />
                   {tax.activo.subgroups.corriente.groups.map((group, idx) => {
                     const groupVal = getGroupValue(group, 'activo');
+                    if (hideZeroBalances && Math.abs(groupVal) < 0.01) return null;
                     const details = getGroupDetailRows(group, 'activo');
                     return (
                       <div key={idx} className="flex flex-col">
                         <ReportRow label={group.label} value={groupVal} isGroupHeader indent={2} />
-                        {details.map((node, nIdx) => (
-                          <ReportRow key={nIdx} label={`${node.code} - ${node.name}`} value={node.value} indent={node.level} />
-                        ))}
+                        {details.map((node, nIdx) => {
+                          if (hideZeroBalances && Math.abs(node.value) < 0.01) return null;
+                          return (
+                            <ReportRow key={nIdx} label={`${node.code} - ${node.name}`} value={node.value} indent={node.level} />
+                          );
+                        })}
                       </div>
                     );
                   })}
@@ -684,23 +698,27 @@ export default function FinancialReports() {
           )}
 
           {/* II. PASIVO */}
-          {showPasivo && (
+          {showPasivo && (!hideZeroBalances || Math.abs(pasivoVal) >= 0.01) && (
             <div className="flex flex-col">
-              <ReportRow label={tax.pasivo.label} value={getMasaValue(tax.pasivo, 'pasivo')} isHeader indent={0} />
+              <ReportRow label={tax.pasivo.label} value={pasivoVal} isHeader indent={0} />
               
               {/* Pasivo No Corriente */}
-              {showNoCorriente && (
+              {showNoCorriente && (!hideZeroBalances || Math.abs(getSubGroupValue(tax.pasivo.subgroups.no_corriente, 'pasivo')) >= 0.01) && (
                 <div className="flex flex-col">
                   <ReportRow label={tax.pasivo.subgroups.no_corriente.label} value={getSubGroupValue(tax.pasivo.subgroups.no_corriente, 'pasivo')} isSubHeader indent={1} />
                   {tax.pasivo.subgroups.no_corriente.groups.map((group, idx) => {
                     const groupVal = getGroupValue(group, 'pasivo');
+                    if (hideZeroBalances && Math.abs(groupVal) < 0.01) return null;
                     const details = getGroupDetailRows(group, 'pasivo');
                     return (
                       <div key={idx} className="flex flex-col">
                         <ReportRow label={group.label} value={groupVal} isGroupHeader indent={2} />
-                        {details.map((node, nIdx) => (
-                          <ReportRow key={nIdx} label={`${node.code} - ${node.name}`} value={node.value} indent={node.level} />
-                        ))}
+                        {details.map((node, nIdx) => {
+                          if (hideZeroBalances && Math.abs(node.value) < 0.01) return null;
+                          return (
+                            <ReportRow key={nIdx} label={`${node.code} - ${node.name}`} value={node.value} indent={node.level} />
+                          );
+                        })}
                       </div>
                     );
                   })}
@@ -708,18 +726,22 @@ export default function FinancialReports() {
               )}
 
               {/* Pasivo Corriente */}
-              {showCorriente && (
+              {showCorriente && (!hideZeroBalances || Math.abs(getSubGroupValue(tax.pasivo.subgroups.corriente, 'pasivo')) >= 0.01) && (
                 <div className="flex flex-col">
                   <ReportRow label={tax.pasivo.subgroups.corriente.label} value={getSubGroupValue(tax.pasivo.subgroups.corriente, 'pasivo')} isSubHeader indent={1} />
                   {tax.pasivo.subgroups.corriente.groups.map((group, idx) => {
                     const groupVal = getGroupValue(group, 'pasivo');
+                    if (hideZeroBalances && Math.abs(groupVal) < 0.01) return null;
                     const details = getGroupDetailRows(group, 'pasivo');
                     return (
                       <div key={idx} className="flex flex-col">
                         <ReportRow label={group.label} value={groupVal} isGroupHeader indent={2} />
-                        {details.map((node, nIdx) => (
-                          <ReportRow key={nIdx} label={`${node.code} - ${node.name}`} value={node.value} indent={node.level} />
-                        ))}
+                        {details.map((node, nIdx) => {
+                          if (hideZeroBalances && Math.abs(node.value) < 0.01) return null;
+                          return (
+                            <ReportRow key={nIdx} label={`${node.code} - ${node.name}`} value={node.value} indent={node.level} />
+                          );
+                        })}
                       </div>
                     );
                   })}
@@ -729,26 +751,32 @@ export default function FinancialReports() {
           )}
 
           {/* III. PATRIMONIO NETO */}
-          {showPatrimonio && (
+          {showPatrimonio && (!hideZeroBalances || Math.abs(patrimonioVal) >= 0.01) && (
             <div className="flex flex-col">
-              <ReportRow label={tax.patrimonio.label} value={getMasaValue(tax.patrimonio, 'patrimonio')} isHeader indent={0} />
+              <ReportRow label={tax.patrimonio.label} value={patrimonioVal} isHeader indent={0} />
               
               {/* Fondos Propios */}
-              <div className="flex flex-col">
-                <ReportRow label={tax.patrimonio.subgroups.fondos_propios.label} value={getSubGroupValue(tax.patrimonio.subgroups.fondos_propios, 'patrimonio')} isSubHeader indent={1} />
-                {tax.patrimonio.subgroups.fondos_propios.groups.map((group, idx) => {
-                  const groupVal = getGroupValue(group, 'patrimonio');
-                  const details = getGroupDetailRows(group, 'patrimonio');
-                  return (
-                    <div key={idx} className="flex flex-col">
-                      <ReportRow label={group.label} value={groupVal} isGroupHeader indent={2} />
-                      {details.map((node, nIdx) => (
-                        <ReportRow key={nIdx} label={`${node.code} - ${node.name}`} value={node.value} indent={node.level} />
-                      ))}
-                    </div>
-                  );
-                })}
-              </div>
+              {(!hideZeroBalances || Math.abs(getSubGroupValue(tax.patrimonio.subgroups.fondos_propios, 'patrimonio')) >= 0.01) && (
+                <div className="flex flex-col">
+                  <ReportRow label={tax.patrimonio.subgroups.fondos_propios.label} value={getSubGroupValue(tax.patrimonio.subgroups.fondos_propios, 'patrimonio')} isSubHeader indent={1} />
+                  {tax.patrimonio.subgroups.fondos_propios.groups.map((group, idx) => {
+                    const groupVal = getGroupValue(group, 'patrimonio');
+                    if (hideZeroBalances && Math.abs(groupVal) < 0.01) return null;
+                    const details = getGroupDetailRows(group, 'patrimonio');
+                    return (
+                      <div key={idx} className="flex flex-col">
+                        <ReportRow label={group.label} value={groupVal} isGroupHeader indent={2} />
+                        {details.map((node, nIdx) => {
+                          if (hideZeroBalances && Math.abs(node.value) < 0.01) return null;
+                          return (
+                            <ReportRow key={nIdx} label={`${node.code} - ${node.name}`} value={node.value} indent={node.level} />
+                          );
+                        })}
+                      </div>
+                    );
+                  })}
+                </div>
+              )}
             </div>
           )}
         </div>
@@ -774,18 +802,22 @@ export default function FinancialReports() {
 
         <div className="flex flex-col gap-6">
           {/* I. INGRESOS DE EXPLOTACIÓN */}
-          {showIngreso && (
+          {showIngreso && (!hideZeroBalances || Math.abs(totalRevenues) >= 0.01) && (
             <div className="flex flex-col">
               <ReportRow label={tax.ingresos.label} value={totalRevenues} isHeader indent={0} />
               {tax.ingresos.groups.map((group, idx) => {
                 const groupVal = getGroupValue(group, 'ingreso');
+                if (hideZeroBalances && Math.abs(groupVal) < 0.01) return null;
                 const details = getGroupDetailRows(group, 'ingreso');
                 return (
                   <div key={idx} className="flex flex-col">
                     <ReportRow label={group.label} value={groupVal} isGroupHeader indent={2} />
-                    {details.map((node, nIdx) => (
-                      <ReportRow key={nIdx} label={`${node.code} - ${node.name}`} value={node.value} indent={node.level} />
-                    ))}
+                    {details.map((node, nIdx) => {
+                      if (hideZeroBalances && Math.abs(node.value) < 0.01) return null;
+                      return (
+                        <ReportRow key={nIdx} label={`${node.code} - ${node.name}`} value={node.value} indent={node.level} />
+                      );
+                    })}
                   </div>
                 );
               })}
@@ -793,18 +825,22 @@ export default function FinancialReports() {
           )}
 
           {/* II. GASTOS DE EXPLOTACIÓN */}
-          {showGasto && (
+          {showGasto && (!hideZeroBalances || Math.abs(totalExpenses) >= 0.01) && (
             <div className="flex flex-col">
               <ReportRow label={tax.gastos.label} value={totalExpenses} isHeader indent={0} />
               {tax.gastos.groups.map((group, idx) => {
                 const groupVal = getGroupValue(group, 'gasto');
+                if (hideZeroBalances && Math.abs(groupVal) < 0.01) return null;
                 const details = getGroupDetailRows(group, 'gasto');
                 return (
                   <div key={idx} className="flex flex-col">
                     <ReportRow label={group.label} value={groupVal} isGroupHeader indent={2} />
-                    {details.map((node, nIdx) => (
-                      <ReportRow key={nIdx} label={`${node.code} - ${node.name}`} value={node.value} indent={node.level} />
-                    ))}
+                    {details.map((node, nIdx) => {
+                      if (hideZeroBalances && Math.abs(node.value) < 0.01) return null;
+                      return (
+                        <ReportRow key={nIdx} label={`${node.code} - ${node.name}`} value={node.value} indent={node.level} />
+                      );
+                    })}
                   </div>
                 );
               })}
@@ -812,9 +848,11 @@ export default function FinancialReports() {
           )}
 
           {/* RESULTADO FINAL */}
-          <div className="flex flex-col mt-4">
-            <ReportRow label="RESULTADO DEL EJERCICIO (Pérdidas o Ganancias)" value={result} isHeader indent={0} />
-          </div>
+          {(!hideZeroBalances || Math.abs(result) >= 0.01) && (
+            <div className="flex flex-col mt-4">
+              <ReportRow label="RESULTADO DEL EJERCICIO (Pérdidas o Ganancias)" value={result} isHeader indent={0} />
+            </div>
+          )}
         </div>
       </div>
     );
@@ -837,7 +875,7 @@ export default function FinancialReports() {
 
         <div className="flex flex-col gap-6">
           {/* A. ACTIVIDADES DE EXPLOTACIÓN */}
-          {showExplotacion && (
+          {showExplotacion && (!hideZeroBalances || Math.abs(cats.explotacion.total) >= 0.01) && (
             <div className="flex flex-col">
               <ReportRow label={cats.explotacion.title} value={cats.explotacion.total} isHeader indent={0} />
               {cats.explotacion.items.map(it => {
@@ -848,9 +886,12 @@ export default function FinancialReports() {
                 return (
                   <div key={it.key} className="flex flex-col">
                     <ReportRow label={it.label} value={itemSign * it.val} isGroupHeader indent={2} />
-                    {cPartRows.map((node, nIdx) => (
-                      <ReportRow key={nIdx} label={`${node.code} - ${node.name}`} value={itemSign * node.value} indent={node.level} />
-                    ))}
+                    {cPartRows.map((node, nIdx) => {
+                      if (hideZeroBalances && Math.abs(node.value) < 0.01) return null;
+                      return (
+                        <ReportRow key={nIdx} label={`${node.code} - ${node.name}`} value={itemSign * node.value} indent={node.level} />
+                      );
+                    })}
                   </div>
                 );
               })}
@@ -858,7 +899,7 @@ export default function FinancialReports() {
           )}
 
           {/* B. ACTIVIDADES DE INVERSIÓN */}
-          {showInversion && (
+          {showInversion && (!hideZeroBalances || Math.abs(cats.inversion.total) >= 0.01) && (
             <div className="flex flex-col">
               <ReportRow label={cats.inversion.title} value={cats.inversion.total} isHeader indent={0} />
               {cats.inversion.items.map(it => {
@@ -869,9 +910,12 @@ export default function FinancialReports() {
                 return (
                   <div key={it.key} className="flex flex-col">
                     <ReportRow label={it.label} value={itemSign * it.val} isGroupHeader indent={2} />
-                    {cPartRows.map((node, nIdx) => (
-                      <ReportRow key={nIdx} label={`${node.code} - ${node.name}`} value={itemSign * node.value} indent={node.level} />
-                    ))}
+                    {cPartRows.map((node, nIdx) => {
+                      if (hideZeroBalances && Math.abs(node.value) < 0.01) return null;
+                      return (
+                        <ReportRow key={nIdx} label={`${node.code} - ${node.name}`} value={itemSign * node.value} indent={node.level} />
+                      );
+                    })}
                   </div>
                 );
               })}
@@ -879,7 +923,7 @@ export default function FinancialReports() {
           )}
 
           {/* C. ACTIVIDADES DE FINANCIACIÓN */}
-          {showFinanciacion && (
+          {showFinanciacion && (!hideZeroBalances || Math.abs(cats.financiacion.total) >= 0.01) && (
             <div className="flex flex-col">
               <ReportRow label={cats.financiacion.title} value={cats.financiacion.total} isHeader indent={0} />
               {cats.financiacion.items.map(it => {
@@ -890,9 +934,12 @@ export default function FinancialReports() {
                 return (
                   <div key={it.key} className="flex flex-col">
                     <ReportRow label={it.label} value={itemSign * it.val} isGroupHeader indent={2} />
-                    {cPartRows.map((node, nIdx) => (
-                      <ReportRow key={nIdx} label={`${node.code} - ${node.name}`} value={itemSign * node.value} indent={node.level} />
-                    ))}
+                    {cPartRows.map((node, nIdx) => {
+                      if (hideZeroBalances && Math.abs(node.value) < 0.01) return null;
+                      return (
+                        <ReportRow key={nIdx} label={`${node.code} - ${node.name}`} value={itemSign * node.value} indent={node.level} />
+                      );
+                    })}
                   </div>
                 );
               })}
@@ -1033,6 +1080,27 @@ export default function FinancialReports() {
                 ))
               }
             </select>
+          </div>
+
+          <hr className="border-slate-200" />
+
+          {/* Opciones de Visualización */}
+          <div>
+            <h3 className="text-[11px] font-bold text-slate-400 uppercase tracking-widest mb-3 flex items-center gap-1.5">
+              <Sliders className="w-3.5 h-3.5 text-slate-400" />
+              <span>Opciones</span>
+            </h3>
+            <div className="flex flex-col gap-2.5 pl-1">
+              <label className="flex items-center text-xs font-semibold text-slate-700 cursor-pointer">
+                <input 
+                  type="checkbox" 
+                  checked={hideZeroBalances} 
+                  onChange={e => setHideZeroBalances(e.target.checked)} 
+                  className="mr-2 h-3.5 w-3.5 rounded text-blue-600 border-slate-300" 
+                />
+                <span>Ocultar saldos a 0</span>
+              </label>
+            </div>
           </div>
 
           <hr className="border-slate-200" />
