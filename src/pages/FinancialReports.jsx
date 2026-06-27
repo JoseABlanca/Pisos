@@ -29,6 +29,17 @@ export default function FinancialReports() {
   const [loading, setLoading] = useState(true);
   const [sending, setSending] = useState(false);
 
+  const maxAccountDigits = useMemo(() => {
+    let maxLen = 4;
+    accounts.forEach(a => {
+      if (a.code && a.code.length > maxLen) {
+        maxLen = a.code.length;
+      }
+    });
+    return maxLen;
+  }, [accounts]);
+
+
   // Period Filters
   const [selectedYear, setSelectedYear] = useState(new Date().getFullYear());
   const [startMonth, setStartMonth] = useState(0); // 0-11
@@ -396,12 +407,12 @@ export default function FinancialReports() {
     accountList.forEach(acc => {
       const code = acc.code || '';
       const prefixes = [];
-      if (code.length >= 2) prefixes.push(code.substring(0, 2));
-      if (code.length >= 3) prefixes.push(code.substring(0, 3));
-      if (code.length >= 4) prefixes.push(code);
+      for (let len = 1; len <= code.length; len++) {
+        prefixes.push(code.substring(0, len));
+      }
 
-      prefixes.forEach((pref, idx) => {
-        const level = idx + 2; // level 2, 3, 4
+      prefixes.forEach(pref => {
+        const level = pref.length;
         if (!nodeMap[pref]) {
           nodeMap[pref] = {
             code: pref,
@@ -601,7 +612,7 @@ export default function FinancialReports() {
 
   const formatCurrency = (amount) => {
     const formatted = Math.abs(amount).toLocaleString('es-ES', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
-    return amount < 0 ? `-${formatted}` : `${formatted}`;
+    return amount < 0 ? `${formatted}-` : `${formatted}`;
   };
 
   const formatAccountName = (name) => {
@@ -1051,27 +1062,18 @@ export default function FinancialReports() {
           <div>
             <h3 className="text-[11px] font-bold text-slate-400 uppercase tracking-widest mb-3 flex items-center gap-1.5">
               <Sliders className="w-3.5 h-3.5 text-slate-400" />
-              <span>Nivel de Detalle</span>
+              <span>Dígitos de Cuentas</span>
             </h3>
-            <div className="flex flex-col gap-2.5 pl-1">
-              {[
-                { level: 0, label: 'Masas monetarias' },
-                { level: 1, label: 'Submasas monetarias' },
-                { level: 2, label: 'Cuentas (2 dígitos)' },
-                { level: 3, label: 'Cuentas (3 dígitos)' },
-                { level: 4, label: 'Cuentas (4 dígitos)' }
-              ].map(opt => (
-                <label key={opt.level} className="flex items-center text-xs font-semibold text-slate-700 cursor-pointer">
-                  <input 
-                    type="radio" 
-                    name="detailLevel"
-                    checked={detailLevel === opt.level}
-                    onChange={() => setDetailLevel(opt.level)}
-                    className="mr-2 h-3.5 w-3.5 text-blue-600 border-slate-300 focus:ring-blue-500"
-                  />
-                  <span>{opt.label}</span>
-                </label>
-              ))}
+            <div className="pl-1">
+              <select
+                value={detailLevel}
+                onChange={e => setDetailLevel(parseInt(e.target.value))}
+                className="w-full bg-white border border-slate-300 rounded px-3 py-2 text-xs font-bold text-slate-700 outline-none focus:border-blue-500 transition-all shadow-sm cursor-pointer"
+              >
+                {Array.from({ length: maxAccountDigits }, (_, i) => i + 1).map(num => (
+                  <option key={num} value={num}>Mostrar hasta {num} {num === 1 ? 'dígito' : 'dígitos'}</option>
+                ))}
+              </select>
             </div>
           </div>
 
