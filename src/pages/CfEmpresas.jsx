@@ -8,22 +8,108 @@ import { handleExportFormat } from '../utils/exportUtils';
 import { useTableColumns } from '../hooks/useTableColumns';
 import { exportToPDF } from '../utils/pdfExport';
 import EditableCell from '../components/EditableCell';
+import Accounts from './Accounts';
 
 const TYPES = ['Inmobiliaria', 'P2P', 'Equity', 'Mixta', 'Otras'];
 const STATUSES = ['activo', 'inactivo'];
 const CURRENCIES = ['EUR', 'USD', 'GBP', 'CHF'];
+
+function SearchableSelect({ options, value, onChange, placeholder }) {
+  const [isOpen, setIsOpen] = useState(false);
+  const [search, setSearch] = useState('');
+  const [dropdownPos, setDropdownPos] = useState({ top: 0, left: 0, width: 0 });
+
+  const filtered = options.filter(opt =>
+    (opt.code || '').toLowerCase().includes(search.toLowerCase()) ||
+    (opt.name || '').toLowerCase().includes(search.toLowerCase())
+  );
+
+  const selectedOpt = options.find(o => o.code === value);
+
+  const handleOpen = (e) => {
+    const rect = e.currentTarget.getBoundingClientRect();
+    setDropdownPos({
+      top: rect.bottom + window.scrollY,
+      left: rect.left + window.scrollX,
+      width: Math.max(rect.width, 250)
+    });
+    setIsOpen(true);
+  };
+
+  return (
+    <div className="relative flex-1">
+      <div 
+        onClick={handleOpen}
+        className="win-input w-full h-[28px] flex items-center justify-between px-2 bg-white border border-[#808080] cursor-pointer hover:bg-slate-50 text-[11px] font-mono"
+      >
+        <span className={selectedOpt ? 'text-black font-semibold' : 'text-gray-400 italic'}>
+          {selectedOpt ? `${selectedOpt.code} - ${selectedOpt.name}` : placeholder}
+        </span>
+        <span className="text-[10px] text-gray-500">▼</span>
+      </div>
+
+      {isOpen && (
+        <div className="fixed inset-0 z-[10000]" onClick={() => setIsOpen(false)}>
+          <div 
+            onClick={(e) => e.stopPropagation()}
+            style={{ 
+              top: dropdownPos.top, 
+              left: dropdownPos.left, 
+              width: dropdownPos.width,
+              position: 'fixed'
+            }}
+            className="bg-[#f0f0f0] border border-gray-400 shadow-md flex flex-col p-1 mt-0.5"
+          >
+            <input 
+              autoFocus
+              type="text"
+              placeholder="Buscar..."
+              className="w-full text-[11px] px-2 py-1 border border-gray-300 outline-none mb-1 focus:border-blue-500 font-sans"
+              value={search}
+              onChange={(e) => setSearch(e.target.value)}
+            />
+            <div className="max-h-[150px] overflow-y-auto bg-white border border-gray-300">
+              <div 
+                onClick={() => { onChange(''); setIsOpen(false); setSearch(''); }}
+                className="px-2 py-1 text-[11px] hover:bg-blue-500 hover:text-white cursor-pointer italic text-gray-500"
+              >
+                -- Ninguno --
+              </div>
+              {filtered.map(opt => (
+                <div 
+                  key={opt.id}
+                  onClick={() => {
+                    onChange(opt.code);
+                    setIsOpen(false);
+                    setSearch('');
+                  }}
+                  className="px-2 py-1 text-[11px] hover:bg-blue-500 hover:text-white cursor-pointer font-mono"
+                >
+                  {opt.code} - {opt.name}
+                </div>
+              ))}
+              {filtered.length === 0 && (
+                <div className="px-2 py-2 text-[11px] text-gray-400 italic text-center">Sin resultados</div>
+              )}
+            </div>
+          </div>
+        </div>
+      )}
+    </div>
+  );
+}
 
 const EMPTY_FORM = {
   id: '',
   name: '',
   type: 'Inmobiliaria',
   country: 'España',
-  regulation: '',
-  website: '',
+  bankAccount: '',
+  cebe: '',
+  ceco: '',
   status: 'activo',
   cashBalance: '',
   currency: 'EUR',
-  notes: '',
 };
 
 export default function CfEmpresas() {
@@ -41,10 +127,69 @@ export default function CfEmpresas() {
   const [activeFormTab, setActiveFormTab] = useState('datos');
   const [showModalSidebar, setShowModalSidebar] = useState(true);
 
-  const DEFAULT_COLUMNS = ['id', 'name', 'type', 'country', 'regulation', 'currency', 'status'];
+  const [cecos, setCecos] = useState([]);
+  const [cebes, setCebes] = useState([]);
+  const [showBankModal, setShowBankModal] = useState(false);
+  const [bankAccountBalance, setBankAccountBalance] = useState(0);
+
+  const DEFAULT_COLUMNS = ['id', 'name', 'type', 'country', 'bankAccount', 'ceco', 'cebe', 'currency', 'status'];
   const { visibleColumns, columnWidths } = useTableColumns('cf-empresas', DEFAULT_COLUMNS);
 
-  // Filter and search - declared early to avoid TDZ
+  // Fetch CEBEs and CECOs
+  useEffect(() => {
+    if (!user) return;
+    const targetUserIds = queryUserIds?.length > 0 ? queryUserIds : [user.uid];
+    const qCecos = query(
+      collection(db, 'analytical_centers'),
+      where('userId', 'in', targetUserIds),
+      where('type', '==', 'ceco')
+    );
+    const unsubCecos = onSnapshot(qCecos, (snap) => {
+      setCecos(snap.docs.map(d => ({ ...d.data(), id: d.id })));
+    });
+
+    const qCebes = query(
+      collection(db, 'analytical_centers'),
+      where('userId', 'in', targetUserIds),
+      where('type', '==', 'cebe')
+    );
+    const unsubCebes = onSnapshot(qCebes, (snap) => {
+      setCebes(snap.docs.map(d => ({ ...d.data(), id: d.id })));
+    });
+
+    return () => {
+      unsubCecos();
+      unsubCebes();
+    };
+  }, [user, queryUserIds]);
+
+  useEffect(() => {
+    if (!formData.bankAccount || !user) {
+      setBankAccountBalance(0);
+      return;
+    }
+    const targetUserIds = queryUserIds?.length > 0 ? queryUserIds : [user.uid];
+    const q = query(
+      collection(db, 'accounts'), 
+      where('userId', 'in', targetUserIds),
+      where('code', '==', formData.bankAccount)
+    );
+    const unsub = onSnapshot(q, (snapshot) => {
+      if (!snapshot.empty) {
+        const accData = snapshot.docs[0].data();
+        setBankAccountBalance(accData.balance_actual || 0);
+      } else {
+        setBankAccountBalance(0);
+      }
+    }, (err) => console.error('Error fetching bank account balance:', err));
+    return () => unsub();
+  }, [formData.bankAccount, user, queryUserIds]);
+
+  const handleAccountSelect = (selectedAccountCode, selectedAccountName) => {
+    setFormData(prev => ({ ...prev, bankAccount: selectedAccountCode }));
+    setShowBankModal(false);
+  };
+
   const filteredPlatforms = platforms.filter((p) => {
     if (typeFilter !== 'todos' && p.type !== typeFilter) return false;
     if (statusFilter !== 'todos' && p.status !== statusFilter) return false;
@@ -54,7 +199,9 @@ export default function CfEmpresas() {
         p.id.toLowerCase().includes(q) ||
         p.name.toLowerCase().includes(q) ||
         (p.country || '').toLowerCase().includes(q) ||
-        (p.regulation || '').toLowerCase().includes(q)
+        (p.bankAccount || '').toLowerCase().includes(q) ||
+        (p.ceco || '').toLowerCase().includes(q) ||
+        (p.cebe || '').toLowerCase().includes(q)
       );
     }
     return true;
@@ -90,12 +237,12 @@ export default function CfEmpresas() {
         name: 'Nueva Plataforma',
         type: 'Inmobiliaria',
         country: 'España',
-        regulation: '',
-        website: '',
+        bankAccount: '',
+        ceco: '',
+        cebe: '',
         status: 'activo',
         cashBalance: 0,
         currency: 'EUR',
-        notes: '',
         userId: user.uid,
         updatedAt: new Date().toISOString()
       };
@@ -319,10 +466,7 @@ export default function CfEmpresas() {
               >
                 <PanelLeft className="w-4 h-4" />
               </button>
-              <div className="flex items-center space-x-1.5 text-[11px] text-slate-500">
-                <Building2 className="w-3.5 h-3.5" />
-                <span>Plataformas / Empresas Crowdfunding</span>
-              </div>
+
             </div>
             <div className="relative" onClick={e => e.stopPropagation()}>
               <input
@@ -344,7 +488,9 @@ export default function CfEmpresas() {
                   {visibleColumns.includes('name') && <th style={{ width: columnWidths['name'] || '180px' }}>Nombre</th>}
                   {visibleColumns.includes('type') && <th style={{ width: columnWidths['type'] || '110px' }}>Tipo</th>}
                   {visibleColumns.includes('country') && <th style={{ width: columnWidths['country'] || '100px' }}>País</th>}
-                  {visibleColumns.includes('regulation') && <th style={{ width: columnWidths['regulation'] || '150px' }}>Regulación</th>}
+                  {visibleColumns.includes('bankAccount') && <th style={{ width: columnWidths['bankAccount'] || '180px' }}>Cuenta corriente</th>}
+                  {visibleColumns.includes('ceco') && <th style={{ width: columnWidths['ceco'] || '100px' }}>CECO</th>}
+                  {visibleColumns.includes('cebe') && <th style={{ width: columnWidths['cebe'] || '100px' }}>CEBE</th>}
                   {visibleColumns.includes('currency') && <th style={{ width: columnWidths['currency'] || '80px' }}>Divisa</th>}
                   {visibleColumns.includes('status') && <th style={{ width: columnWidths['status'] || '80px' }}>Estado</th>}
                 </tr>
@@ -364,10 +510,9 @@ export default function CfEmpresas() {
                       onDoubleClick={() => handleEdit(p)}
                       className={selectedPlatform?.id === p.id ? 'selected' : ''}
                     >
-                      {visibleColumns.includes('id') && <td className="font-mono font-bold">{p.id}</td>}
+                      {visibleColumns.includes('id') && <td className="font-mono">{p.id}</td>}
                       {visibleColumns.includes('name') && (
                         <EditableCell
-                          className="font-semibold"
                           value={p.name}
                           onSave={(val) => handleSaveField(p, 'name', val)}
                         />
@@ -378,9 +523,7 @@ export default function CfEmpresas() {
                           options={TYPES}
                           onSave={(val) => handleSaveField(p, 'type', val)}
                         >
-                          <span className={`px-1.5 py-0.5 rounded-sm text-[9px] font-bold uppercase tracking-wider ${typeBadge(p.type)}`}>
-                            {p.type}
-                          </span>
+                          <span>{p.type}</span>
                         </EditableCell>
                       )}
                       {visibleColumns.includes('country') && (
@@ -389,11 +532,25 @@ export default function CfEmpresas() {
                           onSave={(val) => handleSaveField(p, 'country', val)}
                         />
                       )}
-                      {visibleColumns.includes('regulation') && (
+                      {visibleColumns.includes('bankAccount') && (
                         <EditableCell
-                          className="text-gray-600 text-[11px]"
-                          value={p.regulation}
-                          onSave={(val) => handleSaveField(p, 'regulation', val)}
+                          className="font-mono text-gray-700"
+                          value={p.bankAccount || ''}
+                          onSave={(val) => handleSaveField(p, 'bankAccount', val)}
+                        />
+                      )}
+                      {visibleColumns.includes('ceco') && (
+                        <EditableCell
+                          value={p.ceco || ''}
+                          options={cecos.map(c => ({ id: c.code, name: `${c.code} - ${c.name}` }))}
+                          onSave={(val) => handleSaveField(p, 'ceco', val)}
+                        />
+                      )}
+                      {visibleColumns.includes('cebe') && (
+                        <EditableCell
+                          value={p.cebe || ''}
+                          options={cebes.map(c => ({ id: c.code, name: `${c.code} - ${c.name}` }))}
+                          onSave={(val) => handleSaveField(p, 'cebe', val)}
                         />
                       )}
                       {visibleColumns.includes('currency') && (
@@ -410,9 +567,7 @@ export default function CfEmpresas() {
                           options={STATUSES}
                           onSave={(val) => handleSaveField(p, 'status', val)}
                         >
-                          <span className={`px-1.5 py-0.5 rounded-sm text-[9px] font-bold uppercase tracking-wider ${statusBadge(p.status)}`}>
-                            {p.status}
-                          </span>
+                          <span className="uppercase">{p.status}</span>
                         </EditableCell>
                       )}
                     </tr>
@@ -484,12 +639,42 @@ export default function CfEmpresas() {
                           <input type="text" value={formData.country} onChange={(e) => setFormData({ ...formData, country: e.target.value })} placeholder="ej. España, Portugal" className="win-input flex-1" />
                         </div>
                         <div className="win-form-row">
-                          <label className="win-form-label">Regulación:</label>
-                          <input type="text" value={formData.regulation} onChange={(e) => setFormData({ ...formData, regulation: e.target.value })} placeholder="ej. CNMV, Banco de España" className="win-input flex-1" />
+                          <label className="win-form-label">Cuenta corriente:</label>
+                          <input 
+                            type="text" 
+                            value={formData.bankAccount || ''} 
+                            onChange={(e) => setFormData({ ...formData, bankAccount: e.target.value })} 
+                            onDoubleClick={() => setShowBankModal(true)}
+                            placeholder="Doble clic para elegir cuenta corriente..." 
+                            className="win-input flex-1 font-mono cursor-pointer hover:bg-slate-50" 
+                          />
                         </div>
                         <div className="win-form-row">
-                          <label className="win-form-label">Sitio Web:</label>
-                          <input type="text" value={formData.website} onChange={(e) => setFormData({ ...formData, website: e.target.value })} placeholder="https://..." className="win-input flex-1" />
+                          <label className="win-form-label">Cash:</label>
+                          <input 
+                            type="text" 
+                            value={bankAccountBalance ? `${bankAccountBalance.toLocaleString('es-ES', {minimumFractionDigits: 2})} €` : '0,00 €'} 
+                            disabled 
+                            className="win-input flex-1 font-mono bg-gray-100 cursor-not-allowed font-bold text-slate-700" 
+                          />
+                        </div>
+                        <div className="win-form-row">
+                          <label className="win-form-label">Centro Beneficio:</label>
+                          <SearchableSelect 
+                            options={cebes} 
+                            value={formData.cebe || ''} 
+                            onChange={(val) => setFormData({ ...formData, cebe: val })} 
+                            placeholder="-- Seleccionar CEBE --" 
+                          />
+                        </div>
+                        <div className="win-form-row">
+                          <label className="win-form-label">Centro Coste:</label>
+                          <SearchableSelect 
+                            options={cecos} 
+                            value={formData.ceco || ''} 
+                            onChange={(val) => setFormData({ ...formData, ceco: val })} 
+                            placeholder="-- Seleccionar CECO --" 
+                          />
                         </div>
                         <div className="win-form-row">
                           <label className="win-form-label">Saldo efectivo:</label>
@@ -508,10 +693,6 @@ export default function CfEmpresas() {
                             <option value="inactivo">Inactivo</option>
                           </select>
                         </div>
-                        <div className="win-form-row">
-                          <label className="win-form-label">Notas:</label>
-                          <textarea value={formData.notes} onChange={(e) => setFormData({ ...formData, notes: e.target.value })} placeholder="Comentarios adicionales..." rows={3} className="win-input flex-1 resize-none" />
-                        </div>
                       </form>
                     )}
                   </div>
@@ -529,6 +710,25 @@ export default function CfEmpresas() {
               </div>
             </div>
           </Window>
+        </div>
+      )}
+
+      {showBankModal && (
+        <div className="fixed inset-0 bg-black/5 flex items-center justify-center z-[9999] p-4" onClick={() => setShowBankModal(false)}>
+          <div 
+            className="bg-white shadow-2xl rounded-lg flex flex-col w-[90vw] h-[90vh] overflow-hidden max-w-[1200px] border border-gray-400"
+            onClick={e => e.stopPropagation()}
+          >
+            <div className="flex justify-between items-center px-4 py-2 bg-[#4e80c8] text-white select-none">
+              <h2 className="font-bold text-[13px] tracking-wide">SELECCIÓN DE CUENTA CORRIENTE</h2>
+              <button onClick={() => setShowBankModal(false)} className="hover:bg-white/20 p-1 rounded">
+                <X className="w-5 h-5" />
+              </button>
+            </div>
+            <div className="flex-1 overflow-hidden relative font-sans">
+              <Accounts isModal={true} onAccountSelect={handleAccountSelect} />
+            </div>
+          </div>
         </div>
       )}
     </div>

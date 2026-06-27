@@ -18,6 +18,7 @@ import { handleExportFormat } from '../utils/exportUtils';
 import AccountingEntryModal from '../components/AccountingEntryModal';
 import EditableCell from '../components/EditableCell';
 import Accounts from './Accounts';
+import ExtractoContableTab from '../components/ExtractoContableTab';
 
 export default function Rentals() {
   const { user, queryUserIds } = useAuth();
@@ -333,7 +334,8 @@ export default function Rentals() {
     { id: 'general', name: 'Datos Generales', icon: FileText },
     { id: 'docs', name: 'Documentos', icon: FileText },
     { id: 'ingresos', name: 'Ingresos / Facturación', icon: Building2 },
-    { id: 'gastos', name: 'Gastos Asociados', icon: Key }
+    { id: 'gastos', name: 'Gastos Asociados', icon: Key },
+    { id: 'extracto', name: 'Extracto', icon: FileText }
   ];
 
 
@@ -1483,6 +1485,17 @@ export default function Rentals() {
                         </div>
                         <AnalyticsJournalViewer type="ceco" value={formData.expenseCecoId} userIds={queryUserIds?.length > 0 ? queryUserIds : [user.uid]} setPreviewDocument={setPreviewDocument} />
                       </div>
+                    )}
+
+                    {activeFormTab === 'extracto' && (
+                      <ExtractoContableTab 
+                        formData={formData} 
+                        setFormData={setFormData} 
+                        mode="rentals" 
+                        cebes={cebes} 
+                        cecos={cecos} 
+                        setPreviewDocument={setPreviewDocument} 
+                      />
                     )}
 
                   </div>

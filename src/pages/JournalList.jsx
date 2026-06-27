@@ -291,13 +291,14 @@ export default function Journal() {
           entryId: entry.id,
           shortId: entry.number || (entry.id || '').slice(-6).toUpperCase(),
           date: entry.date || new Date().toISOString(),
-          description: entry.description || 'Sin concepto',
+          description: line.description || entry.description || 'Sin concepto',
           accountCode: account.code || 'N/A',
           accountName: account.name || 'Cuenta Desconocida',
           debit: parseFloat(line.debit) || 0,
           credit: parseFloat(line.credit) || 0,
-          ceco: entry.ceco || line.ceco || '',
-          cebe: entry.cebe || line.cebe || '',
+          ceco: line.ceco || entry.ceco || '',
+          cebe: line.cebe || entry.cebe || '',
+          document: line.document || entry.documentName || '',
           originalEntry: entry
         });
       });

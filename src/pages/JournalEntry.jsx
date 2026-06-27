@@ -240,8 +240,8 @@ export default function JournalEntry() {
           accountCode: line.account,
           description: line.description,
           document: line.document,
-          ceco: '',
-          cebe: '',
+          ceco: line.ceco || '',
+          cebe: line.cebe || '',
           debit: Number(line.debit) || 0,
           credit: Number(line.credit) || 0,
         };

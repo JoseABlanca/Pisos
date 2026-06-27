@@ -1,11 +1,11 @@
-import { useState, useEffect, useMemo } from 'react';
+import React, { useState, useEffect, useMemo } from 'react';
 import { db } from '../firebase/config';
 import { collection, query, where, onSnapshot, doc, setDoc, deleteDoc } from 'firebase/firestore';
 import { useAuth } from '../context/AuthContext';
 import Window from '../components/Window';
 import { 
   Search, Plus, Trash2, Edit, Save, X, Download, 
-  TrendingUp, TrendingDown, Landmark, Briefcase, DollarSign, Calendar
+  TrendingUp, TrendingDown, Landmark, Briefcase, DollarSign, Calendar, PanelLeft
 } from 'lucide-react';
 import { handleExportFormat } from '../utils/exportUtils';
 import ZoomControl from '../components/ZoomControl';
@@ -26,11 +26,12 @@ export default function Portfolio() {
   const [selectedHolding, setSelectedHolding] = useState(null);
   const [showTxForm, setShowTxForm] = useState(false);
   const [isEditingTx, setIsEditingTx] = useState(false);
-  const [portfolioTab, setPortfolioTab] = useState('posiciones'); // 'posiciones' | 'transacciones' | 'graficos'
+  const [portfolioTab, setPortfolioTab] = useState('posiciones'); // 'posiciones' | 'graficos'
   const [searchQuery, setSearchQuery] = useState('');
   const [brokerFilter, setBrokerFilter] = useState('todos');
   const [showSidebar, setShowSidebar] = useState(true);
   const [isMobile, setIsMobile] = useState(window.innerWidth < 768);
+  const [groupBy, setGroupBy] = useState('none');
 
   const [txFormData, setTxFormData] = useState({
     id: '',
@@ -54,8 +55,41 @@ export default function Portfolio() {
 
   // Compute Portfolio holdings dynamically - declared early to avoid TDZ
   const { holdings, summary } = useMemo(() => {
-    const exchangeRates = config.exchangeRates || { USD: 1.08, GBP: 0.85, CHF: 0.95 };
-    const rates = { EUR: 1.0, ...exchangeRates };
+    // Start with config or default fallback rates
+    const rates = {
+      EUR: 1.0,
+      USD: 1.08,
+      GBP: 0.85,
+      CHF: 0.95,
+      JPY: 130.0,
+      ...(config.exchangeRates || {})
+    };
+
+    // Override dynamically from Divisa assets registered in rv_assets
+    assets.forEach(a => {
+      if (a.type && a.type.toLowerCase() === 'divisa') {
+        const price = parseFloat(a.currentPrice);
+        if (price > 0) {
+          const id = String(a.id).toUpperCase();
+          const name = String(a.name).toUpperCase();
+          
+          if (id === 'USD' || id === 'GBP' || id === 'CHF' || id === 'JPY') {
+            rates[id] = price;
+          } else if (id.includes('EURUSD') || name.includes('EUR/USD') || name.includes('EURUSD')) {
+            rates['USD'] = price;
+          } else if (id.includes('EURGBP') || name.includes('EUR/GBP') || name.includes('EURGBP')) {
+            rates['GBP'] = price;
+          } else if (id.includes('EURCHF') || name.includes('EUR/CHF') || name.includes('EURCHF')) {
+            rates['CHF'] = price;
+          } else if (id.includes('EURJPY') || name.includes('EUR/JPY') || name.includes('EURJPY')) {
+            rates['JPY'] = price;
+          } else if (id.startsWith('EUR') && id.length >= 6) {
+            const currencyCode = id.substring(3, 6);
+            rates[currencyCode] = price;
+          }
+        }
+      }
+    });
 
     const assetsMap = new Map(assets.map(a => [a.id, a]));
     const brokersMap = new Map(brokers.map(b => [b.id, b]));
@@ -237,20 +271,10 @@ export default function Portfolio() {
   useEffect(() => {
     const onNew = () => handleNewTx();
     const onEdit = () => {
-      if (portfolioTab === 'transacciones') {
-        if (selectedTx) handleEditTx(selectedTx);
-        else alert('Por favor, seleccione una transacción de la tabla primero.');
-      } else {
-        alert('Para modificar, vaya a la sub-pestaña "Transacciones" y seleccione una fila.');
-      }
+      alert('Para modificar transacciones, por favor vaya a la pestaña de Transacciones en el menú superior.');
     };
     const onDelete = () => {
-      if (portfolioTab === 'transacciones') {
-        if (selectedTx) handleDeleteTx(selectedTx);
-        else alert('Por favor, seleccione una transacción de la tabla primero.');
-      } else {
-        alert('Para eliminar, vaya a la sub-pestaña "Transacciones" y seleccione una fila.');
-      }
+      alert('Para eliminar transacciones, por favor vaya a la pestaña de Transacciones en el menú superior.');
     };
     const onExport = (e) => {
       const format = e.detail?.format || 'csv';
@@ -433,6 +457,197 @@ export default function Portfolio() {
     };
   }, [holdings]);
 
+  // Memoized filtered holdings
+  const filteredHoldings = useMemo(() => {
+    return holdings.filter(h => {
+      if (brokerFilter !== 'todos' && h.brokerId !== brokerFilter) return false;
+      if (searchQuery) {
+        const q = searchQuery.toLowerCase();
+        return h.symbol.toLowerCase().includes(q) || h.name.toLowerCase().includes(q);
+      }
+      return true;
+    });
+  }, [holdings, brokerFilter, searchQuery]);
+
+  // Table row renderer helper
+  const renderRow = (h) => {
+    return (
+      <tr
+        key={`${h.symbol}_${h.brokerId}`}
+        onClick={() => setSelectedHolding(selectedHolding?.symbol === h.symbol && selectedHolding?.brokerId === h.brokerId ? null : h)}
+        className={selectedHolding?.symbol === h.symbol && selectedHolding?.brokerId === h.brokerId ? 'selected' : ''}
+      >
+        {visColsPortfolio.includes('symbol') && <td className="font-mono font-bold">{h.symbol}</td>}
+        {visColsPortfolio.includes('name') && <td>{h.name}</td>}
+        {visColsPortfolio.includes('type') && <td>{h.type}</td>}
+        {visColsPortfolio.includes('brokerName') && <td>{h.brokerName}</td>}
+        {visColsPortfolio.includes('quantity') && <td className="font-mono text-right">{h.quantity}</td>}
+        {visColsPortfolio.includes('pmc') && (
+          <td className="font-mono text-right">
+            {h.pmc.toLocaleString('es-ES', { minimumFractionDigits: 2, maximumFractionDigits: 4 })} €
+          </td>
+        )}
+        {visColsPortfolio.includes('currentPrice') && (
+          <td className="font-mono text-right">
+            {h.currency !== 'EUR' && h.currentPriceRaw !== undefined && h.currentPriceRaw !== null ? (
+              <span className="text-[10px] text-gray-500 mr-1.5">
+                ({h.currentPriceRaw.toLocaleString('es-ES', { minimumFractionDigits: 2, maximumFractionDigits: 4 })} {h.currency})
+              </span>
+            ) : null}
+            <span>
+              {h.currentPrice.toLocaleString('es-ES', { minimumFractionDigits: 2, maximumFractionDigits: 4 })} €
+            </span>
+          </td>
+        )}
+        {visColsPortfolio.includes('totalCost') && (
+          <td className="font-mono text-right">
+            {h.totalCost.toLocaleString('es-ES', { minimumFractionDigits: 2, maximumFractionDigits: 2 })} €
+          </td>
+        )}
+        {visColsPortfolio.includes('currentValue') && (
+          <td className="font-mono text-right font-bold text-slate-700">
+            {h.currentValue.toLocaleString('es-ES', { minimumFractionDigits: 2, maximumFractionDigits: 2 })} €
+          </td>
+        )}
+        {visColsPortfolio.includes('pnl') && (
+          <td className={`font-mono text-right font-bold ${h.pnl >= 0 ? 'text-green-700' : 'text-red-600'}`}>
+            {h.pnl >= 0 ? '+' : ''}{h.pnl.toLocaleString('es-ES', { minimumFractionDigits: 2, maximumFractionDigits: 2 })} €
+          </td>
+        )}
+        {visColsPortfolio.includes('pnlPercent') && (
+          <td className={`font-mono text-right font-bold ${h.pnl >= 0 ? 'text-green-700' : 'text-red-600'}`}>
+            {h.pnl >= 0 ? '+' : ''}{h.pnlPercent.toFixed(2)}%
+          </td>
+        )}
+      </tr>
+    );
+  };
+
+  // Grouped by Broker renderer
+  const renderGroupedByBroker = () => {
+    const groups = {};
+    filteredHoldings.forEach(h => {
+      const bId = h.brokerId || 'Desconocido';
+      if (!groups[bId]) groups[bId] = [];
+      groups[bId].push(h);
+    });
+
+    return Object.entries(groups).map(([bId, items]) => {
+      const broker = brokers.find(b => b.id === bId);
+      const brokerName = broker ? broker.name : bId;
+      const accNum = broker ? broker.accountNumber || 'Sin cuenta' : 'Sin cuenta';
+
+      const groupCost = items.reduce((sum, item) => sum + item.totalCost, 0);
+      const groupValue = items.reduce((sum, item) => sum + item.currentValue, 0);
+      const groupPnL = groupValue - groupCost;
+      const groupPnLPercent = groupCost > 0 ? (groupPnL / groupCost) * 100 : 0;
+
+      return (
+        <React.Fragment key={bId}>
+          <tr className="bg-slate-100 font-bold border-b border-gray-300">
+            <td colSpan={visColsPortfolio.length} className="text-blue-800 text-xs py-2 px-3">
+              Broker: <span className="underline">{brokerName}</span> (Cuenta: {accNum})
+            </td>
+          </tr>
+          {items.map(h => renderRow(h))}
+          <tr className="bg-slate-50 font-bold border-b border-gray-300 text-slate-700">
+            {visColsPortfolio.includes('symbol') && <td></td>}
+            {visColsPortfolio.includes('name') && <td className="text-right italic">Subtotal {brokerName}:</td>}
+            {visColsPortfolio.includes('type') && <td></td>}
+            {visColsPortfolio.includes('brokerName') && <td></td>}
+            {visColsPortfolio.includes('quantity') && <td></td>}
+            {visColsPortfolio.includes('pmc') && <td></td>}
+            {visColsPortfolio.includes('currentPrice') && <td></td>}
+            {visColsPortfolio.includes('totalCost') && (
+              <td className="font-mono text-right border-t border-gray-400">
+                {groupCost.toLocaleString('es-ES', { minimumFractionDigits: 2, maximumFractionDigits: 2 })} €
+              </td>
+            )}
+            {visColsPortfolio.includes('currentValue') && (
+              <td className="font-mono text-right border-t border-gray-400">
+                {groupValue.toLocaleString('es-ES', { minimumFractionDigits: 2, maximumFractionDigits: 2 })} €
+              </td>
+            )}
+            {visColsPortfolio.includes('pnl') && (
+              <td className={`font-mono text-right border-t border-gray-400 ${groupPnL >= 0 ? 'text-green-700' : 'text-red-600'}`}>
+                {groupPnL >= 0 ? '+' : ''}{groupPnL.toLocaleString('es-ES', { minimumFractionDigits: 2, maximumFractionDigits: 2 })} €
+              </td>
+            )}
+            {visColsPortfolio.includes('pnlPercent') && (
+              <td className={`font-mono text-right border-t border-gray-400 ${groupPnL >= 0 ? 'text-green-700' : 'text-red-600'}`}>
+                {groupPnL >= 0 ? '+' : ''}{groupPnLPercent.toFixed(2)}%
+              </td>
+            )}
+          </tr>
+        </React.Fragment>
+      );
+    });
+  };
+
+  // Grouped by Acciones (Ticker) renderer
+  const renderGroupedByAcciones = () => {
+    const groups = {};
+    filteredHoldings.forEach(h => {
+      const sym = h.symbol || 'Otros';
+      if (!groups[sym]) groups[sym] = [];
+      groups[sym].push(h);
+    });
+
+    return Object.entries(groups).map(([sym, items]) => {
+      const assetName = items[0]?.name || sym;
+
+      const groupQty = items.reduce((sum, item) => sum + (parseFloat(item.quantity) || 0), 0);
+      const groupCost = items.reduce((sum, item) => sum + item.totalCost, 0);
+      const groupValue = items.reduce((sum, item) => sum + item.currentValue, 0);
+      const groupPnL = groupValue - groupCost;
+      const groupPnLPercent = groupCost > 0 ? (groupPnL / groupCost) * 100 : 0;
+
+      return (
+        <React.Fragment key={sym}>
+          <tr className="bg-slate-100 font-bold border-b border-gray-300">
+            <td colSpan={visColsPortfolio.length} className="text-blue-800 text-xs py-2 px-3">
+              Activo: <span className="underline">{sym}</span> - {assetName}
+            </td>
+          </tr>
+          {items.map(h => renderRow(h))}
+          <tr className="bg-slate-50 font-bold border-b border-gray-300 text-slate-700">
+            {visColsPortfolio.includes('symbol') && <td></td>}
+            {visColsPortfolio.includes('name') && <td className="text-right italic">Subtotal {sym}:</td>}
+            {visColsPortfolio.includes('type') && <td></td>}
+            {visColsPortfolio.includes('brokerName') && <td></td>}
+            {visColsPortfolio.includes('quantity') && (
+              <td className="font-mono text-right border-t border-gray-400">
+                {groupQty}
+              </td>
+            )}
+            {visColsPortfolio.includes('pmc') && <td></td>}
+            {visColsPortfolio.includes('currentPrice') && <td></td>}
+            {visColsPortfolio.includes('totalCost') && (
+              <td className="font-mono text-right border-t border-gray-400">
+                {groupCost.toLocaleString('es-ES', { minimumFractionDigits: 2, maximumFractionDigits: 2 })} €
+              </td>
+            )}
+            {visColsPortfolio.includes('currentValue') && (
+              <td className="font-mono text-right border-t border-gray-400">
+                {groupValue.toLocaleString('es-ES', { minimumFractionDigits: 2, maximumFractionDigits: 2 })} €
+              </td>
+            )}
+            {visColsPortfolio.includes('pnl') && (
+              <td className={`font-mono text-right border-t border-gray-400 ${groupPnL >= 0 ? 'text-green-700' : 'text-red-600'}`}>
+                {groupPnL >= 0 ? '+' : ''}{groupPnL.toLocaleString('es-ES', { minimumFractionDigits: 2, maximumFractionDigits: 2 })} €
+              </td>
+            )}
+            {visColsPortfolio.includes('pnlPercent') && (
+              <td className={`font-mono text-right border-t border-gray-400 ${groupPnL >= 0 ? 'text-green-700' : 'text-red-600'}`}>
+                {groupPnL >= 0 ? '+' : ''}{groupPnLPercent.toFixed(2)}%
+              </td>
+            )}
+          </tr>
+        </React.Fragment>
+      );
+    });
+  };
+
   return (
     <div className="w-full h-full bg-[#d4d0c8] flex flex-col p-1 overflow-hidden font-sans select-none">
       {/* Top summary bar */}
@@ -509,19 +724,18 @@ export default function Portfolio() {
               <span>Filtros</span>
             </div>
             <div className="p-4 text-[11px] space-y-4 flex-1 overflow-auto">
-              {/* Search */}
-              <div className="space-y-1">
-                <label className="text-slate-700 font-bold">Buscar:</label>
-                <div className="relative">
-                  <input
-                    type="text"
-                    value={searchQuery}
-                    onChange={(e) => setSearchQuery(e.target.value)}
-                    placeholder="Ticker, Nombre..."
-                    className="win-input w-full pl-7"
-                  />
-                  <Search className="absolute left-2 top-2 w-3.5 h-3.5 text-gray-400" />
-                </div>
+              {/* Group By */}
+              <div className="space-y-2">
+                <label className="text-slate-700 font-bold">Agrupar por:</label>
+                <select
+                  value={groupBy}
+                  onChange={(e) => setGroupBy(e.target.value)}
+                  className="win-input w-full bg-white"
+                >
+                  <option value="none">Sin agrupación</option>
+                  <option value="broker">Broker</option>
+                  <option value="acciones">Acciones (Ticker)</option>
+                </select>
               </div>
 
               {/* Broker Filter */}
@@ -576,16 +790,6 @@ export default function Portfolio() {
                 Posiciones Abiertas
               </button>
               <button
-                onClick={() => setPortfolioTab('transacciones')}
-                className={`px-3 py-1 text-[11px] font-bold border rounded-sm transition-all cursor-pointer ${
-                  portfolioTab === 'transacciones'
-                    ? 'bg-blue-600 text-white border-blue-700'
-                    : 'bg-white text-slate-700 border-slate-300 hover:bg-slate-50'
-                }`}
-              >
-                Historial de Transacciones
-              </button>
-              <button
                 onClick={() => setPortfolioTab('graficos')}
                 className={`px-3 py-1 text-[11px] font-bold border rounded-sm transition-all cursor-pointer ${
                   portfolioTab === 'graficos'
@@ -596,12 +800,30 @@ export default function Portfolio() {
                 Gráficos de Distribución
               </button>
             </div>
-            <button
-              onClick={() => setShowSidebar(!showSidebar)}
-              className="px-2 py-1 bg-slate-200 border border-slate-300 text-[10px] font-bold text-slate-700 rounded hover:bg-slate-300 transition-colors"
-            >
-              {showSidebar ? 'Ocultar Panel' : 'Mostrar Panel'}
-            </button>
+            
+            <div className="flex items-center space-x-3">
+              <div className="relative" onClick={e => e.stopPropagation()}>
+                <input
+                  type="text"
+                  placeholder="Buscar en el fichero (Alt+B)"
+                  value={searchQuery}
+                  onChange={(e) => setSearchQuery(e.target.value)}
+                  className="pl-2 pr-8 py-1 border-b border-gray-400 text-[12px] w-64 outline-none focus:border-blue-500 bg-transparent font-sans"
+                />
+                <Search className="w-4 h-4 absolute right-1 top-1/2 -translate-y-1/2 text-gray-500" />
+              </div>
+              <button
+                onClick={() => setShowSidebar(!showSidebar)}
+                className={`p-1.5 rounded border transition-colors cursor-pointer flex items-center justify-center ${
+                  showSidebar 
+                    ? 'bg-blue-50 border-blue-200 text-blue-700 hover:bg-blue-100' 
+                    : 'bg-white border-gray-300 text-gray-600 hover:bg-gray-100'
+                }`}
+                title={showSidebar ? 'Ocultar Panel' : 'Mostrar Panel'}
+              >
+                <PanelLeft className="w-4 h-4" />
+              </button>
+            </div>
           </div>
 
           {/* Holdings View */}
@@ -616,7 +838,7 @@ export default function Portfolio() {
                     {visColsPortfolio.includes('brokerName') && <th style={{ width: '150px' }}>Broker</th>}
                     {visColsPortfolio.includes('quantity') && <th style={{ width: '90px' }}>Títulos</th>}
                     {visColsPortfolio.includes('pmc') && <th style={{ width: '110px' }}>P.Medio Compra</th>}
-                    {visColsPortfolio.includes('currentPrice') && <th style={{ width: '110px' }}>Precio Mercado</th>}
+                    {visColsPortfolio.includes('currentPrice') && <th style={{ width: '160px' }}>Precio Mercado</th>}
                     {visColsPortfolio.includes('totalCost') && <th style={{ width: '110px' }}>Coste Total</th>}
                     {visColsPortfolio.includes('currentValue') && <th style={{ width: '110px' }}>Valor Actual</th>}
                     {visColsPortfolio.includes('pnl') && <th style={{ width: '110px' }}>Rentabilidad</th>}
@@ -624,134 +846,18 @@ export default function Portfolio() {
                   </tr>
                 </thead>
                 <tbody>
-                  {holdings.length === 0 ? (
+                  {filteredHoldings.length === 0 ? (
                     <tr>
                       <td colSpan={visColsPortfolio.length} className="text-center py-8 text-gray-400 font-medium">
                         No hay posiciones abiertas en cartera. Registre una nueva compra o cargue datos de ejemplo.
                       </td>
                     </tr>
+                  ) : groupBy === 'broker' ? (
+                    renderGroupedByBroker()
+                  ) : groupBy === 'acciones' ? (
+                    renderGroupedByAcciones()
                   ) : (
-                    holdings.map((h, index) => (
-                      <tr
-                        key={index}
-                        onClick={() => setSelectedHolding(selectedHolding?.symbol === h.symbol && selectedHolding?.brokerId === h.brokerId ? null : h)}
-                        className={selectedHolding?.symbol === h.symbol && selectedHolding?.brokerId === h.brokerId ? 'selected' : ''}
-                      >
-                        {visColsPortfolio.includes('symbol') && <td>{h.symbol}</td>}
-                        {visColsPortfolio.includes('name') && <td>{h.name}</td>}
-                        {visColsPortfolio.includes('type') && <td>{h.type}</td>}
-                        {visColsPortfolio.includes('brokerName') && <td>{h.brokerName}</td>}
-                        {visColsPortfolio.includes('quantity') && <td className="font-mono text-right">{h.quantity}</td>}
-                        {visColsPortfolio.includes('pmc') && (
-                          <td className="font-mono text-right">
-                            {h.pmc.toLocaleString('es-ES', { minimumFractionDigits: 2, maximumFractionDigits: 4 })} €
-                          </td>
-                        )}
-                        {visColsPortfolio.includes('currentPrice') && (
-                          <td className="font-mono text-right">
-                            {h.currentPrice.toLocaleString('es-ES', { minimumFractionDigits: 2, maximumFractionDigits: 4 })} €
-                          </td>
-                        )}
-                        {visColsPortfolio.includes('totalCost') && (
-                          <td className="font-mono text-right">
-                            {h.totalCost.toLocaleString('es-ES', { minimumFractionDigits: 2, maximumFractionDigits: 2 })} €
-                          </td>
-                        )}
-                        {visColsPortfolio.includes('currentValue') && (
-                          <td className="font-mono text-right font-bold text-slate-700">
-                            {h.currentValue.toLocaleString('es-ES', { minimumFractionDigits: 2, maximumFractionDigits: 2 })} €
-                          </td>
-                        )}
-                        {visColsPortfolio.includes('pnl') && (
-                          <td className={`font-mono text-right font-bold ${h.pnl >= 0 ? 'text-green-700' : 'text-red-600'}`}>
-                            {h.pnl >= 0 ? '+' : ''}{h.pnl.toLocaleString('es-ES', { minimumFractionDigits: 2, maximumFractionDigits: 2 })} €
-                          </td>
-                        )}
-                        {visColsPortfolio.includes('pnlPercent') && (
-                          <td className={`font-mono text-right font-bold ${h.pnl >= 0 ? 'text-green-700' : 'text-red-600'}`}>
-                            {h.pnl >= 0 ? '+' : ''}{h.pnlPercent.toFixed(2)}%
-                          </td>
-                        )}
-                      </tr>
-                    ))
-                  )}
-                </tbody>
-              </table>
-            </div>
-          )}
-
-          {/* Transactions View */}
-          {portfolioTab === 'transacciones' && (
-            <div className="win-table-container">
-              <table className="clean-table">
-                <thead>
-                  <tr>
-                    {visColsTx.includes('id') && <th style={{ width: '80px' }}>ID</th>}
-                    {visColsTx.includes('date') && <th style={{ width: '100px' }}>Fecha</th>}
-                    {visColsTx.includes('assetId') && <th style={{ width: '90px' }}>Activo</th>}
-                    {visColsTx.includes('brokerName') && <th style={{ width: '140px' }}>Broker</th>}
-                    {visColsTx.includes('type') && <th style={{ width: '90px' }}>Tipo</th>}
-                    {visColsTx.includes('quantity') && <th style={{ width: '90px' }}>Cantidad</th>}
-                    {visColsTx.includes('price') && <th style={{ width: '100px' }}>Precio</th>}
-                    {visColsTx.includes('fee') && <th style={{ width: '80px' }}>Comisión</th>}
-                    {visColsTx.includes('currency') && <th style={{ width: '80px' }}>Divisa</th>}
-                    {visColsTx.includes('exchangeRate') && <th style={{ width: '80px' }}>Cambio</th>}
-                    {visColsTx.includes('totalAmount') && <th style={{ width: '110px' }}>Importe Total</th>}
-                  </tr>
-                </thead>
-                <tbody>
-                  {sortedTransactions.length === 0 ? (
-                    <tr>
-                      <td colSpan={visColsTx.length} className="text-center py-8 text-gray-400 font-medium">
-                        No se encontraron transacciones. Registre una nueva.
-                      </td>
-                    </tr>
-                  ) : (
-                    sortedTransactions.map((tx) => (
-                      <tr
-                        key={tx.id}
-                        onClick={() => setSelectedTx(selectedTx?.id === tx.id ? null : tx)}
-                        className={selectedTx?.id === tx.id ? 'selected' : ''}
-                      >
-                        {visColsTx.includes('id') && <td>{tx.id}</td>}
-                        {visColsTx.includes('date') && <td>{tx.date}</td>}
-                        {visColsTx.includes('assetId') && <td className="font-bold">{tx.assetId}</td>}
-                        {visColsTx.includes('brokerName') && <td>{tx.brokerName}</td>}
-                        {visColsTx.includes('type') && (
-                          <td>
-                            <span
-                              className={`px-1.5 py-0.5 rounded-sm text-[9px] font-bold uppercase tracking-wider ${
-                                tx.type === 'Compra'
-                                  ? 'bg-blue-100 text-blue-800 border border-blue-200'
-                                  : tx.type === 'Venta'
-                                  ? 'bg-orange-100 text-orange-800 border border-orange-200'
-                                  : 'bg-green-100 text-green-800 border border-green-200'
-                              }`}
-                            >
-                              {tx.type}
-                            </span>
-                          </td>
-                        )}
-                        {visColsTx.includes('quantity') && <td className="font-mono text-right">{tx.quantity}</td>}
-                        {visColsTx.includes('price') && (
-                          <td className="font-mono text-right">
-                            {tx.price.toLocaleString('es-ES', { minimumFractionDigits: 2, maximumFractionDigits: 4 })}
-                          </td>
-                        )}
-                        {visColsTx.includes('fee') && (
-                          <td className="font-mono text-right">
-                            {tx.fee.toLocaleString('es-ES', { minimumFractionDigits: 2 })}
-                          </td>
-                        )}
-                        {visColsTx.includes('currency') && <td>{tx.currency}</td>}
-                        {visColsTx.includes('exchangeRate') && <td className="font-mono text-right">{tx.exchangeRate || 1}</td>}
-                        {visColsTx.includes('totalAmount') && (
-                          <td className="font-mono text-right font-bold text-slate-700">
-                            {tx.totalAmount.toLocaleString('es-ES', { minimumFractionDigits: 2, maximumFractionDigits: 2 })} {tx.currency}
-                          </td>
-                        )}
-                      </tr>
-                    ))
+                    filteredHoldings.map((h) => renderRow(h))
                   )}
                 </tbody>
               </table>

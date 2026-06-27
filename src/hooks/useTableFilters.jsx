@@ -103,15 +103,7 @@ export const useTableFilters = ({ columnWidths = {}, updateColumnWidth = null } 
     // It's active if it's NOT undefined (meaning some specific selection or empty array)
     const isActive = filterState !== undefined;
     
-    const [localWidth, setLocalWidth] = useState(null);
-
-    useEffect(() => {
-      if (columnWidths[columnKey]) {
-        setLocalWidth(columnWidths[columnKey]);
-      }
-    }, [columnWidths, columnKey]);
-
-    const width = localWidth || columnWidths[columnKey] || null;
+    const width = columnWidths[columnKey] || null;
     const style = width ? { width: `${width}px`, minWidth: `${width}px`, maxWidth: `${width}px` } : {};
 
     const handleMouseDown = (e) => {
@@ -123,15 +115,30 @@ export const useTableFilters = ({ columnWidths = {}, updateColumnWidth = null } 
 
       const handleMouseMove = (moveEvent) => {
         const newWidth = Math.max(30, startWidth + (moveEvent.clientX - startX));
-        setLocalWidth(newWidth);
+        th.style.width = `${newWidth}px`;
+        th.style.minWidth = `${newWidth}px`;
+        th.style.maxWidth = `${newWidth}px`;
       };
 
       const handleMouseUp = (upEvent) => {
         document.removeEventListener('mousemove', handleMouseMove);
         document.removeEventListener('mouseup', handleMouseUp);
         const finalWidth = Math.max(30, startWidth + (upEvent.clientX - startX));
-        if (updateColumnWidth) {
+        
+        if (updateColumnWidth && Math.abs(finalWidth - startWidth) > 2) {
           updateColumnWidth(columnKey, finalWidth);
+        } else {
+          // Reset style if the drag was negligible (e.g. simple click)
+          const originalWidth = columnWidths[columnKey];
+          if (originalWidth) {
+            th.style.width = `${originalWidth}px`;
+            th.style.minWidth = `${originalWidth}px`;
+            th.style.maxWidth = `${originalWidth}px`;
+          } else {
+            th.style.width = '';
+            th.style.minWidth = '';
+            th.style.maxWidth = '';
+          }
         }
       };
 

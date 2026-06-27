@@ -31,7 +31,9 @@ import {
   LayoutGrid,
   BarChart,
   Upload,
-  FileSpreadsheet
+  FileSpreadsheet,
+  TrendingUp,
+  Landmark
 } from 'lucide-react';
 import PunteoModal from './PunteoModal';
 import BankReconciliationModal from './BankReconciliationModal';
@@ -292,19 +294,56 @@ export default function Layout() {
   const location = useLocation();
   const navigate = useNavigate();
   const [realEstates, setRealEstates] = useState([]);
+  const [rvAssets, setRvAssets] = useState([]);
+  const [rvBrokers, setRvBrokers] = useState([]);
+  const [cfProjects, setCfProjects] = useState([]);
+  const [cfPlatforms, setCfPlatforms] = useState([]);
 
   useEffect(() => {
     if (user?.uid) {
+      const targetUserIds = queryUserIds?.length > 0 ? queryUserIds : [user.uid];
+
       const fetchRealEstates = async () => {
         try {
-          const q = query(collection(db, 'properties'), where('userId', 'in', queryUserIds?.length > 0 ? queryUserIds : [user.uid]));
+          const q = query(collection(db, 'properties'), where('userId', 'in', targetUserIds));
           const snapshot = await getDocs(q);
           setRealEstates(snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() })));
         } catch (error) {
           console.error("Error fetching real estates:", error);
         }
       };
+
+      const fetchRvData = async () => {
+        try {
+          const qAssets = query(collection(db, 'rv_assets'), where('userId', 'in', targetUserIds));
+          const snapAssets = await getDocs(qAssets);
+          setRvAssets(snapAssets.docs.map(doc => ({ id: doc.id, ...doc.data() })));
+
+          const qBrokers = query(collection(db, 'rv_brokers'), where('userId', 'in', targetUserIds));
+          const snapBrokers = await getDocs(qBrokers);
+          setRvBrokers(snapBrokers.docs.map(doc => ({ id: doc.id, ...doc.data() })));
+        } catch (error) {
+          console.error("Error fetching Renta Variable data in layout:", error);
+        }
+      };
+
+      const fetchCfData = async () => {
+        try {
+          const qProjects = query(collection(db, 'cf_projects'), where('userId', 'in', targetUserIds));
+          const snapProjects = await getDocs(qProjects);
+          setCfProjects(snapProjects.docs.map(doc => ({ id: doc.id, ...doc.data() })));
+
+          const qPlatforms = query(collection(db, 'cf_platforms'), where('userId', 'in', targetUserIds));
+          const snapPlatforms = await getDocs(qPlatforms);
+          setCfPlatforms(snapPlatforms.docs.map(doc => ({ id: doc.id, ...doc.data() })));
+        } catch (error) {
+          console.error("Error fetching Crowdfunding data in layout:", error);
+        }
+      };
+
       fetchRealEstates();
+      fetchRvData();
+      fetchCfData();
     }
   }, [user, queryUserIds]);
 
@@ -585,6 +624,55 @@ export default function Layout() {
         { id: 'currency', name: 'Divisa' },
         { id: 'totalAmount', name: 'Total' }
       ]}
+    ],
+    'Plataforma': [
+      { group: 'DATOS PLATAFORMA', items: [
+        { id: 'id', name: 'ID' },
+        { id: 'name', name: 'Nombre' },
+        { id: 'type', name: 'Tipo' },
+        { id: 'country', name: 'País' },
+        { id: 'bankAccount', name: 'Cuenta corriente' },
+        { id: 'ceco', name: 'CECO' },
+        { id: 'cebe', name: 'CEBE' },
+        { id: 'currency', name: 'Divisa' },
+        { id: 'status', name: 'Estado' }
+      ]}
+    ],
+    'CF Activos': [
+      { group: 'DATOS ACTIVO', items: [
+        { id: 'id', name: 'ID' },
+        { id: 'name', name: 'Nombre' },
+        { id: 'platformName', name: 'Plataforma' },
+        { id: 'type', name: 'Tipo' },
+        { id: 'targetAmount', name: 'Objetivo' },
+        { id: 'annualRate', name: 'Tasa anual (%)' },
+        { id: 'term', name: 'Plazo (m)' },
+        { id: 'status', name: 'Estado' }
+      ]}
+    ],
+    'Transacciones CF': [
+      { group: 'DATOS TRANSACCIÓN', items: [
+        { id: 'id', name: 'ID' },
+        { id: 'date', name: 'Fecha' },
+        { id: 'projectName', name: 'Proyecto' },
+        { id: 'platformName', name: 'Plataforma' },
+        { id: 'type', name: 'Tipo' },
+        { id: 'amount', name: 'Importe' },
+        { id: 'notes', name: 'Notas' }
+      ]}
+    ],
+    'CF Portfolio': [
+      { group: 'DATOS DE CARTERA', items: [
+        { id: 'groupName', name: 'Activo / Plataforma' },
+        { id: 'investment', name: 'Inversión' },
+        { id: 'grossRents', name: 'Rentas Brutas' },
+        { id: 'expenses', name: 'Gastos' },
+        { id: 'netRents', name: 'Rentas Netas' },
+        { id: 'totalGross', name: 'Importe Total' },
+        { id: 'totalNet', name: 'Imp. Total Neto' },
+        { id: 'yieldGross', name: 'Rent. Bruta' },
+        { id: 'yieldNet', name: 'Rent. Neta' }
+      ]}
     ]
   };
 
@@ -603,10 +691,10 @@ export default function Layout() {
     'Contabilidad': ['Cuentas contables', 'Diario', 'Mayor', 'Sumas y saldos'],
     'Inversiones inmobiliarias': ['Activos', 'Propietarios', 'Clientes', 'Alquileres'],
     'Renta variable': ['Portfolio', 'Broker', 'Activos RV', 'Transacciones', 'Métricas RV'],
-    'Crowdfunding': ['CF Portfolio', 'Empresas', 'CF Activos'],
+    'Crowdfunding': ['CF Portfolio', 'Plataforma', 'CF Activos', 'Transacciones CF'],
     'Informes': ['Reportes', 'Dashboard'],
     'Impuestos': ['Total', 'Inversiones inmobiliarias', 'Renta variable', 'Crowdfunding'],
-    'Herramientas': ['Calculadora', 'Importador'],
+    'Herramientas': ['Importador'],
     'Ayuda': ['Manual', 'Soporte']
   };
 
@@ -625,15 +713,15 @@ export default function Layout() {
     'Transacciones': '/rv-transactions',
     'Métricas RV': '/rv-metrics',
     'CF Portfolio': '/cf-portfolio',
-    'Empresas': '/cf-empresas',
+    'Plataforma': '/cf-empresas',
     'CF Activos': '/cf-activos',
+    'Transacciones CF': '/cf-transactions',
     'Reportes': '/reports',
     'Dashboard': '/dashboard',
     'Total': '/taxes-total',
     'Inversiones inmobiliarias': '/taxes-real-estate',
     'Renta variable': '/taxes-rv',
     'Crowdfunding': '/taxes-cf',
-    'Calculadora': '#',
     'Importador': '/importador',
     'Manual': '#',
     'Soporte': '#'
@@ -907,11 +995,12 @@ export default function Layout() {
       {
         group: 'Acciones',
         items: [
+          { name: 'Añadir columna', action: 'cf-portfolio:columns', path: '/cf-portfolio', customIcon: 'AddColumn' },
           { name: 'Exportar', action: 'cf-portfolio:export', path: '/cf-portfolio', customIcon: 'Exportar' }
         ]
       }
     ],
-    'Empresas': [
+    'Plataforma': [
       {
         group: 'Mantenimiento',
         items: [
@@ -923,6 +1012,7 @@ export default function Layout() {
       {
         group: 'Acciones',
         items: [
+          { name: 'Añadir columna', action: 'cf-empresa:columns', path: '/cf-empresas', customIcon: 'AddColumn' },
           { name: 'Exportar', action: 'cf-empresa:export', path: '/cf-empresas', customIcon: 'Exportar' }
         ]
       }
@@ -939,24 +1029,50 @@ export default function Layout() {
       {
         group: 'Acciones',
         items: [
+          { name: 'Añadir columna', action: 'cf-activo:columns', path: '/cf-activos', customIcon: 'AddColumn' },
           { name: 'Exportar', action: 'cf-activo:export', path: '/cf-activos', customIcon: 'Exportar' }
         ]
       }
     ],
+    'Transacciones CF': [
+      {
+        group: 'Mantenimiento',
+        items: [
+          { name: 'Nuevo', action: 'cf-transactions-new', path: '/cf-transactions', customIcon: 'Nuevo' },
+          { name: 'Modificar', action: 'cf-transactions-edit', path: '/cf-transactions', customIcon: 'Modificar' },
+          { name: 'Eliminar', action: 'cf-transactions-delete', path: '/cf-transactions', customIcon: 'Eliminar' }
+        ]
+      },
+      {
+        group: 'Acciones',
+        items: [
+          { name: 'Añadir columna', action: 'cf-transactions-columns', path: '/cf-transactions', customIcon: 'AddColumn' },
+          { name: 'Exportar', action: 'cf-transactions-export', path: '/cf-transactions', customIcon: 'Exportar' }
+        ]
+      }
+    ],
     'Reportes': [
-      { group: 'Reportes', items: [{ name: 'Reportes', path: '/reports', icon: BarChart3 }] }
+      { 
+        group: 'Reportes', 
+        items: [
+          { name: 'Contabilidad', path: '/reports', icon: BookOpen },
+          { name: 'Inversiones\ninmobiliarias', path: '/taxes-real-estate', icon: Building2 },
+          { name: 'Renta\nvariable', path: '/taxes-rv', icon: TrendingUp },
+          { name: 'Crowdfunding', path: '/taxes-cf', icon: Landmark },
+          { name: 'Impuestos', path: '/taxes-total', icon: Scale }
+        ] 
+      }
     ],
     'Dashboard': [
       { 
         group: 'Dashboard', 
         items: [
           { name: 'Contabilidad', action: 'dashboard:contabilidad', icon: PieChart },
-          { name: 'Inversiones\ninmobiliarias', action: 'dashboard:inversiones', icon: Building2 }
+          { name: 'Inversiones\ninmobiliarias', action: 'dashboard:inversiones', icon: Building2 },
+          { name: 'Renta\nvariable', action: 'dashboard:rv', icon: TrendingUp },
+          { name: 'Crowdfunding', action: 'dashboard:cf', icon: Landmark }
         ] 
       }
-    ],
-    'Calculadora': [
-      { group: 'Útiles', items: [{ name: 'Calculadora', path: '#', icon: PlusCircle }] }
     ],
     'Importador': [
       { group: 'Acciones', items: [
@@ -1126,6 +1242,10 @@ export default function Layout() {
                           setDropdownConfig(prev => prev?.type === 'dash-cont' ? null : { type: 'dash-cont', action: item.action, rect: { top: rect.bottom, left: rect.left } });
                         } else if (item.action === 'dashboard:inversiones') {
                           setDropdownConfig(prev => prev?.type === 'dash-inv' ? null : { type: 'dash-inv', action: item.action, rect: { top: rect.bottom, left: rect.left } });
+                        } else if (item.action === 'dashboard:rv') {
+                          setDropdownConfig(prev => prev?.type === 'dash-rv' ? null : { type: 'dash-rv', action: item.action, rect: { top: rect.bottom, left: rect.left } });
+                        } else if (item.action === 'dashboard:cf') {
+                          setDropdownConfig(prev => prev?.type === 'dash-cf' ? null : { type: 'dash-cf', action: item.action, rect: { top: rect.bottom, left: rect.left } });
                         } else if (item.action === 'taxes:year-dropdown') {
                           setDropdownConfig(prev => prev?.type === 'taxes-year' ? null : { type: 'taxes-year', action: item.action, rect: { top: rect.bottom, left: rect.left } });
                         } else if (item.action === 'taxes:extract') {
@@ -1153,7 +1273,7 @@ export default function Layout() {
                       </div>
                       <span className="text-[10px] leading-[1.1] text-gray-700 font-medium text-center whitespace-pre-wrap flex flex-col items-center justify-center">
                         {item.name} 
-                        {(isExport || isAddColumn || item.action === 'dashboard:contabilidad' || item.action === 'dashboard:inversiones') && <ChevronDown className="w-3 h-3 mt-0.5" />}
+                        {(isExport || isAddColumn || item.action === 'dashboard:contabilidad' || item.action === 'dashboard:inversiones' || item.action === 'dashboard:rv' || item.action === 'dashboard:cf') && <ChevronDown className="w-3 h-3 mt-0.5" />}
                       </span>
                     </button>
                   </div>
@@ -1258,6 +1378,76 @@ export default function Layout() {
                {re.name || re.address || re.id}
              </div>
            ))}
+        </div>
+      )}
+
+      {dropdownConfig?.type === 'dash-rv' && (
+        <div 
+          className="fixed bg-white border border-gray-300 shadow-lg rounded z-[100] py-1 w-48 flex flex-col text-[11px] max-h-64 overflow-y-auto" 
+          style={{ top: dropdownConfig.rect.top + 4, left: dropdownConfig.rect.left }}
+          onMouseDown={e => e.stopPropagation()}
+        >
+          <div className="px-3 py-1 hover:bg-gray-100 cursor-pointer text-left font-bold" onClick={() => { setDropdownConfig(null); navigate('/dashboard', { state: { dashboardType: 'rv_plusvalias_todos' } }); }}>Plusvalías (Todos)</div>
+          <div className="px-3 py-1 hover:bg-gray-100 cursor-pointer text-left font-bold" onClick={() => { setDropdownConfig(null); navigate('/dashboard', { state: { dashboardType: 'rv_dividendos_todos' } }); }}>Dividendos (Todos)</div>
+          
+          {rvAssets.filter(a => a.type?.toLowerCase() !== 'divisa').length > 0 && (
+            <>
+              <div className="border-t border-gray-200 mt-1 mb-1"></div>
+              <div className="px-3 py-0.5 text-gray-400 font-bold uppercase text-[9px] tracking-wider">Filtrar por Activo</div>
+              {rvAssets.filter(a => a.type?.toLowerCase() !== 'divisa').map(a => (
+                <div key={a.id} className="px-3 py-1 hover:bg-gray-100 cursor-pointer text-left truncate pl-5" onClick={() => { setDropdownConfig(null); navigate('/dashboard', { state: { dashboardType: `rv_asset_${a.id}` } }); }}>
+                  {a.id} - {a.name}
+                </div>
+              ))}
+            </>
+          )}
+
+          {rvBrokers.length > 0 && (
+            <>
+              <div className="border-t border-gray-200 mt-1 mb-1"></div>
+              <div className="px-3 py-0.5 text-gray-400 font-bold uppercase text-[9px] tracking-wider">Filtrar por Broker</div>
+              {rvBrokers.map(b => (
+                <div key={b.id} className="px-3 py-1 hover:bg-gray-100 cursor-pointer text-left truncate pl-5" onClick={() => { setDropdownConfig(null); navigate('/dashboard', { state: { dashboardType: `rv_broker_${b.id}` } }); }}>
+                  {b.name || b.id}
+                </div>
+              ))}
+            </>
+          )}
+        </div>
+      )}
+
+      {dropdownConfig?.type === 'dash-cf' && (
+        <div 
+          className="fixed bg-white border border-gray-300 shadow-lg rounded z-[100] py-1 w-48 flex flex-col text-[11px] max-h-64 overflow-y-auto" 
+          style={{ top: dropdownConfig.rect.top + 4, left: dropdownConfig.rect.left }}
+          onMouseDown={e => e.stopPropagation()}
+        >
+          <div className="px-3 py-1 hover:bg-gray-100 cursor-pointer text-left font-bold" onClick={() => { setDropdownConfig(null); navigate('/dashboard', { state: { dashboardType: 'cf_plusvalias_todos' } }); }}>Plusvalías (Todos)</div>
+          <div className="px-3 py-1 hover:bg-gray-100 cursor-pointer text-left font-bold" onClick={() => { setDropdownConfig(null); navigate('/dashboard', { state: { dashboardType: 'cf_dividendos_todos' } }); }}>Dividendos (Todos)</div>
+          
+          {cfProjects.length > 0 && (
+            <>
+              <div className="border-t border-gray-200 mt-1 mb-1"></div>
+              <div className="px-3 py-0.5 text-gray-400 font-bold uppercase text-[9px] tracking-wider">Filtrar por Activo</div>
+              {cfProjects.map(p => (
+                <div key={p.id} className="px-3 py-1 hover:bg-gray-100 cursor-pointer text-left truncate pl-5" onClick={() => { setDropdownConfig(null); navigate('/dashboard', { state: { dashboardType: `cf_project_${p.id}` } }); }}>
+                  {p.id} - {p.name}
+                </div>
+              ))}
+            </>
+          )}
+
+          {cfPlatforms.length > 0 && (
+            <>
+              <div className="border-t border-gray-200 mt-1 mb-1"></div>
+              <div className="px-3 py-0.5 text-gray-400 font-bold uppercase text-[9px] tracking-wider">Filtrar por Plataforma</div>
+              {cfPlatforms.map(plt => (
+                <div key={plt.id} className="px-3 py-1 hover:bg-gray-100 cursor-pointer text-left truncate pl-5" onClick={() => { setDropdownConfig(null); navigate('/dashboard', { state: { dashboardType: `cf_platform_${plt.id}` } }); }}>
+                  {plt.name || plt.id}
+                </div>
+              ))}
+            </>
+          )}
         </div>
       )}
 

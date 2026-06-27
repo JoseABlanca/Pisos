@@ -16,7 +16,7 @@ const TABLES_CONFIG = [
     collection: 'properties',
     idField: 'id',
     icon: Building2,
-    headers: ['id', 'name', 'address', 'city', 'cp', 'country', 'catastral', 'registry', 'm2', 'rooms', 'baths', 'year', 'efficiency', 'notes'],
+    headers: ['id', 'name', 'address', 'city', 'cp', 'country', 'catastral', 'registry', 'm2', 'rooms', 'baths', 'year', 'efficiency', 'ceco', 'cebe', 'notes'],
     numeric: ['m2', 'rooms', 'baths', 'year'],
     booleans: ['hasMortgage'],
     example: {
@@ -33,6 +33,8 @@ const TABLES_CONFIG = [
       baths: 2,
       year: 1995,
       efficiency: 'E',
+      ceco: 'CECO_PLAZA_001001',
+      cebe: 'CEBE_POET_0001001',
       notes: 'Piso céntrico reformado en excelentes condiciones'
     }
   },
@@ -86,7 +88,7 @@ const TABLES_CONFIG = [
     collection: 'rentals',
     idField: 'reference',
     icon: Building2,
-    headers: ['reference', 'propertyId', 'tenantIds', 'status', 'rentalType', 'duration', 'rentAmount', 'depositAmount', 'paymentPeriod', 'notes'],
+    headers: ['reference', 'propertyId', 'tenantIds', 'status', 'rentalType', 'duration', 'rentAmount', 'depositAmount', 'paymentPeriod', 'incomeAccountId', 'incomeCebeId', 'expenseAccountId', 'expenseCecoId', 'notes'],
     numeric: ['rentAmount', 'depositAmount'],
     booleans: ['actualizaIpc'],
     example: {
@@ -99,6 +101,10 @@ const TABLES_CONFIG = [
       rentAmount: 850,
       depositAmount: 1700,
       paymentPeriod: 'mensual',
+      incomeAccountId: '75200001',
+      incomeCebeId: 'CEBE_POET_0001001',
+      expenseAccountId: '62800001',
+      expenseCecoId: 'CECO_PLAZA_001001',
       notes: 'Actualización automática IPC anual en diciembre'
     }
   },
@@ -196,11 +202,11 @@ const TABLES_CONFIG = [
   },
   {
     module: 'Crowdfunding',
-    name: 'Empresas',
+    name: 'Plataforma',
     collection: 'cf_platforms',
     idField: 'id',
     icon: Landmark,
-    headers: ['id', 'name', 'type', 'country', 'regulation', 'website', 'cashBalance', 'currency', 'status', 'notes'],
+    headers: ['id', 'name', 'type', 'country', 'bankAccount', 'ceco', 'cebe', 'cashBalance', 'currency', 'status'],
     numeric: ['cashBalance'],
     booleans: [],
     example: {
@@ -208,12 +214,12 @@ const TABLES_CONFIG = [
       name: 'Urbanitae',
       type: 'Inmobiliaria',
       country: 'España',
-      regulation: 'CNMV',
-      website: 'https://urbanitae.com',
+      bankAccount: 'ES2112345678901234567890',
+      ceco: 'CECO_PLAZA_001001',
+      cebe: 'CEBE_POET_0001001',
       cashBalance: 150,
       currency: 'EUR',
-      status: 'activo',
-      notes: 'Plataforma regulada de crowdfunding inmobiliario'
+      status: 'activo'
     }
   },
   {
@@ -266,7 +272,7 @@ const TABLES_CONFIG = [
     collection: 'journal_entries',
     idField: 'asiento',
     icon: Landmark,
-    headers: ['asiento', 'date', 'description', 'accountCode', 'lineDescription', 'debit', 'credit', 'document'],
+    headers: ['asiento', 'date', 'description', 'accountCode', 'lineDescription', 'ceco', 'cebe', 'debit', 'credit', 'document'],
     numeric: ['debit', 'credit'],
     booleans: [],
     example: {
@@ -275,6 +281,8 @@ const TABLES_CONFIG = [
       description: 'Pago de suministro eléctrico',
       accountCode: '62800001',
       lineDescription: 'Gasto luz local principal',
+      ceco: 'CECO_PLAZA_001001',
+      cebe: 'CEBE_POET_0001001',
       debit: 150.25,
       credit: 0,
       document: 'FACT-2024-089'
@@ -623,8 +631,8 @@ export default function Importer() {
               accountCode: code,
               description: line.lineDescription || line.description || '',
               document: line.document || '',
-              ceco: '',
-              cebe: '',
+              ceco: line.ceco || '',
+              cebe: line.cebe || '',
               debit,
               credit
             });
@@ -641,11 +649,19 @@ export default function Importer() {
           }
 
           try {
+            const firstCebe = formattedLines.find(l => l.cebe)?.cebe || '';
+            const firstCeco = formattedLines.find(l => l.ceco)?.ceco || '';
+            const analytics = {
+              cebe: firstCebe,
+              ceco: firstCeco
+            };
+
             await registerJournalEntry(
               user.uid,
               globalDesc || `Importación Asiento ${asientoKey}`,
               formattedLines,
-              date || new Date().toISOString().split('T')[0]
+              date || new Date().toISOString().split('T')[0],
+              analytics
             );
             successCount++;
           } catch (e) {
@@ -728,21 +744,65 @@ export default function Importer() {
         const qIds = queryUserIds?.length > 0 ? queryUserIds : [user.uid];
         const q = query(collection(db, collectionName), where('userId', 'in', qIds));
         const snapshot = await getDocs(q);
-        data = snapshot.docs.map(docSnap => {
-          const docData = docSnap.data();
-          const row = {};
-          config.headers.forEach(h => {
-            const val = docData[h];
-            if (val === undefined || val === null) {
-              row[h] = '';
-            } else if (Array.isArray(val)) {
-              row[h] = val.join(', ');
-            } else {
-              row[h] = val;
-            }
+        
+        if (collectionName === 'journal_entries') {
+          // Flatten journal entries so each line is a row in the excel
+          snapshot.docs.forEach(docSnap => {
+            const docData = docSnap.data();
+            const entryNum = docData.number !== undefined ? String(docData.number) : (docData.asiento || docSnap.id.slice(-6).toUpperCase());
+            const entryDate = docData.date || '';
+            const entryDesc = docData.description || '';
+            const entryCeco = docData.ceco || '';
+            const entryCebe = docData.cebe || '';
+
+            (docData.lines || []).forEach(line => {
+              const row = {};
+              config.headers.forEach(h => {
+                if (h === 'asiento') {
+                  row[h] = entryNum;
+                } else if (h === 'date') {
+                  row[h] = entryDate;
+                } else if (h === 'description') {
+                  row[h] = entryDesc;
+                } else if (h === 'accountCode') {
+                  row[h] = line.accountCode || '';
+                } else if (h === 'lineDescription') {
+                  row[h] = line.description || '';
+                } else if (h === 'debit') {
+                  row[h] = line.debit !== undefined ? Number(line.debit) : 0;
+                } else if (h === 'credit') {
+                  row[h] = line.credit !== undefined ? Number(line.credit) : 0;
+                } else if (h === 'document') {
+                  row[h] = line.document || '';
+                } else if (h === 'ceco') {
+                  row[h] = line.ceco || entryCeco || '';
+                } else if (h === 'cebe') {
+                  row[h] = line.cebe || entryCebe || '';
+                } else {
+                  row[h] = docData[h] !== undefined ? docData[h] : (line[h] !== undefined ? line[h] : '');
+                }
+              });
+              data.push(row);
+            });
           });
-          return row;
-        });
+        } else {
+          // Default mapping for other tables
+          data = snapshot.docs.map(docSnap => {
+            const docData = docSnap.data();
+            const row = {};
+            config.headers.forEach(h => {
+              const val = docData[h];
+              if (val === undefined || val === null) {
+                row[h] = '';
+              } else if (Array.isArray(val)) {
+                row[h] = val.join(', ');
+              } else {
+                row[h] = val;
+              }
+            });
+            return row;
+          });
+        }
       } catch (err) {
         console.error("Error fetching data for template:", err);
       }

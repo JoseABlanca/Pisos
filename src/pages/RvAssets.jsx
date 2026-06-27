@@ -27,6 +27,7 @@ export default function RvAssets() {
   const [tempHistory, setTempHistory] = useState([]); // holds parsed CSV or API generated prices
   const [dbHistory, setDbHistory] = useState([]); // holds loaded prices from Firestore
   const [isGenerating, setIsGenerating] = useState(false);
+  const [isFetchingCurrentPrice, setIsFetchingCurrentPrice] = useState(false);
   const [originalId, setOriginalId] = useState(null); // tracks original ticker when editing
 
   const [formData, setFormData] = useState({
@@ -112,6 +113,115 @@ export default function RvAssets() {
       setDbHistory([]);
     }
   }, [showForm, isEditing, formData.id, user]);
+
+  const fetchCurrentPrice = async (ticker, source, curr) => {
+    if (!ticker) return null;
+    const cleanTicker = ticker.trim().toUpperCase();
+    const cleanSource = source || 'Yahoo Finance';
+    const cleanCurr = curr || 'EUR';
+
+    try {
+      if (cleanSource === 'Yahoo Finance') {
+        const yahooUrl = `https://query1.finance.yahoo.com/v8/finance/chart/${cleanTicker}?interval=1d&range=1d`;
+        const proxies = [
+          { url: `https://corsproxy.io/?url=${encodeURIComponent(yahooUrl)}`, mode: 'direct' },
+          { url: `https://api.allorigins.win/raw?url=${encodeURIComponent(yahooUrl)}`, mode: 'direct' },
+          { url: `https://api.allorigins.win/get?url=${encodeURIComponent(yahooUrl)}`, mode: 'wrapped' },
+        ];
+        
+        let json = null;
+        for (const proxy of proxies) {
+          try {
+            const resp = await fetch(proxy.url, { signal: AbortSignal.timeout(5000) });
+            if (!resp.ok) continue;
+            const text = await resp.text();
+            if (proxy.mode === 'wrapped') {
+              const outer = JSON.parse(text);
+              json = JSON.parse(outer.contents);
+            } else {
+              json = JSON.parse(text);
+            }
+            if (json?.chart?.result?.[0]) break;
+            json = null;
+          } catch (e) {
+            continue;
+          }
+        }
+        const meta = json?.chart?.result?.[0]?.meta;
+        if (meta) {
+          const price = meta.regularMarketPrice || meta.chartPreviousClose;
+          if (price !== undefined && price !== null) {
+            return price;
+          }
+          const closes = json?.chart?.result?.[0]?.indicators?.quote?.[0]?.close || [];
+          const lastClose = [...closes].reverse().find(c => c !== null);
+          if (lastClose !== undefined && lastClose !== null) {
+            return lastClose;
+          }
+        }
+      } else if (cleanSource === 'CoinGecko') {
+        const cgUrl = `https://api.coingecko.com/api/v3/simple/price?ids=${cleanTicker.toLowerCase()}&vs_currencies=${cleanCurr.toLowerCase()}`;
+        const response = await fetch(cgUrl, { signal: AbortSignal.timeout(5000) });
+        if (response.ok) {
+          const json = await response.json();
+          const coinData = json[cleanTicker.toLowerCase()];
+          const price = coinData?.[cleanCurr.toLowerCase()];
+          if (price !== undefined && price !== null) {
+            return price;
+          }
+        }
+      }
+    } catch (err) {
+      console.error("Error in fetchCurrentPrice:", err);
+    }
+    return null;
+  };
+
+  useEffect(() => {
+    if (!showForm || !formData.id || formData.id.trim().length < 2 || activeFormTab !== 'datos' || !user) return;
+
+    let active = true;
+    let timerId = null;
+
+    const ticker = formData.id;
+    const source = formData.apiSource;
+    const currency = formData.currency;
+
+    const updatePrice = async () => {
+      if (!active) return;
+      setIsFetchingCurrentPrice(true);
+      const price = await fetchCurrentPrice(ticker, source, currency);
+      if (price !== null && active) {
+        setFormData(prev => {
+          if (parseFloat(prev.currentPrice) === parseFloat(price)) return prev;
+          return { ...prev, currentPrice: price };
+        });
+
+        if (isEditing) {
+          try {
+            const docRef = doc(db, 'rv_assets', ticker.toUpperCase());
+            await setDoc(docRef, { currentPrice: price, updatedAt: new Date().toISOString() }, { merge: true });
+          } catch (err) {
+            console.error("Error auto-saving currentPrice to db:", err);
+          }
+        }
+      }
+      if (active) setIsFetchingCurrentPrice(false);
+    };
+
+    // Debounce initial fetch by 800ms when typing (if creating new)
+    const delay = isEditing ? 0 : 800;
+    const debounceTimeout = setTimeout(() => {
+      updatePrice();
+      timerId = setInterval(updatePrice, 30000); // Poll every 30s
+    }, delay);
+
+    return () => {
+      active = false;
+      clearTimeout(debounceTimeout);
+      if (timerId) clearInterval(timerId);
+    };
+  }, [showForm, formData.id, formData.apiSource, formData.currency, activeFormTab, isEditing, user]);
 
   const handleSaveField = async (asset, field, newVal) => {
     try {
@@ -478,7 +588,7 @@ export default function RvAssets() {
     return dbHistory;
   }, [tempHistory, dbHistory]);
 
-  const assetTypes = ['Acción', 'ETF', 'Fondo de Inversión', 'Criptomoneda', 'Otros'];
+  const assetTypes = ['Acción', 'ETF', 'Fondo de Inversión', 'Criptomoneda', 'Divisa', 'Otros'];
   const apiSources = ['Yahoo Finance', 'Alpha Vantage', 'Google Finance', 'Bloomberg', 'CoinGecko'];
 
   return (
@@ -768,6 +878,23 @@ export default function RvAssets() {
                             <span>Subir Archivo (.csv)</span>
                             <input type="file" accept=".csv" onChange={handleCSVUpload} className="hidden" />
                           </label>
+                        </div>
+
+                        <div className="win-form-row border-t border-gray-300 pt-3 mt-3">
+                          <label className="win-form-label font-bold text-[#000080]">Precio Actual:</label>
+                          <div className="flex-1 flex items-center justify-between">
+                            <span className="font-mono text-xs font-bold text-[#000080] bg-white px-2 py-1 border border-inset border-gray-400 min-w-[120px] block shadow-[inset_1px_1px_2px_rgba(0,0,0,0.1)]">
+                              {formData.currentPrice !== '' && formData.currentPrice !== undefined && formData.currentPrice !== null
+                                ? `${Number(formData.currentPrice).toLocaleString('es-ES', { minimumFractionDigits: 2, maximumFractionDigits: 4 })} ${formData.currency}`
+                                : '---'
+                              }
+                            </span>
+                            {isFetchingCurrentPrice && (
+                              <span className="text-[10px] text-gray-500 italic flex items-center gap-1">
+                                <RefreshCw className="w-3 h-3 animate-spin text-[#000080]" /> Actualizando...
+                              </span>
+                            )}
+                          </div>
                         </div>
                       </form>
                     )}

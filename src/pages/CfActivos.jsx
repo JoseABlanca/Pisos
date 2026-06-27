@@ -1,13 +1,17 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useMemo } from 'react';
 import { db } from '../firebase/config';
-import { collection, query, where, onSnapshot, doc, setDoc, deleteDoc } from 'firebase/firestore';
+import { collection, query, where, onSnapshot, doc, setDoc, deleteDoc, updateDoc } from 'firebase/firestore';
 import { useAuth } from '../context/AuthContext';
 import Window from '../components/Window';
-import { Search, Plus, Trash2, Edit, Save, X, Download, PanelLeft, TrendingUp } from 'lucide-react';
+import { Search, Plus, Trash2, Edit, Save, X, Download, PanelLeft, TrendingUp, Building2, Key, Upload, FileText } from 'lucide-react';
 import { handleExportFormat } from '../utils/exportUtils';
 import { useTableColumns } from '../hooks/useTableColumns';
 import { exportToPDF } from '../utils/pdfExport';
 import EditableCell from '../components/EditableCell';
+import AccountingEntryModal from '../components/AccountingEntryModal';
+import { deleteJournalEntry } from '../services/accounting';
+import { uploadFileToStorage } from '../utils/storageUtils';
+import Accounts from './Accounts';
 
 const fmt = (v, dec = 2) =>
   (v || 0).toLocaleString('es-ES', { minimumFractionDigits: dec, maximumFractionDigits: dec });
@@ -34,6 +38,8 @@ const EMPTY_FORM = {
   guaranteeType: 'Sin garantía',
   ltv: '',
   notes: '',
+  incomeCebeId: '',
+  expenseCecoId: '',
 };
 
 export default function CfActivos() {
@@ -52,8 +58,59 @@ export default function CfActivos() {
   const [activeFormTab, setActiveFormTab] = useState('datos');
   const [showModalSidebar, setShowModalSidebar] = useState(true);
 
+  const [cecos, setCecos] = useState([]);
+  const [cebes, setCebes] = useState([]);
+  const [journalEntries, setJournalEntries] = useState([]);
+  const [transactions, setTransactions] = useState([]);
+  const [showAccountingModal, setShowAccountingModal] = useState(false);
+  const [accountingModalConfig, setAccountingModalConfig] = useState({
+    linkedAccountId: null,
+    defaultDescription: '',
+    defaultAmount: 0,
+    defaultAnalytics: {}
+  });
+  const [activeRentasSubTab, setActiveRentasSubTab] = useState('ingresos');
+  const [previewDocument, setPreviewDocument] = useState(null);
+
   const DEFAULT_COLUMNS = ['id', 'name', 'platformName', 'type', 'targetAmount', 'annualRate', 'term', 'status'];
   const { visibleColumns, columnWidths } = useTableColumns('cf-activos', DEFAULT_COLUMNS);
+
+  const netRentsSum = useMemo(() => {
+    if (!formData.incomeCebeId && !formData.expenseCecoId) return 0;
+    
+    const incomeCebe = String(formData.incomeCebeId || '').trim().replace(/^(CEBE|CECO)/i, '');
+    const expenseCeco = String(formData.expenseCecoId || '').trim().replace(/^(CEBE|CECO)/i, '');
+    
+    let gross = 0;
+    let expenses = 0;
+    
+    journalEntries.forEach(entry => {
+      // Match income entries by CEBE
+      if (incomeCebe) {
+        const entryCebe = String(entry.cebe || '').trim().replace(/^(CEBE|CECO)/i, '');
+        if (entryCebe && entryCebe.startsWith(incomeCebe)) {
+          gross += parseFloat(entry.total) || 0;
+        }
+      }
+      
+      // Match expense entries by CECO
+      if (expenseCeco) {
+        const entryCeco = String(entry.ceco || '').trim().replace(/^(CEBE|CECO)/i, '');
+        if (entryCeco && entryCeco.startsWith(expenseCeco)) {
+          expenses += parseFloat(entry.total) || 0;
+        }
+      }
+    });
+    
+    return gross - expenses;
+  }, [journalEntries, formData.incomeCebeId, formData.expenseCecoId]);
+
+  const projectTransactions = useMemo(() => {
+    if (!formData.id) return [];
+    return transactions
+      .filter(tx => tx.projectId === formData.id)
+      .sort((a, b) => new Date(b.date) - new Date(a.date));
+  }, [transactions, formData.id]);
 
   // Enriched projects with platform name - declared early to avoid TDZ
   const enrichedProjects = projects.map(proj => {
@@ -77,6 +134,33 @@ export default function CfActivos() {
     }
     return true;
   });
+
+  const handleOpenAccounting = (type) => {
+    if (type === 'ingresos') {
+      if (!formData.incomeCebeId) {
+        alert("Por favor, selecciona primero un CEBE de Ingresos.");
+        return;
+      }
+      setAccountingModalConfig({
+        linkedAccountId: null,
+        defaultDescription: `Ingresos Crowdfunding - ${formData.name || formData.id || 'Nuevo'}`,
+        defaultAmount: 0,
+        defaultAnalytics: { cebe: formData.incomeCebeId }
+      });
+    } else {
+      if (!formData.expenseCecoId) {
+        alert("Por favor, selecciona primero un CECO de Gastos.");
+        return;
+      }
+      setAccountingModalConfig({
+        linkedAccountId: null,
+        defaultDescription: `Gastos Crowdfunding - ${formData.name || formData.id || 'Nuevo'}`,
+        defaultAmount: 0,
+        defaultAnalytics: { ceco: formData.expenseCecoId }
+      });
+    }
+    setShowAccountingModal(true);
+  };
 
   const handleSaveField = async (project, field, newVal) => {
     try {
@@ -181,7 +265,44 @@ export default function CfActivos() {
       (err) => console.error('Error fetching cf_platforms:', err)
     );
 
-    return () => { unsubProj(); unsubPlt(); };
+    const qCecos = query(
+      collection(db, 'analytical_centers'),
+      where('userId', 'in', targetUserIds),
+      where('type', '==', 'ceco')
+    );
+    const unsubCecos = onSnapshot(qCecos, (snap) => {
+      setCecos(snap.docs.map(d => ({ ...d.data(), id: d.id })));
+    });
+
+    const qCebes = query(
+      collection(db, 'analytical_centers'),
+      where('userId', 'in', targetUserIds),
+      where('type', '==', 'cebe')
+    );
+    const unsubCebes = onSnapshot(qCebes, (snap) => {
+      setCebes(snap.docs.map(d => ({ ...d.data(), id: d.id })));
+    });
+
+    const unsubJournal = onSnapshot(
+      query(collection(db, 'journal_entries'), where('userId', 'in', targetUserIds)),
+      (snap) => setJournalEntries(snap.docs.map(d => ({ ...d.data(), id: d.id }))),
+      (err) => console.error('Error fetching journal_entries:', err)
+    );
+
+    const unsubTx = onSnapshot(
+      query(collection(db, 'cf_transactions'), where('userId', 'in', targetUserIds)),
+      (snap) => setTransactions(snap.docs.map(d => ({ ...d.data(), id: d.id }))),
+      (err) => console.error('Error fetching cf_transactions:', err)
+    );
+
+    return () => { 
+      unsubProj(); 
+      unsubPlt(); 
+      unsubCecos();
+      unsubCebes();
+      unsubJournal();
+      unsubTx();
+    };
   }, [user, queryUserIds]);
 
   // Ribbon event listeners
@@ -239,7 +360,7 @@ export default function CfActivos() {
   const handleEdit = (project) => {
     setIsEditing(true);
     setActiveFormTab('datos');
-    setFormData({ ...project });
+    setFormData({ ...EMPTY_FORM, ...project });
     setShowForm(true);
   };
 
@@ -379,10 +500,7 @@ export default function CfActivos() {
               >
                 <PanelLeft className="w-4 h-4" />
               </button>
-              <div className="flex items-center space-x-1.5 text-[11px] text-slate-500">
-                <TrendingUp className="w-3.5 h-3.5" />
-                <span>Proyectos / Activos Crowdfunding</span>
-              </div>
+
             </div>
             <div className="relative" onClick={e => e.stopPropagation()}>
               <input
@@ -425,10 +543,9 @@ export default function CfActivos() {
                       onDoubleClick={() => handleEdit(proj)}
                       className={selectedProject?.id === proj.id ? 'selected' : ''}
                     >
-                      {visibleColumns.includes('id') && <td className="font-mono font-bold">{proj.id}</td>}
+                      {visibleColumns.includes('id') && <td className="font-mono">{proj.id}</td>}
                       {visibleColumns.includes('name') && (
                         <EditableCell
-                          className="font-semibold"
                           value={proj.name}
                           onSave={(val) => handleSaveField(proj, 'name', val)}
                         />
@@ -446,9 +563,7 @@ export default function CfActivos() {
                           options={TYPES}
                           onSave={(val) => handleSaveField(proj, 'type', val)}
                         >
-                          <span className={`px-1.5 py-0.5 rounded-sm text-[9px] font-bold uppercase tracking-wider ${typeBadge(proj.type)}`}>
-                            {proj.type}
-                          </span>
+                          <span>{proj.type}</span>
                         </EditableCell>
                       )}
                       {visibleColumns.includes('targetAmount') && (
@@ -464,7 +579,7 @@ export default function CfActivos() {
                       {visibleColumns.includes('annualRate') && (
                         <EditableCell
                           type="number"
-                          className="font-mono text-right font-bold text-emerald-700"
+                          className="font-mono text-right"
                           value={proj.annualRate}
                           onSave={(val) => handleSaveField(proj, 'annualRate', val)}
                         >
@@ -485,9 +600,7 @@ export default function CfActivos() {
                           options={STATUSES}
                           onSave={(val) => handleSaveField(proj, 'status', val)}
                         >
-                          <span className={`px-1.5 py-0.5 rounded-sm text-[9px] font-bold uppercase tracking-wider ${statusBadge(proj.status)}`}>
-                            {proj.status}
-                          </span>
+                          <span className="uppercase">{proj.status}</span>
                         </EditableCell>
                       )}
                     </tr>
@@ -532,6 +645,18 @@ export default function CfActivos() {
                       className={`w-full text-left px-4 py-2.5 text-[12px] transition-colors border-y ${activeFormTab === 'financiero' ? 'bg-[#c0c0c0] text-black border-[#a0a0a0] shadow-[inset_0px_1px_1px_rgba(0,0,0,0.1)] font-semibold' : 'bg-white text-slate-700 border-transparent hover:bg-[#f8f8f8]'}`}
                     >
                       Financiero
+                    </button>
+                    <button
+                      onClick={() => { setActiveFormTab('rentas'); if (isMobile) setShowModalSidebar(false); }}
+                      className={`w-full text-left px-4 py-2.5 text-[12px] transition-colors border-y ${activeFormTab === 'rentas' ? 'bg-[#c0c0c0] text-black border-[#a0a0a0] shadow-[inset_0px_1px_1px_rgba(0,0,0,0.1)] font-semibold' : 'bg-white text-slate-700 border-transparent hover:bg-[#f8f8f8]'}`}
+                    >
+                      Rentas
+                    </button>
+                    <button
+                      onClick={() => { setActiveFormTab('movimientos'); if (isMobile) setShowModalSidebar(false); }}
+                      className={`w-full text-left px-4 py-2.5 text-[12px] transition-colors border-y ${activeFormTab === 'movimientos' ? 'bg-[#c0c0c0] text-black border-[#a0a0a0] shadow-[inset_0px_1px_1px_rgba(0,0,0,0.1)] font-semibold' : 'bg-white text-slate-700 border-transparent hover:bg-[#f8f8f8]'}`}
+                    >
+                      Movimientos
                     </button>
                   </div>
                 </div>
@@ -585,6 +710,15 @@ export default function CfActivos() {
                           </select>
                         </div>
                         <div className="win-form-row">
+                          <label className="win-form-label">Total Rentas:</label>
+                          <input 
+                            type="text" 
+                            value={`${fmt(netRentsSum)} €`} 
+                            disabled 
+                            className="win-input flex-1 font-mono bg-slate-100 font-bold text-slate-800" 
+                          />
+                        </div>
+                        <div className="win-form-row">
                           <label className="win-form-label">Notas:</label>
                           <textarea value={formData.notes} onChange={(e) => setFormData({ ...formData, notes: e.target.value })} placeholder="Comentarios adicionales..." rows={3} className="win-input flex-1 resize-none" />
                         </div>
@@ -630,6 +764,141 @@ export default function CfActivos() {
                       </form>
                     )}
 
+                    {activeFormTab === 'rentas' && (
+                      <div className="flex-1 flex flex-col min-h-0 space-y-3">
+                        {/* Sub-tabs */}
+                        <div className="flex gap-0 border-b border-gray-400">
+                          <button
+                            type="button"
+                            onClick={() => setActiveRentasSubTab('ingresos')}
+                            className={`px-4 py-1.5 text-[11px] font-bold border-t border-x cursor-pointer select-none transition-colors ${activeRentasSubTab === 'ingresos' ? 'bg-[#d4d0c8] text-[#000080] border-gray-400 border-b-transparent z-10' : 'bg-[#c0c0c0] text-slate-700 border-gray-400 hover:bg-[#d4d0c8]'}`}
+                          >
+                            Ingresos
+                          </button>
+                          <button
+                            type="button"
+                            onClick={() => setActiveRentasSubTab('gastos')}
+                            className={`px-4 py-1.5 text-[11px] font-bold border-t border-x cursor-pointer select-none transition-colors ${activeRentasSubTab === 'gastos' ? 'bg-[#d4d0c8] text-[#000080] border-gray-400 border-b-transparent z-10' : 'bg-[#c0c0c0] text-slate-700 border-gray-400 hover:bg-[#d4d0c8]'}`}
+                          >
+                            Gastos
+                          </button>
+                        </div>
+
+                        <div className="flex-1 overflow-auto bg-[#d4d0c8] p-1">
+                          {activeRentasSubTab === 'ingresos' && (
+                            <div className="space-y-4 max-w-xl">
+                              <div className="space-y-1">
+                                <label className="text-[10px] font-bold text-slate-700 uppercase">CEBE Asociado (Ingresos):</label>
+                                <p className="text-[11px] text-gray-600 mb-2 font-sans">
+                                  Selecciona el CEBE al que se imputarán los ingresos de este activo.
+                                </p>
+                                <div className="win-form-row">
+                                  <label className="win-form-label">CEBE Ingresos:</label>
+                                  <SearchableSelect
+                                    options={cebes}
+                                    value={formData.incomeCebeId || ''}
+                                    onChange={(val) => setFormData({ ...formData, incomeCebeId: val })}
+                                    placeholder="-- Seleccionar CEBE --"
+                                  />
+                                </div>
+                              </div>
+                              <div className="pt-2">
+                                <button 
+                                  type="button"
+                                  className="px-4 py-1.5 bg-[#4a69bd] hover:bg-[#3b5598] text-white text-[11px] font-bold uppercase shadow-sm cursor-pointer"
+                                  onClick={() => handleOpenAccounting('ingresos')}
+                                >
+                                  Añadir Asiento
+                                </button>
+                              </div>
+                              <AnalyticsJournalViewer type="cebe" value={formData.incomeCebeId} userIds={queryUserIds?.length > 0 ? queryUserIds : [user.uid]} setPreviewDocument={setPreviewDocument} />
+                            </div>
+                          )}
+
+                          {activeRentasSubTab === 'gastos' && (
+                            <div className="space-y-4 max-w-xl">
+                              <div className="space-y-1">
+                                <label className="text-[10px] font-bold text-slate-700 uppercase">CECO Asociado (Gastos):</label>
+                                <p className="text-[11px] text-gray-600 mb-2 font-sans">
+                                  Selecciona el CECO al que se imputarán los gastos fijos de este activo.
+                                </p>
+                                <div className="win-form-row">
+                                  <label className="win-form-label">CECO Gastos:</label>
+                                  <SearchableSelect
+                                    options={cecos}
+                                    value={formData.expenseCecoId || ''}
+                                    onChange={(val) => setFormData({ ...formData, expenseCecoId: val })}
+                                    placeholder="-- Seleccionar CECO --"
+                                  />
+                                </div>
+                              </div>
+                              <div className="pt-2">
+                                <button 
+                                  type="button"
+                                  className="px-4 py-1.5 bg-[#4a69bd] hover:bg-[#3b5598] text-white text-[11px] font-bold uppercase shadow-sm cursor-pointer"
+                                  onClick={() => handleOpenAccounting('gastos')}
+                                >
+                                  Añadir Asiento
+                                </button>
+                              </div>
+                              <AnalyticsJournalViewer type="ceco" value={formData.expenseCecoId} userIds={queryUserIds?.length > 0 ? queryUserIds : [user.uid]} setPreviewDocument={setPreviewDocument} />
+                            </div>
+                          )}
+                        </div>
+                      </div>
+                    )}
+
+                    {activeFormTab === 'movimientos' && (
+                      <div className="flex-1 flex flex-col min-h-0 space-y-3 overflow-hidden">
+                        {/* Capital Transactions Extract */}
+                        <div className="space-y-1.5 shrink-0">
+                          <label className="text-[10px] font-bold text-slate-700 uppercase select-none">Historial de Transacciones (Capital):</label>
+                          <div className="border border-gray-300 max-h-[160px] overflow-auto bg-white rounded-sm">
+                            <table className="clean-table select-none w-full text-[11px]">
+                              <thead>
+                                <tr>
+                                  <th className="px-2 py-1 text-left w-24">Fecha</th>
+                                  <th className="px-2 py-1 text-left w-32">Plataforma</th>
+                                  <th className="px-2 py-1 text-left w-20">Tipo</th>
+                                  <th className="px-2 py-1 text-right w-28">Importe</th>
+                                  <th className="px-2 py-1 text-left">Notas</th>
+                                </tr>
+                              </thead>
+                              <tbody>
+                                {projectTransactions.length === 0 ? (
+                                  <tr>
+                                    <td colSpan={5} className="text-center py-4 text-gray-400 italic">No hay transacciones registradas para este activo.</td>
+                                  </tr>
+                                ) : (
+                                  projectTransactions.map(tx => {
+                                    const platform = platforms.find(p => p.id === tx.platformId);
+                                    const platName = platform ? platform.name : (tx.platformId || '-');
+                                    return (
+                                      <tr key={tx.id}>
+                                        <td className="font-mono px-2 py-0.5">{tx.date}</td>
+                                        <td className="px-2 py-0.5">{platName}</td>
+                                        <td className="px-2 py-0.5 font-bold uppercase">{tx.type}</td>
+                                        <td className="font-mono px-2 py-0.5 text-right font-semibold text-slate-800">{fmt(tx.amount)} €</td>
+                                        <td className="px-2 py-0.5 truncate max-w-[200px]" title={tx.notes}>{tx.notes || '-'}</td>
+                                      </tr>
+                                    );
+                                  })
+                                )}
+                              </tbody>
+                            </table>
+                          </div>
+                        </div>
+
+                        {/* Exploitation Movements (CEBE/CECO) */}
+                        <div className="flex-1 flex flex-col min-h-0 space-y-1.5 border-t border-gray-300 pt-2 overflow-hidden">
+                          <label className="text-[10px] font-bold text-slate-700 uppercase select-none">Movimientos de Explotación (CEBE / CECO):</label>
+                          <div className="flex-1 overflow-auto bg-[#d4d0c8] p-1">
+                            <AnalyticsJournalViewer type="combined" value={{ cebe: formData.incomeCebeId, ceco: formData.expenseCecoId }} userIds={queryUserIds?.length > 0 ? queryUserIds : [user.uid]} setPreviewDocument={setPreviewDocument} />
+                          </div>
+                        </div>
+                      </div>
+                    )}
+
                   </div>
                 </div>
 
@@ -641,6 +910,356 @@ export default function CfActivos() {
               </div>
             </div>
           </Window>
+        </div>
+      )}
+
+      {showAccountingModal && (
+        <AccountingEntryModal 
+          isOpen={true} 
+          onClose={() => setShowAccountingModal(false)}
+          onSaveSuccess={(id) => {
+            console.log("Asiento vinculado en activo CF:", id);
+            setShowAccountingModal(false);
+          }}
+          userId={user.uid}
+          defaultDate={new Date().toISOString().split('T')[0]}
+          defaultDescription={accountingModalConfig.defaultDescription}
+          defaultAmount={accountingModalConfig.defaultAmount}
+          linkedAccountId={accountingModalConfig.linkedAccountId}
+          defaultAnalytics={accountingModalConfig.defaultAnalytics}
+        />
+      )}
+
+      {previewDocument && (
+        <div className="fixed inset-0 bg-black/45 backdrop-blur-sm flex items-center justify-center z-[9999]" onClick={() => setPreviewDocument(null)}>
+          <div className="bg-white border-2 border-slate-700 shadow-2xl w-[90%] h-[90%] max-w-[1000px] flex flex-col p-1" onClick={e => e.stopPropagation()}>
+            <div className="bg-[#000080] text-white px-3 py-1 flex items-center justify-between text-[11px] font-bold shrink-0 select-none">
+              <span>DOCUMENTO ASOCIADO: {previewDocument.name}</span>
+              <button onClick={() => setPreviewDocument(null)} className="hover:bg-red-500 p-0.5 rounded transition-colors text-white">
+                <X className="w-4 h-4" />
+              </button>
+            </div>
+            <div className="flex-1 bg-slate-100 overflow-hidden p-1 relative flex items-center justify-center">
+              {previewDocument.url.match(/\.(jpeg|jpg|gif|png)$/i) || previewDocument.url.includes('image') ? (
+                <img src={previewDocument.url} alt={previewDocument.name} className="max-w-full max-h-full object-contain" />
+              ) : (
+                <iframe src={previewDocument.url} title={previewDocument.name} className="w-full h-full border-0 bg-white" />
+              )}
+            </div>
+          </div>
+        </div>
+      )}
+    </div>
+  );
+}
+
+function SearchableSelect({ options, value, onChange, placeholder }) {
+  const [isOpen, setIsOpen] = useState(false);
+  const [search, setSearch] = useState('');
+  const [dropdownPos, setDropdownPos] = useState({ top: 0, left: 0, width: 0 });
+
+  const filtered = options.filter(opt =>
+    (opt.code || '').toLowerCase().includes(search.toLowerCase()) ||
+    (opt.name || '').toLowerCase().includes(search.toLowerCase())
+  );
+
+  const selectedOpt = options.find(o => o.code === value);
+
+  const handleOpen = (e) => {
+    const rect = e.currentTarget.getBoundingClientRect();
+    setDropdownPos({
+      top: rect.bottom + window.scrollY,
+      left: rect.left + window.scrollX,
+      width: Math.max(rect.width, 250)
+    });
+    setIsOpen(true);
+  };
+
+  return (
+    <div className="relative flex-1">
+      <div 
+        onClick={handleOpen}
+        className="win-input w-full h-[28px] flex items-center justify-between px-2 bg-white border border-[#808080] cursor-pointer hover:bg-slate-50 text-[11px] font-mono"
+      >
+        <span className={selectedOpt ? 'text-black font-semibold' : 'text-gray-400 italic'}>
+          {selectedOpt ? `${selectedOpt.code} - ${selectedOpt.name}` : placeholder}
+        </span>
+        <span className="text-[10px] text-gray-500">▼</span>
+      </div>
+
+      {isOpen && (
+        <div className="fixed inset-0 z-[10000]" onClick={() => setIsOpen(false)}>
+          <div 
+            onClick={(e) => e.stopPropagation()}
+            style={{ 
+              top: dropdownPos.top, 
+              left: dropdownPos.left, 
+              width: dropdownPos.width,
+              position: 'fixed'
+            }}
+            className="bg-[#f0f0f0] border border-gray-400 shadow-md flex flex-col p-1 mt-0.5"
+          >
+            <input 
+              autoFocus
+              type="text"
+              placeholder="Buscar..."
+              className="win-input w-full text-[11px] px-2 py-1.5 focus:border-blue-500 font-sans"
+              value={search}
+              onChange={(e) => setSearch(e.target.value)}
+            />
+            <div className="max-h-[150px] overflow-y-auto bg-white border border-gray-300">
+              <div 
+                onClick={() => { onChange(''); setIsOpen(false); setSearch(''); }}
+                className="px-2 py-1 text-[11px] hover:bg-blue-500 hover:text-white cursor-pointer italic text-gray-500"
+              >
+                -- Ninguno --
+              </div>
+              {filtered.map(opt => (
+                <div 
+                  key={opt.id}
+                  onClick={() => {
+                    onChange(opt.code);
+                    setIsOpen(false);
+                    setSearch('');
+                  }}
+                  className="px-2 py-1 text-[11px] hover:bg-blue-500 hover:text-white cursor-pointer font-mono"
+                >
+                  {opt.code} - {opt.name}
+                </div>
+              ))}
+              {filtered.length === 0 && (
+                <div className="px-2 py-2 text-[11px] text-gray-400 italic text-center">Sin resultados</div>
+              )}
+            </div>
+          </div>
+        </div>
+      )}
+    </div>
+  );
+}
+
+function AnalyticsJournalViewer({ type, value, userIds, setPreviewDocument }) {
+  const [entries, setEntries] = useState([]);
+  const [uploadingId, setUploadingId] = useState(null);
+  
+  useEffect(() => {
+    if (type === 'combined') {
+      if (!value.cebe && !value.ceco) {
+        setEntries([]);
+        return;
+      }
+    } else if (!value) {
+      setEntries([]);
+      return;
+    }
+
+    if (!userIds || userIds.length === 0) {
+      setEntries([]);
+      return;
+    }
+
+    const q = query(
+      collection(db, 'journal_entries'), 
+      where('userId', 'in', userIds)
+    );
+
+    const unsubscribe = onSnapshot(q, (snap) => {
+      const all = snap.docs.map(d => ({ id: d.id, ...d.data() }));
+      
+      const filtered = all.filter(entry => {
+        if (type === 'combined') {
+          const entryCebe = entry.cebe;
+          const entryCeco = entry.ceco;
+          const matchCebe = value.cebe && entryCebe && String(entryCebe).trim().replace(/^CEBE/i, '').startsWith(String(value.cebe).trim().replace(/^CEBE/i, ''));
+          const matchCeco = value.ceco && entryCeco && String(entryCeco).trim().replace(/^CECO/i, '').startsWith(String(value.ceco).trim().replace(/^CECO/i, ''));
+          return matchCebe || matchCeco;
+        } else if (type === 'account') {
+          if (!value) return false;
+          const lines = entry.lines || [];
+          return lines.some(line => line.account && String(line.account).startsWith(String(value)));
+        } else {
+          const fieldValue = entry[type];
+          if (!fieldValue) return false;
+          const normField = String(fieldValue).trim().replace(/^(CEBE|CECO)/i, '');
+          const normValue = String(value).trim().replace(/^(CEBE|CECO)/i, '');
+          return normField.startsWith(normValue);
+        }
+      });
+      setEntries(filtered.sort((a,b) => new Date(b.date) - new Date(a.date)));
+    });
+    return () => unsubscribe();
+  }, [type, value, userIds]);
+
+  const handleDelete = async (entry) => {
+    if (!window.confirm(`¿Eliminar el asiento "${entry.description}"? Esta acción revertirá los saldos contables.`)) return;
+    try {
+      await deleteJournalEntry(entry.userId || userIds[0], entry.id, entry.lines || []);
+    } catch (err) {
+      alert('Error al eliminar el asiento: ' + err.message);
+    }
+  };
+
+  const handleTaxToggle = async (entry) => {
+    try {
+      const entryRef = doc(db, 'journal_entries', entry.id);
+      await updateDoc(entryRef, { isImpuesto: !entry.isImpuesto });
+    } catch (err) {
+      alert('Error al actualizar: ' + err.message);
+    }
+  };
+
+  const handleUploadDoc = async (e, entry) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+    setUploadingId(entry.id);
+    try {
+      const url = await uploadFileToStorage(file, entry.userId || userIds[0], 'journal_entries', entry.id, 'docs');
+      const entryRef = doc(db, 'journal_entries', entry.id);
+      await updateDoc(entryRef, {
+        documentUrl: url,
+        documentName: file.name
+      });
+    } catch (err) {
+      console.error(err);
+      alert('Error al subir el documento: ' + err.message);
+    } finally {
+      setUploadingId(null);
+    }
+  };
+
+  const handleDeleteDoc = async (entry) => {
+    if (!window.confirm('¿Eliminar el documento asociado a este asiento?')) return;
+    try {
+      const entryRef = doc(db, 'journal_entries', entry.id);
+      await updateDoc(entryRef, {
+        documentUrl: null,
+        documentName: null
+      });
+    } catch (err) {
+      alert('Error al eliminar el documento: ' + err.message);
+    }
+  };
+
+  if (type !== 'combined' && !value) return null;
+  if (type === 'combined' && !value.cebe && !value.ceco) {
+    return <p className="text-[11px] text-gray-500 italic">Asocia primero un CEBE o un CECO al proyecto para ver sus movimientos.</p>;
+  }
+
+  const regular = entries.filter(e => !e.isImpuesto);
+  const impuestos = entries.filter(e => e.isImpuesto);
+  const totalRegular = regular.reduce((s, e) => s + (Number(e.total) || 0), 0);
+  const totalImpuestos = impuestos.reduce((s, e) => s + (Number(e.total) || 0), 0);
+
+  return (
+    <div className="mt-4 border-t border-gray-300 pt-3">
+      <div className="flex items-center justify-between mb-3 select-none">
+        <h3 className="text-[11px] font-bold text-slate-800 uppercase">
+          {type === 'combined' ? 'Historial de Movimientos' : 'Asientos Contables Asociados'}
+        </h3>
+        {entries.length > 0 && (
+          <div className="flex gap-3 text-[10px]">
+            <span className="text-slate-700 font-bold">
+              {type === 'ceco' ? 'Gastos' : 'Ingresos'}: {totalRegular.toLocaleString('es-ES', {minimumFractionDigits:2})} &euro;
+            </span>
+            {impuestos.length > 0 && (
+              <span className="text-slate-700 font-bold">
+                Impuestos: {totalImpuestos.toLocaleString('es-ES', {minimumFractionDigits:2})} &euro;
+              </span>
+            )}
+          </div>
+        )}
+      </div>
+      {entries.length === 0 ? (
+        <p className="text-[11px] text-gray-500 italic">No hay asientos contables registrados.</p>
+      ) : (
+        <div className="overflow-x-auto border border-[#808080]">
+          <table className="w-full win-table bg-white">
+            <thead className="bg-[#d4d0c8] select-none text-[10px]">
+              <tr className="border-b border-[#808080]">
+                <th className="p-1.5 text-left font-bold border-r border-[#808080]">Fecha</th>
+                <th className="p-1.5 text-left font-bold border-r border-[#808080]">Concepto</th>
+                <th className="p-1.5 text-left font-bold border-r border-[#808080]">Documento</th>
+                <th className="p-1.5 text-right font-bold border-r border-[#808080]">Importe</th>
+                <th className="p-1.5 text-center font-bold border-r border-[#808080] w-16">Impuesto</th>
+                <th className="p-1.5 text-center font-bold w-8"></th>
+              </tr>
+            </thead>
+            <tbody>
+              {entries.map(e => (
+                <tr key={e.id} className="border-b border-gray-200 hover:bg-blue-50 text-[10px] text-slate-800">
+                  <td className="p-1.5 whitespace-nowrap font-mono">{new Date(e.date).toLocaleDateString()}</td>
+                  <td className="p-1.5 truncate max-w-[150px]" title={e.description}>{e.description}</td>
+                  
+                  {/* Attached Document cell */}
+                  <td className="p-1.5 border-r border-gray-200">
+                    <div className="flex items-center gap-1.5">
+                      {e.documentUrl ? (
+                        <>
+                          <button 
+                            type="button"
+                            onClick={() => setPreviewDocument?.({ url: e.documentUrl, name: e.documentName || 'Documento' })} 
+                            className="text-blue-600 hover:text-blue-800 flex items-center gap-1 font-medium underline cursor-pointer"
+                            title="Previsualizar documento"
+                          >
+                            <FileText className="w-3.5 h-3.5 shrink-0" />
+                            <span className="truncate max-w-[90px]" title={e.documentName}>{e.documentName}</span>
+                          </button>
+                          <button 
+                            type="button"
+                            onClick={() => handleDeleteDoc(e)} 
+                            className="text-red-500 hover:text-red-700 ml-auto p-0.5 hover:bg-red-50 rounded cursor-pointer"
+                            title="Quitar documento"
+                          >
+                            <X className="w-3 h-3" />
+                          </button>
+                        </>
+                      ) : (
+                        <label className="flex items-center gap-1 cursor-pointer text-slate-400 hover:text-blue-600 select-none">
+                          {uploadingId === e.id ? (
+                            <span className="text-[9px] text-slate-500 animate-pulse">Subiendo...</span>
+                          ) : (
+                            <>
+                              <Upload className="w-3.5 h-3.5 shrink-0" />
+                              <span className="text-[9px]">Adjuntar doc</span>
+                            </>
+                          )}
+                          <input 
+                            type="file" 
+                            className="hidden" 
+                            onChange={(evt) => handleUploadDoc(evt, e)} 
+                            disabled={uploadingId === e.id}
+                          />
+                        </label>
+                      )}
+                    </div>
+                  </td>
+
+                  <td className="p-1.5 text-right font-mono font-bold text-[#000080]">
+                    {Number(e.total).toLocaleString('es-ES', {minimumFractionDigits:2})} &euro;
+                  </td>
+                  <td className="p-1.5 text-center">
+                    <input 
+                      type="checkbox" 
+                      checked={!!e.isImpuesto} 
+                      onChange={() => handleTaxToggle(e)} 
+                      title="Marcar como Impuesto" 
+                      className="cursor-pointer w-3.5 h-3.5 accent-orange-500" 
+                    />
+                  </td>
+                  <td className="p-1 text-center">
+                    <button 
+                      type="button"
+                      onClick={() => handleDelete(e)} 
+                      className="text-red-400 hover:text-red-600 hover:bg-red-50 rounded p-0.5 cursor-pointer" 
+                      title="Eliminar asiento"
+                    >
+                      <Trash2 className="w-3.5 h-3.5" />
+                    </button>
+                  </td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
         </div>
       )}
     </div>

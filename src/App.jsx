@@ -32,6 +32,7 @@ import CfEmpresas from './pages/CfEmpresas';
 import CfActivos from './pages/CfActivos';
 import TaxesCf from './pages/TaxesCf';
 import Importer from './pages/Importer';
+import CfTransactions from './pages/CfTransactions';
 
 const ProtectedRoute = ({ children }) => {
   const { user, queryUserIds, loading } = useAuth();
@@ -69,6 +70,7 @@ function App() {
             <Route path="cf-portfolio" element={<CfPortfolio />} />
             <Route path="cf-empresas" element={<CfEmpresas />} />
             <Route path="cf-activos" element={<CfActivos />} />
+            <Route path="cf-transactions" element={<CfTransactions />} />
             <Route path="importador" element={<Importer />} />
             <Route path="rentals" element={<Rentals />} />
             <Route path="partners" element={<Partners />} />

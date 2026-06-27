@@ -31,7 +31,6 @@ export default function RvTransactions() {
   const [showSidebar, setShowSidebar] = useState(true);
   const [isMobile, setIsMobile] = useState(window.innerWidth < 768);
 
-  // Form State
   const [formData, setFormData] = useState({
     id: '',
     assetId: '',
@@ -43,6 +42,7 @@ export default function RvTransactions() {
     fee: '0',
     exchangeRate: '1.0',
     currency: 'EUR',
+    divisaAssetId: '',
     notes: ''
   });
 
@@ -91,18 +91,53 @@ export default function RvTransactions() {
     };
   }, [user, queryUserIds]);
 
-  // Read broker currency on change
+  // Default currency to asset currency when assetId changes
   useEffect(() => {
-    if (formData.brokerId) {
-      const selectedBroker = brokers.find(b => b.id === formData.brokerId);
-      if (selectedBroker) {
+    if (formData.assetId) {
+      const selectedAsset = assets.find(a => a.id === formData.assetId);
+      if (selectedAsset) {
         setFormData(prev => ({
           ...prev,
-          currency: selectedBroker.currency || 'EUR'
+          currency: selectedAsset.currency || 'EUR'
         }));
       }
     }
-  }, [formData.brokerId, brokers]);
+  }, [formData.assetId, assets]);
+
+  const [divisaHistory, setDivisaHistory] = useState([]);
+
+  // Fetch history for selected Divisa asset
+  useEffect(() => {
+    if (!formData.divisaAssetId || !user) {
+      setDivisaHistory([]);
+      return;
+    }
+    const q = query(
+      collection(db, 'rv_asset_history'),
+      where('assetId', '==', formData.divisaAssetId),
+      where('userId', '==', user.uid)
+    );
+    const unsub = onSnapshot(q, (snap) => {
+      const records = snap.docs.map(d => d.data());
+      records.sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime());
+      setDivisaHistory(records);
+    });
+    return () => unsub();
+  }, [formData.divisaAssetId, user]);
+
+  // Suggest exchange rate based on date and divisa history
+  useEffect(() => {
+    if (divisaHistory.length > 0 && formData.date) {
+      const txTime = new Date(formData.date).getTime();
+      const match = divisaHistory.find(r => new Date(r.date).getTime() <= txTime);
+      if (match) {
+        setFormData(prev => ({
+          ...prev,
+          exchangeRate: String(match.close)
+        }));
+      }
+    }
+  }, [formData.date, divisaHistory]);
 
   const handleSaveField = async (tx, field, newVal) => {
     try {
@@ -279,6 +314,9 @@ export default function RvTransactions() {
       return num > max ? num : max;
     }, 0);
 
+    const defaultAsset = assets[0];
+    const defaultCurrency = defaultAsset?.currency || 'EUR';
+
     setFormData({
       id: `TX${String(maxId + 1).padStart(3, '0')}`,
       assetId: assets[0]?.id || '',
@@ -289,7 +327,8 @@ export default function RvTransactions() {
       price: '',
       fee: '0',
       exchangeRate: '1.0',
-      currency: brokers[0]?.currency || 'EUR',
+      currency: defaultCurrency,
+      divisaAssetId: '',
       notes: ''
     });
     setShowForm(true);
@@ -709,6 +748,41 @@ export default function RvTransactions() {
               </div>
 
               <div className="win-form-row">
+                <label className="win-form-label">Divisa:</label>
+                <select
+                  value={formData.currency}
+                  onChange={(e) => setFormData({ ...formData, currency: e.target.value })}
+                  required
+                  className="win-input flex-1"
+                >
+                  <option value="EUR">EUR (€)</option>
+                  <option value="USD">USD ($)</option>
+                  <option value="GBP">GBP (£)</option>
+                  <option value="CHF">CHF (Fr.)</option>
+                  <option value="JPY">JPY (¥)</option>
+                </select>
+              </div>
+
+              <div className="win-form-row">
+                <label className="win-form-label font-bold text-blue-800">Ref. Divisa (Tipo Cambio):</label>
+                <select
+                  value={formData.divisaAssetId || ''}
+                  onChange={(e) => setFormData({ ...formData, divisaAssetId: e.target.value })}
+                  className="win-input flex-1"
+                >
+                  <option value="">-- Sin referencia de Divisa --</option>
+                  {assets
+                    .filter(a => a.type && a.type.toLowerCase() === 'divisa')
+                    .map(a => (
+                      <option key={a.id} value={a.id}>
+                        {a.id} - {a.name}
+                      </option>
+                    ))
+                  }
+                </select>
+              </div>
+
+              <div className="win-form-row">
                 <label className="win-form-label">Tipo Cambio (USD/EUR...):</label>
                 <input
                   type="number"
@@ -718,17 +792,6 @@ export default function RvTransactions() {
                   placeholder="1,0"
                   required
                   className="win-input flex-1"
-                />
-              </div>
-
-              <div className="win-form-row">
-                <label className="win-form-label">Divisa:</label>
-                <input
-                  type="text"
-                  value={formData.currency}
-                  readOnly
-                  disabled
-                  className="win-input flex-1 bg-slate-100 font-bold text-slate-800"
                 />
               </div>
 

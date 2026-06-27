@@ -11,6 +11,7 @@ import ComunidadTab from '../components/ComunidadTab';
 import PropietariosTab from '../components/PropietariosTab';
 import FinanzasTab from '../components/FinanzasTab';
 import ExtractoTab from '../components/ExtractoTab';
+import ExtractoContableTab from '../components/ExtractoContableTab';
 import ClienteTab from '../components/ClienteTab';
 import ReformasTab from '../components/ReformasTab';
 import { ErrorBoundary } from '../components/ErrorBoundary';
@@ -691,7 +692,8 @@ export default function RealEstate() {
     { id: 'Comunidad', icon: UsersIcon },
     { id: 'Reformas', icon: Wrench },
     { id: 'Propietarios', icon: UserCircle },
-    { id: 'Finanzas', icon: PieChart }
+    { id: 'Finanzas', icon: PieChart },
+    { id: 'Extracto ingresos gastos', icon: FileText }
   ];
 
   const renderTabContent = () => {
@@ -858,6 +860,7 @@ export default function RealEstate() {
       return <FinanzasTab formData={formData} setFormData={setFormData} rentals={rentals} user={user} setPreviewDocument={setPreviewDocument} />;
     }
     if (activeTab === 'Reformas') return <ReformasTab formData={formData} setFormData={setFormData} user={user} isUploading={isUploading} setIsUploading={setIsUploading} setPreviewDocument={setPreviewDocument} />;
+    if (activeTab === 'Extracto ingresos gastos') return <ExtractoContableTab formData={formData} setFormData={setFormData} mode="properties" cebes={cebes} cecos={cecos} setPreviewDocument={setPreviewDocument} />;
     return <div className="flex justify-center items-center h-full text-slate-500">Contenido de la pestaña {activeTab} (En desarrollo...)</div>;
   };
 
