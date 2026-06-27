@@ -1,56 +1,80 @@
 import { useState, useEffect, useMemo } from 'react';
-import { useSearchParams } from 'react-router-dom';
+import { useSearchParams, useNavigate } from 'react-router-dom';
 import { db, functions } from '../firebase/config';
 import { httpsCallable } from 'firebase/functions';
 import { collection, query, where, onSnapshot } from 'firebase/firestore';
 import { useAuth } from '../context/AuthContext';
 import { 
   FileText, 
-  Send, 
-  ArrowUpRight, 
-  ArrowDownRight, 
   PieChart, 
   Activity, 
   Columns,
   Mail,
-  Calendar
+  Calendar,
+  Layers,
+  Sliders,
+  ChevronDown
 } from 'lucide-react';
 
 export default function FinancialReports() {
   const [searchParams] = useSearchParams();
+  const navigate = useNavigate();
   const { user, queryUserIds } = useAuth();
-  const [activeTab, setActiveTab] = useState(searchParams.get('tab') || 'balance'); // balance, income, cashflow, dates
+  
+  // Tab State (sync with URL parameter)
+  const [activeTab, setActiveTab] = useState(searchParams.get('tab') || 'balance'); 
+  
+  // Database States
   const [accounts, setAccounts] = useState([]);
   const [entries, setEntries] = useState([]);
   const [loading, setLoading] = useState(true);
   const [sending, setSending] = useState(false);
-  const [isMobile, setIsMobile] = useState(window.innerWidth < 768);
 
-  // Date Filters
+  // Period Filters
   const [selectedYear, setSelectedYear] = useState(new Date().getFullYear());
   const [startMonth, setStartMonth] = useState(0); // 0-11
   const [endMonth, setEndMonth] = useState(11); // 0-11
 
-  useEffect(() => {
-    const handleResize = () => setIsMobile(window.innerWidth < 768);
-    window.addEventListener('resize', handleResize);
-    return () => window.removeEventListener('resize', handleResize);
-  }, []);
+  // Sidebar Filter States
+  const [showSidebar, setShowSidebar] = useState(true);
+  const [detailLevel, setDetailLevel] = useState(4); // 0: Masas, 1: Submasas, 2: 2-dígitos, 3: 3-dígitos, 4: 4-dígitos
+  
+  // Section visibility states
+  const [showActivo, setShowActivo] = useState(true);
+  const [showPasivo, setShowPasivo] = useState(true);
+  const [showPatrimonio, setShowPatrimonio] = useState(true);
+  const [showCorriente, setShowCorriente] = useState(true);
+  const [showNoCorriente, setShowNoCorriente] = useState(true);
+  
+  const [showIngreso, setShowIngreso] = useState(true);
+  const [showGasto, setShowGasto] = useState(true);
 
+  const [showExplotacion, setShowExplotacion] = useState(true);
+  const [showInversion, setShowInversion] = useState(true);
+  const [showFinanciacion, setShowFinanciacion] = useState(true);
+
+  // Sync activeTab when searchParams change (from ribbon click)
+  useEffect(() => {
+    const tab = searchParams.get('tab');
+    if (tab && ['balance', 'income', 'cashflow', 'dates', 'informe'].includes(tab)) {
+      setActiveTab(tab);
+    }
+  }, [searchParams]);
+
+  // Firestore Subscriptions
   useEffect(() => {
     if (!user) return;
+    const userIds = queryUserIds?.length > 0 ? queryUserIds : [user.uid];
     
-    const qAccs = query(collection(db, 'accounts'), where('userId', 'in', queryUserIds?.length > 0 ? queryUserIds : [user.uid]));
+    const qAccs = query(collection(db, 'accounts'), where('userId', 'in', userIds));
     const unsubAccs = onSnapshot(qAccs, (snap) => {
       const accs = snap.docs.map(doc => {
         const data = doc.data();
         const code = data.code || '';
         
-        // Estandarizar parentId (manejar camelCase o snake_case)
         let parentId = data.parentId !== undefined ? data.parentId : data.parent_id;
         if (parentId === undefined) parentId = null;
 
-        // Inferir tipo si falta para que el reporte lo agrupe bien
         let type = data.type;
         if (!type && code) {
           const first = code.charAt(0);
@@ -71,10 +95,9 @@ export default function FinancialReports() {
         };
       });
       setAccounts(accs);
-      setLoading(prev => entries.length > 0 ? false : prev);
     });
 
-    const qEntries = query(collection(db, 'journal_entries'), where('userId', 'in', queryUserIds?.length > 0 ? queryUserIds : [user.uid]));
+    const qEntries = query(collection(db, 'journal_entries'), where('userId', 'in', userIds));
     const unsubEntries = onSnapshot(qEntries, (snap) => {
       const ents = snap.docs.map(doc => ({ id: doc.id, ...doc.data() }));
       setEntries(ents);
@@ -85,8 +108,9 @@ export default function FinancialReports() {
       unsubAccs();
       unsubEntries();
     };
-  }, [user]);
+  }, [user, queryUserIds]);
 
+  // Handle Email sending
   const handleSendReport = async () => {
     setSending(true);
     try {
@@ -100,13 +124,51 @@ export default function FinancialReports() {
     setSending(false);
   };
 
-  const calculateTotal = (types) => {
-    return accounts
-      .filter(acc => types.includes(acc.type))
-      .reduce((sum, acc) => sum + (computedBalances[acc.id] || 0), 0);
+  // Helper for PGC standard names
+  const getPrefixName = (code, dbAccounts) => {
+    const found = dbAccounts.find(a => a.code === code);
+    if (found) return found.name;
+    
+    const pgcNames = {
+      '10': 'Capital',
+      '11': 'Reservas',
+      '12': 'Resultados del ejercicio',
+      '13': 'Subvenciones y legados',
+      '14': 'Provisiones a largo plazo',
+      '17': 'Deudas a largo plazo con entidades de crédito',
+      '20': 'Inmovilizado intangible',
+      '21': 'Inmovilizado material',
+      '22': 'Inversiones inmobiliarias',
+      '28': 'Amortización acumulada del inmovilizado',
+      '30': 'Existencias mercaderías',
+      '40': 'Proveedores',
+      '41': 'Acreedores varios',
+      '43': 'Clientes',
+      '44': 'Deudores varios',
+      '47': 'Administraciones públicas',
+      '52': 'Deudas a corto plazo',
+      '57': 'Tesorería (Caja y Bancos)',
+      '60': 'Compras y aprovisionamientos',
+      '62': 'Servicios exteriores',
+      '63': 'Tributos',
+      '64': 'Gastos de personal',
+      '65': 'Otros gastos de gestión',
+      '66': 'Gastos financieros',
+      '68': 'Amortizaciones',
+      '70': 'Ventas e ingresos de explotación',
+      '75': 'Otros ingresos de gestión',
+      '76': 'Ingresos financieros',
+      '570': 'Caja',
+      '572': 'Bancos c/c',
+      '211': 'Terrenos y bienes naturales',
+      '218': 'Equipos para procesos de información',
+      '430': 'Clientes',
+      '400': 'Proveedores'
+    };
+    return pgcNames[code] || `Grupo ${code}`;
   };
 
-  // Helper para agrupar cuentas por sub-categorías (Activo Corriente vs No Corriente, etc)
+  // Subgroup Classification for Assets/Liabilities
   const getSubGroup = (account) => {
     const code = account.code || '';
     if (account.type === 'Activo') {
@@ -120,26 +182,20 @@ export default function FinancialReports() {
     return account.type;
   };
 
+  // Compute period balance of accounts
   const computedBalances = useMemo(() => {
     const bMap = {};
-    
-    // Filter entries by date
     const startLimit = new Date(selectedYear, startMonth, 1);
     const endLimit = new Date(selectedYear, endMonth + 1, 0, 23, 59, 59);
 
     const calc = (id) => {
       if (bMap[id] !== undefined) return bMap[id];
-      
       const account = accounts.find(a => a.id === id);
       if (!account) return 0;
 
-      // Sum movements from journal entries
       let movementSum = 0;
       entries.forEach(entry => {
         const entryDate = new Date(entry.date);
-        
-        // For Balance, we take everything until endLimit
-        // For Income/Expense, we only take within range
         const isIncomeExpense = ['Ingreso', 'Gasto'].includes(account.type);
         const isInRange = isIncomeExpense 
           ? (entryDate >= startLimit && entryDate <= endLimit)
@@ -170,190 +226,605 @@ export default function FinancialReports() {
     return bMap;
   }, [accounts, entries, selectedYear, startMonth, endMonth]);
 
-  const formatCurrency = (amount) => {
-    const formatted = Math.abs(amount).toLocaleString('en-US', { minimumFractionDigits: 0, maximumFractionDigits: 0 });
-    return amount < 0 ? `(${formatted})` : `${formatted}`;
+  // Hierarchical rows generator for a list of accounts
+  const getAccountRowsForList = (accountList) => {
+    const activeLeafs = accountList.filter(acc => Math.abs(computedBalances[acc.id] || 0) > 0.01);
+    const nodeMap = {};
+
+    activeLeafs.forEach(acc => {
+      const code = acc.code || '';
+      
+      const prefixes = [];
+      if (code.length >= 2) prefixes.push(code.substring(0, 2));
+      if (code.length >= 3) prefixes.push(code.substring(0, 3));
+      if (code.length >= 4) prefixes.push(code);
+
+      prefixes.forEach((pref, idx) => {
+        const level = idx + 2; // level 2, 3, 4
+        if (!nodeMap[pref]) {
+          nodeMap[pref] = {
+            code: pref,
+            name: getPrefixName(pref, accounts),
+            value: 0,
+            level: level
+          };
+        }
+      });
+    });
+
+    Object.keys(nodeMap).forEach(pref => {
+      nodeMap[pref].value = activeLeafs
+        .filter(acc => (acc.code || '').startsWith(pref))
+        .reduce((sum, acc) => sum + (computedBalances[acc.id] || 0), 0);
+    });
+
+    return Object.values(nodeMap)
+      .filter(node => node.level <= detailLevel)
+      .sort((a, b) => a.code.localeCompare(b.code));
   };
 
-  const ReportRow = ({ label, value, isTotal = false, indent = 0, isHeader = false, isSubHeader = false, hasTopLine = false, hasBottomLine = false }) => (
-    <div className={`flex justify-between py-1.5 ${isHeader ? 'mb-2 mt-4 text-[#595edb]' : ''} ${isSubHeader ? 'font-bold italic mt-2' : ''} ${isTotal ? 'mt-1 font-bold pt-2' : ''} ${hasTopLine ? 'border-t border-black pt-2' : ''} ${hasBottomLine ? 'border-b-2 border-black pb-2' : ''}`}>
-      <span className={`${indent > 0 ? `pl-${indent * 4}` : ''} ${isHeader ? 'font-bold text-xl' : 'text-[15px]'} ${!isHeader && !isSubHeader && !isTotal ? 'text-slate-800' : ''}`}>
-        {label}
-      </span>
-      {!isHeader && !isSubHeader && (
-        <span className={`font-mono text-[15px] ${isTotal ? 'font-bold' : 'text-slate-800'}`}>
-          {formatCurrency(value)}
-        </span>
-      )}
-    </div>
-  );
+  // Get account rows for specific Balance Sheet categories
+  const getAccountRowsForSubGroup = (subGroupName) => {
+    let list = [];
+    if (subGroupName === 'Activo No Corriente') {
+      list = accounts.filter(a => a.type === 'Activo' && (a.code || '').startsWith('2'));
+    } else if (subGroupName === 'Activo Corriente') {
+      list = accounts.filter(a => a.type === 'Activo' && !(a.code || '').startsWith('2'));
+    } else if (subGroupName === 'Pasivo No Corriente') {
+      list = accounts.filter(a => a.type === 'Pasivo' && (a.code || '').startsWith('1'));
+    } else if (subGroupName === 'Pasivo Corriente') {
+      list = accounts.filter(a => a.type === 'Pasivo' && !(a.code || '').startsWith('1'));
+    } else if (subGroupName === 'Patrimonio Neto') {
+      list = accounts.filter(a => a.type === 'Patrimonio' || (a.type === 'Pasivo' && ((a.code || '').startsWith('10') || (a.code || '').startsWith('11') || (a.code || '').startsWith('12') || (a.code || '').startsWith('13'))));
+    }
+    return getAccountRowsForList(list);
+  };
 
-  const AccountTree = ({ docAccounts, level = 1 }) => {
-    const sorted = [...docAccounts].sort((a, b) => (a.code || '').localeCompare(b.code || ''));
-    return sorted.map(a => {
-      const balance = computedBalances[a.id] || 0;
-      if (Math.abs(balance) < 0.01) return null;
-      const children = accounts.filter(child => String(child.parentId) === String(a.id));
-      const activeChildren = children.filter(c => Math.abs(computedBalances[c.id] || 0) > 0.01);
+  const getSubGroupTotal = (subGroupName) => {
+    const rows = getAccountRowsForSubGroup(subGroupName);
+    // Sum level 2 rows to get the correct sub-total
+    return rows.reduce((sum, r) => r.level === 2 ? sum + r.value : sum, 0);
+  };
+
+  // Build Balance Sheet rows
+  const getBalanceSheetRows = () => {
+    const rows = [];
+    
+    // 1. ACTIVO
+    if (showActivo) {
+      rows.push({ type: 'header', label: 'I. ACTIVO', level: 0 });
       
-      return (
-        <div key={a.id}>
-          <ReportRow label={a.name} value={balance} indent={level} />
-          {activeChildren.length > 0 && (
-            <AccountTree docAccounts={activeChildren} level={level + 1} />
-          )}
-        </div>
-      );
+      if (showNoCorriente) {
+        const ancRows = getAccountRowsForSubGroup('Activo No Corriente');
+        const ancTotal = ancRows.reduce((sum, r) => r.level === 2 ? sum + r.value : sum, 0);
+        rows.push({ type: 'subheader', label: 'A) ACTIVO NO CORRIENTE', level: 1 });
+        rows.push(...ancRows);
+        rows.push({ type: 'total', label: 'Total Activo No Corriente', value: ancTotal, level: 1 });
+      }
+      
+      if (showCorriente) {
+        const acRows = getAccountRowsForSubGroup('Activo Corriente');
+        const acTotal = acRows.reduce((sum, r) => r.level === 2 ? sum + r.value : sum, 0);
+        rows.push({ type: 'subheader', label: 'B) ACTIVO CORRIENTE', level: 1 });
+        rows.push(...acRows);
+        rows.push({ type: 'total', label: 'Total Activo Corriente', value: acTotal, level: 1 });
+      }
+      
+      const totalAssets = (showNoCorriente ? getSubGroupTotal('Activo No Corriente') : 0) + 
+                          (showCorriente ? getSubGroupTotal('Activo Corriente') : 0);
+      rows.push({ type: 'total', label: 'Total Activo', value: totalAssets, level: 0, hasDoubleLine: true });
+    }
+
+    // 2. PASIVO
+    if (showPasivo) {
+      rows.push({ type: 'header', label: 'II. PASIVO', level: 0 });
+      
+      if (showNoCorriente) {
+        const pncRows = getAccountRowsForSubGroup('Pasivo No Corriente');
+        const pncTotal = pncRows.reduce((sum, r) => r.level === 2 ? sum + r.value : sum, 0);
+        rows.push({ type: 'subheader', label: 'A) PASIVO NO CORRIENTE', level: 1 });
+        rows.push(...pncRows);
+        rows.push({ type: 'total', label: 'Total Pasivo No Corriente', value: pncTotal, level: 1 });
+      }
+      
+      if (showCorriente) {
+        const pcRows = getAccountRowsForSubGroup('Pasivo Corriente');
+        const pcTotal = pcRows.reduce((sum, r) => r.level === 2 ? sum + r.value : sum, 0);
+        rows.push({ type: 'subheader', label: 'B) PASIVO CORRIENTE', level: 1 });
+        rows.push(...pcRows);
+        rows.push({ type: 'total', label: 'Total Pasivo Corriente', value: pcTotal, level: 1 });
+      }
+      
+      const totalLiabilities = (showNoCorriente ? getSubGroupTotal('Pasivo No Corriente') : 0) + 
+                               (showCorriente ? getSubGroupTotal('Pasivo Corriente') : 0);
+      rows.push({ type: 'total', label: 'Total Pasivo', value: totalLiabilities, level: 0, hasDoubleLine: true });
+    }
+
+    // 3. PATRIMONIO NETO
+    if (showPatrimonio) {
+      rows.push({ type: 'header', label: 'III. PATRIMONIO NETO', level: 0 });
+      const pnRows = getAccountRowsForSubGroup('Patrimonio Neto');
+      const pnTotal = pnRows.reduce((sum, r) => r.level === 2 ? sum + r.value : sum, 0);
+      rows.push(...pnRows);
+      rows.push({ type: 'total', label: 'Total Patrimonio Neto', value: pnTotal, level: 0, hasDoubleLine: true });
+    }
+
+    return rows;
+  };
+
+  // Build Income Statement rows
+  const getIncomeStatementRows = (type) => {
+    const list = accounts.filter(a => a.type === type);
+    const nodes = getAccountRowsForList(list);
+    const total = nodes.reduce((sum, r) => r.level === 2 ? sum + r.value : sum, 0);
+    return [
+      ...nodes,
+      { type: 'total', label: `Total ${type === 'Ingreso' ? 'Ingresos' : 'Gastos'}`, value: total, level: 1 }
+    ];
+  };
+
+  const getIncomeStatementTotal = (type) => {
+    const list = accounts.filter(a => a.type === type);
+    const nodes = getAccountRowsForList(list);
+    return nodes.reduce((sum, r) => r.level === 2 ? sum + r.value : sum, 0);
+  };
+
+  // Cash Flow Calculations helper (returns balance up to a date for Group 57)
+  const getCashBalance = (untilDate) => {
+    let balance = 0;
+    entries.forEach(entry => {
+      const entryDate = new Date(entry.date);
+      if (entryDate < untilDate && entry.lines) {
+        entry.lines.forEach(line => {
+          const account = accounts.find(a => a.id === line.accountId);
+          if (account && account.code && account.code.startsWith('57')) {
+            const debit = parseFloat(line.debit) || 0;
+            const credit = parseFloat(line.credit) || 0;
+            balance += (debit - credit);
+          }
+        });
+      }
     });
+    return balance;
+  };
+
+  // Direct Method Cash Flow calculations categorizer
+  const cashFlowCategories = useMemo(() => {
+    const cats = {
+      explotacion: {
+        title: '1. FLUJOS DE EFECTIVO DE LAS ACTIVIDADES DE EXPLOTACIÓN',
+        items: [
+          { key: 'explotacion_cobros', label: '(+) Cobros de clientes y arrendamientos', val: 0, accounts: {} },
+          { key: 'explotacion_pagos_prov', label: '(-) Pagos a proveedores y acreedores por gastos', val: 0, accounts: {} },
+          { key: 'explotacion_pagos_pers', label: '(-) Pagos al personal y tributos', val: 0, accounts: {} },
+          { key: 'explotacion_otros', label: '(+/-) Otros cobros/pagos de explotación', val: 0, accounts: {} }
+        ],
+        total: 0
+      },
+      inversion: {
+        title: '2. FLUJOS DE EFECTIVO DE LAS ACTIVIDADES DE INVERSIÓN',
+        items: [
+          { key: 'inversion_cobros', label: '(+) Cobros por desinversiones (venta de activos)', val: 0, accounts: {} },
+          { key: 'inversion_pagos', label: '(-) Pagos por inversiones (adquisición de activos)', val: 0, accounts: {} }
+        ],
+        total: 0
+      },
+      financiacion: {
+        title: '3. FLUJOS DE EFECTIVO DE LAS ACTIVIDADES DE FINANCIACIÓN',
+        items: [
+          { key: 'financiacion_cobros', label: '(+) Cobros por financiación (préstamos, capital)', val: 0, accounts: {} },
+          { key: 'financiacion_pagos', label: '(-) Pagos por devolución de deudas e intereses', val: 0, accounts: {} }
+        ],
+        total: 0
+      }
+    };
+
+    const startLimit = new Date(selectedYear, startMonth, 1);
+    const endLimit = new Date(selectedYear, endMonth + 1, 0, 23, 59, 59);
+
+    const periodEntries = entries.filter(e => {
+      const entryDate = new Date(e.date);
+      return entryDate >= startLimit && entryDate <= endLimit;
+    });
+
+    periodEntries.forEach(entry => {
+      if (!entry.lines) return;
+
+      let cashDebit = 0;
+      let cashCredit = 0;
+      const cashLines = entry.lines.filter(l => {
+        const account = accounts.find(a => a.id === l.accountId);
+        return account && account.code && account.code.startsWith('57');
+      });
+
+      if (cashLines.length === 0) return;
+
+      cashLines.forEach(l => {
+        cashDebit += parseFloat(l.debit) || 0;
+        cashCredit += parseFloat(l.credit) || 0;
+      });
+
+      const netCashMove = cashDebit - cashCredit;
+      if (Math.abs(netCashMove) < 0.01) return;
+
+      let cpLine = null;
+      let maxCpVal = -1;
+      entry.lines.forEach(l => {
+        const account = accounts.find(a => a.id === l.accountId);
+        const isCash = account && account.code && account.code.startsWith('57');
+        if (!isCash) {
+          const val = Math.max(parseFloat(l.debit) || 0, parseFloat(l.credit) || 0);
+          if (val > maxCpVal) {
+            maxCpVal = val;
+            cpLine = l;
+          }
+        }
+      });
+
+      const cpAccount = cpLine ? accounts.find(a => a.id === cpLine.accountId) : null;
+      const cpCode = cpAccount?.code || '';
+
+      let catKey = '';
+      if (netCashMove > 0) { // Inflow
+        if (cpCode.startsWith('7') || cpCode.startsWith('43') || cpCode.startsWith('44') || entry.description?.toLowerCase().includes('alquiler') || entry.description?.toLowerCase().includes('renta')) {
+          catKey = 'explotacion_cobros';
+        } else if (cpCode.startsWith('2')) {
+          catKey = 'inversion_cobros';
+        } else if (cpCode.startsWith('10') || cpCode.startsWith('17') || cpCode.startsWith('52')) {
+          catKey = 'financiacion_cobros';
+        } else {
+          catKey = 'explotacion_otros';
+        }
+      } else { // Outflow
+        if (cpCode.startsWith('60') || cpCode.startsWith('62') || cpCode.startsWith('40') || cpCode.startsWith('41')) {
+          catKey = 'explotacion_pagos_prov';
+        } else if (cpCode.startsWith('64') || cpCode.startsWith('63') || cpCode.startsWith('47')) {
+          catKey = 'explotacion_pagos_pers';
+        } else if (cpCode.startsWith('2')) {
+          catKey = 'inversion_pagos';
+        } else if (cpCode.startsWith('17') || cpCode.startsWith('52') || cpCode.startsWith('66')) {
+          catKey = 'financiacion_pagos';
+        } else {
+          catKey = 'explotacion_otros';
+        }
+      }
+
+      const absMove = Math.abs(netCashMove);
+      for (const groupName in cats) {
+        const group = cats[groupName];
+        const item = group.items.find(it => it.key === catKey);
+        if (item) {
+          item.val += absMove;
+          if (cpAccount) {
+            if (!item.accounts[cpAccount.id]) {
+              item.accounts[cpAccount.id] = { account: cpAccount, val: 0 };
+            }
+            item.accounts[cpAccount.id].val += absMove;
+          }
+          break;
+        }
+      }
+    });
+
+    cats.explotacion.total = cats.explotacion.items.reduce((sum, it) => {
+      const sign = it.label.startsWith('(-)') ? -1 : 1;
+      return sum + (sign * it.val);
+    }, 0);
+
+    cats.inversion.total = cats.inversion.items.reduce((sum, it) => {
+      const sign = it.label.startsWith('(-)') ? -1 : 1;
+      return sum + (sign * it.val);
+    }, 0);
+
+    cats.financiacion.total = cats.financiacion.items.reduce((sum, it) => {
+      const sign = it.label.startsWith('(-)') ? -1 : 1;
+      return sum + (sign * it.val);
+    }, 0);
+
+    return cats;
+  }, [entries, accounts, selectedYear, startMonth, endMonth]);
+
+  // Aggregate counterparts helper for Cash Flow
+  const getCounterpartRows = (itemsMap) => {
+    if (detailLevel <= 1) return []; // Hide if Masa or Submasa is chosen
+    
+    const nodeMap = {};
+    const list = Object.values(itemsMap);
+    
+    list.forEach(item => {
+      const code = item.account.code || '';
+      const prefixes = [];
+      if (code.length >= 2) prefixes.push(code.substring(0, 2));
+      if (code.length >= 3) prefixes.push(code.substring(0, 3));
+      if (code.length >= 4) prefixes.push(code);
+      
+      prefixes.forEach((pref, idx) => {
+        const level = idx + 2;
+        if (!nodeMap[pref]) {
+          nodeMap[pref] = {
+            code: pref,
+            name: getPrefixName(pref, accounts),
+            value: 0,
+            level: level
+          };
+        }
+      });
+    });
+    
+    Object.keys(nodeMap).forEach(pref => {
+      nodeMap[pref].value = list
+        .filter(item => (item.account.code || '').startsWith(pref))
+        .reduce((sum, item) => sum + item.val, 0);
+    });
+    
+    return Object.values(nodeMap)
+      .filter(node => node.level <= detailLevel)
+      .sort((a, b) => a.code.localeCompare(b.code));
+  };
+
+  const formatCurrency = (amount) => {
+    const formatted = Math.abs(amount).toLocaleString('es-ES', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+    return amount < 0 ? `(${formatted}) €` : `${formatted} €`;
+  };
+
+  // Row Renderer
+  const ReportRow = ({ label, value, isTotal = false, indent = 0, isHeader = false, isSubHeader = false, hasTopLine = false, hasBottomLine = false }) => {
+    const paddingMap = {
+      0: 'pl-0',
+      1: 'pl-3',
+      2: 'pl-6',
+      3: 'pl-9',
+      4: 'pl-12',
+    };
+    const paddingClass = paddingMap[indent] || 'pl-0';
+
+    return (
+      <div className={`flex justify-between py-1.5 ${isHeader ? 'mb-2 mt-4 text-[#4a69bd] border-b border-[#4a69bd]' : ''} ${isSubHeader ? 'font-bold italic mt-2 text-slate-800' : ''} ${isTotal ? 'mt-1 font-bold pt-2' : ''} ${hasTopLine ? 'border-t border-black pt-2' : ''} ${hasBottomLine ? 'border-b-2 border-black pb-2' : ''}`}>
+        <span className={`${paddingClass} ${isHeader ? 'font-bold text-lg' : 'text-[13px]'} ${!isHeader && !isSubHeader && !isTotal ? 'text-slate-800' : ''}`}>
+          {label}
+        </span>
+        {!isHeader && !isSubHeader && (
+          <span className={`font-mono text-[13px] ${isTotal ? 'font-bold' : 'text-slate-700'}`}>
+            {formatCurrency(value)}
+          </span>
+        )}
+      </div>
+    );
   };
 
   const renderBalanceSheet = () => {
-    const currentAssetsList = accounts.filter(a => a.type === 'Activo' && getSubGroup(a) === 'Activo Corriente');
-    const nonCurrentAssetsList = accounts.filter(a => a.type === 'Activo' && getSubGroup(a) === 'Activo No Corriente');
-    const equityList = accounts.filter(a => a.type === 'Patrimonio');
-    const liabilitiesList = accounts.filter(a => a.type === 'Pasivo');
-
-    const getTopLevel = (list) => list.filter(a => !a.parentId || !list.find(p => String(p.id) === String(a.parentId)));
-
-    const currentAssetsTop = getTopLevel(currentAssetsList);
-    const nonCurrentAssetsTop = getTopLevel(nonCurrentAssetsList);
-    const equityTop = getTopLevel(equityList);
-    const liabilitiesTop = getTopLevel(liabilitiesList);
-
-    const totalCurrentAssets = currentAssetsTop.reduce((s, a) => s + (computedBalances[a.id] || 0), 0);
-    const totalNonCurrentAssets = nonCurrentAssetsTop.reduce((s, a) => s + (computedBalances[a.id] || 0), 0);
-    const totalAssets = totalCurrentAssets + totalNonCurrentAssets;
-
-    const totalEquity = equityTop.reduce((s, a) => s + (computedBalances[a.id] || 0), 0);
-    const totalLiabilities = liabilitiesTop.reduce((s, a) => s + (computedBalances[a.id] || 0), 0);
-    const totalEquityLiabilities = totalEquity + totalLiabilities;
-
-    if (Math.abs(totalAssets) < 0.01 && Math.abs(totalEquityLiabilities) < 0.01) {
+    const rows = getBalanceSheetRows();
+    
+    if (rows.length === 0) {
       return (
-        <div className="max-w-4xl mx-auto bg-white p-12 text-center text-slate-400 italic font-sans border border-dashed border-slate-200">
+        <div className="max-w-4xl mx-auto bg-white p-8 text-center text-slate-400 italic font-sans border border-dashed border-slate-200">
           No hay cuentas con saldo para mostrar en este informe.
         </div>
       );
     }
 
     return (
-      <div className="max-w-4xl mx-auto bg-white p-12 text-black font-sans">
-        <div className="flex justify-end border-b-2 border-black pb-2 mb-8">
-          <span className="font-bold text-lg">
-            {new Date().toLocaleDateString('es-ES', { month: 'long', day: '2-digit', year: 'numeric' })}
-          </span>
+      <div className="max-w-4xl mx-auto bg-white p-10 text-black font-sans shadow-sm border border-slate-100">
+        <div className="flex justify-between border-b-2 border-slate-900 pb-2 mb-8">
+          <span className="font-bold text-lg uppercase tracking-tight text-slate-850">BALANCE DE SITUACIÓN</span>
+          <span className="font-mono text-xs text-slate-500">Emitido: {new Date().toLocaleDateString()}</span>
         </div>
 
-        <div className="grid grid-cols-1 gap-12">
-          {/* BLOQUE DE ACTIVOS */}
-          <section>
-            <div className="text-[#4a69bd] py-1 font-black uppercase tracking-widest text-lg mb-4">
-              I. ACTIVO
-            </div>
-            
-            {Math.abs(totalNonCurrentAssets) > 0.01 && (
-              <div className="mb-6 pl-4">
-                <ReportRow label="A) ACTIVO NO CORRIENTE" isSubHeader />
-                <AccountTree docAccounts={nonCurrentAssetsTop} level={1} />
-                <ReportRow label="Total Activo No Corriente" value={totalNonCurrentAssets} isTotal hasTopLine />
-              </div>
-            )}
-
-            {Math.abs(totalCurrentAssets) > 0.01 && (
-              <div className="mb-4 pl-4">
-                <ReportRow label="B) ACTIVO CORRIENTE" isSubHeader />
-                <AccountTree docAccounts={currentAssetsTop} level={1} />
-                <ReportRow label="Total Activo Corriente" value={totalCurrentAssets} isTotal hasTopLine />
-              </div>
-            )}
-            
-            <div className="mt-4">
-              <ReportRow label="Total Activo" value={totalAssets} isTotal hasTopLine />
-            </div>
-          </section>
-
-          {/* BLOQUE DE PASIVO */}
-          <section>
-            <div className="text-[#4a69bd] py-1 font-black uppercase tracking-widest text-lg mb-4">
-              II. PASIVO
-            </div>
-            
-            {Math.abs(totalLiabilities) > 0.01 && (
-              <div className="mb-6 pl-4">
-                <AccountTree docAccounts={liabilitiesTop} level={1} />
-                <ReportRow label="Total Pasivo" value={totalLiabilities} isTotal hasTopLine />
-              </div>
-            )}
-          </section>
-
-          {/* BLOQUE DE PATRIMONIO NETO */}
-          <section>
-            <div className="text-[#4a69bd] py-1 font-black uppercase tracking-widest text-lg mb-4">
-              III. PATRIMONIO NETO
-            </div>
-            
-            <div className="mb-4 pl-4">
-              <AccountTree docAccounts={equityTop} level={1} />
-              <ReportRow label="Total Patrimonio Neto" value={totalEquity} isTotal hasTopLine />
-            </div>
-          </section>
+        <div className="grid grid-cols-1 gap-10">
+          {rows.map((row, idx) => {
+            if (row.type === 'header') {
+              return (
+                <div key={idx} className="text-[#3b6bb8] py-1 font-bold uppercase tracking-wider text-md border-b border-[#3b6bb8]">
+                  {row.label}
+                </div>
+              );
+            }
+            if (row.type === 'subheader') {
+              return (
+                <ReportRow key={idx} label={row.label} isSubHeader />
+              );
+            }
+            return (
+              <ReportRow 
+                key={idx} 
+                label={row.type === 'total' ? row.label : `${row.code} - ${row.name}`} 
+                value={row.value} 
+                indent={row.level} 
+                isTotal={row.type === 'total'} 
+                hasTopLine={row.type === 'total'} 
+                hasBottomLine={row.hasDoubleLine} 
+              />
+            );
+          })}
         </div>
       </div>
     );
   };
 
   const renderIncomeStatement = () => {
-    const incomesList = accounts.filter(a => a.type === 'Ingreso');
-    const expensesList = accounts.filter(a => a.type === 'Gasto');
-
-    const getTopLevel = (list) => list.filter(a => !a.parentId || !list.find(p => String(p.id) === String(a.parentId)));
-
-    const incomesTop = getTopLevel(incomesList);
-    const expensesTop = getTopLevel(expensesList);
-
-    const totalIncomes = incomesTop.reduce((s, a) => s + (computedBalances[a.id] || 0), 0);
-    const totalExpenses = expensesTop.reduce((s, a) => s + (computedBalances[a.id] || 0), 0);
+    const totalIncomes = getIncomeStatementTotal('Ingreso');
+    const totalExpenses = getIncomeStatementTotal('Gasto');
     const result = totalIncomes - totalExpenses;
 
     if (Math.abs(totalIncomes) < 0.01 && Math.abs(totalExpenses) < 0.01) {
       return (
-        <div className="max-w-4xl mx-auto bg-white p-12 text-center text-slate-400 italic font-sans border border-dashed border-slate-200">
+        <div className="max-w-4xl mx-auto bg-white p-8 text-center text-slate-400 italic font-sans border border-dashed border-slate-200">
           No hay movimientos de ingresos o gastos para mostrar en este informe.
         </div>
       );
     }
 
+    const incomeRows = getIncomeStatementRows('Ingreso');
+    const expenseRows = getIncomeStatementRows('Gasto');
+
     return (
-      <div className="max-w-4xl mx-auto bg-white p-12 text-black font-sans">
-        <div className="flex justify-end border-b-2 border-black pb-2 mb-8">
-          <span className="font-bold text-lg">
-            {new Date().toLocaleDateString('es-ES', { month: 'long', day: '2-digit', year: 'numeric' })}
-          </span>
+      <div className="max-w-4xl mx-auto bg-white p-10 text-black font-sans shadow-sm border border-slate-100">
+        <div className="flex justify-between border-b-2 border-slate-900 pb-2 mb-8">
+          <span className="font-bold text-lg uppercase tracking-tight text-slate-850">CUENTA DE PÉRDIDAS Y GANANCIAS</span>
+          <span className="font-mono text-xs text-slate-500">Emitido: {new Date().toLocaleDateString()}</span>
         </div>
 
         <div className="grid grid-cols-1 gap-6">
-          {Math.abs(totalIncomes) > 0.01 && (
+          {showIngreso && (
             <section>
               <ReportRow label="INGRESOS DE EXPLOTACIÓN" isHeader />
               <div className="mb-4 pl-4">
-                <AccountTree docAccounts={incomesTop} level={1} />
-                <ReportRow label="Total Ingresos" value={totalIncomes} isTotal />
+                {incomeRows.map((r, idx) => (
+                  <ReportRow 
+                    key={idx} 
+                    label={r.type === 'total' ? r.label : `${r.code} - ${r.name}`} 
+                    value={r.value} 
+                    indent={r.level} 
+                    isTotal={r.type === 'total'} 
+                    hasTopLine={r.type === 'total'} 
+                  />
+                ))}
               </div>
             </section>
           )}
           
-          {Math.abs(totalExpenses) > 0.01 && (
+          {showGasto && (
             <section className="mt-4">
               <ReportRow label="GASTOS DE EXPLOTACIÓN" isHeader />
               <div className="mb-4 pl-4">
-                <AccountTree docAccounts={expensesTop} level={1} />
-                <ReportRow label="Total Gastos" value={totalExpenses} isTotal />
+                {expenseRows.map((r, idx) => (
+                  <ReportRow 
+                    key={idx} 
+                    label={r.type === 'total' ? r.label : `${r.code} - ${r.name}`} 
+                    value={r.value} 
+                    indent={r.level} 
+                    isTotal={r.type === 'total'} 
+                    hasTopLine={r.type === 'total'} 
+                  />
+                ))}
               </div>
             </section>
           )}
 
-          <section className="mt-8">
-            <ReportRow label="RESULTADO DEL EJERCICIO" value={result} isTotal />
+          <section className="mt-8 pt-4 border-t-2 border-black">
+            <ReportRow label="RESULTADO DEL EJERCICIO (Pérdidas o Ganancias)" value={result} isTotal />
+          </section>
+        </div>
+      </div>
+    );
+  };
+
+  const renderCashFlow = () => {
+    const cats = cashFlowCategories;
+    const initialCash = getCashBalance(new Date(selectedYear, startMonth, 1));
+    const netIncrease = (showExplotacion ? cats.explotacion.total : 0) + 
+                        (showInversion ? cats.inversion.total : 0) + 
+                        (showFinanciacion ? cats.financiacion.total : 0);
+    const finalCash = initialCash + netIncrease;
+
+    return (
+      <div className="max-w-4xl mx-auto bg-white p-10 text-black font-sans shadow-sm border border-slate-100">
+        <div className="flex justify-between border-b-2 border-slate-900 pb-2 mb-8">
+          <span className="font-bold text-lg uppercase tracking-tight text-slate-850">ESTADO DE FLUJOS DE EFECTIVO</span>
+          <span className="font-mono text-xs text-slate-500">Emitido: {new Date().toLocaleDateString()}</span>
+        </div>
+
+        <div className="flex flex-col gap-6">
+          {/* A. ACTIVIDADES DE EXPLOTACIÓN */}
+          {showExplotacion && (
+            <section>
+              <div className="text-blue-900 font-bold uppercase tracking-wider text-xs border-b border-blue-100 pb-1 mb-2">
+                {cats.explotacion.title}
+              </div>
+              <div className="pl-4">
+                {cats.explotacion.items.map(it => {
+                  const itemSign = it.label.startsWith('(-)') ? -1 : 1;
+                  const cPartRows = getCounterpartRows(it.accounts);
+                  
+                  // If we are at level 0/1 (no account detail) or no counterpart matches, just render parent row
+                  if (it.val < 0.01) return null;
+                  
+                  return (
+                    <div key={it.key} className="mb-2">
+                      <ReportRow label={it.label} value={itemSign * it.val} isTotal={cPartRows.length > 0} />
+                      {cPartRows.map((node, nIdx) => (
+                        <ReportRow 
+                          key={nIdx} 
+                          label={`${node.code} - ${node.name}`} 
+                          value={itemSign * node.value} 
+                          indent={node.level} 
+                        />
+                      ))}
+                    </div>
+                  );
+                })}
+                <ReportRow label="Flujo de Efectivo Neto de Actividades de Explotación" value={cats.explotacion.total} isTotal hasTopLine />
+              </div>
+            </section>
+          )}
+
+          {/* B. ACTIVIDADES DE INVERSIÓN */}
+          {showInversion && (
+            <section className="mt-4">
+              <div className="text-blue-900 font-bold uppercase tracking-wider text-xs border-b border-blue-100 pb-1 mb-2">
+                {cats.inversion.title}
+              </div>
+              <div className="pl-4">
+                {cats.inversion.items.map(it => {
+                  const itemSign = it.label.startsWith('(-)') ? -1 : 1;
+                  const cPartRows = getCounterpartRows(it.accounts);
+                  if (it.val < 0.01) return null;
+                  
+                  return (
+                    <div key={it.key} className="mb-2">
+                      <ReportRow label={it.label} value={itemSign * it.val} isTotal={cPartRows.length > 0} />
+                      {cPartRows.map((node, nIdx) => (
+                        <ReportRow 
+                          key={nIdx} 
+                          label={`${node.code} - ${node.name}`} 
+                          value={itemSign * node.value} 
+                          indent={node.level} 
+                        />
+                      ))}
+                    </div>
+                  );
+                })}
+                <ReportRow label="Flujo de Efectivo Neto de Actividades de Inversión" value={cats.inversion.total} isTotal hasTopLine />
+              </div>
+            </section>
+          )}
+
+          {/* C. ACTIVIDADES DE FINANCIACIÓN */}
+          {showFinanciacion && (
+            <section className="mt-4">
+              <div className="text-blue-900 font-bold uppercase tracking-wider text-xs border-b border-blue-100 pb-1 mb-2">
+                {cats.financiacion.title}
+              </div>
+              <div className="pl-4">
+                {cats.financiacion.items.map(it => {
+                  const itemSign = it.label.startsWith('(-)') ? -1 : 1;
+                  const cPartRows = getCounterpartRows(it.accounts);
+                  if (it.val < 0.01) return null;
+                  
+                  return (
+                    <div key={it.key} className="mb-2">
+                      <ReportRow label={it.label} value={itemSign * it.val} isTotal={cPartRows.length > 0} />
+                      {cPartRows.map((node, nIdx) => (
+                        <ReportRow 
+                          key={nIdx} 
+                          label={`${node.code} - ${node.name}`} 
+                          value={itemSign * node.value} 
+                          indent={node.level} 
+                        />
+                      ))}
+                    </div>
+                  );
+                })}
+                <ReportRow label="Flujo de Efectivo Neto de Actividades de Financiación" value={cats.financiacion.total} isTotal hasTopLine />
+              </div>
+            </section>
+          )}
+
+          {/* TOTALS */}
+          <section className="mt-8 pt-4 border-t-2 border-slate-800">
+            <ReportRow label="INCREMENTO (DISMINUCIÓN) NETO DEL EFECTIVO" value={netIncrease} isTotal />
+            <ReportRow label="Efectivo al inicio del ejercicio (Saldo anterior)" value={initialCash} />
+            <ReportRow label="Efectivo al final del ejercicio (Saldo actual)" value={finalCash} isTotal hasBottomLine />
           </section>
         </div>
       </div>
@@ -373,12 +844,12 @@ export default function FinancialReports() {
       <div className="max-w-4xl mx-auto bg-white p-6 md:p-12 shadow-sm border border-slate-200">
         <div className="flex items-center space-x-3 mb-8 border-b pb-4">
           <Calendar className="w-6 h-6 text-blue-800" />
-          <h2 className="text-xl font-black uppercase tracking-tight text-slate-800">Configuración de Periodo</h2>
+          <h2 className="text-xl font-bold uppercase tracking-tight text-slate-800">Configuración de Periodo</h2>
         </div>
 
         <div className="grid grid-cols-1 md:grid-cols-3 gap-8">
           <div>
-            <label className="block text-[10px] font-black uppercase text-slate-400 mb-2">Año de Ejercicio</label>
+            <label className="block text-[10px] font-bold uppercase text-slate-400 mb-2">Año de Ejercicio</label>
             <select 
               value={selectedYear}
               onChange={(e) => setSelectedYear(parseInt(e.target.value))}
@@ -389,7 +860,7 @@ export default function FinancialReports() {
           </div>
 
           <div>
-            <label className="block text-[10px] font-black uppercase text-slate-400 mb-2">Mes Inicial</label>
+            <label className="block text-[10px] font-bold uppercase text-slate-400 mb-2">Mes Inicial</label>
             <select 
               value={startMonth}
               onChange={(e) => setStartMonth(parseInt(e.target.value))}
@@ -400,7 +871,7 @@ export default function FinancialReports() {
           </div>
 
           <div>
-            <label className="block text-[10px] font-black uppercase text-slate-400 mb-2">Mes Final</label>
+            <label className="block text-[10px] font-bold uppercase text-slate-400 mb-2">Mes Final</label>
             <select 
               value={endMonth}
               onChange={(e) => setEndMonth(parseInt(e.target.value))}
@@ -416,7 +887,7 @@ export default function FinancialReports() {
             <Activity className="w-5 h-5 text-blue-800" />
           </div>
           <div>
-            <h3 className="text-sm font-black text-blue-900 uppercase mb-1">Impacto en los Reportes</h3>
+            <h3 className="text-sm font-bold text-blue-900 uppercase mb-1">Impacto en los Reportes</h3>
             <p className="text-xs text-blue-800/70 leading-relaxed">
               Los cambios realizados aquí filtrarán inmediatamente los datos de <span className="font-bold">Balance</span>, <span className="font-bold">Resultados</span> y <span className="font-bold">Caja</span>. 
               El balance mostrará la situación acumulada hasta el fin del periodo seleccionado.
@@ -430,78 +901,215 @@ export default function FinancialReports() {
   const months = ['Enero', 'Febrero', 'Marzo', 'Abril', 'Mayo', 'Junio', 'Julio', 'Agosto', 'Septiembre', 'Octubre', 'Noviembre', 'Diciembre'];
 
   return (
-    <div className="p-4 md:p-6 min-h-screen bg-slate-100">
-      <div className="flex flex-col md:flex-row md:items-end justify-between gap-6 mb-8">
-        <div>
-          <div className="flex items-center space-x-3 mb-1">
-            <FileText className="text-slate-800 w-8 h-8" />
-            <h1 className="text-2xl md:text-3xl font-display font-black text-slate-900 uppercase tracking-tighter italic border-b-4 border-slate-900">
-              INFORMES <span className="text-blue-800">OFICIALES</span>
-            </h1>
+    <div className="flex min-h-screen bg-slate-100 p-4 md:p-6 gap-6 font-sans">
+      
+      {/* Sidebar Filter Panel (Foto 2 style) */}
+      {showSidebar && (
+        <aside className="w-72 shrink-0 bg-[#f8fafc] border border-slate-200 p-5 rounded shadow-sm self-start flex flex-col gap-6 select-none animate-in slide-in-from-left duration-200">
+          <div>
+            <h3 className="text-[11px] font-bold text-slate-400 uppercase tracking-widest mb-3 flex items-center gap-1.5">
+              <Sliders className="w-3.5 h-3.5 text-slate-400" />
+              <span>Nivel de Detalle</span>
+            </h3>
+            <div className="flex flex-col gap-2.5 pl-1">
+              {[
+                { level: 0, label: 'Masas monetarias' },
+                { level: 1, label: 'Submasas monetarias' },
+                { level: 2, label: 'Cuentas (2 dígitos)' },
+                { level: 3, label: 'Cuentas (3 dígitos)' },
+                { level: 4, label: 'Cuentas (4 dígitos)' }
+              ].map(opt => (
+                <label key={opt.level} className="flex items-center text-xs font-semibold text-slate-700 cursor-pointer">
+                  <input 
+                    type="radio" 
+                    name="detailLevel"
+                    checked={detailLevel === opt.level}
+                    onChange={() => setDetailLevel(opt.level)}
+                    className="mr-2 h-3.5 w-3.5 text-blue-600 border-slate-300 focus:ring-blue-500"
+                  />
+                  <span>{opt.label}</span>
+                </label>
+              ))}
+            </div>
           </div>
-          <div className="flex flex-wrap items-center gap-2">
-            <p className="text-[10px] text-slate-500 font-bold uppercase tracking-widest">Generación bajo normativa NIFF / PGC Español</p>
-            <div className="h-1 w-1 bg-slate-300 rounded-full" />
-            <p className="text-[10px] text-blue-700 font-black uppercase tracking-widest bg-blue-50 px-2 py-0.5 border border-blue-100">
-              {months[startMonth]} - {months[endMonth]} {selectedYear}
-            </p>
+
+          <hr className="border-slate-200" />
+
+          {/* Section Filter Checkboxes */}
+          <div>
+            <h3 className="text-[11px] font-bold text-slate-400 uppercase tracking-widest mb-3 flex items-center gap-1.5">
+              <Layers className="w-3.5 h-3.5 text-slate-400" />
+              <span>Mostrar Secciones</span>
+            </h3>
+            <div className="flex flex-col gap-2.5 pl-1">
+              {activeTab === 'balance' && (
+                <>
+                  <label className="flex items-center text-xs font-semibold text-slate-700 cursor-pointer">
+                    <input type="checkbox" checked={showActivo} onChange={e => setShowActivo(e.target.checked)} className="mr-2 h-3.5 w-3.5 rounded text-blue-600 border-slate-300" />
+                    <span>Activos (I)</span>
+                  </label>
+                  {showActivo && (
+                    <div className="pl-6 flex flex-col gap-2">
+                      <label className="flex items-center text-xs font-medium text-slate-600 cursor-pointer">
+                        <input type="checkbox" checked={showNoCorriente} onChange={e => setShowNoCorriente(e.target.checked)} className="mr-2 h-3 w-3 rounded text-blue-600 border-slate-350" />
+                        <span>Activo No Corriente</span>
+                      </label>
+                      <label className="flex items-center text-xs font-medium text-slate-600 cursor-pointer">
+                        <input type="checkbox" checked={showCorriente} onChange={e => setShowCorriente(e.target.checked)} className="mr-2 h-3 w-3 rounded text-blue-600 border-slate-350" />
+                        <span>Activo Corriente</span>
+                      </label>
+                    </div>
+                  )}
+                  <label className="flex items-center text-xs font-semibold text-slate-700 cursor-pointer">
+                    <input type="checkbox" checked={showPasivo} onChange={e => setShowPasivo(e.target.checked)} className="mr-2 h-3.5 w-3.5 rounded text-blue-600 border-slate-300" />
+                    <span>Pasivos (II)</span>
+                  </label>
+                  <label className="flex items-center text-xs font-semibold text-slate-700 cursor-pointer">
+                    <input type="checkbox" checked={showPatrimonio} onChange={e => setShowPatrimonio(e.target.checked)} className="mr-2 h-3.5 w-3.5 rounded text-blue-600 border-slate-300" />
+                    <span>Patrimonio Neto (III)</span>
+                  </label>
+                </>
+              )}
+
+              {activeTab === 'income' && (
+                <>
+                  <label className="flex items-center text-xs font-semibold text-slate-700 cursor-pointer">
+                    <input type="checkbox" checked={showIngreso} onChange={e => setShowIngreso(e.target.checked)} className="mr-2 h-3.5 w-3.5 rounded text-blue-600 border-slate-300" />
+                    <span>Ingresos de Explotación</span>
+                  </label>
+                  <label className="flex items-center text-xs font-semibold text-slate-700 cursor-pointer">
+                    <input type="checkbox" checked={showGasto} onChange={e => setShowGasto(e.target.checked)} className="mr-2 h-3.5 w-3.5 rounded text-blue-600 border-slate-300" />
+                    <span>Gastos de Explotación</span>
+                  </label>
+                </>
+              )}
+
+              {activeTab === 'cashflow' && (
+                <>
+                  <label className="flex items-center text-xs font-semibold text-slate-700 cursor-pointer">
+                    <input type="checkbox" checked={showExplotacion} onChange={e => setShowExplotacion(e.target.checked)} className="mr-2 h-3.5 w-3.5 rounded text-blue-600 border-slate-300" />
+                    <span>1. Actividades Explotación</span>
+                  </label>
+                  <label className="flex items-center text-xs font-semibold text-slate-700 cursor-pointer">
+                    <input type="checkbox" checked={showInversion} onChange={e => setShowInversion(e.target.checked)} className="mr-2 h-3.5 w-3.5 rounded text-blue-600 border-slate-300" />
+                    <span>2. Actividades Inversión</span>
+                  </label>
+                  <label className="flex items-center text-xs font-semibold text-slate-700 cursor-pointer">
+                    <input type="checkbox" checked={showFinanciacion} onChange={e => setShowFinanciacion(e.target.checked)} className="mr-2 h-3.5 w-3.5 rounded text-blue-600 border-slate-300" />
+                    <span>3. Actividades Financiación</span>
+                  </label>
+                </>
+              )}
+            </div>
           </div>
-        </div>
+
+          <hr className="border-slate-200 mt-auto" />
+
+          {/* Email button in sidebar */}
+          <button 
+            onClick={handleSendReport}
+            disabled={sending}
+            className="w-full bg-slate-900 text-white hover:bg-black transition-all rounded shadow-md h-11 flex items-center justify-center space-x-2 uppercase tracking-wider text-[10px] font-black"
+          >
+            {sending ? <Activity className="w-5 h-5 animate-spin" /> : <Mail className="w-5 h-5" />}
+            <span>Enviar por Email</span>
+          </button>
+        </aside>
+      )}
+
+      {/* Main Content Area */}
+      <div className="flex-1 min-w-0">
         
-        <button 
-          onClick={handleSendReport}
-          disabled={sending}
-          className="w-full md:w-auto bg-slate-900 text-white hover:bg-black transition-all shadow-lg hover:shadow-xl rounded-none px-8 h-12 flex items-center justify-center space-x-3 uppercase tracking-widest text-[10px] font-black"
-        >
-          {sending ? <Activity className="w-5 h-5 animate-spin" /> : <Mail className="w-5 h-5" />}
-          <span>Certificar y Enviar por Email</span>
-        </button>
-      </div>
-
-      {/* Report Tabs - Scrollable on mobile */}
-      <div className="overflow-x-auto -mx-4 px-4 md:mx-0 md:px-0 mb-8 scrollbar-hide">
-        <div className="flex min-w-max space-x-px bg-slate-300 p-0.5 shadow-sm">
-          {[
-            { id: 'balance', label: 'Balance', icon: Columns },
-            { id: 'income', label: 'Resultados', icon: PieChart },
-            { id: 'cashflow', label: 'Efectivo', icon: Activity },
-            { id: 'dates', label: 'Fechas', icon: Calendar },
-            { id: 'informe', label: 'Looker', icon: PieChart }
-          ].map(tab => (
-            <button
-              key={tab.id}
-              onClick={() => setActiveTab(tab.id)}
-              className={`flex items-center space-x-2 px-6 md:px-8 py-3 transition-all font-black uppercase text-[10px] tracking-widest ${
-                activeTab === tab.id 
-                ? 'bg-white text-slate-900' 
-                : 'bg-slate-200 text-slate-500 hover:bg-slate-100 hover:text-slate-800'
-              }`}
+        {/* Toggle Button & Upper Control Bar */}
+        <div className="flex flex-col md:flex-row md:items-center justify-between gap-4 mb-6">
+          <div className="flex items-center space-x-3">
+            {/* Foto 3 Toggle Icon */}
+            <button 
+              onClick={() => setShowSidebar(!showSidebar)}
+              className={`p-2 border rounded bg-white shadow-sm transition-all hover:bg-slate-50 border-slate-300 flex items-center justify-center shrink-0`}
+              title={showSidebar ? "Ocultar panel de filtros" : "Mostrar panel de filtros"}
             >
-              <tab.icon className="w-4 h-4" />
-              <span>{tab.label}</span>
+              <svg className="w-5 h-5 text-slate-700" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+                <rect x="3" y="3" width="18" height="18" rx="2" />
+                <line x1="9" y1="3" x2="9" y2="21" />
+              </svg>
             </button>
-          ))}
-        </div>
-      </div>
 
-      {/* Tab Content Area */}
-      <div className="pb-20">
-        {loading ? (
-          <div className="flex flex-col items-center justify-center py-40 space-y-4">
-            <Activity className="w-12 h-12 text-blue-900 animate-spin" />
-            <p className="text-[10px] font-black uppercase tracking-[0.3em] text-slate-400">Analizando registros oficiales...</p>
+            <div>
+              <h1 className="text-xl md:text-2xl font-black text-slate-900 uppercase tracking-tighter italic flex items-center gap-2">
+                <FileText className="text-slate-800 w-6 h-6" />
+                <span>INFORMES CONTABLES</span>
+              </h1>
+              <p className="text-[9px] text-slate-500 font-bold uppercase tracking-wider bg-slate-200/50 px-1.5 py-0.5 border border-slate-300 inline-block rounded">
+                Normativa PGC Español: {months[startMonth]} - {months[endMonth]} {selectedYear}
+              </p>
+            </div>
           </div>
-        ) : (
-          <div className="animate-in fade-in zoom-in-95 duration-700">
-            {activeTab === 'balance' && renderBalanceSheet()}
-            {activeTab === 'income' && renderIncomeStatement()}
-            {activeTab === 'cashflow' && renderCashFlow()}
-            {activeTab === 'dates' && renderDateSettings()}
-            {activeTab === 'informe' && (
-               <iframe width="100%" height="100%" src="https://datastudio.google.com/embed/reporting/3f2ab6f8-a779-4f74-bdcf-97fe1b5d85b1/page/WaZzF" frameBorder="0" style={{ border: 0, minHeight: '80vh' }} allowFullScreen sandbox="allow-storage-access-by-user-activation allow-scripts allow-same-origin allow-popups allow-popups-to-escape-sandbox"></iframe>
-            )}
+
+          {/* Quick Year Selector */}
+          <div className="flex items-center space-x-2 shrink-0">
+            <span className="text-[10px] text-slate-500 font-bold uppercase">Ejercicio:</span>
+            <select
+              value={selectedYear}
+              onChange={e => setSelectedYear(parseInt(e.target.value))}
+              className="bg-white border border-slate-300 rounded px-3 py-1.5 text-xs font-bold text-slate-700 outline-none focus:border-blue-500 transition-all shadow-sm"
+            >
+              {[...new Set([new Date().getFullYear(), ...entries.map(e => e.date ? new Date(e.date).getFullYear() : null)])]
+                .filter(Boolean)
+                .sort((a,b) => b-a)
+                .map(yr => (
+                  <option key={yr} value={yr}>{yr}</option>
+                ))
+              }
+            </select>
           </div>
-        )}
+        </div>
+
+        {/* Tab Selector */}
+        <div className="overflow-x-auto mb-6 scrollbar-hide">
+          <div className="flex min-w-max space-x-px bg-slate-300 p-0.5 shadow-sm rounded">
+            {[
+              { id: 'balance', label: 'Balance de Situación', icon: Columns },
+              { id: 'income', label: 'Resultados (P&G)', icon: PieChart },
+              { id: 'cashflow', label: 'Flujo de Caja', icon: Activity },
+              { id: 'dates', label: 'Período', icon: Calendar }
+            ].map(tab => (
+              <button
+                key={tab.id}
+                onClick={() => {
+                  setActiveTab(tab.id);
+                  navigate(`/reports?tab=${tab.id}`);
+                }}
+                className={`flex items-center space-x-2 px-6 py-2.5 transition-all font-black uppercase text-[10px] tracking-widest ${
+                  activeTab === tab.id 
+                  ? 'bg-white text-slate-900 shadow-sm rounded-sm' 
+                  : 'bg-slate-200 text-slate-500 hover:bg-slate-100 hover:text-slate-800'
+                }`}
+              >
+                <tab.icon className="w-4 h-4" />
+                <span>{tab.label}</span>
+              </button>
+            ))}
+          </div>
+        </div>
+
+        {/* Content Sheet Area */}
+        <div className="pb-20">
+          {loading ? (
+            <div className="flex flex-col items-center justify-center py-40 space-y-4">
+              <Activity className="w-12 h-12 text-blue-900 animate-spin" />
+              <p className="text-[10px] font-black uppercase tracking-[0.2em] text-slate-400">Analizando balances contables...</p>
+            </div>
+          ) : (
+            <div className="animate-in fade-in zoom-in-95 duration-200">
+              {activeTab === 'balance' && renderBalanceSheet()}
+              {activeTab === 'income' && renderIncomeStatement()}
+              {activeTab === 'cashflow' && renderCashFlow()}
+              {activeTab === 'dates' && renderDateSettings()}
+            </div>
+          )}
+        </div>
+
       </div>
     </div>
   );
