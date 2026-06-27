@@ -124,8 +124,8 @@ export default function PrintPage() {
     return lower.charAt(0).toUpperCase() + lower.slice(1);
   };
 
-  // Chunking helper for Diario de Movimientos
-  const chunkDiario = (entriesList, maxRowsPerPage = 18) => {
+  // Chunking helper for Diario de Movimientos (increased to 28 for fuller A4 page)
+  const chunkDiario = (entriesList, maxRowsPerPage = 28) => {
     const pages = [];
     let currentPage = [];
     let currentRowCount = 0;
@@ -147,8 +147,8 @@ export default function PrintPage() {
     return pages;
   };
 
-  // Chunking helper for Libro Mayor
-  const chunkMayor = (activeAccounts, maxLinesPerPage = 20) => {
+  // Chunking helper for Libro Mayor (increased to 32 for fuller A4 page)
+  const chunkMayor = (activeAccounts, maxLinesPerPage = 32) => {
     const pages = [];
     let currentPageBlocks = [];
     let currentLineCount = 0;
@@ -210,7 +210,7 @@ export default function PrintPage() {
   };
 
   // Flat list chunker
-  const chunkFlatList = (list, itemsPerPage = 22) => {
+  const chunkFlatList = (list, itemsPerPage = 34) => {
     const pages = [];
     for (let i = 0; i < list.length; i += itemsPerPage) {
       pages.push(list.slice(i, i + itemsPerPage));
@@ -259,7 +259,7 @@ export default function PrintPage() {
       const yearEntries = journalEntries
         .filter(entry => entry.date && new Date(entry.date).getFullYear() === selectedYear)
         .sort((a, b) => new Date(a.date) - new Date(b.date));
-      const entryPages = chunkDiario(yearEntries, 18);
+      const entryPages = chunkDiario(yearEntries, 28);
       const totalPages = entryPages.length || 1;
 
       if (entryPages.length === 0) {
@@ -309,8 +309,8 @@ export default function PrintPage() {
                               <td className="py-0.5 px-1" colSpan="2"></td>
                               <td className="py-0.5 px-1 text-slate-600 pl-4">{accDisplay}</td>
                               <td className="py-0.5 px-1 font-mono text-[9px] text-slate-500">{centerDisplay}</td>
-                              <td className="py-0.5 px-1 text-right font-sans tabular-nums text-slate-600">{line.debit > 0 ? formatCurrency(line.debit) : ''}</td>
-                              <td className="py-0.5 px-1 text-right font-sans tabular-nums text-slate-600">{line.credit > 0 ? formatCurrency(line.credit) : ''}</td>
+                              <td className="py-0.5 px-1 text-right font-sans tabular-nums text-slate-660">{line.debit > 0 ? formatCurrency(line.debit) : ''}</td>
+                              <td className="py-0.5 px-1 text-right font-sans tabular-nums text-slate-660">{line.credit > 0 ? formatCurrency(line.credit) : ''}</td>
                             </tr>
                           );
                         });
@@ -358,7 +358,7 @@ export default function PrintPage() {
         .filter(am => am.lines.length > 0)
         .sort((a, b) => (a.account.code || '').localeCompare(b.account.code || ''));
 
-      const mayorPages = chunkMayor(activeAccounts, 20);
+      const mayorPages = chunkMayor(activeAccounts, 32);
       const totalPages = mayorPages.length || 1;
 
       if (mayorPages.length === 0) {
@@ -447,7 +447,7 @@ export default function PrintPage() {
       }
     }
 
-    // 3. BALANCE DE SUMAS Y SALDOS
+    // 3. BALANCE DE SUMAS Y SALDOS (increased limit to 34 and softened borders to border-slate-100)
     if (selectedTemplate === 'sumas_saldos') {
       const yearEntries = journalEntries.filter(entry => entry.date && new Date(entry.date).getFullYear() === selectedYear);
       const sumsMap = {};
@@ -486,7 +486,7 @@ export default function PrintPage() {
         return t;
       }, { debitSum: 0, creditSum: 0, debitBalSum: 0, creditBalSum: 0 });
 
-      const listPages = chunkFlatList(list, 20);
+      const listPages = chunkFlatList(list, 34);
       const totalPages = listPages.length || 1;
 
       if (listPages.length === 0) {
@@ -517,7 +517,7 @@ export default function PrintPage() {
                   </thead>
                   <tbody>
                     {pageItems.map(acc => (
-                      <tr key={acc.code} className="border-b border-slate-150 hover:bg-slate-50">
+                      <tr key={acc.code} className="border-b border-slate-100 hover:bg-slate-50">
                         <td className="py-1.5 px-1 font-mono">{acc.code}</td>
                         <td className="py-1.5 px-1 font-bold text-slate-800 uppercase">{formatAccountName(acc.name)}</td>
                         <td className="py-1.5 px-1 text-right font-sans tabular-nums text-slate-650">{acc.debit > 0 ? formatCurrency(acc.debit) : '0,00'}</td>
@@ -545,9 +545,9 @@ export default function PrintPage() {
       }
     }
 
-    // 4. INVENTARIO DE ACTIVOS INMOBILIARIOS
+    // 4. INVENTARIO DE ACTIVOS INMOBILIARIOS (increased limit to 34 and softened borders to border-slate-100)
     if (selectedTemplate === 'activos') {
-      const listPages = chunkFlatList(properties, 20);
+      const listPages = chunkFlatList(properties, 34);
       const totalPages = listPages.length || 1;
 
       if (listPages.length === 0) {
@@ -577,7 +577,7 @@ export default function PrintPage() {
                   </thead>
                   <tbody>
                     {pageItems.map(p => (
-                      <tr key={p.id} className="border-b border-slate-150 hover:bg-slate-50">
+                      <tr key={p.id} className="border-b border-slate-100 hover:bg-slate-50">
                         <td className="py-2 px-1 font-mono font-bold text-slate-650">{p.id}</td>
                         <td className="py-2 px-1 font-bold text-slate-800 uppercase">{p.name}</td>
                         <td className="py-2 px-1 uppercase">{p.address}, {p.city}</td>
@@ -601,9 +601,9 @@ export default function PrintPage() {
       }
     }
 
-    // 5. CONTRATOS DE ALQUILER
+    // 5. CONTRATOS DE ALQUILER (increased limit to 32 and softened borders to border-slate-100)
     if (selectedTemplate === 'alquileres') {
-      const listPages = chunkFlatList(rentals, 18);
+      const listPages = chunkFlatList(rentals, 32);
       const totalPages = listPages.length || 1;
 
       if (listPages.length === 0) {
@@ -641,7 +641,7 @@ export default function PrintPage() {
                         : (cust ? cust.name : 'Ninguno');
                       
                       return (
-                        <tr key={r.id || r.reference} className="border-b border-slate-150 hover:bg-slate-50">
+                        <tr key={r.id || r.reference} className="border-b border-slate-100 hover:bg-slate-50">
                           <td className="py-2 px-1 font-mono font-bold text-slate-650">{r.reference || '---'}</td>
                           <td className="py-2 px-1 uppercase font-bold text-slate-800">{prop ? prop.name : r.propertyId}</td>
                           <td className="py-2 px-1 uppercase">{tenantDisplay}</td>
@@ -669,9 +669,9 @@ export default function PrintPage() {
       }
     }
 
-    // 6. FICHERO DE CLIENTES / INQUILINOS
+    // 6. FICHERO DE CLIENTES / INQUILINOS (increased limit to 34 and softened borders to border-slate-100)
     if (selectedTemplate === 'clientes') {
-      const listPages = chunkFlatList(customers, 20);
+      const listPages = chunkFlatList(customers, 34);
       const totalPages = listPages.length || 1;
 
       if (listPages.length === 0) {
@@ -701,7 +701,7 @@ export default function PrintPage() {
                   </thead>
                   <tbody>
                     {pageItems.map(c => (
-                      <tr key={c.id} className="border-b border-slate-150 hover:bg-slate-50">
+                      <tr key={c.id} className="border-b border-slate-100 hover:bg-slate-50">
                         <td className="py-2 px-1 font-mono text-slate-650">{c.id?.substring(0, 6)}</td>
                         <td className="py-2 px-1 font-bold text-slate-800 uppercase">{c.name} {c.lastName || ''}</td>
                         <td className="py-2 px-1 font-mono uppercase">{c.dni || '---'}</td>
