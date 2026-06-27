@@ -585,25 +585,20 @@ export default function Journal() {
                 ))
               )}
             </tbody>
+            <tfoot className="sticky bottom-0 z-10 bg-[#f8f9fa] border-t-2 border-gray-300 shadow-[0_-2px_10px_rgba(0,0,0,0.05)] select-none">
+              <tr className="font-bold text-gray-800 border-t border-gray-300">
+                <td colSpan="10" className="px-2 py-2 text-right">TOTALES:</td>
+                <td className="px-2 py-2 text-right text-red-600 font-sans tabular-nums">{totalFilteredDebit.toLocaleString('es-ES', {minimumFractionDigits: 2})}</td>
+                <td className="px-2 py-2 text-right text-red-600 font-sans tabular-nums">{totalFilteredCredit.toLocaleString('es-ES', {minimumFractionDigits: 2})}</td>
+                <td colSpan="2"></td>
+              </tr>
+              <tr className="text-[10px] text-gray-600 border-t border-gray-200">
+                <td colSpan="14" className="px-4 py-1.5 text-left italic normal-case">
+                  {focusedAccountName ? `Cuenta seleccionada: ${focusedAccountName}` : '\u00A0'}
+                </td>
+              </tr>
+            </tfoot>
           </table>
-          
-          {/* Totals Footer */}
-          <div className="mt-auto border-t border-gray-300 bg-white p-2">
-            <table className="w-full text-[11px] font-sans text-gray-800">
-              <tbody>
-                <tr>
-                  <td className="w-[45%] text-left pl-4 font-bold">C.C</td>
-                  <td className="w-[15%] text-right font-bold">TOTALES:</td>
-                  <td className="w-[20%] text-right font-bold text-red-600">{totalFilteredDebit.toLocaleString('es-ES', {minimumFractionDigits: 2})}</td>
-                  <td className="w-[20%] text-right font-bold text-red-600">{totalFilteredCredit.toLocaleString('es-ES', {minimumFractionDigits: 2})}</td>
-                </tr>
-                <tr>
-                  <td className="text-left pl-4">{focusedAccountName || '\u00A0'}</td>
-                  <td colSpan="3"></td>
-                </tr>
-              </tbody>
-            </table>
-          </div>
           <div className="flex justify-end bg-[#f0f0f0] p-1 border-t border-[#808080]">
             <ZoomControl />
           </div>
