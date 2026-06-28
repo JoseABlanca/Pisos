@@ -389,8 +389,17 @@ export default function ExtractoContableTab({
                         if (normField.startsWith(normValueCeco)) lineMatchCeco = true;
                       }
 
+                      const lineAmt = (Number(l.debit) || 0) + (Number(l.credit) || 0);
+                      const accCode = String(l.accountCode || '');
+
                       if (lineMatchCebe) {
-                        cebeEntryAmount += (Number(l.debit) || 0) + (Number(l.credit) || 0);
+                        if (accCode.startsWith('7')) {
+                          cebeEntryAmount += lineAmt;
+                        } else if (accCode.startsWith('6')) {
+                          cecoEntryAmount += lineAmt;
+                        } else {
+                          cebeEntryAmount += lineAmt;
+                        }
                         matchedLineCebes.add(l.cebe);
                         if (l.documentUrl && !matchedLineDocUrl) {
                           matchedLineDocUrl = l.documentUrl;
@@ -398,7 +407,13 @@ export default function ExtractoContableTab({
                         }
                       }
                       if (lineMatchCeco) {
-                        cecoEntryAmount += (Number(l.debit) || 0) + (Number(l.credit) || 0);
+                        if (accCode.startsWith('6')) {
+                          cecoEntryAmount += lineAmt;
+                        } else if (accCode.startsWith('7')) {
+                          cebeEntryAmount += lineAmt;
+                        } else {
+                          cecoEntryAmount += lineAmt;
+                        }
                         matchedLineCecos.add(l.ceco);
                         if (l.documentUrl && !matchedLineDocUrl) {
                           matchedLineDocUrl = l.documentUrl;

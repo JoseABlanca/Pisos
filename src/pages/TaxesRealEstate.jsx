@@ -52,33 +52,85 @@ export default function TaxesRealEstate() {
       const propertyCebe = String(p.cebe || '').trim();
       const propertyCeco = String(p.ceco || '').trim();
 
-      // Ingresos (Tax Incomes)
-      const taxIncomes = journalEntries.filter(entry => {
-        if (!entry.isImpuesto) return false;
+      // Ingresos (Tax Incomes) - accounts starting with 7
+      let ingresos = 0;
+      const normalizedPropCebe = propertyCebe ? propertyCebe.replace(/^(CEBE|CECO)/i, '') : '';
+      
+      journalEntries.forEach(entry => {
+        if (!entry.isImpuesto) return;
         if (taxYear !== 'Todas') {
           const entryYr = entry.date ? entry.date.substring(0, 4) : '';
-          if (entryYr !== taxYear.toString()) return false;
+          if (entryYr !== taxYear.toString()) return;
         }
-        if (!propertyCebe) return false;
-        const entryCebe = String(entry.cebe || '').trim().replace(/^(CEBE|CECO)/i, '');
-        const normalizedPropCebe = propertyCebe.replace(/^(CEBE|CECO)/i, '');
-        return entryCebe.startsWith(normalizedPropCebe);
-      });
-      const ingresos = taxIncomes.reduce((sum, e) => sum + (parseFloat(e.total) || 0), 0);
+        
+        let entryIngresos = 0;
+        let hasLineMatch = false;
 
-      // Gastos (Tax Expenses)
-      const taxExpenses = journalEntries.filter(entry => {
-        if (!entry.isImpuesto) return false;
+        if (entry.lines && normalizedPropCebe) {
+          entry.lines.forEach(l => {
+            if (l.cebe) {
+              const lineCebe = String(l.cebe).trim().replace(/^(CEBE|CECO)/i, '');
+              if (lineCebe.startsWith(normalizedPropCebe)) {
+                const accCode = String(l.accountCode || '');
+                if (accCode.startsWith('7')) {
+                  entryIngresos += (Number(l.debit) || 0) + (Number(l.credit) || 0);
+                  hasLineMatch = true;
+                }
+              }
+            }
+          });
+        }
+
+        // Fallback for global match
+        if (!hasLineMatch && normalizedPropCebe && entry.cebe) {
+          const entryCebe = String(entry.cebe).trim().replace(/^(CEBE|CECO)/i, '');
+          if (entryCebe.startsWith(normalizedPropCebe)) {
+            entryIngresos = parseFloat(entry.total) || 0;
+          }
+        }
+
+        ingresos += entryIngresos;
+      });
+
+      // Gastos (Tax Expenses) - accounts starting with 6
+      let gastos = 0;
+      const normalizedPropCeco = propertyCeco ? propertyCeco.replace(/^(CEBE|CECO)/i, '') : '';
+      
+      journalEntries.forEach(entry => {
+        if (!entry.isImpuesto) return;
         if (taxYear !== 'Todas') {
           const entryYr = entry.date ? entry.date.substring(0, 4) : '';
-          if (entryYr !== taxYear.toString()) return false;
+          if (entryYr !== taxYear.toString()) return;
         }
-        if (!propertyCeco) return false;
-        const entryCeco = String(entry.ceco || '').trim().replace(/^(CEBE|CECO)/i, '');
-        const normalizedPropCeco = propertyCeco.replace(/^(CEBE|CECO)/i, '');
-        return entryCeco.startsWith(normalizedPropCeco);
+
+        let entryGastos = 0;
+        let hasLineMatch = false;
+
+        if (entry.lines && normalizedPropCeco) {
+          entry.lines.forEach(l => {
+            if (l.ceco) {
+              const lineCeco = String(l.ceco).trim().replace(/^(CEBE|CECO)/i, '');
+              if (lineCeco.startsWith(normalizedPropCeco)) {
+                const accCode = String(l.accountCode || '');
+                if (accCode.startsWith('6')) {
+                  entryGastos += (Number(l.debit) || 0) + (Number(l.credit) || 0);
+                  hasLineMatch = true;
+                }
+              }
+            }
+          });
+        }
+
+        // Fallback for global match
+        if (!hasLineMatch && normalizedPropCeco && entry.ceco) {
+          const entryCeco = String(entry.ceco).trim().replace(/^(CEBE|CECO)/i, '');
+          if (entryCeco.startsWith(normalizedPropCeco)) {
+            entryGastos = parseFloat(entry.total) || 0;
+          }
+        }
+
+        gastos += entryGastos;
       });
-      const gastos = taxExpenses.reduce((sum, e) => sum + (parseFloat(e.total) || 0), 0);
 
       // Amortización (Amortization)
       let amortizacion = 0;
@@ -95,8 +147,20 @@ export default function TaxesRealEstate() {
           const normalizedPropCebe = propertyCebe.replace(/^(CEBE|CECO)/i, '');
           journalEntries.forEach(entry => {
             if (!entry.isImpuesto) return;
-            const entryCebe = String(entry.cebe || '').trim().replace(/^(CEBE|CECO)/i, '');
-            if (entryCebe.startsWith(normalizedPropCebe)) {
+            let match = false;
+            if (entry.lines) {
+              entry.lines.forEach(l => {
+                if (l.cebe) {
+                  const lineCebe = String(l.cebe).trim().replace(/^(CEBE|CECO)/i, '');
+                  if (lineCebe.startsWith(normalizedPropCebe)) match = true;
+                }
+              });
+            }
+            if (!match && entry.cebe) {
+              const entryCebe = String(entry.cebe).trim().replace(/^(CEBE|CECO)/i, '');
+              if (entryCebe.startsWith(normalizedPropCebe)) match = true;
+            }
+            if (match) {
               const yr = entry.date ? entry.date.substring(0, 4) : '';
               if (yr) yearsWithIncome.add(yr);
             }
