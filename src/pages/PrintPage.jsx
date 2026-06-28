@@ -1,4 +1,4 @@
-import { useState, useEffect, useMemo } from 'react';
+import { useState, useEffect, useMemo, useRef } from 'react';
 import { db } from '../firebase/config';
 import { collection, query, where, onSnapshot } from 'firebase/firestore';
 import { useAuth } from '../context/AuthContext';
@@ -44,13 +44,14 @@ const getSelectableAccounts = (accountsList) => {
   
   accountsList.forEach(a => {
     if (a.code) {
-      map.set(String(a.code), { code: String(a.code), name: a.name, isDetail: true });
+      const trimmedCode = String(a.code).trim();
+      map.set(trimmedCode, { code: trimmedCode, name: a.name, isDetail: true });
     }
   });
   
   accountsList.forEach(a => {
     if (!a.code) return;
-    const str = String(a.code);
+    const str = String(a.code).trim();
     
     [1, 2, 3].forEach(len => {
       if (str.length > len) {
@@ -66,15 +67,18 @@ const getSelectableAccounts = (accountsList) => {
   return Array.from(map.values()).sort((a, b) => a.code.localeCompare(b.code));
 };
 
-const isAccountMatched = (accountCodeOrId, selectedAccountCode, accountsList) => {
-  if (!selectedAccountCode) return true;
+const isAccountMatched = (accountCodeOrId, selectedAccounts, accountsList) => {
+  if (!selectedAccounts || selectedAccounts.length === 0) return true;
   let code = accountCodeOrId;
-  const acct = accountsList.find(a => a.id === code || a.code === code);
+  const acct = accountsList.find(a => a.id === code || String(a.code).trim() === String(code).trim());
   if (acct) {
-    code = acct.code;
+    code = String(acct.code).trim();
   }
   if (!code) return false;
-  return String(code).startsWith(String(selectedAccountCode));
+  code = String(code).trim();
+  return selectedAccounts.some(sel => {
+    return code.startsWith(String(sel).trim());
+  });
 };
 
 export default function PrintPage() {
@@ -86,7 +90,19 @@ export default function PrintPage() {
   const [selectedYears, setSelectedYears] = useState([]);
   const [selectedMonths, setSelectedMonths] = useState([]);
   const [selectedQuarters, setSelectedQuarters] = useState([]);
-  const [selectedAccount, setSelectedAccount] = useState('');
+  const [selectedAccounts, setSelectedAccounts] = useState([]);
+  const [accountsDropdownOpen, setAccountsDropdownOpen] = useState(false);
+  const accountsDropdownRef = useRef(null);
+
+  useEffect(() => {
+    const handleOutsideClick = (e) => {
+      if (accountsDropdownRef.current && !accountsDropdownRef.current.contains(e.target)) {
+        setAccountsDropdownOpen(false);
+      }
+    };
+    document.addEventListener('mousedown', handleOutsideClick);
+    return () => document.removeEventListener('mousedown', handleOutsideClick);
+  }, []);
   
   // Database collections states
   const [accounts, setAccounts] = useState([]);
@@ -382,7 +398,7 @@ export default function PrintPage() {
         .map(entry => {
           if (!entry.lines) return entry;
           const filteredLines = entry.lines.filter(l => 
-            isAccountMatched(l.accountId, selectedAccount, accounts)
+            isAccountMatched(l.accountId, selectedAccounts, accounts)
           );
           return { ...entry, lines: filteredLines };
         })
@@ -497,7 +513,7 @@ export default function PrintPage() {
       });
 
       const activeAccounts = Object.values(accountMovements)
-        .filter(am => am.lines.length > 0 && isAccountMatched(am.account.code, selectedAccount, accounts))
+        .filter(am => am.lines.length > 0 && isAccountMatched(am.account.code, selectedAccounts, accounts))
         .sort((a, b) => (a.account.code || '').localeCompare(b.account.code || ''));
 
       const mayorPages = chunkMayor(activeAccounts, 32);
@@ -608,7 +624,7 @@ export default function PrintPage() {
       });
 
       const list = Object.values(sumsMap)
-        .filter(s => (s.debit > 0 || s.credit > 0) && isAccountMatched(s.code, selectedAccount, accounts))
+        .filter(s => (s.debit > 0 || s.credit > 0) && isAccountMatched(s.code, selectedAccounts, accounts))
         .map(s => {
           const isAssetOrExpense = ['Activo', 'Gasto'].includes(s.type);
           const balanceDiff = s.debit - s.credit;
@@ -954,33 +970,76 @@ export default function PrintPage() {
 
         {/* Cuentas a Mostrar Filter (only for accounting reports) */}
         {['diario', 'mayor', 'sumas_saldos'].includes(selectedTemplate) && (
-          <div className="bg-white border border-[#a0a0a0] p-3 flex flex-col gap-2">
+          <div className="bg-white border border-[#a0a0a0] p-3 flex flex-col gap-2 relative" ref={accountsDropdownRef}>
             <div className="text-[10px] font-bold text-slate-500 uppercase flex items-center gap-1 select-none">
               <Calendar className="w-3.5 h-3.5 text-slate-400" />
               <span>Cuentas a Mostrar</span>
             </div>
-            <select
-              value={selectedAccount}
-              onChange={e => setSelectedAccount(e.target.value)}
-              className="win-input w-full text-[11px] font-sans"
+            
+            {/* Custom Dropdown Trigger */}
+            <div 
+              onClick={() => setAccountsDropdownOpen(prev => !prev)}
+              className="win-input w-full flex justify-between items-center cursor-pointer select-none bg-white border border-[#a0a0a0] px-2 py-1 text-[11px] font-sans rounded min-h-[24px]"
             >
-              <option value="">Todos</option>
-              {selectableAccountsList.map(acc => {
-                const indentLen = acc.code.length === 1 
-                  ? 0 
-                  : acc.code.length === 2 
-                    ? 2 
-                    : acc.code.length === 3 
-                      ? 4 
-                      : 6;
-                const spaces = '\u00a0'.repeat(indentLen);
-                return (
-                  <option key={acc.code} value={acc.code}>
-                    {spaces}{acc.code} - {acc.name}
-                  </option>
-                );
-              })}
-            </select>
+              <span className="truncate pr-2 text-slate-700">
+                {selectedAccounts.length === 0 
+                  ? 'Todos' 
+                  : selectedAccounts.join(', ')
+                }
+              </span>
+              <span className="text-[9px] text-slate-555">▼</span>
+            </div>
+
+            {/* Floating Dropdown List */}
+            {accountsDropdownOpen && (
+              <div className="absolute left-3 right-3 top-[calc(100%-8px)] z-50 bg-white border border-[#a0a0a0] shadow-lg max-h-[220px] overflow-y-auto p-1.5 flex flex-col gap-1 rounded win-bevel">
+                {/* Option "Todos" */}
+                <label className="flex items-center gap-1.5 text-[10px] cursor-pointer hover:bg-slate-50 py-0.5 rounded select-none font-bold text-blue-900 border-b border-slate-100 pb-1">
+                  <input 
+                    type="checkbox" 
+                    checked={selectedAccounts.length === 0}
+                    onChange={() => setSelectedAccounts([])}
+                    className="mt-0.5"
+                  />
+                  <span>Todos</span>
+                </label>
+
+                {selectableAccountsList.map(acc => {
+                  const indentClass = acc.code.length === 1 
+                    ? '' 
+                    : acc.code.length === 2 
+                      ? 'pl-2' 
+                      : acc.code.length === 3 
+                        ? 'pl-4' 
+                        : 'pl-6';
+                  
+                  const isSelected = selectedAccounts.includes(acc.code);
+                  
+                  return (
+                    <label 
+                      key={acc.code} 
+                      className={`flex items-start gap-1.5 text-[10px] cursor-pointer hover:bg-slate-50 py-0.5 rounded select-none ${indentClass}`}
+                    >
+                      <input 
+                        type="checkbox" 
+                        checked={isSelected}
+                        onChange={() => {
+                          if (isSelected) {
+                            setSelectedAccounts(prev => prev.filter(x => x !== acc.code));
+                          } else {
+                            setSelectedAccounts(prev => [...prev, acc.code]);
+                          }
+                        }}
+                        className="mt-0.5"
+                      />
+                      <span className={`${!acc.isDetail ? 'font-bold text-slate-700' : 'text-slate-650'}`}>
+                        {acc.code} - {acc.name}
+                      </span>
+                    </label>
+                  );
+                })}
+              </div>
+            )}
           </div>
         )}
 
