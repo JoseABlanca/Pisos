@@ -776,15 +776,6 @@ export default function RealEstate() {
                 ))}
               </select>
             </div>
-            <div className="space-y-1">
-              <label className="text-[10px] font-bold text-slate-700 uppercase">CECO Asociado:</label>
-              <select className="win-input w-full cursor-pointer" value={formData.ceco || ''} onChange={e => setFormData({ ...formData, ceco: e.target.value })}>
-                <option value=""></option>
-                {cecos.map(c => (
-                  <option key={c.id} value={c.code}>{c.code} - {c.name}</option>
-                ))}
-              </select>
-            </div>
           </div>
         </div>
         <div className="flex-1 flex flex-col bg-slate-50 border border-gray-200 rounded-md">

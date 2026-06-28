@@ -63,11 +63,15 @@ export default function TaxesExtractModal({ isOpen, onClose, property, year, ren
     return Array.from(yearsSet).sort((a, b) => b.localeCompare(a));
   }, [journalEntries, year]);
 
-  // Filter journal entries for Incomes (CEBE)
+  // Filter journal entries for Incomes (CEBE + taxIncomeCecos)
   const filteredTaxIncomes = useMemo(() => {
     if (!property) return [];
     const propertyCebe = String(property.cebe || '').trim();
-    if (!propertyCebe) return [];
+    const taxIncomeCecos = property.taxIncomeCecos || [];
+    const normalizedIncomeCecos = taxIncomeCecos.map(c => c.replace(/^(CEBE|CECO)/i, ''));
+    const normalizedPropCebe = propertyCebe ? propertyCebe.replace(/^(CEBE|CECO)/i, '') : '';
+
+    if (!normalizedPropCebe && normalizedIncomeCecos.length === 0) return [];
 
     return journalEntries.filter(entry => {
       // Must be tax marked
@@ -79,18 +83,51 @@ export default function TaxesExtractModal({ isOpen, onClose, property, year, ren
         if (entryYr !== selectedYear) return false;
       }
       
-      // Match CEBE hierarchically (startsWith prefix, normalized)
-      const entryCebe = String(entry.cebe || '').trim().replace(/^(CEBE|CECO)/i, '');
-      const normalizedPropCebe = propertyCebe.replace(/^(CEBE|CECO)/i, '');
-      return entryCebe.startsWith(normalizedPropCebe);
+      // Match line level
+      let lineMatch = false;
+      if (entry.lines) {
+        entry.lines.forEach(l => {
+          if (l.cebe && normalizedPropCebe) {
+            const lineCebe = String(l.cebe).trim().replace(/^(CEBE|CECO)/i, '');
+            if (lineCebe.startsWith(normalizedPropCebe)) {
+              lineMatch = true;
+            }
+          }
+          if (l.ceco && normalizedIncomeCecos.length > 0) {
+            const lineCeco = String(l.ceco).trim().replace(/^(CEBE|CECO)/i, '');
+            if (normalizedIncomeCecos.some(c => lineCeco.startsWith(c))) {
+              lineMatch = true;
+            }
+          }
+        });
+      }
+
+      // Match global level
+      let globalMatch = false;
+      if (entry.cebe && normalizedPropCebe) {
+        const entryCebe = String(entry.cebe).trim().replace(/^(CEBE|CECO)/i, '');
+        if (entryCebe.startsWith(normalizedPropCebe)) {
+          globalMatch = true;
+        }
+      }
+      if (entry.ceco && normalizedIncomeCecos.length > 0) {
+        const entryCeco = String(entry.ceco).trim().replace(/^(CEBE|CECO)/i, '');
+        if (normalizedIncomeCecos.some(c => entryCeco.startsWith(c))) {
+          globalMatch = true;
+        }
+      }
+
+      return lineMatch || globalMatch;
     }).sort((a, b) => new Date(b.date) - new Date(a.date));
   }, [journalEntries, property, selectedYear]);
 
-  // Filter journal entries for Expenses (CECO)
+  // Filter journal entries for Expenses (taxExpenseCecos)
   const filteredTaxExpenses = useMemo(() => {
     if (!property) return [];
-    const propertyCeco = String(property.ceco || '').trim();
-    if (!propertyCeco) return [];
+    const taxExpenseCecos = property.taxExpenseCecos || [];
+    const normalizedExpenseCecos = taxExpenseCecos.map(c => c.replace(/^(CEBE|CECO)/i, ''));
+
+    if (normalizedExpenseCecos.length === 0) return [];
 
     return journalEntries.filter(entry => {
       // Must be tax marked
@@ -102,10 +139,29 @@ export default function TaxesExtractModal({ isOpen, onClose, property, year, ren
         if (entryYr !== selectedYear) return false;
       }
 
-      // Match CECO hierarchically (startsWith prefix, normalized)
-      const entryCeco = String(entry.ceco || '').trim().replace(/^(CEBE|CECO)/i, '');
-      const normalizedPropCeco = propertyCeco.replace(/^(CEBE|CECO)/i, '');
-      return entryCeco.startsWith(normalizedPropCeco);
+      // Match line level
+      let lineMatch = false;
+      if (entry.lines) {
+        entry.lines.forEach(l => {
+          if (l.ceco && normalizedExpenseCecos.length > 0) {
+            const lineCeco = String(l.ceco).trim().replace(/^(CEBE|CECO)/i, '');
+            if (normalizedExpenseCecos.some(c => lineCeco.startsWith(c))) {
+              lineMatch = true;
+            }
+          }
+        });
+      }
+
+      // Match global level
+      let globalMatch = false;
+      if (entry.ceco && normalizedExpenseCecos.length > 0) {
+        const entryCeco = String(entry.ceco).trim().replace(/^(CEBE|CECO)/i, '');
+        if (normalizedExpenseCecos.some(c => entryCeco.startsWith(c))) {
+          globalMatch = true;
+        }
+      }
+
+      return lineMatch || globalMatch;
     }).sort((a, b) => new Date(b.date) - new Date(a.date));
   }, [journalEntries, property, selectedYear]);
 

@@ -345,16 +345,10 @@ export default function ExtractoContableTab({
                 {currentCebe || 'Ninguno'}
               </span>
             </div>
-            <div>
-              <span className="font-bold text-slate-500 mr-1">CECO:</span>
-              <span className="font-mono bg-white px-2 py-0.5 border border-slate-300 rounded font-semibold text-amber-900">
-                {currentCeco || 'Ninguno'}
-              </span>
-            </div>
           </div>
-          {!currentCebe && !currentCeco && (
+          {!currentCebe && (
             <div className="text-[11px] text-amber-700 font-bold">
-              ⚠️ Configure un CEBE o CECO en la pestaña "Datos" para ver el extracto.
+              ⚠️ Configure un CEBE en la pestaña "Datos" para ver el extracto.
             </div>
           )}
         </div>
@@ -368,20 +362,24 @@ export default function ExtractoContableTab({
             {totals.cebe.toLocaleString('es-ES', { minimumFractionDigits: 2 })} €
           </span>
         </div>
-        <div className="w-px h-4 bg-slate-300" />
-        <div className="flex items-center gap-1.5">
-          <span className="text-gray-500 uppercase text-[9px]">Gastos:</span>
-          <span className="font-mono text-red-600 text-sm">
-            -{totals.ceco.toLocaleString('es-ES', { minimumFractionDigits: 2 })} €
-          </span>
-        </div>
-        <div className="w-px h-4 bg-slate-300" />
-        <div className="flex items-center gap-1.5">
-          <span className="text-gray-500 uppercase text-[9px]">Total:</span>
-          <span className={`font-mono text-sm ${totals.balance >= 0 ? 'text-blue-900' : 'text-amber-800'}`}>
-            {totals.balance.toLocaleString('es-ES', { minimumFractionDigits: 2 })} €
-          </span>
-        </div>
+        {mode === 'rentals' && (
+          <>
+            <div className="w-px h-4 bg-slate-300" />
+            <div className="flex items-center gap-1.5">
+              <span className="text-gray-500 uppercase text-[9px]">Gastos:</span>
+              <span className="font-mono text-red-600 text-sm">
+                -{totals.ceco.toLocaleString('es-ES', { minimumFractionDigits: 2 })} €
+              </span>
+            </div>
+            <div className="w-px h-4 bg-slate-300" />
+            <div className="flex items-center gap-1.5">
+              <span className="text-gray-500 uppercase text-[9px]">Total:</span>
+              <span className={`font-mono text-sm ${totals.balance >= 0 ? 'text-blue-900' : 'text-amber-800'}`}>
+                {totals.balance.toLocaleString('es-ES', { minimumFractionDigits: 2 })} €
+              </span>
+            </div>
+          </>
+        )}
       </div>
 
       {/* Transactions Table */}

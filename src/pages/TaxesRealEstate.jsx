@@ -1,6 +1,6 @@
 import { useState, useEffect, useMemo } from 'react';
 import { db } from '../firebase/config';
-import { collection, query, where, onSnapshot } from 'firebase/firestore';
+import { collection, query, where, onSnapshot, doc, updateDoc } from 'firebase/firestore';
 import { useAuth } from '../context/AuthContext';
 import { useOutletContext } from 'react-router-dom';
 import TaxesExtractModal from '../components/TaxesExtractModal';
@@ -16,9 +16,39 @@ export default function TaxesRealEstate() {
   const [rentals, setRentals] = useState([]);
   const [journalEntries, setJournalEntries] = useState([]);
   const [selectedProperty, setSelectedProperty] = useState(null);
+  const [cecos, setCecos] = useState([]);
   
   const [showTaxesExtract, setShowTaxesExtract] = useState(false);
   const [taxesExtractYear, setTaxesExtractYear] = useState(new Date().getFullYear());
+  
+  const [selectedIncomeCecos, setSelectedIncomeCecos] = useState([]);
+  const [selectedExpenseCecos, setSelectedExpenseCecos] = useState([]);
+
+  useEffect(() => {
+    if (selectedProperty) {
+      const latest = properties.find(p => p.id === selectedProperty.id);
+      setSelectedIncomeCecos(latest?.taxIncomeCecos || []);
+      setSelectedExpenseCecos(latest?.taxExpenseCecos || []);
+    } else {
+      setSelectedIncomeCecos([]);
+      setSelectedExpenseCecos([]);
+    }
+  }, [selectedProperty, properties]);
+
+  const handleSaveCecos = async () => {
+    if (!selectedProperty) return;
+    try {
+      const docRef = doc(db, 'properties', selectedProperty.id);
+      await updateDoc(docRef, {
+        taxIncomeCecos: selectedIncomeCecos,
+        taxExpenseCecos: selectedExpenseCecos
+      });
+      alert('Configuración de CECOs guardada correctamente.');
+    } catch (err) {
+      console.error("Error al guardar CECOs de impuestos:", err);
+      alert("Error al guardar configuración: " + err.message);
+    }
+  };
 
   useEffect(() => {
     if (!user) return;
@@ -36,10 +66,15 @@ export default function TaxesRealEstate() {
       setJournalEntries(snap.docs.map(d => ({ ...d.data(), id: d.id })));
     });
 
+    const unsubCecos = onSnapshot(query(collection(db, 'analytical_centers'), where('userId', 'in', qIds), where('type', '==', 'ceco')), snap => {
+      setCecos(snap.docs.map(d => ({ ...d.data(), id: d.id })));
+    });
+
     return () => {
       unsubProperties();
       unsubRentals();
       unsubJournal();
+      unsubCecos();
     };
   }, [user, queryUserIds]);
 
@@ -50,11 +85,13 @@ export default function TaxesRealEstate() {
   const computedProperties = useMemo(() => {
     return properties.map(p => {
       const propertyCebe = String(p.cebe || '').trim();
-      const propertyCeco = String(p.ceco || '').trim();
+      const taxIncomeCecos = p.taxIncomeCecos || [];
+      const taxExpenseCecos = p.taxExpenseCecos || [];
 
       // Ingresos (Tax Incomes) - accounts starting with 7
       let ingresos = 0;
       const normalizedPropCebe = propertyCebe ? propertyCebe.replace(/^(CEBE|CECO)/i, '') : '';
+      const normalizedIncomeCecos = taxIncomeCecos.map(c => c.replace(/^(CEBE|CECO)/i, ''));
       
       journalEntries.forEach(entry => {
         if (!entry.isImpuesto) return;
@@ -66,25 +103,49 @@ export default function TaxesRealEstate() {
         let entryIngresos = 0;
         let hasLineMatch = false;
 
-        if (entry.lines && normalizedPropCebe) {
+        if (entry.lines) {
           entry.lines.forEach(l => {
-            if (l.cebe) {
+            const accCode = String(l.accountCode || '');
+            if (!accCode.startsWith('7')) return;
+
+            let matches = false;
+            if (l.cebe && normalizedPropCebe) {
               const lineCebe = String(l.cebe).trim().replace(/^(CEBE|CECO)/i, '');
               if (lineCebe.startsWith(normalizedPropCebe)) {
-                const accCode = String(l.accountCode || '');
-                if (accCode.startsWith('7')) {
-                  entryIngresos += (Number(l.debit) || 0) + (Number(l.credit) || 0);
-                  hasLineMatch = true;
-                }
+                matches = true;
               }
+            }
+            if (!matches && l.ceco && normalizedIncomeCecos.length > 0) {
+              const lineCeco = String(l.ceco).trim().replace(/^(CEBE|CECO)/i, '');
+              if (normalizedIncomeCecos.some(c => lineCeco.startsWith(c))) {
+                matches = true;
+              }
+            }
+
+            if (matches) {
+              entryIngresos += (Number(l.debit) || 0) + (Number(l.credit) || 0);
+              hasLineMatch = true;
             }
           });
         }
 
         // Fallback for global match
-        if (!hasLineMatch && normalizedPropCebe && entry.cebe) {
-          const entryCebe = String(entry.cebe).trim().replace(/^(CEBE|CECO)/i, '');
-          if (entryCebe.startsWith(normalizedPropCebe)) {
+        if (!hasLineMatch) {
+          let globalMatch = false;
+          if (normalizedPropCebe && entry.cebe) {
+            const entryCebe = String(entry.cebe).trim().replace(/^(CEBE|CECO)/i, '');
+            if (entryCebe.startsWith(normalizedPropCebe)) {
+              globalMatch = true;
+            }
+          }
+          if (!globalMatch && normalizedIncomeCecos.length > 0 && entry.ceco) {
+            const entryCeco = String(entry.ceco).trim().replace(/^(CEBE|CECO)/i, '');
+            if (normalizedIncomeCecos.some(c => entryCeco.startsWith(c))) {
+              globalMatch = true;
+            }
+          }
+
+          if (globalMatch) {
             entryIngresos = parseFloat(entry.total) || 0;
           }
         }
@@ -94,7 +155,7 @@ export default function TaxesRealEstate() {
 
       // Gastos (Tax Expenses) - accounts starting with 6
       let gastos = 0;
-      const normalizedPropCeco = propertyCeco ? propertyCeco.replace(/^(CEBE|CECO)/i, '') : '';
+      const normalizedExpenseCecos = taxExpenseCecos.map(c => c.replace(/^(CEBE|CECO)/i, ''));
       
       journalEntries.forEach(entry => {
         if (!entry.isImpuesto) return;
@@ -106,25 +167,25 @@ export default function TaxesRealEstate() {
         let entryGastos = 0;
         let hasLineMatch = false;
 
-        if (entry.lines && normalizedPropCeco) {
+        if (entry.lines) {
           entry.lines.forEach(l => {
-            if (l.ceco) {
+            const accCode = String(l.accountCode || '');
+            if (!accCode.startsWith('6')) return;
+
+            if (l.ceco && normalizedExpenseCecos.length > 0) {
               const lineCeco = String(l.ceco).trim().replace(/^(CEBE|CECO)/i, '');
-              if (lineCeco.startsWith(normalizedPropCeco)) {
-                const accCode = String(l.accountCode || '');
-                if (accCode.startsWith('6')) {
-                  entryGastos += (Number(l.debit) || 0) + (Number(l.credit) || 0);
-                  hasLineMatch = true;
-                }
+              if (normalizedExpenseCecos.some(c => lineCeco.startsWith(c))) {
+                entryGastos += (Number(l.debit) || 0) + (Number(l.credit) || 0);
+                hasLineMatch = true;
               }
             }
           });
         }
 
         // Fallback for global match
-        if (!hasLineMatch && normalizedPropCeco && entry.ceco) {
+        if (!hasLineMatch && normalizedExpenseCecos.length > 0 && entry.ceco) {
           const entryCeco = String(entry.ceco).trim().replace(/^(CEBE|CECO)/i, '');
-          if (entryCeco.startsWith(normalizedPropCeco)) {
+          if (normalizedExpenseCecos.some(c => entryCeco.startsWith(c))) {
             entryGastos = parseFloat(entry.total) || 0;
           }
         }
@@ -322,7 +383,91 @@ export default function TaxesRealEstate() {
         </div>
       </div>
 
-      <div className="flex justify-between items-center bg-[#f0f0f0] p-1 border-t border-[#808080] text-[10px]">
+      {/* CECO Configuration Panel */}
+      {selectedProperty && (
+        <div className="bg-[#f0f0f0] border border-gray-400 m-2 p-3 win-bevel flex flex-col gap-2 shrink-0 text-left">
+          <div className="flex justify-between items-center border-b border-gray-400 pb-1.5">
+            <h4 className="text-[11px] font-bold text-slate-800 uppercase italic">
+              Configuración de CECOs para Impuestos: {selectedProperty.name || selectedProperty.address || selectedProperty.id}
+            </h4>
+            <button 
+              type="button" 
+              onClick={handleSaveCecos}
+              className="px-4 py-1 bg-[#2e7d32] hover:bg-[#1b5e20] text-white text-[10px] font-bold uppercase shadow-sm cursor-pointer border border-green-800 rounded"
+            >
+              Guardar Configuración
+            </button>
+          </div>
+          
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-4 pt-1">
+            {/* Income CECOs Selection */}
+            <div className="bg-white border border-gray-400 p-2 max-h-[120px] overflow-y-auto">
+              <div className="text-[9px] font-bold text-slate-600 uppercase border-b border-gray-200 pb-0.5 mb-1.5">
+                CECOs para Ingresos (Multielección)
+              </div>
+              <div className="flex flex-col gap-1">
+                {cecos.length === 0 ? (
+                  <span className="text-[10px] text-slate-400 italic">No hay CECOs registrados</span>
+                ) : (
+                  cecos.sort((a,b) => a.code.localeCompare(b.code)).map(c => {
+                    const isChecked = selectedIncomeCecos.includes(c.code);
+                    return (
+                      <label key={c.id} className="flex items-center gap-2 text-[10px] cursor-pointer hover:bg-slate-50 select-none">
+                        <input 
+                          type="checkbox" 
+                          checked={isChecked}
+                          onChange={() => {
+                            setSelectedIncomeCecos(prev => 
+                              prev.includes(c.code) ? prev.filter(code => code !== c.code) : [...prev, c.code]
+                            );
+                          }}
+                          className="w-3.5 h-3.5 cursor-pointer"
+                        />
+                        <span className="font-mono font-bold text-slate-800">{c.code}</span>
+                        <span className="text-gray-500 font-sans">- {c.name}</span>
+                      </label>
+                    );
+                  })
+                )}
+              </div>
+            </div>
+
+            {/* Expense CECOs Selection */}
+            <div className="bg-white border border-gray-400 p-2 max-h-[120px] overflow-y-auto">
+              <div className="text-[9px] font-bold text-slate-600 uppercase border-b border-gray-200 pb-0.5 mb-1.5">
+                CECOs para Gastos (Multielección)
+              </div>
+              <div className="flex flex-col gap-1">
+                {cecos.length === 0 ? (
+                  <span className="text-[10px] text-slate-400 italic">No hay CECOs registrados</span>
+                ) : (
+                  cecos.sort((a,b) => a.code.localeCompare(b.code)).map(c => {
+                    const isChecked = selectedExpenseCecos.includes(c.code);
+                    return (
+                      <label key={c.id} className="flex items-center gap-2 text-[10px] cursor-pointer hover:bg-slate-50 select-none">
+                        <input 
+                          type="checkbox" 
+                          checked={isChecked}
+                          onChange={() => {
+                            setSelectedExpenseCecos(prev => 
+                              prev.includes(c.code) ? prev.filter(code => code !== c.code) : [...prev, c.code]
+                            );
+                          }}
+                          className="w-3.5 h-3.5 cursor-pointer"
+                        />
+                        <span className="font-mono font-bold text-slate-800">{c.code}</span>
+                        <span className="text-gray-500 font-sans">- {c.name}</span>
+                      </label>
+                    );
+                  })
+                )}
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
+
+      <div className="flex justify-between items-center bg-[#f0f0f0] p-1 border-t border-[#808080] text-[10px] shrink-0">
         <div>{computedProperties.length} activos encontrados</div>
       </div>
 
