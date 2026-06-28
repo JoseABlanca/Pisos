@@ -655,7 +655,7 @@ export default function Customers() {
             onClose={() => setShowForm(false)}
             onMenuClick={() => setShowModalSidebar(!showModalSidebar)}
           >
-            <div className="flex h-[800px] bg-[#d4d0c8] relative">
+            <div className="flex h-full bg-[#d4d0c8] relative overflow-hidden">
               {/* Sidebar */}
               {showModalSidebar && (
                 <div className={`bg-[#f0f0f0] border-r border-[#808080] shrink-0 overflow-y-auto p-2 flex flex-col shadow-[inset_-1px_0_0_rgba(0,0,0,0.1)] ${isMobile ? 'absolute inset-y-0 left-0 z-30 w-56' : 'w-56'}`}>
@@ -687,129 +687,128 @@ export default function Customers() {
                   <div className="bg-[#d4d0c8] border border-white shadow-[1px_1px_0px_#000] p-4 min-h-full flex flex-col space-y-4">
                       
               {/* Header Fields (Photo 1) */}
-              <div className="grid grid-cols-1 sm:grid-cols-2 gap-x-8 gap-y-2">
-                <div className="space-y-1">
-                  <div className="win-form-row">
-                    <label className="win-form-label">Nombre:</label>
-                    <input 
-                      type="text" 
-                      className="win-input flex-1" 
-                      value={formData.name}
-                      onChange={(e) => setFormData({...formData, name: e.target.value})}
-                    />
-                  </div>
-                  <div className="win-form-row">
-                    <label className="win-form-label">Estado:</label>
-                    <div className="flex items-center space-x-4">
-                      <label className="flex items-center space-x-1 text-[11px]">
-                        <input 
-                          type="radio" 
-                          name="customer-status" 
-                          checked={formData.status === 'activo'} 
-                          onChange={() => setFormData({...formData, status: 'activo'})}
-                        />
-                        <span>Activo</span>
-                      </label>
-                      <label className="flex items-center space-x-1 text-[11px]">
-                        <input 
-                          type="radio" 
-                          name="customer-status" 
-                          checked={formData.status === 'inactivo'} 
-                          onChange={() => setFormData({...formData, status: 'inactivo'})}
-                        />
-                        <span>Inactivo</span>
-                      </label>
-                    </div>
-                             <div className="win-form-row">
-                    <label className="win-form-label">Dirección:</label>
-                    <input 
-                      type="text" 
-                      className="win-input flex-1"
-                      value={formData.address}
-                      onChange={(e) => setFormData({...formData, address: e.target.value})}
-                    />
-                  </div>
-                  <div className="win-form-row">
-                    <label className="win-form-label">DNI / NIF:</label>
-                    <input 
-                      type="text" 
-                      className="win-input flex-1"
-                      value={formData.dni}
-                      onChange={(e) => setFormData({...formData, dni: e.target.value})}
-                    />
-                  </div>
-                  <div className="win-form-row">
-                    <label className="win-form-label">Email:</label>
-                    <input 
-                      type="email" 
-                      className="win-input flex-1"
-                      value={formData.email || ''}
-                      onChange={(e) => setFormData({...formData, email: e.target.value})}
-                    />
+              {/* Header Fields (Photo 1) - Aligned to the left in a single column */}
+              <div className="space-y-1.5 max-w-xl">
+                <div className="win-form-row">
+                  <label className="win-form-label">Nombre:</label>
+                  <input 
+                    type="text" 
+                    className="win-input flex-1" 
+                    value={formData.name}
+                    onChange={(e) => setFormData({...formData, name: e.target.value})}
+                  />
+                </div>
+                <div className="win-form-row">
+                  <label className="win-form-label">Estado:</label>
+                  <div className="flex items-center space-x-4">
+                    <label className="flex items-center space-x-1 text-[11px]">
+                      <input 
+                        type="radio" 
+                        name="customer-status" 
+                        checked={formData.status === 'activo'} 
+                        onChange={() => setFormData({...formData, status: 'activo'})}
+                      />
+                      <span>Activo</span>
+                    </label>
+                    <label className="flex items-center space-x-1 text-[11px]">
+                      <input 
+                        type="radio" 
+                        name="customer-status" 
+                        checked={formData.status === 'inactivo'} 
+                        onChange={() => setFormData({...formData, status: 'inactivo'})}
+                      />
+                      <span>Inactivo</span>
+                    </label>
                   </div>
                 </div>
-                <div className="space-y-1">
-                  <div className="win-form-row">
-                    <label className="win-form-label">Teléfono:</label>
-                    <input 
-                      type="text" 
-                      className="win-input flex-1"
-                      value={formData.phone}
-                      onChange={(e) => setFormData({...formData, phone: e.target.value})}
-                    />
-                  </div>
-                  <div className="win-form-row">
-                    <label className="win-form-label">Código Postal:</label>
-                    <input 
-                      type="text" 
-                      className="win-input flex-1"
-                      value={formData.cp}
-                      onChange={(e) => setFormData({...formData, cp: e.target.value})}
-                    />
-                  </div>
-                  <div className="win-form-row">
-                    <label className="win-form-label">Población:</label>
-                    <input 
-                      type="text" 
-                      className="win-input flex-1"
-                      value={formData.city || ''}
-                      onChange={(e) => setFormData({...formData, city: e.target.value})}
-                    />
-                  </div>             </div>
-                  <div className="win-form-row flex flex-col items-start gap-1 w-full">
-                    <label className="win-form-label font-bold text-slate-700 uppercase">Pisos/Propiedades Asociadas:</label>
-                    <div className="w-full bg-white border border-[#808080] p-1.5 win-bevel max-h-[100px] overflow-auto">
-                      {availableProperties.map(p => {
-                        const propKey = p.name || p.address;
-                        const isChecked = Array.isArray(formData.floors) 
-                          ? formData.floors.includes(propKey)
-                          : formData.floor === propKey || (formData.floor || '').split(', ').includes(propKey);
-                        
-                        return (
-                          <label key={p.id} className="flex items-center gap-1.5 text-[10px] p-0.5 hover:bg-slate-100 cursor-pointer w-full">
-                            <input 
-                              type="checkbox" 
-                              checked={isChecked}
-                              className="w-3.5 h-3.5 cursor-pointer"
-                              onChange={(e) => {
-                                let updatedFloors = Array.isArray(formData.floors) ? [...formData.floors] : (formData.floor ? formData.floor.split(', ') : []);
-                                if (e.target.checked) {
-                                  if (!updatedFloors.includes(propKey)) updatedFloors.push(propKey);
-                                } else {
-                                  updatedFloors = updatedFloors.filter(f => f !== propKey);
-                                }
-                                setFormData({
-                                  ...formData,
-                                  floors: updatedFloors,
-                                  floor: updatedFloors.join(', ')
-                                });
-                              }}
-                            />
-                            <span>{p.name || p.address}</span>
-                          </label>
-                        );
-                      })}
-                    </div>
+                <div className="win-form-row">
+                  <label className="win-form-label">Dirección:</label>
+                  <input 
+                    type="text" 
+                    className="win-input flex-1"
+                    value={formData.address}
+                    onChange={(e) => setFormData({...formData, address: e.target.value})}
+                  />
+                </div>
+                <div className="win-form-row">
+                  <label className="win-form-label">DNI / NIF:</label>
+                  <input 
+                    type="text" 
+                    className="win-input flex-1"
+                    value={formData.dni}
+                    onChange={(e) => setFormData({...formData, dni: e.target.value})}
+                  />
+                </div>
+                <div className="win-form-row">
+                  <label className="win-form-label">Email:</label>
+                  <input 
+                    type="email" 
+                    className="win-input flex-1"
+                    value={formData.email || ''}
+                    onChange={(e) => setFormData({...formData, email: e.target.value})}
+                  />
+                </div>
+                <div className="win-form-row">
+                  <label className="win-form-label">Teléfono:</label>
+                  <input 
+                    type="text" 
+                    className="win-input flex-1"
+                    value={formData.phone}
+                    onChange={(e) => setFormData({...formData, phone: e.target.value})}
+                  />
+                </div>
+                <div className="win-form-row">
+                  <label className="win-form-label">Código Postal:</label>
+                  <input 
+                    type="text" 
+                    className="win-input flex-1"
+                    value={formData.cp}
+                    onChange={(e) => setFormData({...formData, cp: e.target.value})}
+                  />
+                </div>
+                <div className="win-form-row">
+                  <label className="win-form-label">Población:</label>
+                  <input 
+                    type="text" 
+                    className="win-input flex-1"
+                    value={formData.city || ''}
+                    onChange={(e) => setFormData({...formData, city: e.target.value})}
+                  />
+                </div>
+                
+                <div className="win-form-row flex flex-col items-start gap-1 w-full pt-1">
+                  <label className="win-form-label font-bold text-slate-700 uppercase">Pisos/Propiedades Asociadas:</label>
+                  <div className="w-full bg-white border border-[#808080] p-1.5 win-bevel max-h-[100px] overflow-auto">
+                    {availableProperties.map(p => {
+                      const propKey = p.name || p.address;
+                      const isChecked = Array.isArray(formData.floors) 
+                        ? formData.floors.includes(propKey)
+                        : formData.floor === propKey || (formData.floor || '').split(', ').includes(propKey);
+                      
+                      return (
+                        <label key={p.id} className="flex items-center gap-1.5 text-[10px] p-0.5 hover:bg-slate-100 cursor-pointer w-full">
+                          <input 
+                            type="checkbox" 
+                            checked={isChecked}
+                            className="w-3.5 h-3.5 cursor-pointer"
+                            onChange={(e) => {
+                              let updatedFloors = Array.isArray(formData.floors) ? [...formData.floors] : (formData.floor ? formData.floor.split(', ') : []);
+                              if (e.target.checked) {
+                                if (!updatedFloors.includes(propKey)) updatedFloors.push(propKey);
+                              } else {
+                                updatedFloors = updatedFloors.filter(f => f !== propKey);
+                              }
+                              setFormData({
+                                ...formData,
+                                floors: updatedFloors,
+                                floor: updatedFloors.join(', ')
+                              });
+                            }}
+                          />
+                          <span>{p.name || p.address}</span>
+                        </label>
+                      );
+                    })}
                   </div>
                 </div>
               </div>
