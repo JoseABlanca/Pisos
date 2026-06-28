@@ -300,10 +300,23 @@ export default function PrintPage() {
                         </tr>
                       );
                       if (entry.lines) {
+                        const uniqueCebes = new Set();
+                        const uniqueCecos = new Set();
+                        if (entry.cebe) uniqueCebes.add(entry.cebe);
+                        if (entry.ceco) uniqueCecos.add(entry.ceco);
+                        entry.lines.forEach(l => {
+                          if (l.cebe) uniqueCebes.add(l.cebe);
+                          if (l.ceco) uniqueCecos.add(l.ceco);
+                        });
+
+                        const centerDisplays = [];
+                        uniqueCebes.forEach(c => centerDisplays.push(`CEBE: ${c}`));
+                        uniqueCecos.forEach(c => centerDisplays.push(`CECO: ${c}`));
+
                         entry.lines.forEach((line, lineIndex) => {
                           const account = accounts.find(a => a.id === line.accountId);
                           const accDisplay = account ? `${account.code} - ${formatAccountName(account.name)}` : line.accountId || 'Cuenta';
-                          const centerDisplay = entry.cebe ? `CEBE: ${entry.cebe}` : (entry.ceco ? `CECO: ${entry.ceco}` : '');
+                          const centerDisplay = centerDisplays[lineIndex] || '';
                           rows.push(
                             <tr key={`line-${entry.id}-${lineIndex}`} className="hover:bg-slate-50">
                               <td className="py-0.5 px-1" colSpan="2"></td>
