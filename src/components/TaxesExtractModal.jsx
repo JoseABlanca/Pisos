@@ -15,6 +15,26 @@ export default function TaxesExtractModal({ isOpen, onClose, property, year, ren
   const [selectedYear, setSelectedYear] = useState(year ? year.toString() : new Date().getFullYear().toString());
   const [previewDoc, setPreviewDoc] = useState(null);
   const [cecos, setCecos] = useState([]);
+  const [currentProperty, setCurrentProperty] = useState(null);
+
+  useEffect(() => {
+    if (!property?.id || !isOpen) {
+      setCurrentProperty(null);
+      return;
+    }
+    setCurrentProperty(property);
+    const docRef = doc(db, 'properties', property.id);
+    const unsubscribe = onSnapshot(docRef, (docSnap) => {
+      if (docSnap.exists()) {
+        setCurrentProperty({ ...docSnap.data(), id: docSnap.id });
+      }
+    }, (err) => {
+      console.error("Error watching property in TaxesExtractModal:", err);
+    });
+    return () => unsubscribe();
+  }, [property?.id, isOpen]);
+
+  const activeProperty = currentProperty || property;
 
   useEffect(() => {
     if (!user || !isOpen) return;
@@ -29,14 +49,14 @@ export default function TaxesExtractModal({ isOpen, onClose, property, year, ren
   }, [user, isOpen, queryUserIds]);
 
   const handleToggleIncomeCeco = async (code) => {
-    if (!property) return;
-    const currentList = property.taxIncomeCecos || [];
+    if (!activeProperty) return;
+    const currentList = activeProperty.taxIncomeCecos || [];
     const newList = currentList.includes(code)
       ? currentList.filter(c => c !== code)
       : [...currentList, code];
       
     try {
-      const docRef = doc(db, 'properties', property.id);
+      const docRef = doc(db, 'properties', activeProperty.id);
       await updateDoc(docRef, { taxIncomeCecos: newList });
     } catch (err) {
       console.error("Error updating property taxIncomeCecos:", err);
@@ -44,14 +64,14 @@ export default function TaxesExtractModal({ isOpen, onClose, property, year, ren
   };
 
   const handleToggleExpenseCeco = async (code) => {
-    if (!property) return;
-    const currentList = property.taxExpenseCecos || [];
+    if (!activeProperty) return;
+    const currentList = activeProperty.taxExpenseCecos || [];
     const newList = currentList.includes(code)
       ? currentList.filter(c => c !== code)
       : [...currentList, code];
       
     try {
-      const docRef = doc(db, 'properties', property.id);
+      const docRef = doc(db, 'properties', activeProperty.id);
       await updateDoc(docRef, { taxExpenseCecos: newList });
     } catch (err) {
       console.error("Error updating property taxExpenseCecos:", err);
