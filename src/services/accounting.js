@@ -108,15 +108,17 @@ export const registerJournalEntry = async (userId, description, entries, customD
           date
         };
         
+        const hasLineLevel = entries.some(e => e.cebe || e.ceco);
+        
         if (entry.cebe) {
           txData.cebe = entry.cebe;
-        } else if (analytics && analytics.cebe) {
+        } else if (!hasLineLevel && analytics && analytics.cebe) {
           txData.cebe = analytics.cebe;
         }
         
         if (entry.ceco) {
           txData.ceco = entry.ceco;
-        } else if (analytics && analytics.ceco) {
+        } else if (!hasLineLevel && analytics && analytics.ceco) {
           txData.ceco = analytics.ceco;
         }
 
