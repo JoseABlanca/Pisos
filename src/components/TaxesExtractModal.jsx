@@ -36,6 +36,51 @@ export default function TaxesExtractModal({ isOpen, onClose, property, year, ren
 
   const activeProperty = currentProperty || property;
 
+  const [showIncomeCecoDropdown, setShowIncomeCecoDropdown] = useState(false);
+  const [showExpenseCecoDropdown, setShowExpenseCecoDropdown] = useState(false);
+
+  const handleSelectAllIncomeCecos = async () => {
+    if (!activeProperty) return;
+    const allCecos = cecos.map(c => c.code);
+    try {
+      const docRef = doc(db, 'properties', activeProperty.id);
+      await updateDoc(docRef, { taxIncomeCecos: allCecos });
+    } catch (err) {
+      console.error("Error setting all taxIncomeCecos:", err);
+    }
+  };
+
+  const handleClearAllIncomeCecos = async () => {
+    if (!activeProperty) return;
+    try {
+      const docRef = doc(db, 'properties', activeProperty.id);
+      await updateDoc(docRef, { taxIncomeCecos: [] });
+    } catch (err) {
+      console.error("Error clearing taxIncomeCecos:", err);
+    }
+  };
+
+  const handleSelectAllExpenseCecos = async () => {
+    if (!activeProperty) return;
+    const allCecos = cecos.map(c => c.code);
+    try {
+      const docRef = doc(db, 'properties', activeProperty.id);
+      await updateDoc(docRef, { taxExpenseCecos: allCecos });
+    } catch (err) {
+      console.error("Error setting all taxExpenseCecos:", err);
+    }
+  };
+
+  const handleClearAllExpenseCecos = async () => {
+    if (!activeProperty) return;
+    try {
+      const docRef = doc(db, 'properties', activeProperty.id);
+      await updateDoc(docRef, { taxExpenseCecos: [] });
+    } catch (err) {
+      console.error("Error clearing taxExpenseCecos:", err);
+    }
+  };
+
   useEffect(() => {
     if (!user || !isOpen) return;
     const qIds = queryUserIds?.length > 0 ? queryUserIds : [user.uid];
@@ -379,31 +424,20 @@ export default function TaxesExtractModal({ isOpen, onClose, property, year, ren
                       ) : (
                         <>
                           {/* CECO selector for Incomes */}
-                          <div className="bg-[#f0f0f0] border border-gray-400 p-2.5 text-left rounded shadow-sm">
-                            <span className="text-[10px] font-bold text-slate-700 uppercase block mb-1.5 border-b border-gray-300 pb-0.5">
-                              Filtro por CECOs de Ingresos (Multielección)
-                            </span>
-                            <div className="flex flex-wrap gap-x-4 gap-y-1">
-                              {cecos.length === 0 ? (
-                                <span className="text-[10px] text-slate-400 italic">No hay CECOs</span>
-                              ) : (
-                                cecos.sort((a,b) => a.code.localeCompare(b.code)).map(c => {
-                                  const isChecked = (activeProperty.taxIncomeCecos || []).includes(c.code);
-                                  return (
-                                    <label key={c.id} className="flex items-center gap-1.5 text-[10px] cursor-pointer select-none font-semibold hover:bg-slate-200/50 px-1 py-0.5">
-                                      <input 
-                                        type="checkbox" 
-                                        checked={isChecked} 
-                                        onChange={() => handleToggleIncomeCeco(c.code)}
-                                        className="w-3.5 h-3.5 cursor-pointer"
-                                      />
-                                      <span className="font-mono font-bold text-slate-800">{c.code}</span>
-                                      <span className="text-gray-500 font-sans text-[8.5px]">({c.name})</span>
-                                    </label>
-                                  );
-                                })
-                              )}
-                            </div>
+                          <div className="bg-[#f0f0f0] border border-gray-400 p-2.5 text-left rounded shadow-sm z-30 relative">
+                            <CecoMultiSelectDropdown
+                              label="Filtro por CECOs de Ingresos (Multielección)"
+                              cecos={cecos}
+                              selectedCecos={activeProperty.taxIncomeCecos || []}
+                              onToggleCeco={handleToggleIncomeCeco}
+                              onSelectAll={handleSelectAllIncomeCecos}
+                              onClearAll={handleClearAllIncomeCecos}
+                              isOpen={showIncomeCecoDropdown}
+                              setIsOpen={(val) => {
+                                setShowIncomeCecoDropdown(val);
+                                if (val) setShowExpenseCecoDropdown(false);
+                              }}
+                            />
                           </div>
 
                           <div className="border border-[#808080] bg-white overflow-auto max-h-[400px]">
@@ -475,31 +509,20 @@ export default function TaxesExtractModal({ isOpen, onClose, property, year, ren
                       </div>
                       
                       {/* CECO selector for Expenses */}
-                      <div className="bg-[#f0f0f0] border border-gray-400 p-2.5 text-left rounded shadow-sm">
-                        <span className="text-[10px] font-bold text-slate-700 uppercase block mb-1.5 border-b border-gray-300 pb-0.5">
-                          Filtro por CECOs de Gastos (Multielección)
-                        </span>
-                        <div className="flex flex-wrap gap-x-4 gap-y-1">
-                          {cecos.length === 0 ? (
-                            <span className="text-[10px] text-slate-400 italic">No hay CECOs</span>
-                          ) : (
-                            cecos.sort((a,b) => a.code.localeCompare(b.code)).map(c => {
-                              const isChecked = (activeProperty.taxExpenseCecos || []).includes(c.code);
-                              return (
-                                <label key={c.id} className="flex items-center gap-1.5 text-[10px] cursor-pointer select-none font-semibold hover:bg-slate-200/50 px-1 py-0.5">
-                                  <input 
-                                    type="checkbox" 
-                                    checked={isChecked} 
-                                    onChange={() => handleToggleExpenseCeco(c.code)}
-                                    className="w-3.5 h-3.5 cursor-pointer"
-                                  />
-                                  <span className="font-mono font-bold text-slate-800">{c.code}</span>
-                                  <span className="text-gray-500 font-sans text-[8.5px]">({c.name})</span>
-                                </label>
-                              );
-                            })
-                          )}
-                        </div>
+                      <div className="bg-[#f0f0f0] border border-gray-400 p-2.5 text-left rounded shadow-sm z-30 relative">
+                        <CecoMultiSelectDropdown
+                          label="Filtro por CECOs de Gastos (Multielección)"
+                          cecos={cecos}
+                          selectedCecos={activeProperty.taxExpenseCecos || []}
+                          onToggleCeco={handleToggleExpenseCeco}
+                          onSelectAll={handleSelectAllExpenseCecos}
+                          onClearAll={handleClearAllExpenseCecos}
+                          isOpen={showExpenseCecoDropdown}
+                          setIsOpen={(val) => {
+                            setShowExpenseCecoDropdown(val);
+                            if (val) setShowIncomeCecoDropdown(false);
+                          }}
+                        />
                       </div>
 
                       <div className="border border-[#808080] bg-white overflow-auto max-h-[400px]">
@@ -624,6 +647,107 @@ export default function TaxesExtractModal({ isOpen, onClose, property, year, ren
             </div>
           </Window>
         </div>
+      )}
+    </div>
+  );
+}
+
+function CecoMultiSelectDropdown({
+  label,
+  cecos,
+  selectedCecos,
+  onToggleCeco,
+  onSelectAll,
+  onClearAll,
+  isOpen,
+  setIsOpen
+}) {
+  const buttonText = selectedCecos.length === 0
+    ? "Ningún CECO seleccionado"
+    : `${selectedCecos.length} seleccionado(s): ${selectedCecos.join(', ')}`;
+
+  return (
+    <div className="relative text-left w-full max-w-md">
+      <span className="text-[10px] font-bold text-slate-700 uppercase block mb-1">
+        {label}
+      </span>
+      
+      {/* Dropdown Trigger Button (Retro Windows Style) */}
+      <button
+        type="button"
+        onClick={() => setIsOpen(!isOpen)}
+        className="w-full bg-white border border-gray-400 text-left px-2 py-1 text-[11px] font-medium flex items-center justify-between shadow-[inset_1px_1px_1px_#808080] hover:bg-slate-50 cursor-pointer min-h-[26px]"
+      >
+        <span className="truncate text-slate-800 font-sans font-semibold pr-2" title={buttonText}>
+          {buttonText}
+        </span>
+        <span className="font-mono text-[9px] text-slate-600 bg-[#d4d0c8] px-2 py-0.5 border border-white border-b-gray-400 border-r-gray-400 shadow-[1px_1px_0px_#000] active:shadow-none select-none">
+          ▼
+        </span>
+      </button>
+
+      {isOpen && (
+        <>
+          {/* Overlay to close when clicking outside */}
+          <div className="fixed inset-0 z-30" onClick={() => setIsOpen(false)} />
+          
+          {/* Dropdown Options Container */}
+          <div className="absolute left-0 mt-1 w-full bg-white border border-gray-400 shadow-[2px_2px_4px_rgba(0,0,0,0.15)] z-40 p-2 max-h-60 overflow-y-auto">
+            {/* Quick Actions */}
+            <div className="flex justify-between border-b border-gray-300 pb-1.5 mb-1.5 text-[10px]">
+              <button 
+                type="button"
+                onClick={() => {
+                  onSelectAll();
+                  setIsOpen(false);
+                }} 
+                className="text-blue-600 hover:underline font-bold"
+              >
+                ✓ Seleccionar Todos
+              </button>
+              <button 
+                type="button"
+                onClick={() => {
+                  onClearAll();
+                  setIsOpen(false);
+                }} 
+                className="text-red-650 hover:underline font-bold"
+              >
+                ✗ Limpiar Selección
+              </button>
+            </div>
+            
+            {/* Options List */}
+            <div className="flex flex-col max-h-48 overflow-y-auto gap-0.5">
+              {cecos.length === 0 ? (
+                <span className="text-[10px] text-slate-400 italic p-1">No hay CECOs</span>
+              ) : (
+                cecos.map(c => {
+                  const isChecked = selectedCecos.includes(c.code);
+                  return (
+                    <label 
+                      key={c.id} 
+                      className="flex items-center gap-2 p-1 rounded hover:bg-blue-600 hover:text-white group cursor-pointer text-[11px] select-none font-semibold"
+                    >
+                      <input 
+                        type="checkbox" 
+                        checked={isChecked} 
+                        onChange={() => onToggleCeco(c.code)}
+                        className="w-3.5 h-3.5 cursor-pointer"
+                      />
+                      <div className="flex-1 flex justify-between gap-2 overflow-hidden">
+                        <span className="font-mono font-bold text-slate-800 group-hover:text-white">{c.code}</span>
+                        <span className="text-gray-500 font-sans text-[9px] group-hover:text-blue-100 truncate max-w-[200px]" title={c.name}>
+                          {c.name}
+                        </span>
+                      </div>
+                    </label>
+                  );
+                })
+              )}
+            </div>
+          </div>
+        </>
       )}
     </div>
   );
