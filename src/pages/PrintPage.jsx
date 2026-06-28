@@ -81,6 +81,9 @@ const isAccountMatched = (accountCodeOrId, selectedAccounts, accountsList) => {
   });
 };
 
+// App name variable — change here to update it everywhere in reports
+const APP_NAME = 'Nexo Finance';
+
 export default function PrintPage() {
   const { user, queryUserIds } = useAuth();
   
@@ -91,13 +94,34 @@ export default function PrintPage() {
   const [selectedMonths, setSelectedMonths] = useState([]);
   const [selectedQuarters, setSelectedQuarters] = useState([]);
   const [selectedAccounts, setSelectedAccounts] = useState([]);
+  const [selectedCebes, setSelectedCebes] = useState([]);
+  const [selectedCecos, setSelectedCecos] = useState([]);
+  const [selectedDocuments, setSelectedDocuments] = useState([]);
+  const [filterImpuesto, setFilterImpuesto] = useState(false);
+
   const [accountsDropdownOpen, setAccountsDropdownOpen] = useState(false);
+  const [cebeDropdownOpen, setCebeDropdownOpen] = useState(false);
+  const [cecoDropdownOpen, setCecoDropdownOpen] = useState(false);
+  const [docDropdownOpen, setDocDropdownOpen] = useState(false);
+
   const accountsDropdownRef = useRef(null);
+  const cebeDropdownRef = useRef(null);
+  const cecoDropdownRef = useRef(null);
+  const docDropdownRef = useRef(null);
 
   useEffect(() => {
     const handleOutsideClick = (e) => {
       if (accountsDropdownRef.current && !accountsDropdownRef.current.contains(e.target)) {
         setAccountsDropdownOpen(false);
+      }
+      if (cebeDropdownRef.current && !cebeDropdownRef.current.contains(e.target)) {
+        setCebeDropdownOpen(false);
+      }
+      if (cecoDropdownRef.current && !cecoDropdownRef.current.contains(e.target)) {
+        setCecoDropdownOpen(false);
+      }
+      if (docDropdownRef.current && !docDropdownRef.current.contains(e.target)) {
+        setDocDropdownOpen(false);
       }
     };
     document.addEventListener('mousedown', handleOutsideClick);
@@ -106,6 +130,8 @@ export default function PrintPage() {
   
   // Database collections states
   const [accounts, setAccounts] = useState([]);
+  const [cebes, setCebes] = useState([]);
+  const [cecos, setCecos] = useState([]);
   const [journalEntries, setJournalEntries] = useState([]);
   const [properties, setProperties] = useState([]);
   const [rentals, setRentals] = useState([]);
@@ -154,6 +180,20 @@ export default function PrintPage() {
       }
     );
 
+    const unsubCebes = onSnapshot(
+      query(collection(db, 'analytical_centers'), where('userId', 'in', userIds), where('type', '==', 'cebe')),
+      (snap) => {
+        setCebes(snap.docs.map(doc => ({ id: doc.id, ...doc.data() })));
+      }
+    );
+
+    const unsubCecos = onSnapshot(
+      query(collection(db, 'analytical_centers'), where('userId', 'in', userIds), where('type', '==', 'ceco')),
+      (snap) => {
+        setCecos(snap.docs.map(doc => ({ id: doc.id, ...doc.data() })));
+      }
+    );
+
     // Let loading finish after some time or when main data is retrieved
     const timer = setTimeout(() => setLoading(false), 800);
 
@@ -163,6 +203,8 @@ export default function PrintPage() {
       unsubProperties();
       unsubRentals();
       unsubCustomers();
+      unsubCebes();
+      unsubCecos();
       clearTimeout(timer);
     };
   }, [user, queryUserIds]);
@@ -188,19 +230,15 @@ export default function PrintPage() {
   const filteredEntriesForPrint = useMemo(() => {
     let list = journalEntries;
     
-    // 1. Year filter (either timeline or dropdown)
+    // 1. Year filter: only apply when user has explicitly selected years in the timeline
     if (selectedYears.length > 0) {
       list = list.filter(entry => {
         if (!entry.date) return false;
         const yr = new Date(entry.date).getFullYear().toString();
         return selectedYears.includes(yr);
       });
-    } else {
-      list = list.filter(entry => {
-        if (!entry.date) return false;
-        return new Date(entry.date).getFullYear() === selectedYear;
-      });
     }
+    // If no years selected → show all years (no filter applied)
     
     // 2. Month / Quarter filters from timeline
     if (selectedMonths.length > 0 || selectedQuarters.length > 0) {
@@ -227,18 +265,96 @@ export default function PrintPage() {
         }
       });
     }
+
+    // 3. Impuesto filter
+    if (filterImpuesto) {
+      list = list.filter(entry => !!entry.isImpuesto);
+    }
     
     return list;
-  }, [journalEntries, selectedYear, selectedYears, selectedMonths, selectedQuarters]);
+  }, [journalEntries, selectedYear, selectedYears, selectedMonths, selectedQuarters, filterImpuesto]);
 
-  // Handle Print execution
+  // Entries filtered only by timeline+accounts (used to derive dynamic options for CEBE/CECO/Document)
+  const entriesMatchingAccountAndTimeline = useMemo(() => {
+    return filteredEntriesForPrint
+      .map(entry => {
+        if (!entry.lines) return null;
+        const filteredLines = entry.lines.filter(l =>
+          isAccountMatched(l.accountId, selectedAccounts, accounts)
+        );
+        return filteredLines.length > 0 ? { ...entry, lines: filteredLines } : null;
+      })
+      .filter(Boolean);
+  }, [filteredEntriesForPrint, selectedAccounts, accounts]);
+
+  // Dynamic CEBE options: only those that appear in the account/timeline filtered entries
+  const selectableCebes = useMemo(() => {
+    const set = new Set();
+    entriesMatchingAccountAndTimeline.forEach(entry => {
+      if (entry.cebe) set.add(entry.cebe);
+      entry.lines.forEach(l => { if (l.cebe) set.add(l.cebe); });
+    });
+    return Array.from(set).sort();
+  }, [entriesMatchingAccountAndTimeline]);
+
+  // Dynamic CECO options
+  const selectableCecos = useMemo(() => {
+    const set = new Set();
+    entriesMatchingAccountAndTimeline.forEach(entry => {
+      if (entry.ceco) set.add(entry.ceco);
+      entry.lines.forEach(l => { if (l.ceco) set.add(l.ceco); });
+    });
+    return Array.from(set).sort();
+  }, [entriesMatchingAccountAndTimeline]);
+
+  // Dynamic Document options
+  const selectableDocuments = useMemo(() => {
+    const set = new Set();
+    entriesMatchingAccountAndTimeline.forEach(entry => {
+      if (entry.document) set.add(entry.document);
+      entry.lines.forEach(l => { if (l.document) set.add(l.document); });
+    });
+    return Array.from(set).sort();
+  }, [entriesMatchingAccountAndTimeline]);
+
+  // Helper: check if an entry/line matches active CEBE/CECO/Document filters
+  const matchesCenterFilters = (entry, line) => {
+    const cebe = line?.cebe || entry?.cebe || '';
+    const ceco = line?.ceco || entry?.ceco || '';
+    const document = line?.document || entry?.document || '';
+    if (selectedCebes.length > 0 && !selectedCebes.includes(cebe)) return false;
+    if (selectedCecos.length > 0 && !selectedCecos.includes(ceco)) return false;
+    if (selectedDocuments.length > 0 && !selectedDocuments.includes(document)) return false;
+    return true;
+  };
+
+  // Handle Print execution — clone print-area to body so overflow/flex containers don't clip pages
   const handlePrint = () => {
+    const printArea = document.getElementById('print-area');
+    if (!printArea) { window.print(); return; }
+
+    // Clone the rendered pages directly into body (bypasses all overflow:hidden ancestors)
+    const clone = document.createElement('div');
+    clone.id = 'print-body-clone';
+    clone.innerHTML = printArea.innerHTML;
+    document.body.appendChild(clone);
+
     window.print();
+
+    // Clean up after printing dialog closes
+    document.body.removeChild(clone);
   };
 
   useEffect(() => {
     const handleExecutePrint = () => {
+      const printArea = document.getElementById('print-area');
+      if (!printArea) { window.print(); return; }
+      const clone = document.createElement('div');
+      clone.id = 'print-body-clone';
+      clone.innerHTML = printArea.innerHTML;
+      document.body.appendChild(clone);
       window.print();
+      document.body.removeChild(clone);
     };
     window.addEventListener('print:execute', handleExecutePrint);
     return () => window.removeEventListener('print:execute', handleExecutePrint);
@@ -355,8 +471,9 @@ export default function PrintPage() {
   // Reusable Page Header
   const renderPageHeader = (title) => {
     const isAccounting = ['Diario de Movimientos', 'Libro Mayor de Cuentas', 'Balance de Sumas y Saldos'].includes(title);
+    const yearLabel = selectedYears.length > 0 ? selectedYears.join(', ') : 'Todos los ejercicios';
     const subtitle = isAccounting
-      ? `Ejercicio Contable: ${selectedYears.length > 0 ? selectedYears.join(', ') : selectedYear}${selectedMonths.length > 0 || selectedQuarters.length > 0 ? ` (${[...selectedQuarters, ...selectedMonths].join(', ')})` : ''}`
+      ? `Ejercicio Contable: ${yearLabel}${selectedMonths.length > 0 || selectedQuarters.length > 0 ? ` (${[...selectedQuarters, ...selectedMonths].join(', ')})` : ''}`
       : `Ejercicio Contable: ${selectedYear}`;
     return (
       <div className="border-b-2 border-slate-800 pb-3 flex justify-between items-end mb-4 select-none">
@@ -374,14 +491,13 @@ export default function PrintPage() {
   // Reusable Page Footer
   const renderPageFooter = (currentPage, totalPages, auditNumber) => {
     return (
-      <div className="mt-auto pt-6 border-t border-slate-200 flex justify-between items-end text-[8px] text-slate-400 select-none">
+      <div className="mt-auto pt-4 border-t border-slate-200 flex justify-between items-end text-[8px] text-slate-400 select-none">
         <div>
-          <p className="font-bold text-slate-500">NEXO FINANCE CORP</p>
-          <p>Generado mediante el módulo oficial de informes y auditoría contable.</p>
+          <p className="font-bold text-slate-500 uppercase tracking-wide">{APP_NAME}</p>
         </div>
         <div className="text-right">
           <p>Página {currentPage} de {totalPages}</p>
-          <p className="font-mono">Auditoría Nº NEXO-{auditNumber}</p>
+          <p className="font-mono">Auditoría Nº {auditNumber}</p>
         </div>
       </div>
     );
@@ -397,8 +513,9 @@ export default function PrintPage() {
       const yearEntries = filteredEntriesForPrint
         .map(entry => {
           if (!entry.lines) return entry;
-          const filteredLines = entry.lines.filter(l => 
-            isAccountMatched(l.accountId, selectedAccounts, accounts)
+          const filteredLines = entry.lines.filter(l =>
+            isAccountMatched(l.accountId, selectedAccounts, accounts) &&
+            matchesCenterFilters(entry, l)
           );
           return { ...entry, lines: filteredLines };
         })
@@ -435,8 +552,9 @@ export default function PrintPage() {
                   <tbody>
                     {pageEntries.flatMap((entry, entryIndex) => {
                       const rows = [];
+                      const rowBg = entryIndex % 2 === 0 ? 'bg-white' : 'bg-slate-50';
                       rows.push(
-                        <tr key={`entry-${entry.id}`} className="font-bold border-t border-slate-200">
+                        <tr key={`entry-${entry.id}`} className={`font-bold border-t border-slate-200 ${rowBg}`}>
                           <td className="py-1 px-1 text-slate-600">{new Date(entry.date).toLocaleDateString()}</td>
                           <td className="py-1 px-1 text-slate-600">{entry.number || entryIndex + 1}</td>
                           <td className="py-1 px-1 text-slate-900 uppercase" colSpan="2">{entry.description}</td>
@@ -463,7 +581,7 @@ export default function PrintPage() {
                           const accDisplay = account ? `${account.code} - ${formatAccountName(account.name)}` : line.accountId || 'Cuenta';
                           const centerDisplay = centerDisplays[lineIndex] || '';
                           rows.push(
-                            <tr key={`line-${entry.id}-${lineIndex}`} className="hover:bg-slate-50">
+                            <tr key={`line-${entry.id}-${lineIndex}`} className={rowBg}>
                               <td className="py-0.5 px-1" colSpan="2"></td>
                               <td className="py-0.5 px-1 text-slate-600 pl-4">{accDisplay}</td>
                               <td className="py-0.5 px-1 font-mono text-[9px] text-slate-500">{centerDisplay}</td>
@@ -495,7 +613,7 @@ export default function PrintPage() {
       yearEntries.forEach(entry => {
         if (entry.lines) {
           entry.lines.forEach(line => {
-            if (accountMovements[line.accountId]) {
+            if (accountMovements[line.accountId] && matchesCenterFilters(entry, line)) {
               const debit = parseFloat(line.debit) || 0;
               const credit = parseFloat(line.credit) || 0;
               accountMovements[line.accountId].lines.push({
@@ -510,6 +628,11 @@ export default function PrintPage() {
             }
           });
         }
+      });
+
+      // Sort each account's lines by date ascending
+      Object.values(accountMovements).forEach(am => {
+        am.lines.sort((a, b) => new Date(a.date) - new Date(b.date));
       });
 
       const activeAccounts = Object.values(accountMovements)
@@ -615,7 +738,7 @@ export default function PrintPage() {
       yearEntries.forEach(entry => {
         if (entry.lines) {
           entry.lines.forEach(line => {
-            if (sumsMap[line.accountId]) {
+            if (sumsMap[line.accountId] && matchesCenterFilters(entry, line)) {
               sumsMap[line.accountId].debit += parseFloat(line.debit) || 0;
               sumsMap[line.accountId].credit += parseFloat(line.credit) || 0;
             }
@@ -890,49 +1013,62 @@ export default function PrintPage() {
       {/* Print Stylesheet injection */}
       <style>{`
         .page-sheet {
-          width: 210mm !important;
-          height: 297mm !important;
-          padding: 20mm !important;
-          box-sizing: border-box !important;
-          display: flex !important;
-          flex-direction: column !important;
-          justify-content: space-between !important;
-          background-color: white !important;
-          color: black !important;
-          position: relative !important;
+          width: 210mm;
+          min-height: 277mm;
+          padding: 12mm 14mm;
+          box-sizing: border-box;
+          display: flex;
+          flex-direction: column;
+          justify-content: space-between;
+          background-color: white;
+          color: black;
+          position: relative;
         }
 
         @media screen {
           .page-sheet {
-            box-shadow: 0 10px 15px -3px rgba(0, 0, 0, 0.1), 0 4px 6px -2px rgba(0, 0, 0, 0.05) !important;
-            border: 1px solid #cbd5e1 !important;
-            margin-bottom: 24px !important;
+            box-shadow: 0 10px 15px -3px rgba(0, 0, 0, 0.1), 0 4px 6px -2px rgba(0, 0, 0, 0.05);
+            border: 1px solid #cbd5e1;
+            margin-bottom: 24px;
           }
         }
 
         @media print {
-          body * {
-            visibility: hidden !important;
+          @page {
+            size: A4 portrait;
+            margin: 10mm 14mm;
           }
-          #print-area, #print-area * {
-            visibility: visible !important;
+
+          /* Hide everything in body except our clone */
+          body > *:not(#print-body-clone) {
+            display: none !important;
           }
-          #print-area {
-            position: absolute !important;
-            left: 0 !important;
-            top: 0 !important;
-            width: 210mm !important;
-            margin: 0 !important;
-            padding: 0 !important;
-            background: white !important;
+
+          /* The clone sits at body level — no overflow constraints */
+          body > #print-body-clone {
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            gap: 0;
+            background: white;
+            width: 100%;
           }
-          .page-sheet {
+
+          body > #print-body-clone .page-sheet {
             box-shadow: none !important;
             border: none !important;
             margin: 0 !important;
-            page-break-after: always !important;
-            break-after: page !important;
+            width: 100% !important;
+            min-height: 0 !important;
+            page-break-after: always;
+            break-after: page;
           }
+
+          body > #print-body-clone .page-sheet:last-child {
+            page-break-after: avoid;
+            break-after: avoid;
+          }
+
           .no-print {
             display: none !important;
           }
@@ -1038,6 +1174,160 @@ export default function PrintPage() {
                     </label>
                   );
                 })}
+              </div>
+            )}
+          </div>
+        )}
+
+        {/* CEBE Filter */}
+        {['diario', 'mayor', 'sumas_saldos'].includes(selectedTemplate) && (
+          <div className="bg-white border border-[#a0a0a0] p-3 flex flex-col gap-2 relative" ref={cebeDropdownRef}>
+            <div className="text-[10px] font-bold text-slate-500 uppercase flex items-center gap-1 select-none">
+              <span>CEBE</span>
+            </div>
+            <div
+              onClick={() => setCebeDropdownOpen(prev => !prev)}
+              className="win-input w-full flex justify-between items-center cursor-pointer select-none bg-white border border-[#a0a0a0] px-2 py-1 text-[11px] font-sans rounded min-h-[24px]"
+            >
+              <span className="truncate pr-2 text-slate-700">
+                {selectedCebes.length === 0 ? 'Todos' : selectedCebes.join(', ')}
+              </span>
+              <span className="text-[9px] text-slate-555">▼</span>
+            </div>
+            {cebeDropdownOpen && (
+              <div className="absolute left-3 right-3 top-[calc(100%-8px)] z-50 bg-white border border-[#a0a0a0] shadow-lg max-h-[180px] overflow-y-auto p-1.5 flex flex-col gap-1 rounded win-bevel">
+                <label className="flex items-center gap-1.5 text-[10px] cursor-pointer hover:bg-slate-50 py-0.5 rounded select-none font-bold text-blue-900 border-b border-slate-100 pb-1">
+                  <input type="checkbox" checked={selectedCebes.length === 0} onChange={() => setSelectedCebes([])} className="mt-0.5" />
+                  <span>Todos</span>
+                </label>
+                {selectableCebes.length === 0 && (
+                  <span className="text-[10px] text-slate-400 italic px-1">Sin opciones disponibles</span>
+                )}
+                {selectableCebes.map(c => {
+                  const cebeObj = cebes.find(x => x.code === c);
+                  const label = cebeObj ? `${c} - ${cebeObj.name}` : c;
+                  return (
+                    <label key={c} className="flex items-start gap-1.5 text-[10px] cursor-pointer hover:bg-slate-50 py-0.5 rounded select-none">
+                      <input
+                        type="checkbox"
+                        checked={selectedCebes.includes(c)}
+                        onChange={() => setSelectedCebes(prev => prev.includes(c) ? prev.filter(x => x !== c) : [...prev, c])}
+                        className="mt-0.5"
+                      />
+                      <span className="text-slate-700">{label}</span>
+                    </label>
+                  );
+                })}
+              </div>
+            )}
+          </div>
+        )}
+
+        {/* CECO Filter */}
+        {['diario', 'mayor', 'sumas_saldos'].includes(selectedTemplate) && (
+          <div className="bg-white border border-[#a0a0a0] p-3 flex flex-col gap-2 relative" ref={cecoDropdownRef}>
+            <div className="text-[10px] font-bold text-slate-500 uppercase flex items-center gap-1 select-none">
+              <span>CECO</span>
+            </div>
+            <div
+              onClick={() => setCecoDropdownOpen(prev => !prev)}
+              className="win-input w-full flex justify-between items-center cursor-pointer select-none bg-white border border-[#a0a0a0] px-2 py-1 text-[11px] font-sans rounded min-h-[24px]"
+            >
+              <span className="truncate pr-2 text-slate-700">
+                {selectedCecos.length === 0 ? 'Todos' : selectedCecos.join(', ')}
+              </span>
+              <span className="text-[9px] text-slate-555">▼</span>
+            </div>
+            {cecoDropdownOpen && (
+              <div className="absolute left-3 right-3 top-[calc(100%-8px)] z-50 bg-white border border-[#a0a0a0] shadow-lg max-h-[180px] overflow-y-auto p-1.5 flex flex-col gap-1 rounded win-bevel">
+                <label className="flex items-center gap-1.5 text-[10px] cursor-pointer hover:bg-slate-50 py-0.5 rounded select-none font-bold text-blue-900 border-b border-slate-100 pb-1">
+                  <input type="checkbox" checked={selectedCecos.length === 0} onChange={() => setSelectedCecos([])} className="mt-0.5" />
+                  <span>Todos</span>
+                </label>
+                {selectableCecos.length === 0 && (
+                  <span className="text-[10px] text-slate-400 italic px-1">Sin opciones disponibles</span>
+                )}
+                {selectableCecos.map(c => {
+                  const cecoObj = cecos.find(x => x.code === c);
+                  const label = cecoObj ? `${c} - ${cecoObj.name}` : c;
+                  return (
+                    <label key={c} className="flex items-start gap-1.5 text-[10px] cursor-pointer hover:bg-slate-50 py-0.5 rounded select-none">
+                      <input
+                        type="checkbox"
+                        checked={selectedCecos.includes(c)}
+                        onChange={() => setSelectedCecos(prev => prev.includes(c) ? prev.filter(x => x !== c) : [...prev, c])}
+                        className="mt-0.5"
+                      />
+                      <span className="text-slate-700">{label}</span>
+                    </label>
+                  );
+                })}
+              </div>
+            )}
+          </div>
+        )}
+
+        {/* Filtro Impuesto */}
+        {['diario', 'mayor', 'sumas_saldos'].includes(selectedTemplate) && (
+          <div className="bg-white border border-[#a0a0a0] p-3 flex flex-col gap-2">
+            <div className="text-[10px] font-bold text-slate-500 uppercase flex items-center gap-1 select-none">
+              <span>Filtro Fiscal</span>
+            </div>
+            <label className="flex items-center gap-2 cursor-pointer select-none">
+              <div
+                onClick={() => setFilterImpuesto(prev => !prev)}
+                className={`relative w-9 h-5 rounded-full transition-colors duration-200 shrink-0 ${
+                  filterImpuesto ? 'bg-amber-500' : 'bg-slate-300'
+                }`}
+              >
+                <div className={`absolute top-0.5 left-0.5 w-4 h-4 bg-white rounded-full shadow transition-transform duration-200 ${
+                  filterImpuesto ? 'translate-x-4' : 'translate-x-0'
+                }`} />
+              </div>
+              <span className={`text-[10px] font-semibold ${
+                filterImpuesto ? 'text-amber-700' : 'text-slate-500'
+              }`}>
+                {filterImpuesto ? 'Solo con impuesto' : 'Todos los asientos'}
+              </span>
+            </label>
+          </div>
+        )}
+
+        {/* Documento Filter */}
+        {['diario', 'mayor', 'sumas_saldos'].includes(selectedTemplate) && (
+          <div className="bg-white border border-[#a0a0a0] p-3 flex flex-col gap-2 relative" ref={docDropdownRef}>
+            <div className="text-[10px] font-bold text-slate-500 uppercase flex items-center gap-1 select-none">
+              <span>Documento</span>
+            </div>
+            <div
+              onClick={() => setDocDropdownOpen(prev => !prev)}
+              className="win-input w-full flex justify-between items-center cursor-pointer select-pointer select-none bg-white border border-[#a0a0a0] px-2 py-1 text-[11px] font-sans rounded min-h-[24px]"
+            >
+              <span className="truncate pr-2 text-slate-700">
+                {selectedDocuments.length === 0 ? 'Todos' : selectedDocuments.join(', ')}
+              </span>
+              <span className="text-[9px] text-slate-555">▼</span>
+            </div>
+            {docDropdownOpen && (
+              <div className="absolute left-3 right-3 top-[calc(100%-8px)] z-50 bg-white border border-[#a0a0a0] shadow-lg max-h-[180px] overflow-y-auto p-1.5 flex flex-col gap-1 rounded win-bevel">
+                <label className="flex items-center gap-1.5 text-[10px] cursor-pointer hover:bg-slate-50 py-0.5 rounded select-none font-bold text-blue-900 border-b border-slate-100 pb-1">
+                  <input type="checkbox" checked={selectedDocuments.length === 0} onChange={() => setSelectedDocuments([])} className="mt-0.5" />
+                  <span>Todos</span>
+                </label>
+                {selectableDocuments.length === 0 && (
+                  <span className="text-[10px] text-slate-400 italic px-1">Sin opciones disponibles</span>
+                )}
+                {selectableDocuments.map(d => (
+                  <label key={d} className="flex items-start gap-1.5 text-[10px] cursor-pointer hover:bg-slate-50 py-0.5 rounded select-none">
+                    <input
+                      type="checkbox"
+                      checked={selectedDocuments.includes(d)}
+                      onChange={() => setSelectedDocuments(prev => prev.includes(d) ? prev.filter(x => x !== d) : [...prev, d])}
+                      className="mt-0.5"
+                    />
+                    <span className="text-slate-700">{d}</span>
+                  </label>
+                ))}
               </div>
             )}
           </div>
