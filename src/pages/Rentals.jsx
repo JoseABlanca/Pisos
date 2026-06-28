@@ -1451,6 +1451,15 @@ export default function Rentals() {
                         cebes={cebes} 
                         cecos={cecos} 
                         setPreviewDocument={setPreviewDocument} 
+                        onAddEntry={() => {
+                          setAccountingModalConfig({
+                            linkedAccountId: null,
+                            defaultDescription: `Alquiler - ${formData.reference || formData.id || ''}`,
+                            defaultAmount: formData.rentAmount || 0,
+                            defaultAnalytics: { cebe: formData.incomeCebeId || '' }
+                          });
+                          setShowAccountingModal(true);
+                        }}
                       />
                     )}
 

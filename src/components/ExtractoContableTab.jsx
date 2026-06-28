@@ -1,8 +1,9 @@
 import { useState, useEffect, useMemo } from 'react';
 import { db } from '../firebase/config';
-import { collection, query, where, onSnapshot } from 'firebase/firestore';
+import { collection, query, where, onSnapshot, doc, updateDoc } from 'firebase/firestore';
 import { useAuth } from '../context/AuthContext';
-import { FileText, TrendingUp, TrendingDown, RefreshCw } from 'lucide-react';
+import { FileText, TrendingUp, TrendingDown, RefreshCw, FilePlus, X } from 'lucide-react';
+import { uploadFileToStorage } from '../utils/storageUtils';
 
 export default function ExtractoContableTab({ 
   formData, 
@@ -10,7 +11,8 @@ export default function ExtractoContableTab({
   mode, // 'rentals' | 'properties'
   cebes = [], 
   cecos = [], 
-  setPreviewDocument 
+  setPreviewDocument,
+  onAddEntry
 }) {
   const { user, queryUserIds } = useAuth();
   const [journalEntries, setJournalEntries] = useState([]);
@@ -267,18 +269,29 @@ export default function ExtractoContableTab({
       {/* Selector Inputs (only editable if mode === 'rentals', otherwise read-only show or select from inputs) */}
       {mode === 'rentals' ? (
         <div className="p-3 bg-slate-100 border border-slate-300 win-bevel flex flex-col gap-2">
-          <div className="flex flex-col gap-1 max-w-sm">
-            <label className="text-[10px] font-bold text-slate-700 uppercase">CEBE Asociado (Ingresos):</label>
-            <select 
-              className="win-input w-full cursor-pointer" 
-              value={currentCebe} 
-              onChange={handleCebeChange}
-            >
-              <option value="">-- Seleccionar CEBE --</option>
-              {cebes.map(c => (
-                <option key={c.id} value={c.code}>{c.code} - {c.name}</option>
-              ))}
-            </select>
+          <div className="flex flex-wrap items-center justify-between gap-4">
+            <div className="flex flex-col gap-1 max-w-sm flex-1 min-w-[200px]">
+              <label className="text-[10px] font-bold text-slate-700 uppercase">CEBE Asociado (Ingresos):</label>
+              <select 
+                className="win-input w-full cursor-pointer" 
+                value={currentCebe} 
+                onChange={handleCebeChange}
+              >
+                <option value="">-- Seleccionar CEBE --</option>
+                {cebes.map(c => (
+                  <option key={c.id} value={c.code}>{c.code} - {c.name}</option>
+                ))}
+              </select>
+            </div>
+            {onAddEntry && (
+              <button 
+                type="button"
+                className="px-4 py-1.5 bg-[#4a69bd] text-white text-[11px] font-bold uppercase shadow-sm hover:bg-[#3b5598] self-end h-[30px] rounded"
+                onClick={onAddEntry}
+              >
+                + Añadir Asiento
+              </button>
+            )}
           </div>
           {formData?.reference && (
             <div className="text-[10px] text-slate-500 font-semibold uppercase mt-1">
@@ -351,12 +364,13 @@ export default function ExtractoContableTab({
                 <th className="w-24 text-[10px]">Centro</th>
                 <th className="w-32 text-right text-[10px]">Importe</th>
                 <th className="w-36 text-[10px]">Documento</th>
+                <th className="w-12 text-center text-[10px]">Imp.</th>
               </tr>
             </thead>
             <tbody>
               {filteredEntries.length === 0 ? (
                 <tr>
-                  <td colSpan="6" className="text-center text-slate-500 italic py-16">
+                  <td colSpan="7" className="text-center text-slate-500 italic py-16">
                     {loading ? 'Cargando asientos...' : 'No hay asientos contables registrados para este CEBE/CECO.'}
                   </td>
                 </tr>
@@ -471,24 +485,88 @@ export default function ExtractoContableTab({
                       </td>
                       <td className="p-1">
                         {displayDocUrl ? (
-                          <button
-                            type="button"
-                            onClick={() => {
-                              if (setPreviewDocument) {
-                                setPreviewDocument({ url: displayDocUrl, name: displayDocName });
-                              } else {
-                                window.open(displayDocUrl, '_blank');
-                              }
-                            }}
-                            className="text-blue-600 hover:text-blue-800 hover:underline flex items-center gap-1 font-medium text-[10px] truncate max-w-[130px]"
-                            title={displayDocName}
-                          >
-                            <FileText className="w-3.5 h-3.5 shrink-0 text-slate-500" />
-                            <span className="truncate">{displayDocName}</span>
-                          </button>
+                          <div className="flex items-center justify-between gap-1 w-full">
+                            <button
+                              type="button"
+                              onClick={() => {
+                                if (setPreviewDocument) {
+                                  setPreviewDocument({ url: displayDocUrl, name: displayDocName });
+                                } else {
+                                  window.open(displayDocUrl, '_blank');
+                                }
+                              }}
+                              className="text-blue-600 hover:text-blue-800 hover:underline flex items-center gap-1 font-medium text-[10px] truncate max-w-[100px]"
+                              title={displayDocName}
+                            >
+                              <FileText className="w-3.5 h-3.5 shrink-0 text-slate-500" />
+                              <span className="truncate">{displayDocName}</span>
+                            </button>
+                            <button
+                              type="button"
+                              onClick={async () => {
+                                if (window.confirm('¿Deseas eliminar este documento?')) {
+                                  try {
+                                    const entryRef = doc(db, 'journal_entries', entry.id);
+                                    await updateDoc(entryRef, {
+                                      documentUrl: null,
+                                      documentName: null
+                                    });
+                                  } catch (err) {
+                                    console.error(err);
+                                    alert("Error al eliminar documento: " + err.message);
+                                  }
+                                }
+                              }}
+                              className="text-red-500 hover:text-red-700 p-0.5 shrink-0"
+                              title="Eliminar documento"
+                            >
+                              <X className="w-3 h-3" />
+                            </button>
+                          </div>
                         ) : (
-                          <span className="text-slate-400 italic text-[10px]">Sin documento</span>
+                          <label className="flex items-center gap-1 text-[10px] text-slate-500 hover:text-blue-600 cursor-pointer font-medium select-none">
+                            <FilePlus className="w-3.5 h-3.5 text-slate-400" />
+                            <span>Adjuntar</span>
+                            <input 
+                              type="file" 
+                              className="hidden" 
+                              onChange={async (e) => {
+                                const file = e.target.files?.[0];
+                                if (!file || !user) return;
+                                try {
+                                  const url = await uploadFileToStorage(file, user.uid, 'journal_entries', `${entry.id}_extracto`, 'docs');
+                                  const entryRef = doc(db, 'journal_entries', entry.id);
+                                  await updateDoc(entryRef, {
+                                    documentUrl: url,
+                                    documentName: file.name
+                                  });
+                                } catch (err) {
+                                  console.error(err);
+                                  alert('Error al subir: ' + err.message);
+                                }
+                              }}
+                              accept=".pdf,.doc,.docx,.xls,.xlsx,.jpg,.jpeg,.png"
+                            />
+                          </label>
                         )}
+                      </td>
+                      <td className="p-1 text-center" onClick={(e) => e.stopPropagation()}>
+                        <input 
+                          type="checkbox" 
+                          className="w-3.5 h-3.5 cursor-pointer accent-blue-600" 
+                          checked={!!entry.isImpuesto} 
+                          onChange={async () => {
+                            try {
+                              const entryRef = doc(db, 'journal_entries', entry.id);
+                              await updateDoc(entryRef, {
+                                isImpuesto: !entry.isImpuesto
+                              });
+                            } catch (err) {
+                              console.error(err);
+                              alert("Error al actualizar impuesto: " + err.message);
+                            }
+                          }}
+                        />
                       </td>
                     </tr>
                   );
