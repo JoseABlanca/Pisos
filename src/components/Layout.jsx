@@ -741,8 +741,8 @@ export default function Layout() {
       {
         group: 'Analítica',
         items: [
-          { name: 'CECOS', path: '/cecos', icon: LayoutGrid },
-          { name: 'CEBES', path: '/cebes', icon: BarChart }
+          { name: 'CEBES', path: '/cebes', icon: BarChart },
+          { name: 'CECOS', path: '/cecos', icon: LayoutGrid }
         ]
       }
     ],
