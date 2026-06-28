@@ -9,6 +9,33 @@ import ZoomControl from '../components/ZoomControl';
 import { registerJournalEntry, updateJournalEntry } from '../services/accounting';
 import { uploadFileToStorage } from '../utils/storageUtils';
 
+const evaluateMathExpression = (expr) => {
+  if (expr === null || expr === undefined) return 0;
+  const str = String(expr).trim();
+  if (!str) return 0;
+  
+  // Replace Spanish decimal commas with dots
+  let sanitized = str.replace(/,/g, '.');
+  
+  // Allow only digits, operators (+, -, *, /), parentheses, dots and spaces
+  if (!/^[0-9+\-*/().\s]+$/.test(sanitized)) {
+    const parsed = parseFloat(sanitized);
+    return isNaN(parsed) ? 0 : parsed;
+  }
+  
+  try {
+    const result = new Function(`return (${sanitized})`)();
+    return typeof result === 'number' && isFinite(result) ? result : 0;
+  } catch (e) {
+    const parsed = parseFloat(sanitized);
+    return isNaN(parsed) ? 0 : parsed;
+  }
+};
+
+const parseAmount = (val) => {
+  return evaluateMathExpression(val);
+};
+
 function SearchableSelector({ items, value, onChange, placeholder, type }) {
   const [isOpen, setIsOpen] = useState(false);
   const [search, setSearch] = useState('');
@@ -321,10 +348,10 @@ export default function JournalEntry() {
     
     if (field === 'debit') {
       newLines[index][field] = value;
-      if (Number(value) > 0) newLines[index]['credit'] = 0;
+      if (parseAmount(value) > 0) newLines[index]['credit'] = 0;
     } else if (field === 'credit') {
       newLines[index][field] = value;
-      if (Number(value) > 0) newLines[index]['debit'] = 0;
+      if (parseAmount(value) > 0) newLines[index]['debit'] = 0;
     } else if (field === 'account') {
       newLines[index][field] = value;
       // Auto-fill description if matched
@@ -337,6 +364,15 @@ export default function JournalEntry() {
     }
     
     setLines(newLines);
+  };
+
+  const handleFieldBlur = (index, field, value) => {
+    if (field === 'debit' || field === 'credit') {
+      const evaluated = evaluateMathExpression(value);
+      if (evaluated !== 0 || value) {
+        updateLine(index, field, String(evaluated));
+      }
+    }
   };
   
   const addLine = () => {
@@ -354,8 +390,8 @@ export default function JournalEntry() {
     }
   };
   
-  const totalDebit = lines.reduce((sum, l) => sum + (parseFloat(l.debit) || 0), 0);
-  const totalCredit = lines.reduce((sum, l) => sum + (parseFloat(l.credit) || 0), 0);
+  const totalDebit = lines.reduce((sum, l) => sum + parseAmount(l.debit), 0);
+  const totalCredit = lines.reduce((sum, l) => sum + parseAmount(l.credit), 0);
   const isBalanced = Math.abs(totalDebit - totalCredit) < 0.01 && totalDebit > 0;
   const imbalance = totalDebit - totalCredit;
 
@@ -373,7 +409,7 @@ export default function JournalEntry() {
       return;
     }
     
-    const validLines = lines.filter(l => l.account && (Number(l.debit) > 0 || Number(l.credit) > 0));
+    const validLines = lines.filter(l => l.account && (parseAmount(l.debit) > 0 || parseAmount(l.credit) > 0));
     if (validLines.length < 2) {
       alert("Se requieren al menos dos apuntes para guardar un asiento.");
       return;
@@ -391,8 +427,8 @@ export default function JournalEntry() {
           document: line.document,
           ceco: line.ceco || '',
           cebe: line.cebe || '',
-          debit: Number(line.debit) || 0,
-          credit: Number(line.credit) || 0,
+          debit: parseAmount(line.debit) || 0,
+          credit: parseAmount(line.credit) || 0,
         };
       });
 
@@ -675,9 +711,10 @@ export default function JournalEntry() {
                   <td className="p-0">
                     <input 
                       id={`debit-${idx}`}
-                      type="number" 
+                      type="text" 
                       value={line.debit || ''}
                       onChange={(e) => updateLine(idx, 'debit', e.target.value)}
+                      onBlur={(e) => handleFieldBlur(idx, 'debit', e.target.value)}
                       onKeyDown={(e) => handleKeyDown(e, idx, 'debit')}
                       className="w-full h-full px-2 py-1.5 outline-none focus:bg-blue-50 focus:ring-1 focus:ring-blue-400 text-right text-gray-800"
                     />
@@ -685,9 +722,10 @@ export default function JournalEntry() {
                   <td className="p-0">
                     <input 
                       id={`credit-${idx}`}
-                      type="number" 
+                      type="text" 
                       value={line.credit || ''}
                       onChange={(e) => updateLine(idx, 'credit', e.target.value)}
+                      onBlur={(e) => handleFieldBlur(idx, 'credit', e.target.value)}
                       onKeyDown={(e) => handleKeyDown(e, idx, 'credit')}
                       className="w-full h-full px-2 py-1.5 outline-none focus:bg-blue-50 focus:ring-1 focus:ring-blue-400 text-right text-gray-800"
                     />

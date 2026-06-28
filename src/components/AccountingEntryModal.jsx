@@ -8,6 +8,33 @@ import Accounts from '../pages/Accounts';
 import ZoomControl from './ZoomControl';
 import { useAuth } from '../context/AuthContext';
 
+const evaluateMathExpression = (expr) => {
+  if (expr === null || expr === undefined) return 0;
+  const str = String(expr).trim();
+  if (!str) return 0;
+  
+  // Replace Spanish decimal commas with dots
+  let sanitized = str.replace(/,/g, '.');
+  
+  // Allow only digits, operators (+, -, *, /), parentheses, dots and spaces
+  if (!/^[0-9+\-*/().\s]+$/.test(sanitized)) {
+    const parsed = parseFloat(sanitized);
+    return isNaN(parsed) ? 0 : parsed;
+  }
+  
+  try {
+    const result = new Function(`return (${sanitized})`)();
+    return typeof result === 'number' && isFinite(result) ? result : 0;
+  } catch (e) {
+    const parsed = parseFloat(sanitized);
+    return isNaN(parsed) ? 0 : parsed;
+  }
+};
+
+const parseAmount = (val) => {
+  return evaluateMathExpression(val);
+};
+
 export default function AccountingEntryModal({ isOpen, onClose, onSaveSuccess, userId, defaultDate, defaultDescription, defaultAmount, linkedAccountId, defaultAnalytics }) {
   const { user, queryUserIds } = useAuth();
   const [linkMode, setLinkMode] = useState(false);
@@ -79,8 +106,8 @@ export default function AccountingEntryModal({ isOpen, onClose, onSaveSuccess, u
 
   if (!isOpen) return null;
 
-  const totalDebit = lines.reduce((sum, l) => sum + (parseFloat(l.debit) || 0), 0);
-  const totalCredit = lines.reduce((sum, l) => sum + (parseFloat(l.credit) || 0), 0);
+  const totalDebit = lines.reduce((sum, l) => sum + parseAmount(l.debit), 0);
+  const totalCredit = lines.reduce((sum, l) => sum + parseAmount(l.credit), 0);
   const isBalanced = Math.abs(totalDebit - totalCredit) < 0.01 && totalDebit > 0;
   const imbalance = totalDebit - totalCredit;
 
@@ -110,6 +137,15 @@ export default function AccountingEntryModal({ isOpen, onClose, onSaveSuccess, u
     }
     
     setLines(newLines);
+  };
+
+  const handleFieldBlur = (index, field, value) => {
+    if (field === 'debit' || field === 'credit') {
+      const evaluated = evaluateMathExpression(value);
+      if (evaluated !== 0 || value) {
+        updateLine(index, field, String(evaluated));
+      }
+    }
   };
 
   const handleKeyDown = (e, index, field) => {
@@ -162,7 +198,7 @@ export default function AccountingEntryModal({ isOpen, onClose, onSaveSuccess, u
       return;
     }
 
-    const validLines = lines.filter(l => l.account && (parseFloat(l.debit) || parseFloat(l.credit)));
+    const validLines = lines.filter(l => l.account && (parseAmount(l.debit) || parseAmount(l.credit)));
     if (validLines.length < 2) {
       alert("El asiento debe tener al menos dos apuntes.");
       return;
@@ -170,8 +206,8 @@ export default function AccountingEntryModal({ isOpen, onClose, onSaveSuccess, u
 
     const formattedLines = validLines.map(l => ({
       accountId: accounts.find(a => a.code === l.account)?.id || l.account,
-      debit: parseFloat(l.debit) || 0,
-      credit: parseFloat(l.credit) || 0,
+      debit: parseAmount(l.debit) || 0,
+      credit: parseAmount(l.credit) || 0,
       description: l.description,
       document: l.document || ''
     }));
@@ -425,9 +461,10 @@ export default function AccountingEntryModal({ isOpen, onClose, onSaveSuccess, u
                           <td className="p-0">
                             <input 
                               id={`debit-${idx}`}
-                              type="number" 
+                              type="text" 
                               value={line.debit || ''}
                               onChange={(e) => updateLine(idx, 'debit', e.target.value)}
+                              onBlur={(e) => handleFieldBlur(idx, 'debit', e.target.value)}
                               onKeyDown={(e) => handleKeyDown(e, idx, 'debit')}
                               className="w-full h-full px-2 py-1.5 outline-none focus:bg-blue-50 focus:ring-1 focus:ring-blue-400 text-right text-gray-800"
                             />
@@ -435,9 +472,10 @@ export default function AccountingEntryModal({ isOpen, onClose, onSaveSuccess, u
                           <td className="p-0">
                             <input 
                               id={`credit-${idx}`}
-                              type="number" 
+                              type="text" 
                               value={line.credit || ''}
                               onChange={(e) => updateLine(idx, 'credit', e.target.value)}
+                              onBlur={(e) => handleFieldBlur(idx, 'credit', e.target.value)}
                               onKeyDown={(e) => handleKeyDown(e, idx, 'credit')}
                               className="w-full h-full px-2 py-1.5 outline-none focus:bg-blue-50 focus:ring-1 focus:ring-blue-400 text-right text-gray-800"
                             />
