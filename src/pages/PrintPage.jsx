@@ -17,7 +17,9 @@ import {
   TrendingUp,
   Landmark,
   Scale,
-  FileSpreadsheet
+  FileSpreadsheet,
+  LayoutGrid,
+  Sliders
 } from 'lucide-react';
 
 const SpanishAccountingNames = {
@@ -161,6 +163,10 @@ export default function PrintPage() {
   const templatesList = useMemo(() => {
     return templatesByCategory[categoryKey] || templatesByCategory.contabilidad_libros;
   }, [categoryKey]);
+
+  // Panel visibility states
+  const [showLeftPanel, setShowLeftPanel] = useState(true);
+  const [showRightPanel, setShowRightPanel] = useState(true);
 
   // States for selected report template and filter
   const [selectedTemplate, setSelectedTemplate] = useState('diario'); // diario, mayor, sumas_saldos, activos, alquileres, clientes
@@ -3027,58 +3033,183 @@ export default function PrintPage() {
       `}</style>
 
       {/* Left panel - Templates list */}
-      <div className="w-64 bg-[#f0f0f0] border border-[#808080] shrink-0 p-2 flex flex-col gap-3 win-bevel no-print">
-        <div className="bg-white border border-[#a0a0a0] flex flex-col">
-          <div className="bg-[#cbd5e0] font-bold p-1.5 uppercase text-[10px] border-b border-[#a0a0a0] text-slate-700">
-            Plantillas Disponibles
+      {showLeftPanel && (
+        <div className="w-60 bg-[#f0f0f0] border border-[#808080] shrink-0 p-2 flex flex-col gap-3 win-bevel no-print">
+          <div className="bg-white border border-[#a0a0a0] flex flex-col">
+            <div className="bg-[#cbd5e0] font-bold p-1.5 uppercase text-[10px] border-b border-[#a0a0a0] text-slate-700">
+              Plantillas Disponibles
+            </div>
+            {templatesList.map(t => (
+              <button
+                key={t.id}
+                onClick={() => {
+                  setSelectedTemplate(t.id);
+                  setSearchParams(prev => {
+                    prev.set('template', t.id);
+                    return prev;
+                  }, { replace: true });
+                }}
+                className={`w-full text-left px-3 py-2 text-[11px] transition-colors border-b border-slate-100 flex items-center gap-2 ${
+                  selectedTemplate === t.id
+                    ? 'bg-[#c0c0c0] text-black font-semibold shadow-inner'
+                    : 'bg-white text-slate-700 hover:bg-slate-50'
+                }`}
+              >
+                <t.icon className="w-4 h-4 text-blue-900/70 shrink-0" />
+                <span>{t.name}</span>
+              </button>
+            ))}
           </div>
-          {templatesList.map(t => (
+        </div>
+      )}
+
+      {/* Main Preview Container */}
+      <div className="flex-1 flex flex-col bg-[#526075]/20 border border-[#808080] win-bevel min-w-0 relative h-full">
+        {/* Top Control Bar */}
+        <div className="bg-[#f0f0f0] border-b border-[#808080] p-2 flex justify-between items-center shrink-0 no-print gap-4">
+          <div className="flex items-center gap-2">
             <button
-              key={t.id}
-              onClick={() => {
-                setSelectedTemplate(t.id);
-                setSearchParams(prev => {
-                  prev.set('template', t.id);
-                  return prev;
-                }, { replace: true });
-              }}
-              className={`w-full text-left px-3 py-2 text-[11px] transition-colors border-b border-slate-100 flex items-center gap-2 ${
-                selectedTemplate === t.id
-                  ? 'bg-[#c0c0c0] text-black font-semibold shadow-inner'
-                  : 'bg-white text-slate-700 hover:bg-slate-50'
+              onClick={() => setShowLeftPanel(prev => !prev)}
+              className={`btn-classic px-2.5 h-7 flex items-center gap-1.5 text-[11px] ${
+                showLeftPanel ? 'bg-slate-200 shadow-inner' : 'bg-slate-50'
               }`}
+              title="Mostrar/Ocultar Plantillas"
             >
-              <t.icon className="w-4 h-4 text-blue-900/70 shrink-0" />
-              <span>{t.name}</span>
+              <LayoutGrid className="w-3.5 h-3.5 text-slate-750" />
+              <span className="font-semibold text-slate-800">
+                {showLeftPanel ? 'Ocultar Plantillas' : 'Mostrar Plantillas'}
+              </span>
             </button>
-          ))}
+            <div className="text-[11px] font-bold text-slate-700 uppercase flex items-center gap-2">
+              <span>Vista Previa de Impresión</span>
+              {loading && <RefreshCw className="w-3.5 h-3.5 text-slate-500 animate-spin" />}
+            </div>
+          </div>
+
+          <div className="flex items-center gap-2">
+            <button
+              onClick={() => setShowRightPanel(prev => !prev)}
+              className={`btn-classic px-2.5 h-7 flex items-center gap-1.5 text-[11px] ${
+                showRightPanel ? 'bg-slate-200 shadow-inner' : 'bg-slate-50'
+              }`}
+              title="Mostrar/Ocultar Filtros"
+            >
+              <Sliders className="w-3.5 h-3.5 text-slate-750" />
+              <span className="font-semibold text-slate-800">
+                {showRightPanel ? 'Ocultar Filtros' : 'Mostrar Filtros'}
+              </span>
+            </button>
+            <button
+              onClick={handlePrint}
+              className="btn-classic px-4 h-7 flex items-center gap-1.5 text-[11px] bg-blue-50 hover:bg-blue-100 font-bold"
+            >
+              <Printer className="w-4 h-4 text-blue-850" />
+              <span className="text-blue-950">IMPRIMIR REPORTE</span>
+            </button>
+          </div>
         </div>
 
-        {/* Cuentas a Mostrar Filter (only for accounting reports) */}
-        {['diario', 'mayor', 'sumas_saldos'].includes(selectedTemplate) && (
+        {/* Paper Sheet Preview Area */}
+        <div className="flex-1 overflow-auto p-4 flex justify-center bg-slate-400/30">
+          <div 
+            id="print-area" 
+            className="flex flex-col gap-6 items-center animate-fadeIn"
+          >
+            {renderPages()}
+          </div>
+        </div>
+      </div>
+
+      {/* Right panel - Filters list */}
+      {showRightPanel && (
+        <div className="w-64 bg-[#f0f0f0] border border-[#808080] shrink-0 p-2 flex flex-col gap-3 win-bevel no-print overflow-y-auto max-h-full">
+          <div className="bg-[#cbd5e0] font-bold p-1.5 uppercase text-[10px] border-b border-[#a0a0a0] text-slate-700">
+            Filtros Disponibles
+          </div>
+
+          {/* Timeline Period Selection inside Right Panel */}
+          {['diario', 'mayor', 'sumas_saldos', 'rv_transactions', 'cf_transactions', 'taxes_total', 'taxes_real_estate', 'taxes_rv', 'taxes_cf', 'balance_situacion', 'cuenta_resultados', 'flujo_caja'].includes(selectedTemplate) && (
+            <div className="bg-white border border-[#a0a0a0] p-3 flex flex-col gap-2">
+              <div className="text-[10px] font-bold text-slate-500 uppercase flex items-center gap-1 select-none">
+                <Calendar className="w-3.5 h-3.5 text-slate-400" />
+                <span>Período Temporal</span>
+              </div>
+              
+              {/* Years Selector */}
+              <div className="text-[9px] font-bold text-slate-400 uppercase mt-1">Años</div>
+              <div className="grid grid-cols-4 gap-1">
+                {['2024', '2025', '2026', '2027'].map(yr => (
+                  <button 
+                    key={yr} 
+                    onClick={() => {
+                      setSelectedYears(prev => prev.includes(yr) ? prev.filter(x => x !== yr) : [...prev, yr]);
+                      setSelectedYear(parseInt(yr));
+                    }}
+                    className={`text-[9px] text-center hover:font-bold py-1 border transition-colors rounded ${
+                      selectedYears.includes(yr) 
+                        ? 'text-blue-700 font-bold bg-[#c0c0c0] border-slate-400 shadow-inner' 
+                        : 'text-slate-800 bg-slate-50 border-slate-200 hover:text-blue-700'
+                    }`}
+                  >
+                    {yr}
+                  </button>
+                ))}
+              </div>
+
+              {/* Quarters Selector */}
+              <div className="text-[9px] font-bold text-slate-400 uppercase mt-1">Trimestres</div>
+              <div className="grid grid-cols-4 gap-1">
+                {['1T', '2T', '3T', '4T'].map(t => (
+                  <button 
+                    key={t} 
+                    onClick={() => setSelectedQuarters(prev => prev.includes(t) ? prev.filter(x => x !== t) : [...prev, t])}
+                    className={`text-[9px] text-center hover:font-bold py-1 border transition-colors rounded ${
+                      selectedQuarters.includes(t) 
+                        ? 'text-blue-700 font-bold bg-[#c0c0c0] border-slate-400 shadow-inner' 
+                        : 'text-slate-800 bg-slate-50 border-slate-200 hover:text-blue-700'
+                    }`}
+                  >
+                    {t}
+                  </button>
+                ))}
+              </div>
+
+              {/* Months Selector */}
+              <div className="text-[9px] font-bold text-slate-400 uppercase mt-1">Meses</div>
+              <div className="grid grid-cols-4 gap-1">
+                {['Ene', 'Feb', 'Mar', 'Abr', 'May', 'Jun', 'Jul', 'Ago', 'Sep', 'Oct', 'Nov', 'Dic'].map(m => (
+                  <button 
+                    key={m} 
+                    onClick={() => setSelectedMonths(prev => prev.includes(m) ? prev.filter(x => x !== m) : [...prev, m])}
+                    className={`text-[9px] text-center hover:font-bold py-1 border transition-colors rounded ${
+                      selectedMonths.includes(m) 
+                        ? 'text-blue-700 font-bold bg-[#c0c0c0] border-slate-400 shadow-inner' 
+                        : 'text-slate-800 bg-slate-50 border-slate-200 hover:text-blue-700'
+                    }`}
+                  >
+                    {m.toUpperCase()}
+                  </button>
+                ))}
+              </div>
+            </div>
+          )}
+
+          {/* Cuentas a Mostrar Filter */}
           <div className="bg-white border border-[#a0a0a0] p-3 flex flex-col gap-2 relative" ref={accountsDropdownRef}>
             <div className="text-[10px] font-bold text-slate-500 uppercase flex items-center gap-1 select-none">
-              <Calendar className="w-3.5 h-3.5 text-slate-400" />
               <span>Cuentas a Mostrar</span>
             </div>
-            
-            {/* Custom Dropdown Trigger */}
             <div 
               onClick={() => setAccountsDropdownOpen(prev => { if (prev) setAccountsSearch(''); return !prev; })}
               className="win-input w-full flex justify-between items-center cursor-pointer select-none bg-white border border-[#a0a0a0] px-2 py-1 text-[11px] font-sans rounded min-h-[24px]"
             >
               <span className="truncate pr-2 text-slate-700">
-                {selectedAccounts.length === 0 
-                  ? 'Todos' 
-                  : selectedAccounts.join(', ')
-                }
+                {selectedAccounts.length === 0 ? 'Todos' : selectedAccounts.join(', ')}
               </span>
-              <span className="text-[9px] text-slate-555">▼</span>
+              <span className="text-[9px] text-slate-500">▼</span>
             </div>
-
-            {/* Floating Dropdown List */}
             {accountsDropdownOpen && (
-              <div className="absolute left-3 right-3 top-[calc(100%-8px)] z-50 bg-white border border-[#a0a0a0] shadow-lg max-h-[220px] overflow-y-auto p-1.5 flex flex-col gap-1 rounded win-bevel">
+              <div className="absolute left-3 right-3 top-[calc(100%-8px)] z-50 bg-white border border-[#a0a0a0] shadow-lg max-h-[200px] overflow-y-auto p-1.5 flex flex-col gap-1 rounded win-bevel">
                 <input 
                   type="text" 
                   value={accountsSearch} 
@@ -3087,33 +3218,15 @@ export default function PrintPage() {
                   className="w-full text-[10px] px-1.5 py-0.5 border border-slate-300 rounded mb-1 outline-none focus:border-blue-400 font-sans normal-case" 
                   onClick={(e) => e.stopPropagation()} 
                 />
-                {/* Option "Todos" */}
                 <label className="flex items-center gap-1.5 text-[10px] cursor-pointer hover:bg-slate-50 py-0.5 rounded select-none font-bold text-blue-900 border-b border-slate-100 pb-1">
-                  <input 
-                    type="checkbox" 
-                    checked={selectedAccounts.length === 0}
-                    onChange={() => setSelectedAccounts([])}
-                    className="mt-0.5"
-                  />
+                  <input type="checkbox" checked={selectedAccounts.length === 0} onChange={() => setSelectedAccounts([])} className="mt-0.5" />
                   <span>Todos</span>
                 </label>
-
                 {filteredSelectableAccountsList.map(acc => {
-                  const indentClass = acc.code.length === 1 
-                    ? '' 
-                    : acc.code.length === 2 
-                      ? 'pl-2' 
-                      : acc.code.length === 3 
-                        ? 'pl-4' 
-                        : 'pl-6';
-                  
+                  const indentClass = acc.code.length === 1 ? '' : acc.code.length === 2 ? 'pl-2' : acc.code.length === 3 ? 'pl-4' : 'pl-6';
                   const isSelected = selectedAccounts.includes(acc.code);
-                  
                   return (
-                    <label 
-                      key={acc.code} 
-                      className={`flex items-start gap-1.5 text-[10px] cursor-pointer hover:bg-slate-50 py-0.5 rounded select-none ${indentClass}`}
-                    >
+                    <label key={acc.code} className={`flex items-start gap-1.5 text-[10px] cursor-pointer hover:bg-slate-50 py-0.5 rounded select-none ${indentClass}`}>
                       <input 
                         type="checkbox" 
                         checked={isSelected}
@@ -3135,10 +3248,8 @@ export default function PrintPage() {
               </div>
             )}
           </div>
-        )}
 
-        {/* CEBE Filter */}
-        {['diario', 'mayor', 'sumas_saldos'].includes(selectedTemplate) && (
+          {/* CEBE Filter */}
           <div className="bg-white border border-[#a0a0a0] p-3 flex flex-col gap-2 relative" ref={cebeDropdownRef}>
             <div className="text-[10px] font-bold text-slate-500 uppercase flex items-center gap-1 select-none">
               <span>CEBE</span>
@@ -3187,10 +3298,8 @@ export default function PrintPage() {
               </div>
             )}
           </div>
-        )}
 
-        {/* CECO Filter */}
-        {['diario', 'mayor', 'sumas_saldos'].includes(selectedTemplate) && (
+          {/* CECO Filter */}
           <div className="bg-white border border-[#a0a0a0] p-3 flex flex-col gap-2 relative" ref={cecoDropdownRef}>
             <div className="text-[10px] font-bold text-slate-500 uppercase flex items-center gap-1 select-none">
               <span>CECO</span>
@@ -3239,10 +3348,8 @@ export default function PrintPage() {
               </div>
             )}
           </div>
-        )}
 
-        {/* Filtro Impuesto */}
-        {['diario', 'mayor', 'sumas_saldos'].includes(selectedTemplate) && (
+          {/* Filtro Fiscal (Impuesto) */}
           <div className="bg-white border border-[#a0a0a0] p-3 flex flex-col gap-2">
             <div className="text-[10px] font-bold text-slate-500 uppercase flex items-center gap-1 select-none">
               <span>Filtro Fiscal</span>
@@ -3265,10 +3372,8 @@ export default function PrintPage() {
               </span>
             </label>
           </div>
-        )}
 
-        {/* Documento Filter */}
-        {['diario', 'mayor', 'sumas_saldos'].includes(selectedTemplate) && (
+          {/* Documento Filter */}
           <div className="bg-white border border-[#a0a0a0] p-3 flex flex-col gap-2 relative" ref={docDropdownRef}>
             <div className="text-[10px] font-bold text-slate-500 uppercase flex items-center gap-1 select-none">
               <span>Documento</span>
@@ -3313,96 +3418,20 @@ export default function PrintPage() {
               </div>
             )}
           </div>
-        )}
 
-        {/* Instruction Note */}
-        <div className="mt-auto p-3 bg-blue-50 border border-blue-200 text-[10px] text-blue-800 leading-normal flex flex-col gap-1.5">
-          <div className="font-bold flex items-center gap-1">
-            <CheckCircle className="w-3.5 h-3.5 text-blue-600" />
-            <span>IMPRESIÓN EN NEXO</span>
+          {/* Instruction Note */}
+          <div className="p-3 bg-blue-50 border border-blue-200 text-[10px] text-blue-800 leading-normal flex flex-col gap-1.5 mt-auto">
+            <div className="font-bold flex items-center gap-1">
+              <CheckCircle className="w-3.5 h-3.5 text-blue-600" />
+              <span>IMPRESIÓN EN NEXO</span>
+            </div>
+            <p>
+              Al pulsar en <strong>Imprimir</strong> se abrirá la ventana de impresión nativa de tu navegador. 
+              Hemos optimizado la hoja para ocultar el panel de Nexo e imprimir únicamente la hoja de reporte seleccionada.
+            </p>
           </div>
-          <p>
-            Al pulsar en <strong>Imprimir</strong> se abrirá la ventana de impresión nativa de tu navegador. 
-            Hemos optimizado la hoja para ocultar el panel de Nexo e imprimir únicamente la hoja de reporte seleccionada.
-          </p>
-        </div>
-      </div>
-
-      {/* Quick Month Filter Bar (no-print) */}
-      {['diario', 'mayor', 'sumas_saldos', 'rv_transactions', 'cf_transactions', 'taxes_total', 'taxes_real_estate', 'taxes_rv', 'taxes_cf', 'balance_situacion', 'cuenta_resultados', 'flujo_caja'].includes(selectedTemplate) && (
-        <div className="w-10 bg-[#f0f0f0] border border-[#808080] flex flex-col items-center py-2 shrink-0 overflow-y-auto win-bevel no-print gap-1 select-none">
-          {['Ene', 'Feb', 'Mar', 'Abr', 'May', 'Jun', 'Jul', 'Ago', 'Sep', 'Oct', 'Nov', 'Dic'].map(m => (
-            <button 
-              key={m} 
-              onClick={() => setSelectedMonths(prev => prev.includes(m) ? prev.filter(x => x !== m) : [...prev, m])}
-              className={`text-[9px] w-full text-center hover:font-bold py-0.5 transition-colors ${
-                selectedMonths.includes(m) 
-                  ? 'text-blue-700 font-bold bg-[#c0c0c0] shadow-inner' 
-                  : 'text-slate-800 hover:text-blue-700'
-              }`}
-            >
-              {m.toUpperCase()}
-            </button>
-          ))}
-          <div className="h-px bg-slate-400 w-full my-1"></div>
-          {['1T', '2T', '3T', '4T'].map(t => (
-            <button 
-              key={t} 
-              onClick={() => setSelectedQuarters(prev => prev.includes(t) ? prev.filter(x => x !== t) : [...prev, t])}
-              className={`text-[9px] w-full text-center hover:font-bold py-0.5 transition-colors ${
-                selectedQuarters.includes(t) 
-                  ? 'text-blue-700 font-bold bg-[#c0c0c0] shadow-inner' 
-                  : 'text-slate-800 hover:text-blue-700'
-              }`}
-            >
-              {t}
-            </button>
-          ))}
-          <div className="h-px bg-slate-400 w-full my-1"></div>
-          {['2024', '2025', '2026', '2027'].map(yr => (
-            <button 
-              key={yr} 
-              onClick={() => setSelectedYears(prev => prev.includes(yr) ? prev.filter(x => x !== yr) : [...prev, yr])}
-              className={`text-[9px] w-full text-center hover:font-bold py-0.5 transition-colors ${
-                selectedYears.includes(yr) 
-                  ? 'text-blue-700 font-bold bg-[#c0c0c0] shadow-inner' 
-                  : 'text-slate-800 hover:text-blue-700'
-              }`}
-            >
-              {yr}
-            </button>
-          ))}
         </div>
       )}
-
-      {/* Main Preview Container */}
-      <div className="flex-1 flex flex-col bg-[#526075]/20 border border-[#808080] win-bevel min-w-0 relative h-full">
-        {/* Top Control Bar */}
-        <div className="bg-[#f0f0f0] border-b border-[#808080] p-2 flex justify-between items-center shrink-0 no-print">
-          <div className="text-[11px] font-bold text-slate-700 uppercase flex items-center gap-2">
-            <span>Vista Previa de Impresión</span>
-            {loading && <RefreshCw className="w-3.5 h-3.5 text-slate-500 animate-spin" />}
-          </div>
-
-          <button
-            onClick={handlePrint}
-            className="btn-classic px-4 h-7 flex items-center gap-1.5 text-[11px] bg-blue-50 hover:bg-blue-100"
-          >
-            <Printer className="w-4 h-4 text-blue-850" />
-            <span className="font-bold text-blue-950">IMPRIMIR REPORTE</span>
-          </button>
-        </div>
-
-        {/* Paper Sheet Preview Area */}
-        <div className="flex-1 overflow-auto p-4 flex justify-center bg-slate-400/30">
-          <div 
-            id="print-area" 
-            className="flex flex-col gap-6 items-center animate-fadeIn"
-          >
-            {renderPages()}
-          </div>
-        </div>
-      </div>
     </div>
   );
 }

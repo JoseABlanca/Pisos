@@ -693,7 +693,7 @@ export default function Layout() {
     'Inversiones inmobiliarias': ['Activos', 'Propietarios', 'Clientes', 'Alquileres'],
     'Renta variable': ['Portfolio', 'Broker', 'Activos RV', 'Transacciones', 'Métricas RV'],
     'Crowdfunding': ['CF Portfolio', 'Plataforma', 'CF Activos', 'Transacciones CF'],
-    'Informes': ['Reportes', 'Dashboard', 'Impresion'],
+    'Informes': ['Dashboard', 'Impresion'],
     'Impuestos': ['Total', 'Inversiones inmobiliarias', 'Renta variable', 'Crowdfunding'],
     'Herramientas': ['Importador'],
     'Ayuda': ['Manual', 'Soporte']
@@ -717,7 +717,6 @@ export default function Layout() {
     'Plataforma': '/cf-empresas',
     'CF Activos': '/cf-activos',
     'Transacciones CF': '/cf-transactions',
-    'Reportes': '/reports',
     'Dashboard': '/dashboard',
     'Impresion': '/print',
     'Total': '/taxes-total',
@@ -1053,18 +1052,6 @@ export default function Layout() {
         ]
       }
     ],
-    'Reportes': [
-      { 
-        group: 'Reportes', 
-        items: [
-          { name: 'Contabilidad', action: 'reports:contabilidad', icon: BookOpen },
-          { name: 'Inversiones\ninmobiliarias', path: '/taxes-real-estate', icon: Building2 },
-          { name: 'Renta\nvariable', path: '/taxes-rv', icon: TrendingUp },
-          { name: 'Crowdfunding', path: '/taxes-cf', icon: Landmark },
-          { name: 'Impuestos', path: '/taxes-total', icon: Scale }
-        ] 
-      }
-    ],
     'Dashboard': [
       { 
         group: 'Dashboard', 
@@ -1260,8 +1247,6 @@ export default function Layout() {
                           setDropdownConfig(prev => prev?.type === 'column' ? null : { type: 'column', action: item.action, tab: activeTab, rect: { top: rect.bottom, left: rect.left } });
                         } else if (item.action === 'dashboard:contabilidad') {
                           setDropdownConfig(prev => prev?.type === 'dash-cont' ? null : { type: 'dash-cont', action: item.action, rect: { top: rect.bottom, left: rect.left } });
-                        } else if (item.action === 'reports:contabilidad') {
-                          setDropdownConfig(prev => prev?.type === 'reports-cont' ? null : { type: 'reports-cont', action: item.action, rect: { top: rect.bottom, left: rect.left } });
                         } else if (item.action === 'dashboard:inversiones') {
                           setDropdownConfig(prev => prev?.type === 'dash-inv' ? null : { type: 'dash-inv', action: item.action, rect: { top: rect.bottom, left: rect.left } });
                         } else if (item.action === 'dashboard:rv') {
@@ -1305,7 +1290,7 @@ export default function Layout() {
                       </div>
                       <span className="text-[10px] leading-[1.1] text-gray-700 font-medium text-center whitespace-pre-wrap flex flex-col items-center justify-center">
                         {item.name} 
-                        {(isExport || isAddColumn || item.action === 'dashboard:contabilidad' || item.action === 'dashboard:inversiones' || item.action === 'dashboard:rv' || item.action === 'dashboard:cf' || item.action === 'reports:contabilidad' || item.action?.startsWith('print:')) && <ChevronDown className="w-3 h-3 mt-0.5" />}
+                        {(isExport || isAddColumn || item.action === 'dashboard:contabilidad' || item.action === 'dashboard:inversiones' || item.action === 'dashboard:rv' || item.action === 'dashboard:cf' || item.action?.startsWith('print:')) && <ChevronDown className="w-3 h-3 mt-0.5" />}
                       </span>
                     </button>
                   </div>
@@ -1440,18 +1425,6 @@ export default function Layout() {
            <div className="px-3 py-1.5 hover:bg-gray-100 cursor-pointer text-left font-semibold" onClick={() => { setDropdownConfig(null); navigate('/print?category=impuestos&template=taxes_real_estate'); }}>Fiscalidad inmobiliaria</div>
            <div className="px-3 py-1.5 hover:bg-gray-100 cursor-pointer text-left font-semibold" onClick={() => { setDropdownConfig(null); navigate('/print?category=impuestos&template=taxes_rv'); }}>Fiscalidad renta variable</div>
            <div className="px-3 py-1.5 hover:bg-gray-100 cursor-pointer text-left font-semibold" onClick={() => { setDropdownConfig(null); navigate('/print?category=impuestos&template=taxes_cf'); }}>Fiscalidad crowdfunding</div>
-        </div>
-      )}
-
-      {dropdownConfig?.type === 'reports-cont' && (
-        <div 
-          className="fixed bg-white border border-gray-300 shadow-lg rounded z-[100] py-1 w-48 flex flex-col text-[11px]" 
-          style={{ top: dropdownConfig.rect.top + 4, left: dropdownConfig.rect.left }}
-          onMouseDown={e => e.stopPropagation()}
-        >
-           <div className="px-3 py-1 hover:bg-gray-100 cursor-pointer text-left" onClick={() => { setDropdownConfig(null); navigate('/reports?tab=balance'); }}>Balance de situación</div>
-           <div className="px-3 py-1 hover:bg-gray-100 cursor-pointer text-left" onClick={() => { setDropdownConfig(null); navigate('/reports?tab=income'); }}>Resultados</div>
-           <div className="px-3 py-1 hover:bg-gray-100 cursor-pointer text-left" onClick={() => { setDropdownConfig(null); navigate('/reports?tab=cashflow'); }}>Flujos de caja</div>
         </div>
       )}
 
