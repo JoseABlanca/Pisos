@@ -622,25 +622,29 @@ export default function ExtractoContableTab({
                           if (normField.startsWith(normValueCeco)) lineMatchCeco = true;
                         }
 
-                        if (lineMatchCebe) {
-                          if (accCode.startsWith('7')) {
-                            cebeEntryAmount += lineAmt;
-                          } else if (accCode.startsWith('6')) {
-                            cecoEntryAmount += lineAmt;
-                          } else {
-                            cebeEntryAmount += lineAmt;
-                          }
-                          matchedLineCebes.add(l.cebe);
+                        // Also match against property's taxIncomeCecos and taxExpenseCecos
+                        const normIncomeCecos = (formData?.taxIncomeCecos || []).map(c => String(c).trim().replace(/^(CEBE|CECO)/i, ''));
+                        const normExpenseCecos = (formData?.taxExpenseCecos || []).map(c => String(c).trim().replace(/^(CEBE|CECO)/i, ''));
+                        if (l.ceco) {
+                          const normField = String(l.ceco).trim().replace(/^(CEBE|CECO)/i, '');
+                          if (normIncomeCecos.some(c => normField.startsWith(c))) lineMatchCebe = true;
+                          if (normExpenseCecos.some(c => normField.startsWith(c))) lineMatchCeco = true;
                         }
-                        if (lineMatchCeco) {
-                          if (accCode.startsWith('6')) {
-                            cecoEntryAmount += lineAmt;
-                          } else if (accCode.startsWith('7')) {
+
+                        if (lineMatchCebe || lineMatchCeco) {
+                          const isInc = accCode.startsWith('7');
+                          const isExp = accCode.startsWith('6');
+                          if (isInc) {
                             cebeEntryAmount += lineAmt;
-                          } else {
+                          } else if (isExp) {
                             cecoEntryAmount += lineAmt;
+                          } else {
+                            if (lineMatchCebe) cebeEntryAmount += lineAmt;
+                            if (lineMatchCeco) cecoEntryAmount += lineAmt;
                           }
-                          matchedLineCecos.add(l.ceco);
+                          
+                          if (l.cebe) matchedLineCebes.add(l.cebe);
+                          if (l.ceco) matchedLineCecos.add(l.ceco);
                         }
                         if (l.documentUrl && !matchedLineDocUrl) {
                           matchedLineDocUrl = l.documentUrl;
@@ -669,6 +673,7 @@ export default function ExtractoContableTab({
                         if (normField.startsWith(normValueCebe)) {
                           cebeEntryAmount = entry.total || 0;
                           matchedLineCebes.add(entry.cebe);
+                          if (entry.ceco) matchedLineCecos.add(entry.ceco);
                         }
                       }
                       if (matchedLineCecos.size === 0 && normValueCeco && entry.ceco) {
@@ -676,6 +681,7 @@ export default function ExtractoContableTab({
                         if (normField.startsWith(normValueCeco)) {
                           cecoEntryAmount = entry.total || 0;
                           matchedLineCecos.add(entry.ceco);
+                          if (entry.cebe) matchedLineCebes.add(entry.cebe);
                         }
                       }
                     }
