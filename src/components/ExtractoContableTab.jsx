@@ -114,14 +114,7 @@ export default function ExtractoContableTab({
       let matchCebe = false;
       let matchCeco = false;
 
-      if (normValueCebe && entry.cebe) {
-        const normField = String(entry.cebe).trim().replace(/^(CEBE|CECO)/i, '');
-        if (normField.startsWith(normValueCebe)) matchCebe = true;
-      }
-      if (normValueCeco && entry.ceco) {
-        const normField = String(entry.ceco).trim().replace(/^(CEBE|CECO)/i, '');
-        if (normField.startsWith(normValueCeco)) matchCeco = true;
-      }
+      const hasLineLevelAnalytics = entry.lines && entry.lines.some(l => l.cebe || l.ceco);
 
       if (entry.lines) {
         entry.lines.forEach(l => {
@@ -134,6 +127,17 @@ export default function ExtractoContableTab({
             if (normField.startsWith(normValueCeco)) matchCeco = true;
           }
         });
+      }
+
+      if (!hasLineLevelAnalytics) {
+        if (normValueCebe && entry.cebe) {
+          const normField = String(entry.cebe).trim().replace(/^(CEBE|CECO)/i, '');
+          if (normField.startsWith(normValueCebe)) matchCebe = true;
+        }
+        if (normValueCeco && entry.ceco) {
+          const normField = String(entry.ceco).trim().replace(/^(CEBE|CECO)/i, '');
+          if (normField.startsWith(normValueCeco)) matchCeco = true;
+        }
       }
 
       return matchCebe || matchCeco;
@@ -153,6 +157,7 @@ export default function ExtractoContableTab({
       let cebeEntryAmount = 0;
       let cecoEntryAmount = 0;
       let hasLineMatchCebe = false;
+      const hasLineLevelAnalytics = entry.lines && entry.lines.some(l => l.cebe || l.ceco);
 
       if (mode === 'rentals') {
         if (entry.lines) {
@@ -174,7 +179,7 @@ export default function ExtractoContableTab({
           });
         }
 
-        if (!hasLineMatchCebe && entry.cebe) {
+        if (!hasLineLevelAnalytics && !hasLineMatchCebe && entry.cebe) {
           const normField = String(entry.cebe).trim().replace(/^(CEBE|CECO)/i, '');
           if (normField.startsWith(normValueCebe)) {
             const docVal = String(entry.document || entry.documentName || '').trim().toUpperCase();
@@ -211,13 +216,13 @@ export default function ExtractoContableTab({
           });
         }
 
-        if (!hasLineMatchCebe && normValueCebe && entry.cebe) {
+        if (!hasLineLevelAnalytics && !hasLineMatchCebe && normValueCebe && entry.cebe) {
           const normField = String(entry.cebe).trim().replace(/^(CEBE|CECO)/i, '');
           if (normField.startsWith(normValueCebe)) {
             cebeEntryAmount = entry.total || 0;
           }
         }
-        if (!hasLineMatchCeco && normValueCeco && entry.ceco) {
+        if (!hasLineLevelAnalytics && !hasLineMatchCeco && normValueCeco && entry.ceco) {
           const normField = String(entry.ceco).trim().replace(/^(CEBE|CECO)/i, '');
           if (normField.startsWith(normValueCeco)) {
             cecoEntryAmount = entry.total || 0;
@@ -469,15 +474,17 @@ export default function ExtractoContableTab({
                     });
                   }
 
+                  const hasLineLevelAnalytics = entry.lines && entry.lines.some(l => l.cebe || l.ceco);
+
                   // Fallbacks for old entries
-                  if (matchedLineCebes.size === 0 && normValueCebe && entry.cebe) {
+                  if (!hasLineLevelAnalytics && matchedLineCebes.size === 0 && normValueCebe && entry.cebe) {
                     const normField = String(entry.cebe).trim().replace(/^(CEBE|CECO)/i, '');
                     if (normField.startsWith(normValueCebe)) {
                       cebeEntryAmount = entry.total || 0;
                       matchedLineCebes.add(entry.cebe);
                     }
                   }
-                  if (matchedLineCecos.size === 0 && normValueCeco && entry.ceco) {
+                  if (!hasLineLevelAnalytics && matchedLineCecos.size === 0 && normValueCeco && entry.ceco) {
                     const normField = String(entry.ceco).trim().replace(/^(CEBE|CECO)/i, '');
                     if (normField.startsWith(normValueCeco)) {
                       cecoEntryAmount = entry.total || 0;

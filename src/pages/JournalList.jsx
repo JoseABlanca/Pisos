@@ -308,8 +308,8 @@ export default function Journal() {
           accountName: account.name || 'Cuenta Desconocida',
           debit: parseFloat(line.debit) || 0,
           credit: parseFloat(line.credit) || 0,
-          ceco: line.ceco || entry.ceco || '',
-          cebe: line.cebe || entry.cebe || '',
+          ceco: (entry.lines && entry.lines.some(l => l.ceco || l.cebe)) ? (line.ceco || '') : (entry.ceco || ''),
+          cebe: (entry.lines && entry.lines.some(l => l.ceco || l.cebe)) ? (line.cebe || '') : (entry.cebe || ''),
           document: line.document || entry.documentName || '',
           originalEntry: entry
         });
