@@ -1080,11 +1080,11 @@ export default function Layout() {
       {
         group: 'Secciones',
         items: [
-          { name: 'Contabilidad', path: '/print?category=contabilidad', icon: BookOpen },
-          { name: 'Inversiones\ninmobiliarias', path: '/print?category=inversiones', icon: Building2 },
-          { name: 'Renta\nvariable', path: '/print?category=renta_variable', icon: TrendingUp },
-          { name: 'Crowdfunding', path: '/print?category=crowdfunding', icon: Landmark },
-          { name: 'Impuestos', path: '/print?category=impuestos', icon: Scale }
+          { name: 'Contabilidad', action: 'print:contabilidad', icon: FileSpreadsheet },
+          { name: 'Inversiones\ninmobiliarias', action: 'print:inversiones', icon: FileSpreadsheet },
+          { name: 'Renta\nvariable', action: 'print:rv', icon: FileSpreadsheet },
+          { name: 'Crowdfunding', action: 'print:cf', icon: FileSpreadsheet },
+          { name: 'Impuestos', action: 'print:impuestos', icon: FileSpreadsheet }
         ]
       },
       { 
@@ -1268,6 +1268,16 @@ export default function Layout() {
                           setDropdownConfig(prev => prev?.type === 'dash-rv' ? null : { type: 'dash-rv', action: item.action, rect: { top: rect.bottom, left: rect.left } });
                         } else if (item.action === 'dashboard:cf') {
                           setDropdownConfig(prev => prev?.type === 'dash-cf' ? null : { type: 'dash-cf', action: item.action, rect: { top: rect.bottom, left: rect.left } });
+                        } else if (item.action === 'print:contabilidad') {
+                          setDropdownConfig(prev => prev?.type === 'print-cont' ? null : { type: 'print-cont', action: item.action, rect: { top: rect.bottom, left: rect.left } });
+                        } else if (item.action === 'print:inversiones') {
+                          setDropdownConfig(prev => prev?.type === 'print-inv' ? null : { type: 'print-inv', action: item.action, rect: { top: rect.bottom, left: rect.left } });
+                        } else if (item.action === 'print:rv') {
+                          setDropdownConfig(prev => prev?.type === 'print-rv' ? null : { type: 'print-rv', action: item.action, rect: { top: rect.bottom, left: rect.left } });
+                        } else if (item.action === 'print:cf') {
+                          setDropdownConfig(prev => prev?.type === 'print-cf' ? null : { type: 'print-cf', action: item.action, rect: { top: rect.bottom, left: rect.left } });
+                        } else if (item.action === 'print:impuestos') {
+                          setDropdownConfig(prev => prev?.type === 'print-imp' ? null : { type: 'print-imp', action: item.action, rect: { top: rect.bottom, left: rect.left } });
                         } else if (item.action === 'taxes:year-dropdown') {
                           setDropdownConfig(prev => prev?.type === 'taxes-year' ? null : { type: 'taxes-year', action: item.action, rect: { top: rect.bottom, left: rect.left } });
                         } else if (item.action === 'taxes:extract') {
@@ -1295,7 +1305,7 @@ export default function Layout() {
                       </div>
                       <span className="text-[10px] leading-[1.1] text-gray-700 font-medium text-center whitespace-pre-wrap flex flex-col items-center justify-center">
                         {item.name} 
-                        {(isExport || isAddColumn || item.action === 'dashboard:contabilidad' || item.action === 'dashboard:inversiones' || item.action === 'dashboard:rv' || item.action === 'dashboard:cf' || item.action === 'reports:contabilidad') && <ChevronDown className="w-3 h-3 mt-0.5" />}
+                        {(isExport || isAddColumn || item.action === 'dashboard:contabilidad' || item.action === 'dashboard:inversiones' || item.action === 'dashboard:rv' || item.action === 'dashboard:cf' || item.action === 'reports:contabilidad' || item.action?.startsWith('print:')) && <ChevronDown className="w-3 h-3 mt-0.5" />}
                       </span>
                     </button>
                   </div>
@@ -1372,6 +1382,64 @@ export default function Layout() {
               )
             }
           })}
+        </div>
+      )}
+
+      {dropdownConfig?.type === 'print-cont' && (
+        <div 
+          className="fixed bg-white border border-gray-300 shadow-lg rounded z-[100] py-1 w-44 flex flex-col text-[11px]" 
+          style={{ top: dropdownConfig.rect.top + 4, left: dropdownConfig.rect.left }}
+          onMouseDown={e => e.stopPropagation()}
+        >
+           <div className="px-3 py-1.5 hover:bg-gray-100 cursor-pointer text-left font-semibold" onClick={() => { setDropdownConfig(null); navigate('/print?category=contabilidad&subcategory=libros'); }}>Libros</div>
+           <div className="px-3 py-1.5 hover:bg-gray-100 cursor-pointer text-left font-semibold" onClick={() => { setDropdownConfig(null); navigate('/print?category=contabilidad&subcategory=anuales'); }}>Cuentas anuales</div>
+        </div>
+      )}
+
+      {dropdownConfig?.type === 'print-inv' && (
+        <div 
+          className="fixed bg-white border border-gray-300 shadow-lg rounded z-[100] py-1 w-44 flex flex-col text-[11px]" 
+          style={{ top: dropdownConfig.rect.top + 4, left: dropdownConfig.rect.left }}
+          onMouseDown={e => e.stopPropagation()}
+        >
+           <div className="px-3 py-1.5 hover:bg-gray-100 cursor-pointer text-left font-semibold" onClick={() => { setDropdownConfig(null); navigate('/print?category=inversiones&template=activos'); }}>Inventario de activos</div>
+           <div className="px-3 py-1.5 hover:bg-gray-100 cursor-pointer text-left font-semibold" onClick={() => { setDropdownConfig(null); navigate('/print?category=inversiones&template=alquileres'); }}>Contratos de alquiler</div>
+           <div className="px-3 py-1.5 hover:bg-gray-100 cursor-pointer text-left font-semibold" onClick={() => { setDropdownConfig(null); navigate('/print?category=inversiones&template=clientes'); }}>Fichero de clientes</div>
+        </div>
+      )}
+
+      {dropdownConfig?.type === 'print-rv' && (
+        <div 
+          className="fixed bg-white border border-gray-300 shadow-lg rounded z-[100] py-1 w-44 flex flex-col text-[11px]" 
+          style={{ top: dropdownConfig.rect.top + 4, left: dropdownConfig.rect.left }}
+          onMouseDown={e => e.stopPropagation()}
+        >
+           <div className="px-3 py-1.5 hover:bg-gray-100 cursor-pointer text-left font-semibold" onClick={() => { setDropdownConfig(null); navigate('/print?category=renta_variable&template=rv_portfolio'); }}>Cartera consolidada</div>
+           <div className="px-3 py-1.5 hover:bg-gray-100 cursor-pointer text-left font-semibold" onClick={() => { setDropdownConfig(null); navigate('/print?category=renta_variable&template=rv_transactions'); }}>Transacciones RV</div>
+        </div>
+      )}
+
+      {dropdownConfig?.type === 'print-cf' && (
+        <div 
+          className="fixed bg-white border border-gray-300 shadow-lg rounded z-[100] py-1 w-44 flex flex-col text-[11px]" 
+          style={{ top: dropdownConfig.rect.top + 4, left: dropdownConfig.rect.left }}
+          onMouseDown={e => e.stopPropagation()}
+        >
+           <div className="px-3 py-1.5 hover:bg-gray-100 cursor-pointer text-left font-semibold" onClick={() => { setDropdownConfig(null); navigate('/print?category=crowdfunding&template=cf_portfolio'); }}>Cartera consolidada</div>
+           <div className="px-3 py-1.5 hover:bg-gray-100 cursor-pointer text-left font-semibold" onClick={() => { setDropdownConfig(null); navigate('/print?category=crowdfunding&template=cf_transactions'); }}>Transacciones CF</div>
+        </div>
+      )}
+
+      {dropdownConfig?.type === 'print-imp' && (
+        <div 
+          className="fixed bg-white border border-gray-300 shadow-lg rounded z-[100] py-1 w-48 flex flex-col text-[11px]" 
+          style={{ top: dropdownConfig.rect.top + 4, left: dropdownConfig.rect.left }}
+          onMouseDown={e => e.stopPropagation()}
+        >
+           <div className="px-3 py-1.5 hover:bg-gray-100 cursor-pointer text-left font-semibold" onClick={() => { setDropdownConfig(null); navigate('/print?category=impuestos&template=taxes_total'); }}>Resumen fiscal general</div>
+           <div className="px-3 py-1.5 hover:bg-gray-100 cursor-pointer text-left font-semibold" onClick={() => { setDropdownConfig(null); navigate('/print?category=impuestos&template=taxes_real_estate'); }}>Fiscalidad inmobiliaria</div>
+           <div className="px-3 py-1.5 hover:bg-gray-100 cursor-pointer text-left font-semibold" onClick={() => { setDropdownConfig(null); navigate('/print?category=impuestos&template=taxes_rv'); }}>Fiscalidad renta variable</div>
+           <div className="px-3 py-1.5 hover:bg-gray-100 cursor-pointer text-left font-semibold" onClick={() => { setDropdownConfig(null); navigate('/print?category=impuestos&template=taxes_cf'); }}>Fiscalidad crowdfunding</div>
         </div>
       )}
 

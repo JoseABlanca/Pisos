@@ -16,7 +16,8 @@ import {
   CheckCircle,
   TrendingUp,
   Landmark,
-  Scale
+  Scale,
+  FileSpreadsheet
 } from 'lucide-react';
 
 const SpanishAccountingNames = {
@@ -112,10 +113,15 @@ function calcTax(gain) {
 const APP_NAME = 'Nexo Finance';
 
 const templatesByCategory = {
-  contabilidad: [
+  contabilidad_libros: [
     { id: 'diario', name: 'Diario de Movimientos', icon: BookOpen },
     { id: 'mayor', name: 'Libro Mayor', icon: FileText },
     { id: 'sumas_saldos', name: 'Sumas y Saldos', icon: Columns }
+  ],
+  contabilidad_anuales: [
+    { id: 'balance_situacion', name: 'Balance de Situación', icon: FileSpreadsheet },
+    { id: 'cuenta_resultados', name: 'Cuenta de Resultados', icon: FileSpreadsheet },
+    { id: 'flujo_caja', name: 'Estado de Flujos de Caja', icon: FileSpreadsheet }
   ],
   inversiones: [
     { id: 'activos', name: 'Inventario de Activos', icon: Building2 },
@@ -143,6 +149,18 @@ export default function PrintPage() {
   
   const [searchParams, setSearchParams] = useSearchParams();
   const activeCategory = searchParams.get('category') || 'contabilidad';
+  const subcategory = searchParams.get('subcategory');
+
+  const categoryKey = useMemo(() => {
+    if (activeCategory === 'contabilidad') {
+      return subcategory === 'anuales' ? 'contabilidad_anuales' : 'contabilidad_libros';
+    }
+    return activeCategory;
+  }, [activeCategory, subcategory]);
+
+  const templatesList = useMemo(() => {
+    return templatesByCategory[categoryKey] || templatesByCategory.contabilidad_libros;
+  }, [categoryKey]);
 
   // States for selected report template and filter
   const [selectedTemplate, setSelectedTemplate] = useState('diario'); // diario, mayor, sumas_saldos, activos, alquileres, clientes
@@ -178,13 +196,15 @@ export default function PrintPage() {
     }
   }, [searchParams, setSearchParams]);
 
-  // Sync selected template on category change
+  // Sync selected template on category change or url parameter change
   useEffect(() => {
-    const list = templatesByCategory[activeCategory] || templatesByCategory.contabilidad;
-    if (list.length > 0) {
-      setSelectedTemplate(list[0].id);
+    const urlTemplate = searchParams.get('template');
+    if (urlTemplate) {
+      setSelectedTemplate(urlTemplate);
+    } else if (templatesList.length > 0) {
+      setSelectedTemplate(templatesList[0].id);
     }
-  }, [activeCategory]);
+  }, [templatesList, searchParams]);
 
   useEffect(() => {
     const handleOutsideClick = (e) => {
@@ -937,6 +957,254 @@ export default function PrintPage() {
       yearlyOverview: yearlyOverview.sort((a, b) => b.year - a.year)
     };
   }, [properties, rentals, journalEntries, rvTransactions, rvAssets, cfInvestments, cfPlatforms, cfProjects, activeYearsFilter]);
+
+  // Compute Annual Accounts (Balance, Income Statement, Cash Flow)
+  const computedAnnualAccounts = useMemo(() => {
+    const directMap = {};
+    const aggregatedMap = {};
+    
+    const startLimit = new Date(selectedYear, 0, 1);
+    const endLimit = new Date(selectedYear, 11, 31, 23, 59, 59);
+
+    accounts.forEach(account => {
+      let movementSum = 0;
+      journalEntries.forEach(entry => {
+        const entryDate = new Date(entry.date);
+        const isIncomeExpense = ['Ingreso', 'Gasto'].includes(account.type);
+        const isInRange = isIncomeExpense 
+          ? (entryDate >= startLimit && entryDate <= endLimit)
+          : (entryDate <= endLimit);
+
+        if (isInRange && entry.lines) {
+          entry.lines.forEach(line => {
+            if (line.accountId === account.id) {
+              const debit = parseFloat(line.debit) || 0;
+              const credit = parseFloat(line.credit) || 0;
+              const isAssetOrExpense = ['Activo', 'Gasto'].includes(account.type);
+              movementSum += isAssetOrExpense ? (debit - credit) : (credit - debit);
+            }
+          });
+        }
+      });
+      directMap[account.id] = movementSum;
+    });
+
+    const calcAggregated = (id) => {
+      if (aggregatedMap[id] !== undefined) return aggregatedMap[id];
+      let sum = directMap[id] || 0;
+      const children = accounts.filter(a => String(a.parentId) === String(id));
+      for (const child of children) {
+        sum += calcAggregated(child.id);
+      }
+      aggregatedMap[id] = sum;
+      return sum;
+    };
+
+    accounts.forEach(a => calcAggregated(a.id));
+
+    const getAccountsForGroup = (groupObj, categoryKey) => {
+      if (groupObj.isProfitLoss) {
+        return accounts.filter(a => ['Ingreso', 'Gasto'].includes(a.type));
+      }
+
+      const prefixes = groupObj.prefixes || (groupObj.prefix ? [groupObj.prefix] : []);
+      const excludes = groupObj.exclude || [];
+
+      return accounts.filter(acc => {
+        const code = acc.code || '';
+        
+        if (categoryKey === 'activo') {
+          if (acc.type !== 'Activo') return false;
+        }
+        if (categoryKey === 'pasivo') {
+          const isLiability = acc.type === 'Pasivo' && !(code.startsWith('10') || code.startsWith('11') || code.startsWith('12') || code.startsWith('13'));
+          if (!isLiability) return false;
+        }
+        if (categoryKey === 'patrimonio') {
+          const isEquity = acc.type === 'Patrimonio' || (acc.type === 'Pasivo' && (code.startsWith('10') || code.startsWith('11') || code.startsWith('12') || code.startsWith('13')));
+          if (!isEquity) return false;
+        }
+
+        const matchesPrefix = prefixes.some(p => code.startsWith(p));
+        const matchesExclude = excludes.some(e => code.startsWith(e));
+        return matchesPrefix && !matchesExclude;
+      });
+    };
+
+    const getGroupValue = (groupObj, categoryKey) => {
+      if (groupObj.isProfitLoss) {
+        const revenues = accounts.filter(a => a.type === 'Ingreso').reduce((sum, a) => sum + (directMap[a.id] || 0), 0);
+        const expenses = accounts.filter(a => a.type === 'Gasto').reduce((sum, a) => sum + (directMap[a.id] || 0), 0);
+        return revenues - expenses;
+      }
+      const groupAccounts = getAccountsForGroup(groupObj, categoryKey);
+      return groupAccounts.reduce((sum, a) => sum + (directMap[a.id] || 0), 0);
+    };
+
+    const balanceSheet = {
+      activo: {
+        no_corriente: [
+          { label: 'I. Inmovilizado intangible', prefix: '20' },
+          { label: 'II. Inmovilizado material', prefix: '21' },
+          { label: 'III. Inversiones inmobiliarias', prefix: '22' },
+          { label: 'IV. Inversiones en empresas del grupo LP', prefix: '24' },
+          { label: 'V. Inversiones financieras a largo plazo', prefix: '25' },
+          { label: 'VI. Activos por impuesto diferido', prefix: '474' }
+        ],
+        corriente: [
+          { label: 'I. Existencias', prefix: '3' },
+          { label: 'II. Deudores comerciales y otras cuentas a cobrar', prefixes: ['43', '44', '470', '471', '472'] },
+          { label: 'III. Inversiones financieras a corto plazo', prefixes: ['53', '54', '55', '56'] },
+          { label: 'IV. Periodificaciones a corto plazo', prefixes: ['480', '567'] },
+          { label: 'V. Efectivo y otros activos líquidos equivalentes', prefix: '57' }
+        ]
+      },
+      pasivo: {
+        no_corriente: [
+          { label: 'I. Provisiones a largo plazo', prefix: '14' },
+          { label: 'II. Deudas a largo plazo', prefixes: ['17', '18'] },
+          { label: 'III. Deudas con empresas del grupo LP', prefix: '16' }
+        ],
+        corriente: [
+          { label: 'I. Provisiones a corto plazo', prefix: '529' },
+          { label: 'II. Deudas a corto plazo', prefixes: ['50', '51', '52'], exclude: ['529'] },
+          { label: 'III. Deudas con empresas del grupo CP', prefix: '55' },
+          { label: 'V. Acreedores comerciales y otras cuentas a pagar', prefixes: ['40', '41', '475', '476', '477'] }
+        ]
+      },
+      patrimonio: {
+        fondos_propios: [
+          { label: 'I. Capital', prefix: '10' },
+          { label: 'II. Prima de emisión', prefix: '110' },
+          { label: 'III. Reservas', prefixes: ['111', '112', '113', '114', '115', '116', '117', '118', '119'] },
+          { label: 'V. Resultados de ejercicios anteriores', prefix: '12' },
+          { label: 'VII. Resultado del ejercicio', isProfitLoss: true }
+        ]
+      }
+    };
+
+    const sheetData = {
+      activo_no_corriente_items: balanceSheet.activo.no_corriente.map(g => ({ ...g, value: getGroupValue(g, 'activo') })),
+      activo_corriente_items: balanceSheet.activo.corriente.map(g => ({ ...g, value: getGroupValue(g, 'activo') })),
+      pasivo_no_corriente_items: balanceSheet.pasivo.no_corriente.map(g => ({ ...g, value: getGroupValue(g, 'pasivo') })),
+      pasivo_corriente_items: balanceSheet.pasivo.corriente.map(g => ({ ...g, value: getGroupValue(g, 'pasivo') })),
+      patrimonio_items: balanceSheet.patrimonio.fondos_propios.map(g => ({ ...g, value: getGroupValue(g, 'patrimonio') }))
+    };
+
+    sheetData.total_activo_no_corriente = sheetData.activo_no_corriente_items.reduce((s, i) => s + i.value, 0);
+    sheetData.total_activo_corriente = sheetData.activo_corriente_items.reduce((s, i) => s + i.value, 0);
+    sheetData.total_activo = sheetData.total_activo_no_corriente + sheetData.total_activo_corriente;
+
+    sheetData.total_pasivo_no_corriente = sheetData.pasivo_no_corriente_items.reduce((s, i) => s + i.value, 0);
+    sheetData.total_pasivo_corriente = sheetData.pasivo_corriente_items.reduce((s, i) => s + i.value, 0);
+    sheetData.total_pasivo = sheetData.total_pasivo_no_corriente + sheetData.total_pasivo_corriente;
+
+    sheetData.total_patrimonio = sheetData.patrimonio_items.reduce((s, i) => s + i.value, 0);
+    sheetData.total_pasivo_patrimonio = sheetData.total_pasivo + sheetData.total_patrimonio;
+
+    const incomeStatement = {
+      ingresos: [
+        { label: '1. Importe neto de la cifra de negocios', prefix: '70' },
+        { label: '2. Variación de existencias', prefix: '71' },
+        { label: '3. Trabajos realizados por la empresa para su activo', prefix: '73' },
+        { label: '4. Aprovisionamientos (devoluciones/ingresos)', prefix: '708' },
+        { label: '5. Otros ingresos de explotación', prefixes: ['74', '75'] },
+        { label: '6. Ingresos financieros', prefix: '76' }
+      ],
+      gastos: [
+        { label: '1. Aprovisionamientos', prefix: '60' },
+        { label: '2. Gastos de personal', prefix: '64' },
+        { label: '3. Servicios exteriores', prefix: '62' },
+        { label: '4. Tributos', prefix: '63' },
+        { label: '5. Pérdidas, deterioro y variación de provisiones', prefix: '65' },
+        { label: '6. Otros gastos corrientes de gestión', prefix: '65', exclude: ['650', '651'] },
+        { label: '7. Amortización del inmovilizado', prefix: '68' },
+        { label: '8. Gastos financieros', prefix: '66' }
+      ]
+    };
+
+    const incomeData = {
+      ingresos_items: incomeStatement.ingresos.map(g => ({ ...g, value: getGroupValue(g, 'ingreso') })),
+      gastos_items: incomeStatement.gastos.map(g => ({ ...g, value: getGroupValue(g, 'gasto') }))
+    };
+
+    incomeData.total_ingresos = incomeData.ingresos_items.reduce((s, i) => s + i.value, 0);
+    incomeData.total_gastos = incomeData.gastos_items.reduce((s, i) => s + i.value, 0);
+    incomeData.resultado_neto = incomeData.total_ingresos - incomeData.total_gastos;
+
+    const cfCategories = {
+      explotacion_cobros: { label: '(+) Cobros de clientes y arrendamientos', val: 0 },
+      explotacion_pagos_prov: { label: '(-) Pagos a proveedores y acreedores por gastos', val: 0 },
+      explotacion_pagos_pers: { label: '(-) Pagos al personal y tributos', val: 0 },
+      explotacion_otros: { label: '(+/-) Otros cobros/pagos de explotación', val: 0 },
+      inversion_pagos: { label: '(-) Adquisición de activos (propiedades, etc.)', val: 0 },
+      inversion_cobros: { label: '(+) Enajenación/venta de activos', val: 0 },
+      financiacion_cobros: { label: '(+) Cobros por emisión de capital o deudas', val: 0 },
+      financiacion_pagos: { label: '(-) Pagos por devolución de deudas o dividendos', val: 0 }
+    };
+
+    journalEntries.forEach(entry => {
+      const entryDate = new Date(entry.date);
+      if (entryDate >= startLimit && entryDate <= endLimit && entry.lines) {
+        const bankLines = entry.lines.filter(l => String(l.accountCode || '').startsWith('57'));
+        if (bankLines.length > 0) {
+          entry.lines.forEach(l => {
+            const code = String(l.accountCode || '');
+            if (code.startsWith('57')) return;
+
+            const debit = parseFloat(l.debit) || 0;
+            const credit = parseFloat(l.credit) || 0;
+            const balance = debit - credit;
+
+            if (code.startsWith('70') || code.startsWith('43') || code.startsWith('75')) {
+              cfCategories.explotacion_cobros.val += balance < 0 ? Math.abs(balance) : -balance;
+            } else if (code.startsWith('60') || code.startsWith('62') || code.startsWith('40') || code.startsWith('41')) {
+              cfCategories.explotacion_pagos_prov.val += balance > 0 ? balance : -Math.abs(balance);
+            } else if (code.startsWith('64') || code.startsWith('63') || code.startsWith('46') || code.startsWith('47')) {
+              cfCategories.explotacion_pagos_pers.val += balance > 0 ? balance : -Math.abs(balance);
+            } else if (code.startsWith('21') || code.startsWith('22')) {
+              cfCategories.inversion_pagos.val += balance > 0 ? balance : 0;
+              cfCategories.inversion_cobros.val += balance < 0 ? Math.abs(balance) : 0;
+            } else if (code.startsWith('17') || code.startsWith('52') || code.startsWith('10')) {
+              if (balance < 0) cfCategories.financiacion_cobros.val += Math.abs(balance);
+              else cfCategories.financiacion_pagos.val += balance;
+            } else {
+              cfCategories.explotacion_otros.val += balance < 0 ? Math.abs(balance) : -balance;
+            }
+          });
+        }
+      }
+    });
+
+    const cashFlowData = {
+      explotacion: [
+        { label: cfCategories.explotacion_cobros.label, value: cfCategories.explotacion_cobros.val },
+        { label: cfCategories.explotacion_pagos_prov.label, value: -Math.abs(cfCategories.explotacion_pagos_prov.val) },
+        { label: cfCategories.explotacion_pagos_pers.label, value: -Math.abs(cfCategories.explotacion_pagos_pers.val) },
+        { label: cfCategories.explotacion_otros.label, value: cfCategories.explotacion_otros.val }
+      ],
+      inversion: [
+        { label: cfCategories.inversion_pagos.label, value: -Math.abs(cfCategories.inversion_pagos.val) },
+        { label: cfCategories.inversion_cobros.label, value: cfCategories.inversion_cobros.val }
+      ],
+      financiacion: [
+        { label: cfCategories.financiacion_cobros.label, value: cfCategories.financiacion_cobros.val },
+        { label: cfCategories.financiacion_pagos.label, value: -Math.abs(cfCategories.financiacion_pagos.val) }
+      ]
+    };
+
+    cashFlowData.total_explotacion = cashFlowData.explotacion.reduce((s, i) => s + i.value, 0);
+    cashFlowData.total_inversion = cashFlowData.inversion.reduce((s, i) => s + i.value, 0);
+    cashFlowData.total_financiacion = cashFlowData.financiacion.reduce((s, i) => s + i.value, 0);
+    cashFlowData.total_neto = cashFlowData.total_explotacion + cashFlowData.total_inversion + cashFlowData.total_financiacion;
+
+    return {
+      sheet: sheetData,
+      income: incomeData,
+      cashflow: cashFlowData
+    };
+  }, [accounts, journalEntries, selectedYear]);
+
   // Combined timeline and dropdown filters for print entries
   const filteredEntriesForPrint = useMemo(() => {
     let list = journalEntries;
@@ -2467,6 +2735,227 @@ export default function PrintPage() {
       }
     }
 
+    // 15. BALANCE DE SITUACIÓN
+    if (selectedTemplate === 'balance_situacion') {
+      const data = computedAnnualAccounts.sheet;
+      pageViews.push(
+        <div key="balance-situacion-p" className="page-sheet relative">
+          <div>
+            {renderPageHeader('Balance de Situación')}
+            
+            <div className="grid grid-cols-2 gap-6 mt-4 text-[10px]">
+              {/* Left Column: Activo */}
+              <div className="flex flex-col">
+                <div className="bg-slate-800 text-white font-bold px-2 py-1 flex justify-between uppercase mb-2">
+                  <span>ACTIVO</span>
+                  <span>Importe (€)</span>
+                </div>
+                
+                <div className="font-bold text-slate-700 uppercase mb-1">A) ACTIVO NO CORRIENTE</div>
+                {data.activo_no_corriente_items.map((item, idx) => (
+                  <div key={idx} className="flex justify-between pl-3 py-1 border-b border-slate-100">
+                    <span>{item.label}</span>
+                    <span className="font-mono tabular-nums">{formatCurrency(item.value)}</span>
+                  </div>
+                ))}
+                <div className="flex justify-between pl-3 py-1.5 font-bold text-slate-700 bg-slate-50 border-b-2 border-slate-350 mb-4">
+                  <span>Total Activo No Corriente</span>
+                  <span className="font-mono tabular-nums">{formatCurrency(data.total_activo_no_corriente)}</span>
+                </div>
+
+                <div className="font-bold text-slate-700 uppercase mb-1">B) ACTIVO CORRIENTE</div>
+                {data.activo_corriente_items.map((item, idx) => (
+                  <div key={idx} className="flex justify-between pl-3 py-1 border-b border-slate-100">
+                    <span>{item.label}</span>
+                    <span className="font-mono tabular-nums">{formatCurrency(item.value)}</span>
+                  </div>
+                ))}
+                <div className="flex justify-between pl-3 py-1.5 font-bold text-slate-700 bg-slate-50 border-b-2 border-slate-300">
+                  <span>Total Activo Corriente</span>
+                  <span className="font-mono tabular-nums">{formatCurrency(data.total_activo_corriente)}</span>
+                </div>
+
+                <div className="flex justify-between py-2 font-black text-slate-900 bg-slate-200 px-2 mt-4 text-[10.5px] border border-slate-400">
+                  <span>TOTAL ACTIVO (A + B)</span>
+                  <span className="font-mono tabular-nums">{formatCurrency(data.total_activo)}</span>
+                </div>
+              </div>
+
+              {/* Right Column: Patrimonio Neto y Pasivo */}
+              <div className="flex flex-col">
+                <div className="bg-slate-800 text-white font-bold px-2 py-1 flex justify-between uppercase mb-2">
+                  <span>PATRIMONIO NETO Y PASIVO</span>
+                  <span>Importe (€)</span>
+                </div>
+
+                <div className="font-bold text-slate-700 uppercase mb-1">A) PATRIMONIO NETO</div>
+                {data.patrimonio_items.map((item, idx) => (
+                  <div key={idx} className="flex justify-between pl-3 py-1 border-b border-slate-100">
+                    <span>{item.label}</span>
+                    <span className="font-mono tabular-nums">{formatCurrency(item.value)}</span>
+                  </div>
+                ))}
+                <div className="flex justify-between pl-3 py-1.5 font-bold text-slate-700 bg-slate-50 border-b-2 border-slate-350 mb-4">
+                  <span>Total Patrimonio Neto</span>
+                  <span className="font-mono tabular-nums">{formatCurrency(data.total_patrimonio)}</span>
+                </div>
+
+                <div className="font-bold text-slate-700 uppercase mb-1">B) PASIVO NO CORRIENTE</div>
+                {data.pasivo_no_corriente_items.map((item, idx) => (
+                  <div key={idx} className="flex justify-between pl-3 py-1 border-b border-slate-100">
+                    <span>{item.label}</span>
+                    <span className="font-mono tabular-nums">{formatCurrency(item.value)}</span>
+                  </div>
+                ))}
+                <div className="flex justify-between pl-3 py-1.5 font-bold text-slate-700 bg-slate-50 border-b-2 border-slate-300 mb-4">
+                  <span>Total Pasivo No Corriente</span>
+                  <span className="font-mono tabular-nums">{formatCurrency(data.total_pasivo_no_corriente)}</span>
+                </div>
+
+                <div className="font-bold text-slate-700 uppercase mb-1">C) PASIVO CORRIENTE</div>
+                {data.pasivo_corriente_items.map((item, idx) => (
+                  <div key={idx} className="flex justify-between pl-3 py-1 border-b border-slate-100">
+                    <span>{item.label}</span>
+                    <span className="font-mono tabular-nums">{formatCurrency(item.value)}</span>
+                  </div>
+                ))}
+                <div className="flex justify-between pl-3 py-1.5 font-bold text-slate-700 bg-slate-50 border-b-2 border-slate-300">
+                  <span>Total Pasivo Corriente</span>
+                  <span className="font-mono tabular-nums">{formatCurrency(data.total_pasivo_corriente)}</span>
+                </div>
+
+                <div className="flex justify-between py-2 font-black text-slate-900 bg-slate-200 px-2 mt-4 text-[10.5px] border border-slate-400">
+                  <span>TOTAL PATRIMONIO Y PASIVO (A + B + C)</span>
+                  <span className="font-mono tabular-nums">{formatCurrency(data.total_pasivo_patrimonio)}</span>
+                </div>
+              </div>
+            </div>
+          </div>
+          {renderPageFooter(1, 1, auditNumber)}
+        </div>
+      );
+    }
+
+    // 16. CUENTA DE RESULTADOS
+    if (selectedTemplate === 'cuenta_resultados') {
+      const data = computedAnnualAccounts.income;
+      pageViews.push(
+        <div key="cuenta-resultados-p" className="page-sheet relative">
+          <div>
+            {renderPageHeader('Cuenta de Resultados')}
+            
+            <div className="flex flex-col mt-4 text-[10px] max-w-2xl mx-auto border border-slate-300 p-4 bg-slate-50/50">
+              <div className="bg-slate-800 text-white font-bold px-3 py-1.5 flex justify-between uppercase mb-2">
+                <span>OPERACIÓN</span>
+                <span>Importe (€)</span>
+              </div>
+              
+              <div className="font-bold text-slate-700 uppercase mb-1.5 border-b border-slate-300 pb-1">I. INGRESOS DE EXPLOTACIÓN</div>
+              {data.ingresos_items.map((item, idx) => (
+                <div key={idx} className="flex justify-between pl-4 py-1.5 border-b border-slate-200">
+                  <span>{item.label}</span>
+                  <span className="font-mono tabular-nums text-green-700">+{formatCurrency(item.value)}</span>
+                </div>
+              ))}
+              <div className="flex justify-between pl-4 py-2 font-bold text-green-800 bg-green-50 border-b-2 border-slate-400 mb-6">
+                <span>Total Ingresos de Explotación</span>
+                <span className="font-mono tabular-nums">+{formatCurrency(data.total_ingresos)}</span>
+              </div>
+
+              <div className="font-bold text-slate-700 uppercase mb-1.5 border-b border-slate-300 pb-1">II. GASTOS DE EXPLOTACIÓN</div>
+              {data.gastos_items.map((item, idx) => (
+                <div key={idx} className="flex justify-between pl-4 py-1.5 border-b border-slate-200">
+                  <span>{item.label}</span>
+                  <span className="font-mono tabular-nums text-red-700">-{formatCurrency(item.value)}</span>
+                </div>
+              ))}
+              <div className="flex justify-between pl-4 py-2 font-bold text-red-800 bg-red-50 border-b-2 border-slate-400 mb-6">
+                <span>Total Gastos de Explotación</span>
+                <span className="font-mono tabular-nums">-{formatCurrency(data.total_gastos)}</span>
+              </div>
+
+              <div className="flex justify-between py-2.5 font-black text-slate-900 bg-slate-200 px-3 mt-4 text-[11px] border border-slate-400">
+                <span>III. RESULTADO DEL EJERCICIO (I - II)</span>
+                <span className={`font-mono tabular-nums ${data.resultado_neto >= 0 ? 'text-green-800' : 'text-red-800'}`}>
+                  {formatCurrency(data.resultado_neto)}
+                </span>
+              </div>
+            </div>
+          </div>
+          {renderPageFooter(1, 1, auditNumber)}
+        </div>
+      );
+    }
+
+    // 17. ESTADO DE FLUJOS DE CAJA
+    if (selectedTemplate === 'flujo_caja') {
+      const data = computedAnnualAccounts.cashflow;
+      pageViews.push(
+        <div key="flujo-caja-p" className="page-sheet relative">
+          <div>
+            {renderPageHeader('Estado de Flujos de Caja')}
+            
+            <div className="flex flex-col mt-4 text-[10px] max-w-2xl mx-auto border border-slate-300 p-4 bg-slate-50/50">
+              <div className="bg-slate-800 text-white font-bold px-3 py-1.5 flex justify-between uppercase mb-2">
+                <span>CATEGORÍA / CONCEPTO</span>
+                <span>Flujo Neto (€)</span>
+              </div>
+
+              <div className="font-bold text-slate-700 uppercase mb-1 border-b border-slate-300 pb-1">1. ACTIVIDADES DE EXPLOTACIÓN</div>
+              {data.explotacion.map((item, idx) => (
+                <div key={idx} className="flex justify-between pl-4 py-1.5 border-b border-slate-200">
+                  <span>{item.label}</span>
+                  <span className={`font-mono tabular-nums ${item.value >= 0 ? 'text-slate-700' : 'text-red-700'}`}>
+                    {formatCurrency(item.value)}
+                  </span>
+                </div>
+              ))}
+              <div className="flex justify-between pl-4 py-2 font-bold text-slate-800 bg-slate-100/80 border-b border-slate-300 mb-6">
+                <span>Flujo de efectivo de actividades de explotación</span>
+                <span className="font-mono tabular-nums">{formatCurrency(data.total_explotacion)}</span>
+              </div>
+
+              <div className="font-bold text-slate-700 uppercase mb-1 border-b border-slate-300 pb-1">2. ACTIVIDADES DE INVERSIÓN</div>
+              {data.inversion.map((item, idx) => (
+                <div key={idx} className="flex justify-between pl-4 py-1.5 border-b border-slate-200">
+                  <span>{item.label}</span>
+                  <span className={`font-mono tabular-nums ${item.value >= 0 ? 'text-slate-700' : 'text-red-700'}`}>
+                    {formatCurrency(item.value)}
+                  </span>
+                </div>
+              ))}
+              <div className="flex justify-between pl-4 py-2 font-bold text-slate-800 bg-slate-100/80 border-b border-slate-300 mb-6">
+                <span>Flujo de efectivo de actividades de inversión</span>
+                <span className="font-mono tabular-nums">{formatCurrency(data.total_inversion)}</span>
+              </div>
+
+              <div className="font-bold text-slate-700 uppercase mb-1 border-b border-slate-300 pb-1">3. ACTIVIDADES DE FINANCIACIÓN</div>
+              {data.financiacion.map((item, idx) => (
+                <div key={idx} className="flex justify-between pl-4 py-1.5 border-b border-slate-200">
+                  <span>{item.label}</span>
+                  <span className={`font-mono tabular-nums ${item.value >= 0 ? 'text-slate-700' : 'text-red-700'}`}>
+                    {formatCurrency(item.value)}
+                  </span>
+                </div>
+              ))}
+              <div className="flex justify-between pl-4 py-2 font-bold text-slate-800 bg-slate-100/80 border-b border-slate-300 mb-6">
+                <span>Flujo de efectivo de actividades de financiación</span>
+                <span className="font-mono tabular-nums">{formatCurrency(data.total_financiacion)}</span>
+              </div>
+
+              <div className="flex justify-between py-2.5 font-black text-slate-950 bg-slate-200 px-3 mt-4 text-[11px] border border-slate-400">
+                <span>AUMENTO/DISMINUCIÓN NETO DEL EFECTIVO (1 + 2 + 3)</span>
+                <span className={`font-mono tabular-nums ${data.total_neto >= 0 ? 'text-green-800' : 'text-red-800'}`}>
+                  {formatCurrency(data.total_neto)}
+                </span>
+              </div>
+            </div>
+          </div>
+          {renderPageFooter(1, 1, auditNumber)}
+        </div>
+      );
+    }
+
     return pageViews;
   };
 
@@ -2543,10 +3032,16 @@ export default function PrintPage() {
           <div className="bg-[#cbd5e0] font-bold p-1.5 uppercase text-[10px] border-b border-[#a0a0a0] text-slate-700">
             Plantillas Disponibles
           </div>
-          {(templatesByCategory[activeCategory] || templatesByCategory.contabilidad).map(t => (
+          {templatesList.map(t => (
             <button
               key={t.id}
-              onClick={() => setSelectedTemplate(t.id)}
+              onClick={() => {
+                setSelectedTemplate(t.id);
+                setSearchParams(prev => {
+                  prev.set('template', t.id);
+                  return prev;
+                }, { replace: true });
+              }}
               className={`w-full text-left px-3 py-2 text-[11px] transition-colors border-b border-slate-100 flex items-center gap-2 ${
                 selectedTemplate === t.id
                   ? 'bg-[#c0c0c0] text-black font-semibold shadow-inner'
@@ -2834,7 +3329,7 @@ export default function PrintPage() {
       </div>
 
       {/* Quick Month Filter Bar (no-print) */}
-      {['diario', 'mayor', 'sumas_saldos', 'rv_transactions', 'cf_transactions', 'taxes_total', 'taxes_real_estate', 'taxes_rv', 'taxes_cf'].includes(selectedTemplate) && (
+      {['diario', 'mayor', 'sumas_saldos', 'rv_transactions', 'cf_transactions', 'taxes_total', 'taxes_real_estate', 'taxes_rv', 'taxes_cf', 'balance_situacion', 'cuenta_resultados', 'flujo_caja'].includes(selectedTemplate) && (
         <div className="w-10 bg-[#f0f0f0] border border-[#808080] flex flex-col items-center py-2 shrink-0 overflow-y-auto win-bevel no-print gap-1 select-none">
           {['Ene', 'Feb', 'Mar', 'Abr', 'May', 'Jun', 'Jul', 'Ago', 'Sep', 'Oct', 'Nov', 'Dic'].map(m => (
             <button 
