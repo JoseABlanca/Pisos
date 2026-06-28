@@ -1,7 +1,7 @@
 import { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { db } from '../firebase/config';
-import { collection, query, where, onSnapshot, orderBy } from 'firebase/firestore';
+import { collection, query, where, onSnapshot, orderBy, doc, updateDoc } from 'firebase/firestore';
 import ZoomControl from '../components/ZoomControl';
 import { useAuth } from '../context/AuthContext';
 import { registerJournalEntry, deleteJournalEntry, updateJournalEntry } from '../services/accounting';
@@ -124,6 +124,18 @@ export default function Journal() {
     const entryToEdit = history.find(e => e.id === entryId);
     if (entryToEdit) {
       navigate('/journal-entry', { state: { editEntry: entryToEdit } });
+    }
+  };
+
+  const handleToggleImpuesto = async (entryId, currentVal) => {
+    try {
+      const entryRef = doc(db, 'journal_entries', entryId);
+      await updateDoc(entryRef, {
+        isImpuesto: !currentVal
+      });
+    } catch (err) {
+      console.error("Error al actualizar impuesto:", err);
+      alert("Error al cambiar estado de impuesto: " + err.message);
     }
   };
   const [entries, setEntries] = useState([{ accountId: '', debit: '', credit: '' }]);
@@ -533,7 +545,7 @@ export default function Journal() {
                 <th className="border-b border-gray-300 px-2 py-1.5 font-normal text-gray-600 w-24 text-right uppercase">DEBE</th>
                 <th className="border-b border-gray-300 px-2 py-1.5 font-normal text-gray-600 w-24 text-right uppercase">HABER</th>
                 <th className="border-b border-gray-300 px-2 py-1.5 font-normal text-gray-600 w-8 text-center uppercase">P</th>
-                <th className="border-b border-gray-300 px-2 py-1.5 font-normal text-gray-600 w-8 text-center uppercase">T</th>
+                <th className="border-b border-gray-300 px-2 py-1.5 font-normal text-gray-600 w-12 text-center uppercase">IMP</th>
               </tr>
             </thead>
             <tbody>
@@ -580,7 +592,14 @@ export default function Journal() {
                     <td className="px-2 py-1 text-center text-gray-700">
                       <input type="checkbox" className="w-3 h-3 cursor-pointer" defaultChecked={item.debit > 0 || item.credit > 0} />
                     </td>
-                    <td className="px-2 py-1 text-center text-gray-700"></td>
+                    <td className="px-2 py-1 text-center text-gray-700" onClick={(e) => e.stopPropagation()}>
+                      <input 
+                        type="checkbox" 
+                        className="w-3.5 h-3.5 cursor-pointer accent-blue-600" 
+                        checked={!!item.originalEntry?.isImpuesto} 
+                        onChange={() => handleToggleImpuesto(item.entryId, !!item.originalEntry?.isImpuesto)}
+                      />
+                    </td>
                   </tr>
                 ))
               )}

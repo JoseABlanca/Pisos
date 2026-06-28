@@ -310,42 +310,27 @@ export default function ExtractoContableTab({
         </div>
       )}
 
-      {/* Metrics Cards */}
-      <div className={`grid grid-cols-1 ${mode === 'rentals' ? 'sm:grid-cols-2' : 'sm:grid-cols-3'} gap-3`}>
-        <div className="p-3 bg-slate-50 border border-slate-200 rounded shadow-sm flex items-center justify-between">
-          <div>
-            <div className="text-[9px] font-bold text-slate-600 uppercase mb-1">Total CEBE (Ingresos)</div>
-            <div className="font-mono text-[15px] font-bold text-green-700">
-              {totals.cebe.toLocaleString('es-ES', { minimumFractionDigits: 2 })} €
-            </div>
-          </div>
-          <TrendingUp className="w-8 h-8 text-green-600/30 shrink-0" />
+      {/* Metrics Row (Written text, no cards) */}
+      <div className="flex flex-wrap items-center gap-x-6 gap-y-2 p-3 bg-slate-50 border border-slate-200 rounded shadow-sm text-xs font-bold text-slate-700 select-none">
+        <div className="flex items-center gap-1.5">
+          <span className="text-gray-500 uppercase text-[9px]">Ingresos:</span>
+          <span className="font-mono text-green-700 text-sm">
+            {totals.cebe.toLocaleString('es-ES', { minimumFractionDigits: 2 })} €
+          </span>
         </div>
-
-        {mode !== 'rentals' && (
-          <div className="p-3 bg-slate-50 border border-slate-200 rounded shadow-sm flex items-center justify-between">
-            <div>
-              <div className="text-[9px] font-bold text-slate-600 uppercase mb-1">Total CECO (Gastos)</div>
-              <div className="font-mono text-[15px] font-bold text-red-600">
-                -{totals.ceco.toLocaleString('es-ES', { minimumFractionDigits: 2 })} €
-              </div>
-            </div>
-            <TrendingDown className="w-8 h-8 text-red-600/30 shrink-0" />
-          </div>
-        )}
-
-        <div className={`p-3 border rounded shadow-sm flex items-center justify-between ${totals.balance >= 0 ? 'bg-blue-50/50 border-blue-200' : 'bg-amber-50/50 border-amber-200'}`}>
-          <div>
-            <div className={`text-[9px] font-bold uppercase mb-1 ${totals.balance >= 0 ? 'text-blue-700' : 'text-amber-800'}`}>
-              {mode === 'rentals' ? 'Balance Recaudado' : 'Balance Neto (CEBE - CECO)'}
-            </div>
-            <div className={`font-mono text-[15px] font-bold ${totals.balance >= 0 ? 'text-blue-950' : 'text-amber-950'}`}>
-              {totals.cebe.toLocaleString('es-ES', { minimumFractionDigits: 2 })} €
-            </div>
-          </div>
-          <div className="font-bold text-[18px] opacity-20 font-mono shrink-0">
-            {totals.balance >= 0 ? '+' : '-'}
-          </div>
+        <div className="w-px h-4 bg-slate-300" />
+        <div className="flex items-center gap-1.5">
+          <span className="text-gray-500 uppercase text-[9px]">Gastos:</span>
+          <span className="font-mono text-red-600 text-sm">
+            -{totals.ceco.toLocaleString('es-ES', { minimumFractionDigits: 2 })} €
+          </span>
+        </div>
+        <div className="w-px h-4 bg-slate-300" />
+        <div className="flex items-center gap-1.5">
+          <span className="text-gray-500 uppercase text-[9px]">Total:</span>
+          <span className={`font-mono text-sm ${totals.balance >= 0 ? 'text-blue-900' : 'text-amber-800'}`}>
+            {totals.balance.toLocaleString('es-ES', { minimumFractionDigits: 2 })} €
+          </span>
         </div>
       </div>
 
