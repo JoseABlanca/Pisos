@@ -418,6 +418,17 @@ export default function PrintPage() {
     return lower.charAt(0).toUpperCase() + lower.slice(1);
   };
 
+  // Helper to format dates to DD/MM/YYYY with leading zeros
+  const formatDate = (dateStr) => {
+    if (!dateStr) return '';
+    const d = new Date(dateStr);
+    if (isNaN(d.getTime())) return '';
+    const day = String(d.getDate()).padStart(2, '0');
+    const month = String(d.getMonth() + 1).padStart(2, '0');
+    const year = d.getFullYear();
+    return `${day}/${month}/${year}`;
+  };
+
   // Chunking helper for Diario de Movimientos (increased to 28 for fuller A4 page)
   const chunkDiario = (entriesList, maxRowsPerPage = 28) => {
     const pages = [];
@@ -599,7 +610,7 @@ export default function PrintPage() {
                       const rowBg = entryIndex % 2 === 0 ? 'bg-white' : 'bg-slate-50';
                       rows.push(
                         <tr key={`entry-${entry.id}`} className={`font-bold border-t border-slate-200 ${rowBg}`}>
-                          <td className="py-1 px-1 text-slate-600">{new Date(entry.date).toLocaleDateString()}</td>
+                          <td className="py-1 px-1 text-slate-600">{formatDate(entry.date)}</td>
                           <td className="py-1 px-1 text-slate-600">{entry.number || entryIndex + 1}</td>
                           <td className="py-1 px-1 text-slate-900 uppercase" colSpan="2">{entry.description}</td>
                           <td className="py-1 px-1 text-right font-sans tabular-nums text-slate-900">{formatCurrency(entry.total)}</td>
@@ -742,7 +753,7 @@ export default function PrintPage() {
                             runningBalance += isAssetOrExpense ? movement : -movement;
                             return (
                               <tr key={idx} className="border-b border-slate-100 hover:bg-slate-50">
-                                <td className="py-0.5 px-1">{new Date(line.date).toLocaleDateString()}</td>
+                                <td className="py-0.5 px-1">{formatDate(line.date)}</td>
                                 <td className="py-0.5 px-1 text-center font-mono">{line.entryNo || '-'}</td>
                                 <td className="py-0.5 px-1 truncate max-w-[200px] uppercase">{line.description}</td>
                                 <td className="py-0.5 px-1 text-right font-sans tabular-nums text-slate-650">{line.debit > 0 ? formatCurrency(line.debit) : ''}</td>
@@ -971,8 +982,8 @@ export default function PrintPage() {
                           <td className="py-2 px-1 uppercase font-bold text-slate-800">{prop ? prop.name : r.propertyId}</td>
                           <td className="py-2 px-1 uppercase">{tenantDisplay}</td>
                           <td className="py-2 px-1 text-center font-mono text-[9px]">
-                            {r.startDate ? new Date(r.startDate).toLocaleDateString() : '---'} al <br/>
-                            {r.endDate ? new Date(r.endDate).toLocaleDateString() : 'INDET.'}
+                            {r.startDate ? formatDate(r.startDate) : '---'} al <br/>
+                            {r.endDate ? formatDate(r.endDate) : 'INDET.'}
                           </td>
                           <td className="py-2 px-1 text-right font-sans tabular-nums">{r.depositAmount > 0 ? formatCurrency(r.depositAmount) : '---'}</td>
                           <td className="py-2 px-1 text-right font-sans tabular-nums font-bold text-green-700">{formatCurrency(r.rentAmount)}</td>
