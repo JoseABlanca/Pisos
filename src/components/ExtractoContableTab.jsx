@@ -106,9 +106,11 @@ export default function ExtractoContableTab({
     }
 
     // Default properties mode (as before)
-    if (!currentCebe && !currentCeco) return [];
     const normValueCebe = currentCebe ? String(currentCebe).trim().replace(/^(CEBE|CECO)/i, '') : '';
-    const normValueCeco = currentCeco ? String(currentCeco).trim().replace(/^(CEBE|CECO)/i, '') : '';
+    const normIncomeCecos = (formData?.taxIncomeCecos || []).map(c => String(c).trim().replace(/^(CEBE|CECO)/i, ''));
+    const normExpenseCecos = (formData?.taxExpenseCecos || []).map(c => String(c).trim().replace(/^(CEBE|CECO)/i, ''));
+
+    if (!normValueCebe && normIncomeCecos.length === 0 && normExpenseCecos.length === 0) return [];
 
     return journalEntries.filter(entry => {
       let matchCebe = false;
@@ -122,9 +124,13 @@ export default function ExtractoContableTab({
             const normField = String(l.cebe).trim().replace(/^(CEBE|CECO)/i, '');
             if (normField.startsWith(normValueCebe)) matchCebe = true;
           }
-          if (normValueCeco && l.ceco) {
+          if (normIncomeCecos.length > 0 && l.ceco) {
             const normField = String(l.ceco).trim().replace(/^(CEBE|CECO)/i, '');
-            if (normField.startsWith(normValueCeco)) matchCeco = true;
+            if (normIncomeCecos.some(c => normField.startsWith(c))) matchCebe = true;
+          }
+          if (normExpenseCecos.length > 0 && l.ceco) {
+            const normField = String(l.ceco).trim().replace(/^(CEBE|CECO)/i, '');
+            if (normExpenseCecos.some(c => normField.startsWith(c))) matchCeco = true;
           }
         });
       }
@@ -134,15 +140,19 @@ export default function ExtractoContableTab({
           const normField = String(entry.cebe).trim().replace(/^(CEBE|CECO)/i, '');
           if (normField.startsWith(normValueCebe)) matchCebe = true;
         }
-        if (normValueCeco && entry.ceco) {
+        if (normIncomeCecos.length > 0 && entry.ceco) {
           const normField = String(entry.ceco).trim().replace(/^(CEBE|CECO)/i, '');
-          if (normField.startsWith(normValueCeco)) matchCeco = true;
+          if (normIncomeCecos.some(c => normField.startsWith(c))) matchCebe = true;
+        }
+        if (normExpenseCecos.length > 0 && entry.ceco) {
+          const normField = String(entry.ceco).trim().replace(/^(CEBE|CECO)/i, '');
+          if (normExpenseCecos.some(c => normField.startsWith(c))) matchCeco = true;
         }
       }
 
       return matchCebe || matchCeco;
     }).sort((a, b) => new Date(b.date) - new Date(a.date));
-  }, [journalEntries, currentCebe, currentCeco, formData?.reference, mode]);
+  }, [journalEntries, currentCebe, formData?.taxIncomeCecos, formData?.taxExpenseCecos, formData?.reference, mode]);
 
   // Calculate totals
   const totals = useMemo(() => {
@@ -191,18 +201,32 @@ export default function ExtractoContableTab({
         cebeSum += cebeEntryAmount;
       } else {
         // Properties mode
+        const normValueCebe = currentCebe ? String(currentCebe).trim().replace(/^(CEBE|CECO)/i, '') : '';
+        const normIncomeCecos = (formData?.taxIncomeCecos || []).map(c => String(c).trim().replace(/^(CEBE|CECO)/i, ''));
+        const normExpenseCecos = (formData?.taxExpenseCecos || []).map(c => String(c).trim().replace(/^(CEBE|CECO)/i, ''));
+
+        let hasLineMatchCebe = false;
         let hasLineMatchCeco = false;
+        
         if (entry.lines) {
           entry.lines.forEach(l => {
             let lineMatchCebe = false;
             let lineMatchCeco = false;
+            
+            // Match CEBE or Income CECOs
             if (normValueCebe && l.cebe) {
               const normField = String(l.cebe).trim().replace(/^(CEBE|CECO)/i, '');
               if (normField.startsWith(normValueCebe)) lineMatchCebe = true;
             }
-            if (normValueCeco && l.ceco) {
+            if (normIncomeCecos.length > 0 && l.ceco) {
               const normField = String(l.ceco).trim().replace(/^(CEBE|CECO)/i, '');
-              if (normField.startsWith(normValueCeco)) lineMatchCeco = true;
+              if (normIncomeCecos.some(c => normField.startsWith(c))) lineMatchCebe = true;
+            }
+
+            // Match Expense CECOs
+            if (normExpenseCecos.length > 0 && l.ceco) {
+              const normField = String(l.ceco).trim().replace(/^(CEBE|CECO)/i, '');
+              if (normExpenseCecos.some(c => normField.startsWith(c))) lineMatchCeco = true;
             }
 
             if (lineMatchCebe) {
@@ -216,16 +240,31 @@ export default function ExtractoContableTab({
           });
         }
 
-        if (!hasLineLevelAnalytics && !hasLineMatchCebe && normValueCebe && entry.cebe) {
-          const normField = String(entry.cebe).trim().replace(/^(CEBE|CECO)/i, '');
-          if (normField.startsWith(normValueCebe)) {
-            cebeEntryAmount = entry.total || 0;
+        if (!hasLineLevelAnalytics) {
+          if (!hasLineMatchCebe) {
+            let globalCebe = false;
+            if (normValueCebe && entry.cebe) {
+              const normField = String(entry.cebe).trim().replace(/^(CEBE|CECO)/i, '');
+              if (normField.startsWith(normValueCebe)) globalCebe = true;
+            }
+            if (normIncomeCecos.length > 0 && entry.ceco) {
+              const normField = String(entry.ceco).trim().replace(/^(CEBE|CECO)/i, '');
+              if (normIncomeCecos.some(c => normField.startsWith(c))) globalCebe = true;
+            }
+            if (globalCebe) {
+              cebeEntryAmount = entry.total || 0;
+            }
           }
-        }
-        if (!hasLineLevelAnalytics && !hasLineMatchCeco && normValueCeco && entry.ceco) {
-          const normField = String(entry.ceco).trim().replace(/^(CEBE|CECO)/i, '');
-          if (normField.startsWith(normValueCeco)) {
-            cecoEntryAmount = entry.total || 0;
+
+          if (!hasLineMatchCeco) {
+            let globalCeco = false;
+            if (normExpenseCecos.length > 0 && entry.ceco) {
+              const normField = String(entry.ceco).trim().replace(/^(CEBE|CECO)/i, '');
+              if (normExpenseCecos.some(c => normField.startsWith(c))) globalCeco = true;
+            }
+            if (globalCeco) {
+              cecoEntryAmount = entry.total || 0;
+            }
           }
         }
 
@@ -239,7 +278,7 @@ export default function ExtractoContableTab({
       ceco: cecoSum,
       balance: cebeSum - cecoSum
     };
-  }, [filteredEntries, currentCebe, currentCeco, formData?.reference, mode]);
+  }, [filteredEntries, currentCebe, formData?.taxIncomeCecos, formData?.taxExpenseCecos, formData?.reference, mode]);
 
   const handleCebeChange = async (e) => {
     const val = e.target.value;
@@ -362,24 +401,20 @@ export default function ExtractoContableTab({
             {totals.cebe.toLocaleString('es-ES', { minimumFractionDigits: 2 })} €
           </span>
         </div>
-        {mode === 'rentals' && (
-          <>
-            <div className="w-px h-4 bg-slate-300" />
-            <div className="flex items-center gap-1.5">
-              <span className="text-gray-500 uppercase text-[9px]">Gastos:</span>
-              <span className="font-mono text-red-600 text-sm">
-                -{totals.ceco.toLocaleString('es-ES', { minimumFractionDigits: 2 })} €
-              </span>
-            </div>
-            <div className="w-px h-4 bg-slate-300" />
-            <div className="flex items-center gap-1.5">
-              <span className="text-gray-500 uppercase text-[9px]">Total:</span>
-              <span className={`font-mono text-sm ${totals.balance >= 0 ? 'text-blue-900' : 'text-amber-800'}`}>
-                {totals.balance.toLocaleString('es-ES', { minimumFractionDigits: 2 })} €
-              </span>
-            </div>
-          </>
-        )}
+        <div className="w-px h-4 bg-slate-300" />
+        <div className="flex items-center gap-1.5">
+          <span className="text-gray-500 uppercase text-[9px]">Gastos:</span>
+          <span className="font-mono text-red-600 text-sm">
+            -{totals.ceco.toLocaleString('es-ES', { minimumFractionDigits: 2 })} €
+          </span>
+        </div>
+        <div className="w-px h-4 bg-slate-300" />
+        <div className="flex items-center gap-1.5">
+          <span className="text-gray-500 uppercase text-[9px]">Total:</span>
+          <span className={`font-mono text-sm ${totals.balance >= 0 ? 'text-blue-900' : 'text-amber-800'}`}>
+            {totals.balance.toLocaleString('es-ES', { minimumFractionDigits: 2 })} €
+          </span>
+        </div>
       </div>
 
       {/* Transactions Table */}
