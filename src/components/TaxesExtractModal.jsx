@@ -108,9 +108,9 @@ export default function TaxesExtractModal({ isOpen, onClose, property, year, ren
 
   // Filter journal entries for Incomes (CEBE + taxIncomeCecos)
   const filteredTaxIncomes = useMemo(() => {
-    if (!property) return [];
-    const propertyCebe = String(property.cebe || '').trim();
-    const taxIncomeCecos = property.taxIncomeCecos || [];
+    if (!activeProperty) return [];
+    const propertyCebe = String(activeProperty.cebe || '').trim();
+    const taxIncomeCecos = activeProperty.taxIncomeCecos || [];
     const normalizedIncomeCecos = taxIncomeCecos.map(c => c.replace(/^(CEBE|CECO)/i, ''));
     const normalizedPropCebe = propertyCebe ? propertyCebe.replace(/^(CEBE|CECO)/i, '') : '';
 
@@ -185,13 +185,13 @@ export default function TaxesExtractModal({ isOpen, onClose, property, year, ren
 
       return lineMatch || globalMatch;
     }).sort((a, b) => new Date(b.date) - new Date(a.date));
-  }, [journalEntries, property, selectedYear]);
+  }, [journalEntries, activeProperty, selectedYear]);
 
   // Filter journal entries for Expenses (taxExpenseCecos)
   const filteredTaxExpenses = useMemo(() => {
-    if (!property) return [];
-    const propertyCebe = String(property.cebe || '').trim();
-    const taxExpenseCecos = property.taxExpenseCecos || [];
+    if (!activeProperty) return [];
+    const propertyCebe = String(activeProperty.cebe || '').trim();
+    const taxExpenseCecos = activeProperty.taxExpenseCecos || [];
     const normalizedExpenseCecos = taxExpenseCecos.map(c => c.replace(/^(CEBE|CECO)/i, ''));
     const normalizedPropCebe = propertyCebe ? propertyCebe.replace(/^(CEBE|CECO)/i, '') : '';
 
@@ -266,7 +266,7 @@ export default function TaxesExtractModal({ isOpen, onClose, property, year, ren
 
       return lineMatch || globalMatch;
     }).sort((a, b) => new Date(b.date) - new Date(a.date));
-  }, [journalEntries, property, selectedYear]);
+  }, [journalEntries, activeProperty, selectedYear]);
 
   // Total sums
   const totalTaxIncomes = useMemo(() => {
@@ -277,14 +277,14 @@ export default function TaxesExtractModal({ isOpen, onClose, property, year, ren
     return filteredTaxExpenses.reduce((sum, e) => sum + (parseFloat(e.total) || 0), 0);
   }, [filteredTaxExpenses]);
 
-  if (!isOpen || !property) return null;
+  if (!isOpen || !activeProperty) return null;
 
   const tabs = ['Ingresos', 'Gastos'];
 
   return (
     <div className="fixed inset-0 bg-black/40 backdrop-blur-sm flex items-center justify-center z-50">
       <Window 
-        title={`Extracto Fiscal - ${property.name || property.address || property.id}`}
+        title={`Extracto Fiscal - ${activeProperty.name || activeProperty.address || activeProperty.id}`}
         width={isMobile ? "100%" : "1200px"}
         initialPos={{ x: isMobile ? 0 : 50, y: isMobile ? 0 : 20 }}
         onClose={onClose}
@@ -307,8 +307,8 @@ export default function TaxesExtractModal({ isOpen, onClose, property, year, ren
             </select>
 
             <div className="ml-auto text-[10px] text-slate-600 uppercase flex gap-3">
-              <span><strong>CEBE:</strong> {property.cebe || 'Sin asignar'}</span>
-              <span><strong>CECO:</strong> {property.ceco || 'Sin asignar'}</span>
+              <span><strong>CEBE:</strong> {activeProperty.cebe || 'Sin asignar'}</span>
+              <span><strong>CECO:</strong> {activeProperty.ceco || 'Sin asignar'}</span>
             </div>
           </div>
 
@@ -352,7 +352,7 @@ export default function TaxesExtractModal({ isOpen, onClose, property, year, ren
                         <span className="text-[11px] font-bold text-slate-700">Total Ingresos: {totalTaxIncomes.toLocaleString('es-ES', { style: 'currency', currency: 'EUR' })}</span>
                       </div>
                       
-                      {!property.cebe ? (
+                      {!activeProperty.cebe ? (
                         <div className="p-4 bg-orange-50 border border-orange-200 text-orange-800 text-xs text-center rounded font-medium">
                           ⚠️ Este activo no tiene un CEBE Asociado. Asígnale uno en Datos para poder filtrar sus ingresos fiscales.
                         </div>
@@ -368,7 +368,7 @@ export default function TaxesExtractModal({ isOpen, onClose, property, year, ren
                                 <span className="text-[10px] text-slate-400 italic">No hay CECOs</span>
                               ) : (
                                 cecos.sort((a,b) => a.code.localeCompare(b.code)).map(c => {
-                                  const isChecked = (property.taxIncomeCecos || []).includes(c.code);
+                                  const isChecked = (activeProperty.taxIncomeCecos || []).includes(c.code);
                                   return (
                                     <label key={c.id} className="flex items-center gap-1.5 text-[10px] cursor-pointer select-none font-semibold hover:bg-slate-200/50 px-1 py-0.5">
                                       <input 
@@ -401,7 +401,7 @@ export default function TaxesExtractModal({ isOpen, onClose, property, year, ren
                                 {filteredTaxIncomes.length === 0 ? (
                                   <tr>
                                     <td colSpan={5} className="p-8 text-center text-gray-500 italic">
-                                      No se encontraron ingresos contables marcados como impuestos con los CECOs seleccionados para el CEBE "{property.cebe}".
+                                      No se encontraron ingresos contables marcados como impuestos con los CECOs seleccionados para el CEBE "{activeProperty.cebe}".
                                     </td>
                                   </tr>
                                 ) : (
@@ -464,7 +464,7 @@ export default function TaxesExtractModal({ isOpen, onClose, property, year, ren
                             <span className="text-[10px] text-slate-400 italic">No hay CECOs</span>
                           ) : (
                             cecos.sort((a,b) => a.code.localeCompare(b.code)).map(c => {
-                              const isChecked = (property.taxExpenseCecos || []).includes(c.code);
+                              const isChecked = (activeProperty.taxExpenseCecos || []).includes(c.code);
                               return (
                                 <label key={c.id} className="flex items-center gap-1.5 text-[10px] cursor-pointer select-none font-semibold hover:bg-slate-200/50 px-1 py-0.5">
                                   <input 
