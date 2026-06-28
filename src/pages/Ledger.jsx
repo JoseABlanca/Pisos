@@ -159,6 +159,28 @@ export default function Ledger({ initialMode }) {
         const lineId = String(line.accountId || '');
         if (targetAccountIds.includes(lineId)) {
           const accInfo = accountMap[lineId];
+
+          // Find contrapartida (offsetting account)
+          let contrapartida = '';
+          const otherLines = lines.filter((_, idx) => idx !== index);
+          if (otherLines.length > 0) {
+            let offsetLine;
+            if (parseFloat(line.debit || 0) > 0) {
+              offsetLine = otherLines.find(l => parseFloat(l.credit || 0) > 0);
+            } else if (parseFloat(line.credit || 0) > 0) {
+              offsetLine = otherLines.find(l => parseFloat(l.debit || 0) > 0);
+            }
+            if (!offsetLine) {
+              offsetLine = otherLines[0];
+            }
+            if (offsetLine && offsetLine.accountId) {
+              const offsetAcc = accountMap[String(offsetLine.accountId)];
+              if (offsetAcc) {
+                contrapartida = offsetAcc.code;
+              }
+            }
+          }
+
           results.push({
             id: `${entry.id}-${index}`,
             date: entry.date,
@@ -167,7 +189,8 @@ export default function Ledger({ initialMode }) {
             accountName: accInfo ? accInfo.name : 'Desconocida',
             description: entry.description || 'Movimiento contable',
             debit: parseFloat(line.debit || 0),
-            credit: parseFloat(line.credit || 0)
+            credit: parseFloat(line.credit || 0),
+            contrapartida: contrapartida || '—'
           });
         }
       });
@@ -399,8 +422,6 @@ export default function Ledger({ initialMode }) {
                   <th className="px-2 py-1.5 font-normal w-24 text-right">HABER</th>
                   <th className="px-2 py-1.5 font-normal w-24 text-right">SALDO</th>
                   <th className="px-2 py-1.5 font-normal w-8 text-center">P</th>
-                  <th className="px-2 py-1.5 font-normal w-16 text-center">TIPOIVA</th>
-                  <th className="px-2 py-1.5 font-normal w-16 text-center">CODIVA</th>
                   <th className="px-2 py-1.5 font-normal w-8 text-center">!</th>
                   <th className="px-2 py-1.5 font-normal w-32">CONTRAPARTIDA</th>
                 </tr>
@@ -413,12 +434,12 @@ export default function Ledger({ initialMode }) {
                   <td className="px-2 py-1 text-right">0,00</td>
                   <td className="px-2 py-1 text-right">0,00</td>
                   <td className="px-2 py-1 text-right">0,00</td>
-                  <td colSpan="5"></td>
+                  <td colSpan="3"></td>
                 </tr>
 
                 {movements.length === 0 ? (
                   <tr>
-                    <td colSpan="14" className="text-center italic py-10 text-slate-400">
+                    <td colSpan="12" className="text-center italic py-10 text-slate-400">
                       NO HAY ASIENTOS REGISTRADOS PARA MOSTRAR
                     </td>
                   </tr>
@@ -437,10 +458,8 @@ export default function Ledger({ initialMode }) {
                       <td className="px-2 py-1 text-center">
                         <input type="checkbox" className="w-3 h-3 cursor-pointer" />
                       </td>
-                      <td className="px-2 py-1 text-center">{m.credit > 0 || m.debit > 0 ? '0' : ''}</td>
-                      <td className="px-2 py-1"></td>
-                      <td className="px-2 py-1"></td>
-                      <td className="px-2 py-1">APERTURA</td>
+                      <td className="px-2 py-1 text-center"></td>
+                      <td className="px-2 py-1 font-mono font-semibold text-slate-700">{m.contrapartida}</td>
                     </tr>
                   ))
                 )}
