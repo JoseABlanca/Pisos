@@ -15,6 +15,70 @@ import {
   CheckCircle 
 } from 'lucide-react';
 
+const SpanishAccountingNames = {
+  '1': 'Financiación Básica',
+  '2': 'Activo no Corriente',
+  '3': 'Existencias',
+  '4': 'Acreedores y Deudores',
+  '5': 'Cuentas Financieras',
+  '6': 'Compras y Gastos',
+  '7': 'Ventas e Ingresos',
+  
+  '10': 'Capital',
+  '17': 'Deudas a Largo Plazo',
+  '21': 'Inmovilizaciones Materiales',
+  '25': 'Otras Inversiones Financieras',
+  '40': 'Proveedores',
+  '41': 'Acreedores Varios',
+  '43': 'Clientes / Inquilinos',
+  '47': 'Administraciones Públicas',
+  '57': 'Tesorería (Bancos/Caja)',
+  '62': 'Servicios Exteriores',
+  '629': 'Otros Servicios (Comunidad/Reformas)',
+  '75': 'Otros Ingresos de Gestión',
+  '752': 'Ingresos por Arrendamientos'
+};
+
+const getSelectableAccounts = (accountsList) => {
+  const map = new Map();
+  
+  accountsList.forEach(a => {
+    if (a.code) {
+      map.set(String(a.code), { code: String(a.code), name: a.name, isDetail: true });
+    }
+  });
+  
+  accountsList.forEach(a => {
+    if (!a.code) return;
+    const str = String(a.code);
+    
+    [1, 2, 3].forEach(len => {
+      if (str.length > len) {
+        const prefix = str.substring(0, len);
+        if (!map.has(prefix)) {
+          const standardName = SpanishAccountingNames[prefix] || `Grupo/Subgrupo ${prefix}`;
+          map.set(prefix, { code: prefix, name: standardName, isDetail: false });
+        }
+      }
+    });
+  });
+  
+  return Array.from(map.values()).sort((a, b) => a.code.localeCompare(b.code));
+};
+
+const isAccountMatched = (accountCodeOrId, selectedAccounts, accountsList) => {
+  if (!selectedAccounts || selectedAccounts.length === 0) return true;
+  let code = accountCodeOrId;
+  const acct = accountsList.find(a => a.id === code || a.code === code);
+  if (acct) {
+    code = acct.code;
+  }
+  if (!code) return false;
+  return selectedAccounts.some(sel => {
+    return String(code).startsWith(String(sel));
+  });
+};
+
 export default function PrintPage() {
   const { user, queryUserIds } = useAuth();
   
@@ -24,6 +88,7 @@ export default function PrintPage() {
   const [selectedYears, setSelectedYears] = useState([]);
   const [selectedMonths, setSelectedMonths] = useState([]);
   const [selectedQuarters, setSelectedQuarters] = useState([]);
+  const [selectedAccounts, setSelectedAccounts] = useState([]);
   
   // Database collections states
   const [accounts, setAccounts] = useState([]);
@@ -99,6 +164,11 @@ export default function PrintPage() {
     });
     return Array.from(years).sort((a, b) => b - a);
   }, [journalEntries]);
+
+  // Hierarchical selectable accounts list
+  const selectableAccountsList = useMemo(() => {
+    return getSelectableAccounts(accounts);
+  }, [accounts]);
 
   // Combined timeline and dropdown filters for print entries
   const filteredEntriesForPrint = useMemo(() => {
@@ -311,6 +381,14 @@ export default function PrintPage() {
     // 1. DIARIO DE MOVIMIENTOS
     if (selectedTemplate === 'diario') {
       const yearEntries = filteredEntriesForPrint
+        .map(entry => {
+          if (!entry.lines) return entry;
+          const filteredLines = entry.lines.filter(l => 
+            isAccountMatched(l.accountId, selectedAccounts, accounts)
+          );
+          return { ...entry, lines: filteredLines };
+        })
+        .filter(entry => entry.lines && entry.lines.length > 0)
         .sort((a, b) => new Date(a.date) - new Date(b.date));
       const entryPages = chunkDiario(yearEntries, 28);
       const totalPages = entryPages.length || 1;
@@ -421,7 +499,7 @@ export default function PrintPage() {
       });
 
       const activeAccounts = Object.values(accountMovements)
-        .filter(am => am.lines.length > 0)
+        .filter(am => am.lines.length > 0 && isAccountMatched(am.account.code, selectedAccounts, accounts))
         .sort((a, b) => (a.account.code || '').localeCompare(b.account.code || ''));
 
       const mayorPages = chunkMayor(activeAccounts, 32);
@@ -532,7 +610,7 @@ export default function PrintPage() {
       });
 
       const list = Object.values(sumsMap)
-        .filter(s => s.debit > 0 || s.credit > 0)
+        .filter(s => (s.debit > 0 || s.credit > 0) && isAccountMatched(s.code, selectedAccounts, accounts))
         .map(s => {
           const isAssetOrExpense = ['Activo', 'Gasto'].includes(s.type);
           const balanceDiff = s.debit - s.credit;
@@ -876,22 +954,56 @@ export default function PrintPage() {
           ))}
         </div>
 
-        {/* Year Filter (only for accounting reports) */}
+        {/* Cuentas a Mostrar Filter (only for accounting reports) */}
         {['diario', 'mayor', 'sumas_saldos'].includes(selectedTemplate) && (
-          <div className="bg-white border border-[#a0a0a0] p-3 flex flex-col gap-2">
-            <div className="text-[10px] font-bold text-slate-500 uppercase flex items-center gap-1">
-              <Calendar className="w-3.5 h-3.5 text-slate-400" />
-              <span>Ejercicio Contable</span>
+          <div className="bg-white border border-[#a0a0a0] flex flex-col flex-1 min-h-[200px] max-h-[350px] overflow-hidden">
+            <div className="bg-[#cbd5e0] font-bold p-1.5 uppercase text-[9px] border-b border-[#a0a0a0] text-slate-700 flex justify-between items-center select-none shrink-0">
+              <span>Cuentas a Mostrar</span>
+              {selectedAccounts.length > 0 && (
+                <button 
+                  onClick={() => setSelectedAccounts([])}
+                  className="text-[8px] text-blue-800 hover:underline lowercase font-semibold"
+                >
+                  [limpiar]
+                </button>
+              )}
             </div>
-            <select
-              value={selectedYear}
-              onChange={e => setSelectedYear(parseInt(e.target.value))}
-              className="win-input w-full"
-            >
-              {availableYears.map(yr => (
-                <option key={yr} value={yr}>{yr}</option>
-              ))}
-            </select>
+            <div className="flex-1 overflow-y-auto p-1.5 gap-1.5 flex flex-col bg-white">
+              {selectableAccountsList.map(acc => {
+                const indentClass = acc.code.length === 1 
+                  ? '' 
+                  : acc.code.length === 2 
+                    ? 'pl-2' 
+                    : acc.code.length === 3 
+                      ? 'pl-4' 
+                      : 'pl-6';
+                
+                const isSelected = selectedAccounts.includes(acc.code);
+                
+                return (
+                  <label 
+                    key={acc.code} 
+                    className={`flex items-start gap-1.5 text-[10px] cursor-pointer hover:bg-slate-50 py-0.5 rounded select-none ${indentClass}`}
+                  >
+                    <input 
+                      type="checkbox" 
+                      checked={isSelected}
+                      onChange={() => {
+                        if (isSelected) {
+                          setSelectedAccounts(prev => prev.filter(x => x !== acc.code));
+                        } else {
+                          setSelectedAccounts(prev => [...prev, acc.code]);
+                        }
+                      }}
+                      className="mt-0.5"
+                    />
+                    <span className={`${!acc.isDetail ? 'font-bold text-slate-700' : 'text-slate-650'}`}>
+                      {acc.code} - {acc.name}
+                    </span>
+                  </label>
+                );
+              })}
+            </div>
           </div>
         )}
 
