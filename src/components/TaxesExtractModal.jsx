@@ -1,7 +1,7 @@
 import { useState, useMemo, useEffect } from 'react';
 import Window from './Window';
 import { db } from '../firebase/config';
-import { collection, query, where, onSnapshot } from 'firebase/firestore';
+import { collection, query, where, onSnapshot, doc, updateDoc } from 'firebase/firestore';
 import { useAuth } from '../context/AuthContext';
 import { FileText, Eye, X } from 'lucide-react';
 
@@ -14,6 +14,49 @@ export default function TaxesExtractModal({ isOpen, onClose, property, year, ren
   const [journalEntries, setJournalEntries] = useState([]);
   const [selectedYear, setSelectedYear] = useState(year ? year.toString() : new Date().getFullYear().toString());
   const [previewDoc, setPreviewDoc] = useState(null);
+  const [cecos, setCecos] = useState([]);
+
+  useEffect(() => {
+    if (!user || !isOpen) return;
+    const qIds = queryUserIds?.length > 0 ? queryUserIds : [user.uid];
+    const qCecos = query(collection(db, 'analytical_centers'), where('userId', 'in', qIds), where('type', '==', 'ceco'));
+    const unsubscribe = onSnapshot(qCecos, (snap) => {
+      setCecos(snap.docs.map(d => ({ ...d.data(), id: d.id })));
+    }, (err) => {
+      console.error("Error loading cecos for TaxesExtractModal:", err);
+    });
+    return () => unsubscribe();
+  }, [user, isOpen, queryUserIds]);
+
+  const handleToggleIncomeCeco = async (code) => {
+    if (!property) return;
+    const currentList = property.taxIncomeCecos || [];
+    const newList = currentList.includes(code)
+      ? currentList.filter(c => c !== code)
+      : [...currentList, code];
+      
+    try {
+      const docRef = doc(db, 'properties', property.id);
+      await updateDoc(docRef, { taxIncomeCecos: newList });
+    } catch (err) {
+      console.error("Error updating property taxIncomeCecos:", err);
+    }
+  };
+
+  const handleToggleExpenseCeco = async (code) => {
+    if (!property) return;
+    const currentList = property.taxExpenseCecos || [];
+    const newList = currentList.includes(code)
+      ? currentList.filter(c => c !== code)
+      : [...currentList, code];
+      
+    try {
+      const docRef = doc(db, 'properties', property.id);
+      await updateDoc(docRef, { taxExpenseCecos: newList });
+    } catch (err) {
+      console.error("Error updating property taxExpenseCecos:", err);
+    }
+  };
 
   useEffect(() => {
     const handleResize = () => setIsMobile(window.innerWidth < 768);
@@ -304,7 +347,7 @@ export default function TaxesExtractModal({ isOpen, onClose, property, year, ren
                   {/* INGRESOS */}
                   {activeTab === 'Ingresos' && (
                     <div className="space-y-4">
-                      <div className="flex justify-between items-center border-b border-gray-400 pb-1 mb-4">
+                      <div className="flex justify-between items-center border-b border-gray-400 pb-1 mb-2">
                         <h3 className="text-sm font-bold text-gray-800 uppercase">Ingresos Fiscales (CEBE)</h3>
                         <span className="text-[11px] font-bold text-slate-700">Total Ingresos: {totalTaxIncomes.toLocaleString('es-ES', { style: 'currency', currency: 'EUR' })}</span>
                       </div>
@@ -314,61 +357,91 @@ export default function TaxesExtractModal({ isOpen, onClose, property, year, ren
                           ⚠️ Este activo no tiene un CEBE Asociado. Asígnale uno en Datos para poder filtrar sus ingresos fiscales.
                         </div>
                       ) : (
-                        <div className="border border-[#808080] bg-white overflow-auto">
-                          <table className="win-table w-full text-[11px]">
-                            <thead>
-                              <tr className="sticky top-0 z-10 bg-[#e7e1d3]">
-                                <th className="p-2 text-left w-24">Fecha</th>
-                                <th className="p-2 text-left">Concepto</th>
-                                <th className="p-2 text-left w-36">CEBE</th>
-                                <th className="p-2 text-center w-36">Documento</th>
-                                <th className="p-2 text-right w-36">Importe</th>
-                              </tr>
-                            </thead>
-                            <tbody>
-                              {filteredTaxIncomes.length === 0 ? (
-                                <tr>
-                                  <td colSpan={5} className="p-8 text-center text-gray-500 italic">
-                                    No se encontraron ingresos contables marcados como impuestos para el CEBE "{property.cebe}" en el periodo seleccionado.
-                                  </td>
-                                </tr>
+                        <>
+                          {/* CECO selector for Incomes */}
+                          <div className="bg-[#f0f0f0] border border-gray-400 p-2.5 text-left rounded shadow-sm">
+                            <span className="text-[10px] font-bold text-slate-700 uppercase block mb-1.5 border-b border-gray-300 pb-0.5">
+                              Filtro por CECOs de Ingresos (Multielección)
+                            </span>
+                            <div className="flex flex-wrap gap-x-4 gap-y-1">
+                              {cecos.length === 0 ? (
+                                <span className="text-[10px] text-slate-400 italic">No hay CECOs</span>
                               ) : (
-                                filteredTaxIncomes.map((e) => (
-                                  <tr key={e.id} className="border-b border-gray-200 hover:bg-slate-50">
-                                    <td className="p-2">{e.date ? new Date(e.date).toLocaleDateString() : '—'}</td>
-                                    <td className="p-2 truncate max-w-[200px]" title={e.description}>{e.description}</td>
-                                    <td className="p-2 font-mono text-[10px]">{e.cebe}</td>
-                                    <td className="p-2 text-center">
-                                      {e.documentUrl ? (
-                                        <button 
-                                          onClick={() => setPreviewDoc({ url: e.documentUrl, name: e.documentName || 'Documento' })}
-                                          className="text-blue-600 hover:text-blue-800 underline inline-flex items-center gap-1 font-medium text-[10px]"
-                                          title="Ver archivo adjunto"
-                                        >
-                                          <FileText className="w-3.5 h-3.5" />
-                                          <span className="truncate max-w-[90px]" title={e.documentName}>{e.documentName}</span>
-                                        </button>
-                                      ) : (
-                                        <span className="text-gray-400 italic text-[10px]">Sin adjunto</span>
-                                      )}
-                                    </td>
-                                    <td className="p-2 text-right font-mono font-bold text-slate-800">
-                                      {(e.total || 0).toLocaleString('es-ES', { style: 'currency', currency: 'EUR' })}
+                                cecos.sort((a,b) => a.code.localeCompare(b.code)).map(c => {
+                                  const isChecked = (property.taxIncomeCecos || []).includes(c.code);
+                                  return (
+                                    <label key={c.id} className="flex items-center gap-1.5 text-[10px] cursor-pointer select-none font-semibold hover:bg-slate-200/50 px-1 py-0.5">
+                                      <input 
+                                        type="checkbox" 
+                                        checked={isChecked} 
+                                        onChange={() => handleToggleIncomeCeco(c.code)}
+                                        className="w-3.5 h-3.5 cursor-pointer"
+                                      />
+                                      <span className="font-mono font-bold text-slate-800">{c.code}</span>
+                                      <span className="text-gray-500 font-sans text-[8.5px]">({c.name})</span>
+                                    </label>
+                                  );
+                                })
+                              )}
+                            </div>
+                          </div>
+
+                          <div className="border border-[#808080] bg-white overflow-auto max-h-[400px]">
+                            <table className="win-table w-full text-[11px]">
+                              <thead>
+                                <tr className="sticky top-0 z-10 bg-[#e7e1d3]">
+                                  <th className="p-2 text-left w-24">Fecha</th>
+                                  <th className="p-2 text-left">Concepto</th>
+                                  <th className="p-2 text-left w-36">CEBE</th>
+                                  <th className="p-2 text-center w-36">Documento</th>
+                                  <th className="p-2 text-right w-36">Importe</th>
+                                </tr>
+                              </thead>
+                              <tbody>
+                                {filteredTaxIncomes.length === 0 ? (
+                                  <tr>
+                                    <td colSpan={5} className="p-8 text-center text-gray-500 italic">
+                                      No se encontraron ingresos contables marcados como impuestos con los CECOs seleccionados para el CEBE "{property.cebe}".
                                     </td>
                                   </tr>
-                                ))
-                              )}
-                              {filteredTaxIncomes.length > 0 && (
-                                <tr className="bg-slate-100 font-bold border-t-2 border-gray-400">
-                                  <td colSpan={4} className="p-2 text-right uppercase">Total:</td>
-                                  <td className="p-2 text-right text-slate-850 font-mono">
-                                    {totalTaxIncomes.toLocaleString('es-ES', { style: 'currency', currency: 'EUR' })}
-                                  </td>
-                                </tr>
-                              )}
-                            </tbody>
-                          </table>
-                        </div>
+                                ) : (
+                                  filteredTaxIncomes.map((e) => (
+                                    <tr key={e.id} className="border-b border-gray-200 hover:bg-slate-50">
+                                      <td className="p-2">{e.date ? new Date(e.date).toLocaleDateString() : '—'}</td>
+                                      <td className="p-2 truncate max-w-[200px]" title={e.description}>{e.description}</td>
+                                      <td className="p-2 font-mono text-[10px]">{e.cebe}</td>
+                                      <td className="p-2 text-center">
+                                        {e.documentUrl ? (
+                                          <button 
+                                            onClick={() => setPreviewDoc({ url: e.documentUrl, name: e.documentName || 'Documento' })}
+                                            className="text-blue-600 hover:text-blue-800 underline inline-flex items-center gap-1 font-medium text-[10px]"
+                                            title="Ver archivo adjunto"
+                                          >
+                                            <FileText className="w-3.5 h-3.5" />
+                                            <span className="truncate max-w-[90px]" title={e.documentName}>{e.documentName}</span>
+                                          </button>
+                                        ) : (
+                                          <span className="text-gray-400 italic text-[10px]">Sin adjunto</span>
+                                        )}
+                                      </td>
+                                      <td className="p-2 text-right font-mono font-bold text-slate-800">
+                                        {(e.total || 0).toLocaleString('es-ES', { style: 'currency', currency: 'EUR' })}
+                                      </td>
+                                    </tr>
+                                  ))
+                                )}
+                                {filteredTaxIncomes.length > 0 && (
+                                  <tr className="bg-slate-100 font-bold border-t-2 border-gray-400 sticky bottom-0">
+                                    <td colSpan={4} className="p-2 text-right uppercase">Total:</td>
+                                    <td className="p-2 text-right text-slate-850 font-mono">
+                                      {totalTaxIncomes.toLocaleString('es-ES', { style: 'currency', currency: 'EUR' })}
+                                    </td>
+                                  </tr>
+                                )}
+                              </tbody>
+                            </table>
+                          </div>
+                        </>
                       )}
                     </div>
                   )}
@@ -376,72 +449,94 @@ export default function TaxesExtractModal({ isOpen, onClose, property, year, ren
                   {/* GASTOS */}
                   {activeTab === 'Gastos' && (
                     <div className="space-y-4">
-                      <div className="flex justify-between items-center border-b border-gray-400 pb-1 mb-4">
+                      <div className="flex justify-between items-center border-b border-gray-400 pb-1 mb-2">
                         <h3 className="text-sm font-bold text-gray-800 uppercase">Gastos Fiscales (CECO)</h3>
                         <span className="text-[11px] font-bold text-slate-700">Total Gastos: {totalTaxExpenses.toLocaleString('es-ES', { style: 'currency', currency: 'EUR' })}</span>
                       </div>
                       
-                      {!property.ceco ? (
-                        <div className="p-4 bg-orange-50 border border-orange-200 text-orange-800 text-xs text-center rounded font-medium">
-                          ⚠️ Este activo no tiene un CECO Asociado. Asígnale uno en Datos para poder filtrar sus gastos fiscales.
+                      {/* CECO selector for Expenses */}
+                      <div className="bg-[#f0f0f0] border border-gray-400 p-2.5 text-left rounded shadow-sm">
+                        <span className="text-[10px] font-bold text-slate-700 uppercase block mb-1.5 border-b border-gray-300 pb-0.5">
+                          Filtro por CECOs de Gastos (Multielección)
+                        </span>
+                        <div className="flex flex-wrap gap-x-4 gap-y-1">
+                          {cecos.length === 0 ? (
+                            <span className="text-[10px] text-slate-400 italic">No hay CECOs</span>
+                          ) : (
+                            cecos.sort((a,b) => a.code.localeCompare(b.code)).map(c => {
+                              const isChecked = (property.taxExpenseCecos || []).includes(c.code);
+                              return (
+                                <label key={c.id} className="flex items-center gap-1.5 text-[10px] cursor-pointer select-none font-semibold hover:bg-slate-200/50 px-1 py-0.5">
+                                  <input 
+                                    type="checkbox" 
+                                    checked={isChecked} 
+                                    onChange={() => handleToggleExpenseCeco(c.code)}
+                                    className="w-3.5 h-3.5 cursor-pointer"
+                                  />
+                                  <span className="font-mono font-bold text-slate-800">{c.code}</span>
+                                  <span className="text-gray-500 font-sans text-[8.5px]">({c.name})</span>
+                                </label>
+                              );
+                            })
+                          )}
                         </div>
-                      ) : (
-                        <div className="border border-[#808080] bg-white overflow-auto">
-                          <table className="win-table w-full text-[11px]">
-                            <thead>
-                              <tr className="sticky top-0 z-10 bg-[#e7e1d3]">
-                                <th className="p-2 text-left w-24">Fecha</th>
-                                <th className="p-2 text-left">Concepto</th>
-                                <th className="p-2 text-left w-36">CECO</th>
-                                <th className="p-2 text-center w-36">Documento</th>
-                                <th className="p-2 text-right w-36">Importe</th>
+                      </div>
+
+                      <div className="border border-[#808080] bg-white overflow-auto max-h-[400px]">
+                        <table className="win-table w-full text-[11px]">
+                          <thead>
+                            <tr className="sticky top-0 z-10 bg-[#e7e1d3]">
+                              <th className="p-2 text-left w-24">Fecha</th>
+                              <th className="p-2 text-left">Concepto</th>
+                              <th className="p-2 text-left w-36">CECO</th>
+                              <th className="p-2 text-center w-36">Documento</th>
+                              <th className="p-2 text-right w-36">Importe</th>
+                            </tr>
+                          </thead>
+                          <tbody>
+                            {filteredTaxExpenses.length === 0 ? (
+                              <tr>
+                                <td colSpan={5} className="p-8 text-center text-gray-500 italic">
+                                  No se encontraron gastos contables marcados como impuestos con los CECOs seleccionados.
+                                </td>
                               </tr>
-                            </thead>
-                            <tbody>
-                              {filteredTaxExpenses.length === 0 ? (
-                                <tr>
-                                  <td colSpan={5} className="p-8 text-center text-gray-500 italic">
-                                    No se encontraron gastos contables marcados como impuestos para el CECO "{property.ceco}" en el periodo seleccionado.
+                            ) : (
+                              filteredTaxExpenses.map((e) => (
+                                <tr key={e.id} className="border-b border-gray-200 hover:bg-slate-50">
+                                  <td className="p-2">{e.date ? new Date(e.date).toLocaleDateString() : '—'}</td>
+                                  <td className="p-2 truncate max-w-[200px]" title={e.description}>{e.description}</td>
+                                  <td className="p-2 font-mono text-[10px]">{e.ceco}</td>
+                                  <td className="p-2 text-center">
+                                    {e.documentUrl ? (
+                                      <button 
+                                        onClick={() => setPreviewDoc({ url: e.documentUrl, name: e.documentName || 'Documento' })}
+                                        className="text-blue-600 hover:text-blue-800 underline inline-flex items-center gap-1 font-medium text-[10px]"
+                                        title="Ver archivo adjunto"
+                                      >
+                                        <FileText className="w-3.5 h-3.5" />
+                                        <span className="truncate max-w-[90px]" title={e.documentName}>{e.documentName}</span>
+                                      </button>
+                                    ) : (
+                                      <span className="text-gray-400 italic text-[10px]">Sin adjunto</span>
+                                    )}
+                                  </td>
+                                  <td className="p-2 text-right font-mono font-bold text-slate-800">
+                                    {(e.total || 0).toLocaleString('es-ES', { style: 'currency', currency: 'EUR' })}
                                   </td>
                                 </tr>
-                              ) : (
-                                filteredTaxExpenses.map((e) => (
-                                  <tr key={e.id} className="border-b border-gray-200 hover:bg-slate-50">
-                                    <td className="p-2">{e.date ? new Date(e.date).toLocaleDateString() : '—'}</td>
-                                    <td className="p-2 truncate max-w-[200px]" title={e.description}>{e.description}</td>
-                                    <td className="p-2 font-mono text-[10px]">{e.ceco}</td>
-                                    <td className="p-2 text-center">
-                                      {e.documentUrl ? (
-                                        <button 
-                                          onClick={() => setPreviewDoc({ url: e.documentUrl, name: e.documentName || 'Documento' })}
-                                          className="text-blue-600 hover:text-blue-800 underline inline-flex items-center gap-1 font-medium text-[10px]"
-                                          title="Ver archivo adjunto"
-                                        >
-                                          <FileText className="w-3.5 h-3.5" />
-                                          <span className="truncate max-w-[90px]" title={e.documentName}>{e.documentName}</span>
-                                        </button>
-                                      ) : (
-                                        <span className="text-gray-400 italic text-[10px]">Sin adjunto</span>
-                                      )}
-                                    </td>
-                                    <td className="p-2 text-right font-mono font-bold text-slate-800">
-                                      {(e.total || 0).toLocaleString('es-ES', { style: 'currency', currency: 'EUR' })}
-                                    </td>
-                                  </tr>
-                                ))
-                              )}
-                              {filteredTaxExpenses.length > 0 && (
-                                <tr className="bg-slate-100 font-bold border-t-2 border-gray-400">
-                                  <td colSpan={4} className="p-2 text-right uppercase">Total:</td>
-                                  <td className="p-2 text-right text-slate-850 font-mono">
-                                    {totalTaxExpenses.toLocaleString('es-ES', { style: 'currency', currency: 'EUR' })}
-                                  </td>
-                                </tr>
-                              )}
-                            </tbody>
-                          </table>
-                        </div>
-                      )}
+                              ))
+                            )}
+                            {filteredTaxExpenses.length > 0 && (
+                              <tr className="bg-slate-100 font-bold border-t-2 border-gray-400 sticky bottom-0">
+                                <td colSpan={4} className="p-2 text-right uppercase">Total:</td>
+                                <td className="p-2 text-right text-slate-850 font-mono">
+                                  {totalTaxExpenses.toLocaleString('es-ES', { style: 'currency', currency: 'EUR' })}
+                                </td>
+                              </tr>
+                            )}
+                          </tbody>
+                        </table>
+                      </div>
                     </div>
                   )}
 

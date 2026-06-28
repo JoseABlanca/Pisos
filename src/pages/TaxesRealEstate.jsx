@@ -20,35 +20,6 @@ export default function TaxesRealEstate() {
   
   const [showTaxesExtract, setShowTaxesExtract] = useState(false);
   const [taxesExtractYear, setTaxesExtractYear] = useState(new Date().getFullYear());
-  
-  const [selectedIncomeCecos, setSelectedIncomeCecos] = useState([]);
-  const [selectedExpenseCecos, setSelectedExpenseCecos] = useState([]);
-
-  useEffect(() => {
-    if (selectedProperty) {
-      const latest = properties.find(p => p.id === selectedProperty.id);
-      setSelectedIncomeCecos(latest?.taxIncomeCecos || []);
-      setSelectedExpenseCecos(latest?.taxExpenseCecos || []);
-    } else {
-      setSelectedIncomeCecos([]);
-      setSelectedExpenseCecos([]);
-    }
-  }, [selectedProperty, properties]);
-
-  const handleSaveCecos = async () => {
-    if (!selectedProperty) return;
-    try {
-      const docRef = doc(db, 'properties', selectedProperty.id);
-      await updateDoc(docRef, {
-        taxIncomeCecos: selectedIncomeCecos,
-        taxExpenseCecos: selectedExpenseCecos
-      });
-      alert('Configuración de CECOs guardada correctamente.');
-    } catch (err) {
-      console.error("Error al guardar CECOs de impuestos:", err);
-      alert("Error al guardar configuración: " + err.message);
-    }
-  };
 
   useEffect(() => {
     if (!user) return;
@@ -486,89 +457,7 @@ export default function TaxesRealEstate() {
         </div>
       </div>
 
-      {/* CECO Configuration Panel */}
-      {selectedProperty && (
-        <div className="bg-[#f0f0f0] border border-gray-400 m-2 p-3 win-bevel flex flex-col gap-2 shrink-0 text-left">
-          <div className="flex justify-between items-center border-b border-gray-400 pb-1.5">
-            <h4 className="text-[11px] font-bold text-slate-800 uppercase italic">
-              Configuración de CECOs para Impuestos: {selectedProperty.name || selectedProperty.address || selectedProperty.id}
-            </h4>
-            <button 
-              type="button" 
-              onClick={handleSaveCecos}
-              className="px-4 py-1 bg-[#2e7d32] hover:bg-[#1b5e20] text-white text-[10px] font-bold uppercase shadow-sm cursor-pointer border border-green-800 rounded"
-            >
-              Guardar Configuración
-            </button>
-          </div>
-          
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-4 pt-1">
-            {/* Income CECOs Selection */}
-            <div className="bg-white border border-gray-400 p-2 max-h-[120px] overflow-y-auto">
-              <div className="text-[9px] font-bold text-slate-600 uppercase border-b border-gray-200 pb-0.5 mb-1.5">
-                CECOs para Ingresos (Multielección)
-              </div>
-              <div className="flex flex-col gap-1">
-                {cecos.length === 0 ? (
-                  <span className="text-[10px] text-slate-400 italic">No hay CECOs registrados</span>
-                ) : (
-                  cecos.sort((a,b) => a.code.localeCompare(b.code)).map(c => {
-                    const isChecked = selectedIncomeCecos.includes(c.code);
-                    return (
-                      <label key={c.id} className="flex items-center gap-2 text-[10px] cursor-pointer hover:bg-slate-50 select-none">
-                        <input 
-                          type="checkbox" 
-                          checked={isChecked}
-                          onChange={() => {
-                            setSelectedIncomeCecos(prev => 
-                              prev.includes(c.code) ? prev.filter(code => code !== c.code) : [...prev, c.code]
-                            );
-                          }}
-                          className="w-3.5 h-3.5 cursor-pointer"
-                        />
-                        <span className="font-mono font-bold text-slate-800">{c.code}</span>
-                        <span className="text-gray-500 font-sans">- {c.name}</span>
-                      </label>
-                    );
-                  })
-                )}
-              </div>
-            </div>
 
-            {/* Expense CECOs Selection */}
-            <div className="bg-white border border-gray-400 p-2 max-h-[120px] overflow-y-auto">
-              <div className="text-[9px] font-bold text-slate-600 uppercase border-b border-gray-200 pb-0.5 mb-1.5">
-                CECOs para Gastos (Multielección)
-              </div>
-              <div className="flex flex-col gap-1">
-                {cecos.length === 0 ? (
-                  <span className="text-[10px] text-slate-400 italic">No hay CECOs registrados</span>
-                ) : (
-                  cecos.sort((a,b) => a.code.localeCompare(b.code)).map(c => {
-                    const isChecked = selectedExpenseCecos.includes(c.code);
-                    return (
-                      <label key={c.id} className="flex items-center gap-2 text-[10px] cursor-pointer hover:bg-slate-50 select-none">
-                        <input 
-                          type="checkbox" 
-                          checked={isChecked}
-                          onChange={() => {
-                            setSelectedExpenseCecos(prev => 
-                              prev.includes(c.code) ? prev.filter(code => code !== c.code) : [...prev, c.code]
-                            );
-                          }}
-                          className="w-3.5 h-3.5 cursor-pointer"
-                        />
-                        <span className="font-mono font-bold text-slate-800">{c.code}</span>
-                        <span className="text-gray-500 font-sans">- {c.name}</span>
-                      </label>
-                    );
-                  })
-                )}
-              </div>
-            </div>
-          </div>
-        </div>
-      )}
 
       <div className="flex justify-between items-center bg-[#f0f0f0] p-1 border-t border-[#808080] text-[10px] shrink-0">
         <div>{computedProperties.length} activos encontrados</div>
