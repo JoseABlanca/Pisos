@@ -236,21 +236,53 @@ export default function ExtractoContableTab({
     };
   }, [filteredEntries, currentCebe, currentCeco, formData?.reference, mode]);
 
-  const handleCebeChange = (e) => {
+  const handleCebeChange = async (e) => {
     const val = e.target.value;
     if (mode === 'rentals') {
       setFormData(prev => ({ ...prev, incomeCebeId: val }));
+      if (formData?.docId) {
+        try {
+          const docRef = doc(db, 'rentals', formData.docId);
+          await updateDoc(docRef, { incomeCebeId: val });
+        } catch (err) {
+          console.error("Error al guardar CEBE en alquiler:", err);
+        }
+      }
     } else {
       setFormData(prev => ({ ...prev, cebe: val }));
+      if (formData?.id) {
+        try {
+          const docRef = doc(db, 'properties', formData.id);
+          await updateDoc(docRef, { cebe: val });
+        } catch (err) {
+          console.error("Error al guardar CEBE en propiedad:", err);
+        }
+      }
     }
   };
 
-  const handleCecoChange = (e) => {
+  const handleCecoChange = async (e) => {
     const val = e.target.value;
     if (mode === 'rentals') {
       setFormData(prev => ({ ...prev, expenseCecoId: val }));
+      if (formData?.docId) {
+        try {
+          const docRef = doc(db, 'rentals', formData.docId);
+          await updateDoc(docRef, { expenseCecoId: val });
+        } catch (err) {
+          console.error("Error al guardar CECO en alquiler:", err);
+        }
+      }
     } else {
       setFormData(prev => ({ ...prev, ceco: val }));
+      if (formData?.id) {
+        try {
+          const docRef = doc(db, 'properties', formData.id);
+          await updateDoc(docRef, { ceco: val });
+        } catch (err) {
+          console.error("Error al guardar CECO en propiedad:", err);
+        }
+      }
     }
   };
 
