@@ -60,20 +60,35 @@ export default function ExtractoContableTab({
   const filteredEntries = useMemo(() => {
     if (!currentCebe && !currentCeco) return [];
 
+    const normValueCebe = currentCebe ? String(currentCebe).trim().replace(/^(CEBE|CECO)/i, '') : '';
+    const normValueCeco = currentCeco ? String(currentCeco).trim().replace(/^(CEBE|CECO)/i, '') : '';
+
     return journalEntries.filter(entry => {
       let matchCebe = false;
       let matchCeco = false;
 
-      if (currentCebe && entry.cebe) {
+      // Check global levels first (for backward compatibility)
+      if (normValueCebe && entry.cebe) {
         const normField = String(entry.cebe).trim().replace(/^(CEBE|CECO)/i, '');
-        const normValue = String(currentCebe).trim().replace(/^(CEBE|CECO)/i, '');
-        matchCebe = normField.startsWith(normValue);
+        if (normField.startsWith(normValueCebe)) matchCebe = true;
+      }
+      if (normValueCeco && entry.ceco) {
+        const normField = String(entry.ceco).trim().replace(/^(CEBE|CECO)/i, '');
+        if (normField.startsWith(normValueCeco)) matchCeco = true;
       }
 
-      if (currentCeco && entry.ceco) {
-        const normField = String(entry.ceco).trim().replace(/^(CEBE|CECO)/i, '');
-        const normValue = String(currentCeco).trim().replace(/^(CEBE|CECO)/i, '');
-        matchCeco = normField.startsWith(normValue);
+      // Check line levels next
+      if (entry.lines) {
+        entry.lines.forEach(l => {
+          if (normValueCebe && l.cebe) {
+            const normField = String(l.cebe).trim().replace(/^(CEBE|CECO)/i, '');
+            if (normField.startsWith(normValueCebe)) matchCebe = true;
+          }
+          if (normValueCeco && l.ceco) {
+            const normField = String(l.ceco).trim().replace(/^(CEBE|CECO)/i, '');
+            if (normField.startsWith(normValueCeco)) matchCeco = true;
+          }
+        });
       }
 
       return matchCebe || matchCeco;
@@ -85,29 +100,56 @@ export default function ExtractoContableTab({
     let cebeSum = 0;
     let cecoSum = 0;
 
+    const normValueCebe = currentCebe ? String(currentCebe).trim().replace(/^(CEBE|CECO)/i, '') : '';
+    const normValueCeco = currentCeco ? String(currentCeco).trim().replace(/^(CEBE|CECO)/i, '') : '';
+
     filteredEntries.forEach(entry => {
-      let isCebe = false;
-      let isCeco = false;
+      let cebeEntryAmount = 0;
+      let cecoEntryAmount = 0;
+      let hasLineMatchCebe = false;
+      let hasLineMatchCeco = false;
 
-      if (currentCebe && entry.cebe) {
+      // Check line level matches
+      if (entry.lines) {
+        entry.lines.forEach(l => {
+          let lineMatchCebe = false;
+          let lineMatchCeco = false;
+          if (normValueCebe && l.cebe) {
+            const normField = String(l.cebe).trim().replace(/^(CEBE|CECO)/i, '');
+            if (normField.startsWith(normValueCebe)) lineMatchCebe = true;
+          }
+          if (normValueCeco && l.ceco) {
+            const normField = String(l.ceco).trim().replace(/^(CEBE|CECO)/i, '');
+            if (normField.startsWith(normValueCeco)) lineMatchCeco = true;
+          }
+
+          if (lineMatchCebe) {
+            cebeEntryAmount += (Number(l.debit) || 0) + (Number(l.credit) || 0);
+            hasLineMatchCebe = true;
+          }
+          if (lineMatchCeco) {
+            cecoEntryAmount += (Number(l.debit) || 0) + (Number(l.credit) || 0);
+            hasLineMatchCeco = true;
+          }
+        });
+      }
+
+      // If no lines matched but global matched (fallback for old data)
+      if (!hasLineMatchCebe && normValueCebe && entry.cebe) {
         const normField = String(entry.cebe).trim().replace(/^(CEBE|CECO)/i, '');
-        const normValue = String(currentCebe).trim().replace(/^(CEBE|CECO)/i, '');
-        if (normField.startsWith(normValue)) {
-          isCebe = true;
+        if (normField.startsWith(normValueCebe)) {
+          cebeEntryAmount = entry.total || 0;
         }
       }
-
-      if (currentCeco && entry.ceco) {
+      if (!hasLineMatchCeco && normValueCeco && entry.ceco) {
         const normField = String(entry.ceco).trim().replace(/^(CEBE|CECO)/i, '');
-        const normValue = String(currentCeco).trim().replace(/^(CEBE|CECO)/i, '');
-        if (normField.startsWith(normValue)) {
-          isCeco = true;
+        if (normField.startsWith(normValueCeco)) {
+          cecoEntryAmount = entry.total || 0;
         }
       }
 
-      // If matches both, we count it for both in respective calculations
-      if (isCebe) cebeSum += Number(entry.total) || 0;
-      if (isCeco) cecoSum += Number(entry.total) || 0;
+      cebeSum += cebeEntryAmount;
+      cecoSum += cecoEntryAmount;
     });
 
     return {
@@ -266,44 +308,89 @@ export default function ExtractoContableTab({
                 </tr>
               ) : (
                 filteredEntries.map((entry) => {
-                  // Determine if matches cebe, ceco, or both
+                  // Determine if matches cebe, ceco, or both at line levels
                   let displayCenter = '';
                   let amountColor = 'text-slate-700';
-                  let signedAmount = entry.total || 0;
                   
-                  let isCebe = false;
-                  let isCeco = false;
-                  
-                  if (currentCebe && entry.cebe) {
+                  const normValueCebe = currentCebe ? String(currentCebe).trim().replace(/^(CEBE|CECO)/i, '') : '';
+                  const normValueCeco = currentCeco ? String(currentCeco).trim().replace(/^(CEBE|CECO)/i, '') : '';
+
+                  let cebeEntryAmount = 0;
+                  let cecoEntryAmount = 0;
+                  let matchedLineCebes = new Set();
+                  let matchedLineCecos = new Set();
+                  let matchedLineDocUrl = null;
+                  let matchedLineDocName = null;
+
+                  if (entry.lines) {
+                    entry.lines.forEach(l => {
+                      let lineMatchCebe = false;
+                      let lineMatchCeco = false;
+                      if (normValueCebe && l.cebe) {
+                        const normField = String(l.cebe).trim().replace(/^(CEBE|CECO)/i, '');
+                        if (normField.startsWith(normValueCebe)) lineMatchCebe = true;
+                      }
+                      if (normValueCeco && l.ceco) {
+                        const normField = String(l.ceco).trim().replace(/^(CEBE|CECO)/i, '');
+                        if (normField.startsWith(normValueCeco)) lineMatchCeco = true;
+                      }
+
+                      if (lineMatchCebe) {
+                        cebeEntryAmount += (Number(l.debit) || 0) + (Number(l.credit) || 0);
+                        matchedLineCebes.add(l.cebe);
+                        if (l.documentUrl && !matchedLineDocUrl) {
+                          matchedLineDocUrl = l.documentUrl;
+                          matchedLineDocName = l.documentName;
+                        }
+                      }
+                      if (lineMatchCeco) {
+                        cecoEntryAmount += (Number(l.debit) || 0) + (Number(l.credit) || 0);
+                        matchedLineCecos.add(l.ceco);
+                        if (l.documentUrl && !matchedLineDocUrl) {
+                          matchedLineDocUrl = l.documentUrl;
+                          matchedLineDocName = l.documentName;
+                        }
+                      }
+                    });
+                  }
+
+                  // Fallbacks for old entries
+                  if (matchedLineCebes.size === 0 && normValueCebe && entry.cebe) {
                     const normField = String(entry.cebe).trim().replace(/^(CEBE|CECO)/i, '');
-                    const normValue = String(currentCebe).trim().replace(/^(CEBE|CECO)/i, '');
-                    if (normField.startsWith(normValue)) {
-                      isCebe = true;
+                    if (normField.startsWith(normValueCebe)) {
+                      cebeEntryAmount = entry.total || 0;
+                      matchedLineCebes.add(entry.cebe);
                     }
                   }
-                  
-                  if (currentCeco && entry.ceco) {
+                  if (matchedLineCecos.size === 0 && normValueCeco && entry.ceco) {
                     const normField = String(entry.ceco).trim().replace(/^(CEBE|CECO)/i, '');
-                    const normValue = String(currentCeco).trim().replace(/^(CEBE|CECO)/i, '');
-                    if (normField.startsWith(normValue)) {
-                      isCeco = true;
+                    if (normField.startsWith(normValueCeco)) {
+                      cecoEntryAmount = entry.total || 0;
+                      matchedLineCecos.add(entry.ceco);
                     }
                   }
-                  
+
+                  const isCebe = cebeEntryAmount > 0;
+                  const isCeco = cecoEntryAmount > 0;
+                  let signedAmount = 0;
+
                   if (isCebe && !isCeco) {
-                    displayCenter = `CEBE: ${entry.cebe}`;
+                    displayCenter = `CEBE: ${Array.from(matchedLineCebes).join(', ')}`;
                     amountColor = 'text-green-700 font-bold';
-                    signedAmount = entry.total;
+                    signedAmount = cebeEntryAmount;
                   } else if (!isCebe && isCeco) {
-                    displayCenter = `CECO: ${entry.ceco}`;
+                    displayCenter = `CECO: ${Array.from(matchedLineCecos).join(', ')}`;
                     amountColor = 'text-red-600 font-bold';
-                    signedAmount = -entry.total;
+                    signedAmount = -cecoEntryAmount;
                   } else if (isCebe && isCeco) {
-                    displayCenter = `AMBOS (CEBE/CECO)`;
+                    displayCenter = `AMBOS (${Array.from(matchedLineCebes).join(', ')} / ${Array.from(matchedLineCecos).join(', ')})`;
                     amountColor = 'text-slate-700';
-                    signedAmount = 0; // Net neutral if matching both
+                    signedAmount = cebeEntryAmount - cecoEntryAmount;
                   }
-                  
+
+                  const displayDocUrl = matchedLineDocUrl || entry.documentUrl;
+                  const displayDocName = matchedLineDocName || entry.documentName || 'Documento';
+
                   return (
                     <tr key={entry.id} className="hover:bg-slate-50">
                       <td className="font-mono text-[10px]">{new Date(entry.date).toLocaleDateString()}</td>
@@ -314,15 +401,21 @@ export default function ExtractoContableTab({
                         {signedAmount > 0 ? '+' : ''}{signedAmount.toLocaleString('es-ES', { minimumFractionDigits: 2 })} €
                       </td>
                       <td className="p-1">
-                        {entry.documentUrl ? (
+                        {displayDocUrl ? (
                           <button
                             type="button"
-                            onClick={() => handleViewDoc(entry)}
+                            onClick={() => {
+                              if (setPreviewDocument) {
+                                setPreviewDocument({ url: displayDocUrl, name: displayDocName });
+                              } else {
+                                window.open(displayDocUrl, '_blank');
+                              }
+                            }}
                             className="text-blue-600 hover:text-blue-800 hover:underline flex items-center gap-1 font-medium text-[10px] truncate max-w-[130px]"
-                            title={entry.documentName || 'Ver documento'}
+                            title={displayDocName}
                           >
                             <FileText className="w-3.5 h-3.5 shrink-0 text-slate-500" />
-                            <span className="truncate">{entry.documentName || 'Ver documento'}</span>
+                            <span className="truncate">{displayDocName}</span>
                           </button>
                         ) : (
                           <span className="text-slate-400 italic text-[10px]">Sin documento</span>

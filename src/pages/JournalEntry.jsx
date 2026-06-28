@@ -9,6 +9,105 @@ import ZoomControl from '../components/ZoomControl';
 import { registerJournalEntry, updateJournalEntry } from '../services/accounting';
 import { uploadFileToStorage } from '../utils/storageUtils';
 
+function SearchableSelector({ items, value, onChange, placeholder, type }) {
+  const [isOpen, setIsOpen] = useState(false);
+  const [search, setSearch] = useState('');
+  const [dropdownPos, setDropdownPos] = useState({ top: 0, left: 0, width: 0 });
+  const containerRef = useRef(null);
+
+  const filtered = items.filter(item => {
+    const code = String(item.code || '').toLowerCase();
+    const name = String(item.name || '').toLowerCase();
+    const query = search.toLowerCase();
+    return code.includes(query) || name.includes(query);
+  });
+
+  const selectedItem = items.find(item => item.code === value);
+
+  const handleOpen = (e) => {
+    const rect = e.currentTarget.getBoundingClientRect();
+    setDropdownPos({
+      top: rect.bottom + window.scrollY,
+      left: rect.left + window.scrollX,
+      width: Math.max(rect.width, 220)
+    });
+    setIsOpen(true);
+  };
+
+  return (
+    <div ref={containerRef} className="w-full h-full relative">
+      <div 
+        onClick={handleOpen}
+        className="w-full h-full flex items-center justify-between px-2 py-1.5 bg-white cursor-pointer hover:bg-blue-50 text-[11px]"
+      >
+        <div className="flex-1 truncate font-mono text-left">
+          {selectedItem ? (
+            <span className="font-bold text-blue-900">{selectedItem.code}</span>
+          ) : (
+            <span className="text-slate-400 italic font-sans">{placeholder}</span>
+          )}
+        </div>
+        <span className="text-[9px] text-gray-400 font-sans ml-1">▼</span>
+      </div>
+
+      {isOpen && (
+        <div className="fixed inset-0 z-[10000]" onClick={() => setIsOpen(false)}>
+          <div 
+            onClick={(e) => e.stopPropagation()}
+            style={{ 
+              top: dropdownPos.top, 
+              left: dropdownPos.left, 
+              width: dropdownPos.width,
+              position: 'fixed'
+            }}
+            className="bg-[#f0f0f0] border border-slate-400 shadow-md flex flex-col p-1 animate-in slide-in-from-top-1 duration-100"
+          >
+            <input 
+              autoFocus
+              type="text"
+              placeholder="Buscar..."
+              className="w-full text-[11px] px-1.5 py-1 border border-gray-400 outline-none mb-1 shadow-inner focus:bg-yellow-50 normal-case font-sans"
+              value={search}
+              onChange={(e) => setSearch(e.target.value)}
+            />
+
+            <div className="max-h-[150px] overflow-y-auto bg-white border border-gray-300">
+              <div 
+                onClick={() => {
+                  onChange('');
+                  setIsOpen(false);
+                  setSearch('');
+                }}
+                className="p-1 text-[11px] text-slate-500 italic hover:bg-blue-50 cursor-pointer border-b border-slate-100 uppercase text-left"
+              >
+                -- SIN {type === 'cebe' ? 'CEBE' : 'CECO'} --
+              </div>
+              {filtered.length === 0 ? (
+                <div className="p-2 text-center text-slate-400 italic text-[10px]">Sin resultados</div>
+              ) : (
+                filtered.sort((a,b) => a.code.localeCompare(b.code)).map(item => (
+                  <div 
+                    key={item.id}
+                    onClick={() => {
+                      onChange(item.code);
+                      setIsOpen(false);
+                      setSearch('');
+                    }}
+                    className="p-1 hover:bg-blue-50 text-slate-800 cursor-pointer border-b border-slate-100 flex flex-col text-left"
+                  >
+                    <span className="font-mono font-bold text-[10px]">{item.code}</span>
+                    <span className="text-[9px] text-slate-500 truncate normal-case font-sans">{item.name}</span>
+                  </div>
+                ))
+              )}
+            </div>
+          </div>
+        </div>
+      )}
+    </div>
+  );
+}
+
 export default function JournalEntry() {
   const { user, queryUserIds } = useAuth();
   const location = useLocation();
@@ -21,8 +120,8 @@ export default function JournalEntry() {
   const [nextEntryNumber, setNextEntryNumber] = useState(1);
   const [selectedLineIndex, setSelectedLineIndex] = useState(null);
   const [lines, setLines] = useState([
-    { id: 1, account: '', description: '', document: '', ceco: '', cebe: '', debit: 0, credit: 0, image: null },
-    { id: 2, account: '', description: '', document: '', ceco: '', cebe: '', debit: 0, credit: 0, image: null }
+    { id: 1, account: '', description: '', document: '', ceco: '', cebe: '', debit: 0, credit: 0, image: null, documentUrl: null, documentName: null },
+    { id: 2, account: '', description: '', document: '', ceco: '', cebe: '', debit: 0, credit: 0, image: null, documentUrl: null, documentName: null }
   ]);
   
   const [cecos, setCecos] = useState([]);
@@ -131,15 +230,17 @@ export default function JournalEntry() {
              account: acct ? acct.code : '',
              description: l.description || editEntry.description,
              document: l.document || '',
-             ceco: l.ceco || '',
-             cebe: l.cebe || '',
+             ceco: l.ceco || editEntry.ceco || '',
+             cebe: l.cebe || editEntry.cebe || '',
              debit: parseFloat(l.debit) || 0,
              credit: parseFloat(l.credit) || 0,
+             documentUrl: l.documentUrl || (i === 0 ? editEntry.documentUrl : null),
+             documentName: l.documentName || (i === 0 ? editEntry.documentName : null),
              image: null
            };
         });
         if (mappedLines.length < 2) {
-          mappedLines.push({ id: mappedLines.length + 1, account: '', description: '', document: '', ceco: '', cebe: '', debit: 0, credit: 0, image: null });
+          mappedLines.push({ id: mappedLines.length + 1, account: '', description: '', document: '', ceco: '', cebe: '', debit: 0, credit: 0, image: null, documentUrl: null, documentName: null });
         }
         setLines(mappedLines);
       }
@@ -192,7 +293,7 @@ export default function JournalEntry() {
   
   const addLine = () => {
     const maxId = lines.length > 0 ? Math.max(...lines.map(l => l.id)) : 0;
-    setLines([...lines, { id: maxId + 1, account: '', description: '', document: '', ceco: '', cebe: '', debit: 0, credit: 0, image: null }]);
+    setLines([...lines, { id: maxId + 1, account: '', description: '', document: '', ceco: '', cebe: '', debit: 0, credit: 0, image: null, documentUrl: null, documentName: null }]);
   };
   
   const removeLine = (index) => {
@@ -253,28 +354,32 @@ export default function JournalEntry() {
       }
 
       const globalDescription = formattedLines[0].description || `Asiento manual ${date}`;
+      
+      // Extract first matched CEBE/CECO and Document for global compatibility
+      const firstCebe = formattedLines.find(l => l.cebe)?.cebe || '';
+      const firstCeco = formattedLines.find(l => l.ceco)?.ceco || '';
       const analytics = {
-        cebe: selectedCebe || '',
-        ceco: selectedCeco || ''
+        cebe: firstCebe,
+        ceco: firstCeco
       };
       
+      const firstDoc = formattedLines.find(l => l.documentUrl);
+      const globalDocUrl = firstDoc ? firstDoc.documentUrl : null;
+      const globalDocName = firstDoc ? firstDoc.documentName : null;
+      
       if (isEditing) {
-        await updateJournalEntry(user.uid, entryId, globalDescription, formattedLines, originalLines, date, analytics, documentUrl, documentName);
+        await updateJournalEntry(user.uid, entryId, globalDescription, formattedLines, originalLines, date, analytics, globalDocUrl, globalDocName);
         alert(`Asiento ${nextEntryNumber} actualizado correctamente.`);
         navigate('/journal-list');
       } else {
-        await registerJournalEntry(user.uid, globalDescription, formattedLines, date, analytics, entryId, documentUrl, documentName);
+        await registerJournalEntry(user.uid, globalDescription, formattedLines, date, analytics, entryId, globalDocUrl, globalDocName);
         alert(`Asiento ${entryNumber} guardado correctamente.`);
         // Reset form
         setDate('');
-        setSelectedCebe('');
-        setSelectedCeco('');
-        setDocumentUrl(null);
-        setDocumentName(null);
         setEntryId(''); // triggers regeneration via useEffect
         setLines([
-          { id: 1, account: '', description: '', document: '', ceco: '', cebe: '', debit: 0, credit: 0, image: null },
-          { id: 2, account: '', description: '', document: '', ceco: '', cebe: '', debit: 0, credit: 0, image: null }
+          { id: 1, account: '', description: '', document: '', ceco: '', cebe: '', debit: 0, credit: 0, image: null, documentUrl: null, documentName: null },
+          { id: 2, account: '', description: '', document: '', ceco: '', cebe: '', debit: 0, credit: 0, image: null, documentUrl: null, documentName: null }
         ]);
         setSelectedLineIndex(null);
       }
@@ -352,76 +457,6 @@ export default function JournalEntry() {
             {date ? nextEntryNumber : ''}
           </span>
         </div>
-        {cebes.length > 0 && (
-          <div className="flex items-center">
-            <span className="text-gray-500 mr-2">CEBE:</span>
-            <select 
-              value={selectedCebe}
-              onChange={(e) => setSelectedCebe(e.target.value)}
-              className="px-1 py-0.5 border border-gray-300 rounded focus:border-blue-500 outline-none bg-white text-[11px]"
-            >
-              <option value="">-- Sin CEBE --</option>
-              {cebes.map(c => (
-                <option key={c.id} value={c.code}>{c.code} - {c.name}</option>
-              ))}
-            </select>
-          </div>
-        )}
-        {cecos.length > 0 && (
-          <div className="flex items-center">
-            <span className="text-gray-500 mr-2">CECO:</span>
-            <select 
-              value={selectedCeco}
-              onChange={(e) => setSelectedCeco(e.target.value)}
-              className="px-1 py-0.5 border border-gray-300 rounded focus:border-blue-500 outline-none bg-white text-[11px]"
-            >
-              <option value="">-- Sin CECO --</option>
-              {cecos.map(c => (
-                <option key={c.id} value={c.code}>{c.code} - {c.name}</option>
-              ))}
-            </select>
-          </div>
-        )}
-        
-        {/* Document Upload Option */}
-        <div className="flex items-center space-x-2 border-l border-gray-300 pl-3">
-          <span className="text-gray-500 mr-2">Doc:</span>
-          {documentUrl ? (
-            <div className="flex items-center bg-blue-50 text-blue-700 px-2 py-0.5 border border-blue-200 rounded text-[10px]">
-              <span className="truncate max-w-[120px]" title={documentName}>{documentName}</span>
-              <button 
-                type="button"
-                onClick={handleDeleteDoc}
-                className="ml-1.5 text-red-500 hover:text-red-700"
-                title="Quitar documento"
-              >
-                <X className="w-3 h-3" />
-              </button>
-            </div>
-          ) : (
-            <label className={`btn-classic px-2 h-[26px] text-[10px] flex items-center cursor-pointer ${isUploading ? 'opacity-50 cursor-not-allowed' : ''}`}>
-              {isUploading ? (
-                <>
-                  <RefreshCw className="w-3 h-3 mr-1 animate-spin" />
-                  Subiendo...
-                </>
-              ) : (
-                <>
-                  <FilePlus className="w-3.5 h-3.5 mr-1" />
-                  Adjuntar
-                </>
-              )}
-              <input 
-                type="file" 
-                className="hidden" 
-                onChange={handleFileUpload} 
-                disabled={isUploading}
-                accept=".pdf,.doc,.docx,.xls,.xlsx,.jpg,.jpeg,.png"
-              />
-            </label>
-          )}
-        </div>
-
         <div className="flex-1" />
       </div>
 
@@ -462,10 +497,12 @@ export default function JournalEntry() {
           <thead className="bg-white sticky top-0 z-10 border-b border-gray-300">
             <tr>
               <th className="border-b border-gray-300 px-2 py-1.5 font-bold w-12 text-center text-gray-600 uppercase">ORDEN</th>
-              <th className="border-b border-gray-300 px-2 py-1.5 font-bold w-32 text-gray-600 uppercase">CUENTA</th>
-              <th className="border-b border-gray-300 px-2 py-1.5 font-bold w-48 text-gray-600 uppercase">TÍTULO CUENTA</th>
+              <th className="border-b border-gray-300 px-2 py-1.5 font-bold w-28 text-gray-600 uppercase">CUENTA</th>
+              <th className="border-b border-gray-300 px-2 py-1.5 font-bold w-40 text-gray-600 uppercase">TÍTULO CUENTA</th>
               <th className="border-b border-gray-300 px-2 py-1.5 font-bold flex-1 text-gray-600 uppercase">CONCEPTO</th>
-              <th className="border-b border-gray-300 px-2 py-1.5 font-bold w-24 text-gray-600 uppercase">DOCUMENTO</th>
+              <th className="border-b border-gray-300 px-2 py-1.5 font-bold w-28 text-gray-600 uppercase">CEBE</th>
+              <th className="border-b border-gray-300 px-2 py-1.5 font-bold w-28 text-gray-600 uppercase">CECO</th>
+              <th className="border-b border-gray-300 px-2 py-1.5 font-bold w-44 text-gray-600 uppercase">DOCUMENTO</th>
               <th className="border-b border-gray-300 px-2 py-1.5 font-bold w-24 text-right text-gray-600 uppercase">DEBE</th>
               <th className="border-b border-gray-300 px-2 py-1.5 font-bold w-24 text-right text-gray-600 uppercase">HABER</th>
               <th className="border-b border-gray-300 px-2 py-1.5 font-bold w-10 text-center"></th>
@@ -519,16 +556,74 @@ export default function JournalEntry() {
                     />
                   </td>
                   <td className="p-0">
-                    <input 
-                      id={`document-${idx}`}
-                      type="text" 
-                      value={line.document}
-                      onChange={(e) => updateLine(idx, 'document', e.target.value)}
-                      onKeyDown={(e) => handleKeyDown(e, idx, 'document')}
-                      className="w-full h-full px-2 py-1.5 outline-none focus:bg-blue-50 focus:ring-1 focus:ring-blue-400 uppercase text-[10px]"
+                    <SearchableSelector 
+                      items={cebes} 
+                      value={line.cebe} 
+                      onChange={(val) => updateLine(idx, 'cebe', val)}
+                      placeholder="Sin CEBE" 
+                      type="cebe" 
                     />
                   </td>
-
+                  <td className="p-0">
+                    <SearchableSelector 
+                      items={cecos} 
+                      value={line.ceco} 
+                      onChange={(val) => updateLine(idx, 'ceco', val)}
+                      placeholder="Sin CECO" 
+                      type="ceco" 
+                    />
+                  </td>
+                  <td className="p-0">
+                    <div className="flex items-center w-full h-full pr-1 gap-1">
+                      <input 
+                        id={`document-${idx}`}
+                        type="text" 
+                        value={line.document}
+                        onChange={(e) => updateLine(idx, 'document', e.target.value)}
+                        onKeyDown={(e) => handleKeyDown(e, idx, 'document')}
+                        className="flex-1 min-w-0 h-full px-2 py-1.5 outline-none focus:bg-blue-50 focus:ring-1 focus:ring-blue-400 uppercase text-[10px]"
+                        placeholder="Ref..."
+                      />
+                      {line.documentUrl ? (
+                        <div className="flex items-center bg-blue-50 text-blue-700 px-1 py-0.5 border border-blue-200 rounded text-[9px] shrink-0 max-w-[90px]" title={line.documentName}>
+                          <span className="truncate">{line.documentName}</span>
+                          <button 
+                            type="button"
+                            onClick={() => {
+                              if (window.confirm('¿Quitar documento de esta línea?')) {
+                                updateLine(idx, 'documentUrl', null);
+                                updateLine(idx, 'documentName', null);
+                              }
+                            }}
+                            className="ml-1 text-red-500 hover:text-red-700 shrink-0"
+                          >
+                            <X className="w-2.5 h-2.5" />
+                          </button>
+                        </div>
+                      ) : (
+                        <label className="p-1 hover:bg-slate-100 rounded text-slate-500 cursor-pointer shrink-0" title="Adjuntar documento">
+                          <FilePlus className="w-3.5 h-3.5" />
+                          <input 
+                            type="file" 
+                            className="hidden" 
+                            onChange={async (e) => {
+                              const file = e.target.files?.[0];
+                              if (!file || !user || !entryId) return;
+                              try {
+                                const url = await uploadFileToStorage(file, user.uid, 'journal_entries', `${entryId}_line_${idx}`, 'docs');
+                                updateLine(idx, 'documentUrl', url);
+                                updateLine(idx, 'documentName', file.name);
+                              } catch (err) {
+                                console.error(err);
+                                alert('Error al subir: ' + err.message);
+                              }
+                            }}
+                            accept=".pdf,.doc,.docx,.xls,.xlsx,.jpg,.jpeg,.png"
+                          />
+                        </label>
+                      )}
+                    </div>
+                  </td>
                   <td className="p-0">
                     <input 
                       id={`debit-${idx}`}
@@ -549,7 +644,9 @@ export default function JournalEntry() {
                       className="w-full h-full px-2 py-1.5 outline-none focus:bg-blue-50 focus:ring-1 focus:ring-blue-400 text-right text-gray-800"
                     />
                   </td>
-                  {/* Removed IMAGEN cell */}
+                  <td className="px-2 py-1.5 text-center text-red-500 hover:text-red-700" onClick={(e) => { e.stopPropagation(); removeLine(idx); }}>
+                    <Trash2 className="w-3.5 h-3.5 cursor-pointer inline-block" />
+                  </td>
                 </tr>
               );
             })}

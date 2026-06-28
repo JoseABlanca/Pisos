@@ -108,9 +108,24 @@ export const registerJournalEntry = async (userId, description, entries, customD
           date
         };
         
-        if (analytics) {
-          if (analytics.cebe) txData.cebe = analytics.cebe;
-          if (analytics.ceco) txData.ceco = analytics.ceco;
+        if (entry.cebe) {
+          txData.cebe = entry.cebe;
+        } else if (analytics && analytics.cebe) {
+          txData.cebe = analytics.cebe;
+        }
+        
+        if (entry.ceco) {
+          txData.ceco = entry.ceco;
+        } else if (analytics && analytics.ceco) {
+          txData.ceco = analytics.ceco;
+        }
+
+        if (entry.documentUrl) {
+          txData.documentUrl = entry.documentUrl;
+          txData.documentName = entry.documentName || 'Documento';
+        } else if (documentUrl) {
+          txData.documentUrl = documentUrl;
+          txData.documentName = documentName || 'Documento';
         }
         
         transaction.set(txRef, txData);
@@ -276,7 +291,7 @@ export const recalculateAllBalances = async (userId) => {
       const entry = docEntry.data();
       entry.lines.forEach(line => {
         const txRef = doc(collection(db, 'transactions'));
-        txBatch.set(txRef, {
+        const txData = {
           userId,
           journalId: docEntry.id,
           journalDescription: entry.description,
@@ -284,7 +299,29 @@ export const recalculateAllBalances = async (userId) => {
           date: entry.date,
           debit: parseFloat(line.debit) || 0,
           credit: parseFloat(line.credit) || 0
-        });
+        };
+
+        if (line.cebe) {
+          txData.cebe = line.cebe;
+        } else if (entry.cebe) {
+          txData.cebe = entry.cebe;
+        }
+
+        if (line.ceco) {
+          txData.ceco = line.ceco;
+        } else if (entry.ceco) {
+          txData.ceco = entry.ceco;
+        }
+
+        if (line.documentUrl) {
+          txData.documentUrl = line.documentUrl;
+          txData.documentName = line.documentName || 'Documento';
+        } else if (entry.documentUrl) {
+          txData.documentUrl = entry.documentUrl;
+          txData.documentName = entry.documentName || 'Documento';
+        }
+
+        txBatch.set(txRef, txData);
       });
     });
     await txBatch.commit();
