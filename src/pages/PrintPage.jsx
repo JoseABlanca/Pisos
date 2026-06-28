@@ -66,17 +66,15 @@ const getSelectableAccounts = (accountsList) => {
   return Array.from(map.values()).sort((a, b) => a.code.localeCompare(b.code));
 };
 
-const isAccountMatched = (accountCodeOrId, selectedAccounts, accountsList) => {
-  if (!selectedAccounts || selectedAccounts.length === 0) return true;
+const isAccountMatched = (accountCodeOrId, selectedAccountCode, accountsList) => {
+  if (!selectedAccountCode) return true;
   let code = accountCodeOrId;
   const acct = accountsList.find(a => a.id === code || a.code === code);
   if (acct) {
     code = acct.code;
   }
   if (!code) return false;
-  return selectedAccounts.some(sel => {
-    return String(code).startsWith(String(sel));
-  });
+  return String(code).startsWith(String(selectedAccountCode));
 };
 
 export default function PrintPage() {
@@ -88,7 +86,7 @@ export default function PrintPage() {
   const [selectedYears, setSelectedYears] = useState([]);
   const [selectedMonths, setSelectedMonths] = useState([]);
   const [selectedQuarters, setSelectedQuarters] = useState([]);
-  const [selectedAccounts, setSelectedAccounts] = useState([]);
+  const [selectedAccount, setSelectedAccount] = useState('');
   
   // Database collections states
   const [accounts, setAccounts] = useState([]);
@@ -384,7 +382,7 @@ export default function PrintPage() {
         .map(entry => {
           if (!entry.lines) return entry;
           const filteredLines = entry.lines.filter(l => 
-            isAccountMatched(l.accountId, selectedAccounts, accounts)
+            isAccountMatched(l.accountId, selectedAccount, accounts)
           );
           return { ...entry, lines: filteredLines };
         })
@@ -499,7 +497,7 @@ export default function PrintPage() {
       });
 
       const activeAccounts = Object.values(accountMovements)
-        .filter(am => am.lines.length > 0 && isAccountMatched(am.account.code, selectedAccounts, accounts))
+        .filter(am => am.lines.length > 0 && isAccountMatched(am.account.code, selectedAccount, accounts))
         .sort((a, b) => (a.account.code || '').localeCompare(b.account.code || ''));
 
       const mayorPages = chunkMayor(activeAccounts, 32);
@@ -610,7 +608,7 @@ export default function PrintPage() {
       });
 
       const list = Object.values(sumsMap)
-        .filter(s => (s.debit > 0 || s.credit > 0) && isAccountMatched(s.code, selectedAccounts, accounts))
+        .filter(s => (s.debit > 0 || s.credit > 0) && isAccountMatched(s.code, selectedAccount, accounts))
         .map(s => {
           const isAssetOrExpense = ['Activo', 'Gasto'].includes(s.type);
           const balanceDiff = s.debit - s.credit;
@@ -956,54 +954,33 @@ export default function PrintPage() {
 
         {/* Cuentas a Mostrar Filter (only for accounting reports) */}
         {['diario', 'mayor', 'sumas_saldos'].includes(selectedTemplate) && (
-          <div className="bg-white border border-[#a0a0a0] flex flex-col flex-1 min-h-[200px] max-h-[350px] overflow-hidden">
-            <div className="bg-[#cbd5e0] font-bold p-1.5 uppercase text-[9px] border-b border-[#a0a0a0] text-slate-700 flex justify-between items-center select-none shrink-0">
+          <div className="bg-white border border-[#a0a0a0] p-3 flex flex-col gap-2">
+            <div className="text-[10px] font-bold text-slate-500 uppercase flex items-center gap-1 select-none">
+              <Calendar className="w-3.5 h-3.5 text-slate-400" />
               <span>Cuentas a Mostrar</span>
-              {selectedAccounts.length > 0 && (
-                <button 
-                  onClick={() => setSelectedAccounts([])}
-                  className="text-[8px] text-blue-800 hover:underline lowercase font-semibold"
-                >
-                  [limpiar]
-                </button>
-              )}
             </div>
-            <div className="flex-1 overflow-y-auto p-1.5 gap-1.5 flex flex-col bg-white">
+            <select
+              value={selectedAccount}
+              onChange={e => setSelectedAccount(e.target.value)}
+              className="win-input w-full text-[11px] font-sans"
+            >
+              <option value="">Todos</option>
               {selectableAccountsList.map(acc => {
-                const indentClass = acc.code.length === 1 
-                  ? '' 
+                const indentLen = acc.code.length === 1 
+                  ? 0 
                   : acc.code.length === 2 
-                    ? 'pl-2' 
+                    ? 2 
                     : acc.code.length === 3 
-                      ? 'pl-4' 
-                      : 'pl-6';
-                
-                const isSelected = selectedAccounts.includes(acc.code);
-                
+                      ? 4 
+                      : 6;
+                const spaces = '\u00a0'.repeat(indentLen);
                 return (
-                  <label 
-                    key={acc.code} 
-                    className={`flex items-start gap-1.5 text-[10px] cursor-pointer hover:bg-slate-50 py-0.5 rounded select-none ${indentClass}`}
-                  >
-                    <input 
-                      type="checkbox" 
-                      checked={isSelected}
-                      onChange={() => {
-                        if (isSelected) {
-                          setSelectedAccounts(prev => prev.filter(x => x !== acc.code));
-                        } else {
-                          setSelectedAccounts(prev => [...prev, acc.code]);
-                        }
-                      }}
-                      className="mt-0.5"
-                    />
-                    <span className={`${!acc.isDetail ? 'font-bold text-slate-700' : 'text-slate-650'}`}>
-                      {acc.code} - {acc.name}
-                    </span>
-                  </label>
+                  <option key={acc.code} value={acc.code}>
+                    {spaces}{acc.code} - {acc.name}
+                  </option>
                 );
               })}
-            </div>
+            </select>
           </div>
         )}
 
