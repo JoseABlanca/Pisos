@@ -123,7 +123,7 @@ export default function TaxesTotal() {
         amortizacionYear += baseValue * 0.80 * 0.03;
       });
 
-      const beneficioNetoYear = ingresosYear - gastosYear - amortizacionYear;
+      const beneficioNetoYear = ingresosYear - gastosYear;
       
       result.push({
         year,

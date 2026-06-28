@@ -329,8 +329,8 @@ export default function TaxesRealEstate() {
         }
       }
 
-      // Beneficio Neto
-      const beneficioNeto = ingresos - gastos - amortizacion;
+      // Beneficio Neto (Rendimiento Neto = Ingresos - Gastos)
+      const beneficioNeto = ingresos - gastos;
 
       return {
         ...p,
