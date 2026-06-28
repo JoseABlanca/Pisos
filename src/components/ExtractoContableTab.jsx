@@ -188,13 +188,15 @@ export default function ExtractoContableTab({
             }
 
             // Expense check: must match CEBE (if present) AND Expense CECOs
-            let lineExpenseCebeMatch = true;
-            if (l.cebe && normValueCebe) {
+            let lineExpenseCebeMatch = false;
+            if (!normValueCebe) {
+              lineExpenseCebeMatch = true;
+            } else if (l.cebe) {
               const normField = String(l.cebe).trim().replace(/^(CEBE|CECO)/i, '');
-              lineExpenseCebeMatch = normField.startsWith(normValueCebe);
-            } else if (!l.cebe && entry.cebe && normValueCebe) {
+              if (normField.startsWith(normValueCebe)) lineExpenseCebeMatch = true;
+            } else if (entry.cebe) {
               const entryCebe = String(entry.cebe).trim().replace(/^(CEBE|CECO)/i, '');
-              lineExpenseCebeMatch = entryCebe.startsWith(normValueCebe);
+              if (entryCebe.startsWith(normValueCebe)) lineExpenseCebeMatch = true;
             }
 
             let lineExpenseCecoMatch = false;
@@ -237,8 +239,10 @@ export default function ExtractoContableTab({
           if (globalCebe && globalIncomeCeco) matchCebe = true;
 
           // Global Expense
-          let globalExpenseCebe = true;
-          if (entry.cebe && normValueCebe) {
+          let globalExpenseCebe = false;
+          if (!normValueCebe) {
+            globalExpenseCebe = true;
+          } else if (entry.cebe) {
             const normField = String(entry.cebe).trim().replace(/^(CEBE|CECO)/i, '');
             globalExpenseCebe = normField.startsWith(normValueCebe);
           }
