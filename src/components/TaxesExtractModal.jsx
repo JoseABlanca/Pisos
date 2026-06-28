@@ -87,34 +87,57 @@ export default function TaxesExtractModal({ isOpen, onClose, property, year, ren
       let lineMatch = false;
       if (entry.lines) {
         entry.lines.forEach(l => {
+          const accCode = String(l.accountCode || '');
+          if (!accCode.startsWith('7')) return;
+
+          let lineCebeMatch = false;
           if (l.cebe && normalizedPropCebe) {
             const lineCebe = String(l.cebe).trim().replace(/^(CEBE|CECO)/i, '');
-            if (lineCebe.startsWith(normalizedPropCebe)) {
-              lineMatch = true;
-            }
+            if (lineCebe.startsWith(normalizedPropCebe)) lineCebeMatch = true;
+          } else if (!l.cebe && normalizedPropCebe) {
+            const entryCebe = String(entry.cebe || '').trim().replace(/^(CEBE|CECO)/i, '');
+            if (entryCebe.startsWith(normalizedPropCebe)) lineCebeMatch = true;
           }
-          if (l.ceco && normalizedIncomeCecos.length > 0) {
-            const lineCeco = String(l.ceco).trim().replace(/^(CEBE|CECO)/i, '');
-            if (normalizedIncomeCecos.some(c => lineCeco.startsWith(c))) {
-              lineMatch = true;
+
+          let lineCecoMatch = false;
+          if (normalizedIncomeCecos.length > 0) {
+            if (l.ceco) {
+              const lineCeco = String(l.ceco).trim().replace(/^(CEBE|CECO)/i, '');
+              if (normalizedIncomeCecos.some(c => lineCeco.startsWith(c))) lineCecoMatch = true;
+            } else if (!l.ceco) {
+              const entryCeco = String(entry.ceco || '').trim().replace(/^(CEBE|CECO)/i, '');
+              if (normalizedIncomeCecos.some(c => entryCeco.startsWith(c))) lineCecoMatch = true;
             }
+          } else {
+            lineCecoMatch = true;
+          }
+
+          if (lineCebeMatch && lineCecoMatch) {
+            lineMatch = true;
           }
         });
       }
 
       // Match global level
       let globalMatch = false;
+      let globalCebe = false;
       if (entry.cebe && normalizedPropCebe) {
         const entryCebe = String(entry.cebe).trim().replace(/^(CEBE|CECO)/i, '');
-        if (entryCebe.startsWith(normalizedPropCebe)) {
-          globalMatch = true;
-        }
+        if (entryCebe.startsWith(normalizedPropCebe)) globalCebe = true;
       }
-      if (entry.ceco && normalizedIncomeCecos.length > 0) {
-        const entryCeco = String(entry.ceco).trim().replace(/^(CEBE|CECO)/i, '');
-        if (normalizedIncomeCecos.some(c => entryCeco.startsWith(c))) {
-          globalMatch = true;
+      
+      let globalCeco = false;
+      if (normalizedIncomeCecos.length > 0) {
+        if (entry.ceco) {
+          const entryCeco = String(entry.ceco).trim().replace(/^(CEBE|CECO)/i, '');
+          if (normalizedIncomeCecos.some(c => entryCeco.startsWith(c))) globalCeco = true;
         }
+      } else {
+        globalCeco = true;
+      }
+
+      if (globalCebe && globalCeco) {
+        globalMatch = true;
       }
 
       return lineMatch || globalMatch;
@@ -124,8 +147,10 @@ export default function TaxesExtractModal({ isOpen, onClose, property, year, ren
   // Filter journal entries for Expenses (taxExpenseCecos)
   const filteredTaxExpenses = useMemo(() => {
     if (!property) return [];
+    const propertyCebe = String(property.cebe || '').trim();
     const taxExpenseCecos = property.taxExpenseCecos || [];
     const normalizedExpenseCecos = taxExpenseCecos.map(c => c.replace(/^(CEBE|CECO)/i, ''));
+    const normalizedPropCebe = propertyCebe ? propertyCebe.replace(/^(CEBE|CECO)/i, '') : '';
 
     if (normalizedExpenseCecos.length === 0) return [];
 
@@ -143,22 +168,57 @@ export default function TaxesExtractModal({ isOpen, onClose, property, year, ren
       let lineMatch = false;
       if (entry.lines) {
         entry.lines.forEach(l => {
-          if (l.ceco && normalizedExpenseCecos.length > 0) {
-            const lineCeco = String(l.ceco).trim().replace(/^(CEBE|CECO)/i, '');
-            if (normalizedExpenseCecos.some(c => lineCeco.startsWith(c))) {
-              lineMatch = true;
+          const accCode = String(l.accountCode || '');
+          if (!accCode.startsWith('6')) return;
+
+          let lineCebeMatch = true;
+          if (l.cebe && normalizedPropCebe) {
+            const lineCebe = String(l.cebe).trim().replace(/^(CEBE|CECO)/i, '');
+            lineCebeMatch = lineCebe.startsWith(normalizedPropCebe);
+          } else if (!l.cebe && entry.cebe && normalizedPropCebe) {
+            const entryCebe = String(entry.cebe).trim().replace(/^(CEBE|CECO)/i, '');
+            lineCebeMatch = entryCebe.startsWith(normalizedPropCebe);
+          }
+
+          let lineCecoMatch = false;
+          if (normalizedExpenseCecos.length > 0) {
+            if (l.ceco) {
+              const lineCeco = String(l.ceco).trim().replace(/^(CEBE|CECO)/i, '');
+              if (normalizedExpenseCecos.some(c => lineCeco.startsWith(c))) lineCecoMatch = true;
+            } else if (!l.ceco) {
+              const entryCeco = String(entry.ceco || '').trim().replace(/^(CEBE|CECO)/i, '');
+              if (normalizedExpenseCecos.some(c => entryCeco.startsWith(c))) lineCecoMatch = true;
             }
+          } else {
+            lineCecoMatch = true;
+          }
+
+          if (lineCebeMatch && lineCecoMatch) {
+            lineMatch = true;
           }
         });
       }
 
       // Match global level
       let globalMatch = false;
-      if (entry.ceco && normalizedExpenseCecos.length > 0) {
-        const entryCeco = String(entry.ceco).trim().replace(/^(CEBE|CECO)/i, '');
-        if (normalizedExpenseCecos.some(c => entryCeco.startsWith(c))) {
-          globalMatch = true;
+      let globalCebe = true;
+      if (entry.cebe && normalizedPropCebe) {
+        const entryCebe = String(entry.cebe).trim().replace(/^(CEBE|CECO)/i, '');
+        globalCebe = entryCebe.startsWith(normalizedPropCebe);
+      }
+      
+      let globalCeco = false;
+      if (normalizedExpenseCecos.length > 0) {
+        if (entry.ceco) {
+          const entryCeco = String(entry.ceco).trim().replace(/^(CEBE|CECO)/i, '');
+          if (normalizedExpenseCecos.some(c => entryCeco.startsWith(c))) globalCeco = true;
         }
+      } else {
+        globalCeco = true;
+      }
+
+      if (globalCebe && globalCeco) {
+        globalMatch = true;
       }
 
       return lineMatch || globalMatch;

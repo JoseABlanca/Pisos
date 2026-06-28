@@ -108,21 +108,40 @@ export default function TaxesRealEstate() {
             const accCode = String(l.accountCode || '');
             if (!accCode.startsWith('7')) return;
 
-            let matches = false;
+            // Must match CEBE
+            let matchCebe = false;
             if (l.cebe && normalizedPropCebe) {
               const lineCebe = String(l.cebe).trim().replace(/^(CEBE|CECO)/i, '');
               if (lineCebe.startsWith(normalizedPropCebe)) {
-                matches = true;
+                matchCebe = true;
               }
-            }
-            if (!matches && l.ceco && normalizedIncomeCecos.length > 0) {
-              const lineCeco = String(l.ceco).trim().replace(/^(CEBE|CECO)/i, '');
-              if (normalizedIncomeCecos.some(c => lineCeco.startsWith(c))) {
-                matches = true;
+            } else if (!l.cebe && normalizedPropCebe) {
+              // Fallback to entry-level cebe
+              const entryCebe = String(entry.cebe || '').trim().replace(/^(CEBE|CECO)/i, '');
+              if (entryCebe.startsWith(normalizedPropCebe)) {
+                matchCebe = true;
               }
             }
 
-            if (matches) {
+            // Must match Income CECO if any are selected
+            let matchCeco = false;
+            if (normalizedIncomeCecos.length > 0) {
+              if (l.ceco) {
+                const lineCeco = String(l.ceco).trim().replace(/^(CEBE|CECO)/i, '');
+                if (normalizedIncomeCecos.some(c => lineCeco.startsWith(c))) {
+                  matchCeco = true;
+                }
+              } else if (!l.ceco) {
+                const entryCeco = String(entry.ceco || '').trim().replace(/^(CEBE|CECO)/i, '');
+                if (normalizedIncomeCecos.some(c => entryCeco.startsWith(c))) {
+                  matchCeco = true;
+                }
+              }
+            } else {
+              matchCeco = true;
+            }
+
+            if (matchCebe && matchCeco) {
               entryIngresos += (Number(l.debit) || 0) + (Number(l.credit) || 0);
               hasLineMatch = true;
             }
@@ -131,21 +150,27 @@ export default function TaxesRealEstate() {
 
         // Fallback for global match
         if (!hasLineMatch) {
-          let globalMatch = false;
+          let globalCebe = false;
           if (normalizedPropCebe && entry.cebe) {
             const entryCebe = String(entry.cebe).trim().replace(/^(CEBE|CECO)/i, '');
             if (entryCebe.startsWith(normalizedPropCebe)) {
-              globalMatch = true;
+              globalCebe = true;
             }
           }
-          if (!globalMatch && normalizedIncomeCecos.length > 0 && entry.ceco) {
-            const entryCeco = String(entry.ceco).trim().replace(/^(CEBE|CECO)/i, '');
-            if (normalizedIncomeCecos.some(c => entryCeco.startsWith(c))) {
-              globalMatch = true;
+          
+          let globalCeco = false;
+          if (normalizedIncomeCecos.length > 0) {
+            if (entry.ceco) {
+              const entryCeco = String(entry.ceco).trim().replace(/^(CEBE|CECO)/i, '');
+              if (normalizedIncomeCecos.some(c => entryCeco.startsWith(c))) {
+                globalCeco = true;
+              }
             }
+          } else {
+            globalCeco = true;
           }
 
-          if (globalMatch) {
+          if (globalCebe && globalCeco) {
             entryIngresos = parseFloat(entry.total) || 0;
           }
         }
@@ -172,20 +197,62 @@ export default function TaxesRealEstate() {
             const accCode = String(l.accountCode || '');
             if (!accCode.startsWith('6')) return;
 
-            if (l.ceco && normalizedExpenseCecos.length > 0) {
-              const lineCeco = String(l.ceco).trim().replace(/^(CEBE|CECO)/i, '');
-              if (normalizedExpenseCecos.some(c => lineCeco.startsWith(c))) {
-                entryGastos += (Number(l.debit) || 0) + (Number(l.credit) || 0);
-                hasLineMatch = true;
+            // Must match CEBE if the line or entry has one
+            let matchCebe = true;
+            if (l.cebe && normalizedPropCebe) {
+              const lineCebe = String(l.cebe).trim().replace(/^(CEBE|CECO)/i, '');
+              matchCebe = lineCebe.startsWith(normalizedPropCebe);
+            } else if (!l.cebe && entry.cebe && normalizedPropCebe) {
+              const entryCebe = String(entry.cebe).trim().replace(/^(CEBE|CECO)/i, '');
+              matchCebe = entryCebe.startsWith(normalizedPropCebe);
+            }
+
+            // Must match Expense CECO if any are selected
+            let matchCeco = false;
+            if (normalizedExpenseCecos.length > 0) {
+              if (l.ceco) {
+                const lineCeco = String(l.ceco).trim().replace(/^(CEBE|CECO)/i, '');
+                if (normalizedExpenseCecos.some(c => lineCeco.startsWith(c))) {
+                  matchCeco = true;
+                }
+              } else if (!l.ceco) {
+                const entryCeco = String(entry.ceco || '').trim().replace(/^(CEBE|CECO)/i, '');
+                if (normalizedExpenseCecos.some(c => entryCeco.startsWith(c))) {
+                  matchCeco = true;
+                }
               }
+            } else {
+              matchCeco = true;
+            }
+
+            if (matchCebe && matchCeco) {
+              entryGastos += (Number(l.debit) || 0) + (Number(l.credit) || 0);
+              hasLineMatch = true;
             }
           });
         }
 
         // Fallback for global match
-        if (!hasLineMatch && normalizedExpenseCecos.length > 0 && entry.ceco) {
-          const entryCeco = String(entry.ceco).trim().replace(/^(CEBE|CECO)/i, '');
-          if (normalizedExpenseCecos.some(c => entryCeco.startsWith(c))) {
+        if (!hasLineMatch) {
+          let globalCebe = true;
+          if (entry.cebe && normalizedPropCebe) {
+            const entryCebe = String(entry.cebe).trim().replace(/^(CEBE|CECO)/i, '');
+            globalCebe = entryCebe.startsWith(normalizedPropCebe);
+          }
+          
+          let globalCeco = false;
+          if (normalizedExpenseCecos.length > 0) {
+            if (entry.ceco) {
+              const entryCeco = String(entry.ceco).trim().replace(/^(CEBE|CECO)/i, '');
+              if (normalizedExpenseCecos.some(c => entryCeco.startsWith(c))) {
+                globalCeco = true;
+              }
+            }
+          } else {
+            globalCeco = true;
+          }
+
+          if (globalCebe && globalCeco) {
             entryGastos = parseFloat(entry.total) || 0;
           }
         }
@@ -206,20 +273,56 @@ export default function TaxesRealEstate() {
         const yearsWithIncome = new Set();
         if (propertyCebe) {
           const normalizedPropCebe = propertyCebe.replace(/^(CEBE|CECO)/i, '');
+          const normalizedIncomeCecos = taxIncomeCecos.map(c => c.replace(/^(CEBE|CECO)/i, ''));
           journalEntries.forEach(entry => {
             if (!entry.isImpuesto) return;
             let match = false;
             if (entry.lines) {
               entry.lines.forEach(l => {
+                const accCode = String(l.accountCode || '');
+                if (!accCode.startsWith('7')) return;
+
+                let lineCebeMatch = false;
                 if (l.cebe) {
                   const lineCebe = String(l.cebe).trim().replace(/^(CEBE|CECO)/i, '');
-                  if (lineCebe.startsWith(normalizedPropCebe)) match = true;
+                  if (lineCebe.startsWith(normalizedPropCebe)) lineCebeMatch = true;
+                } else {
+                  const entryCebe = String(entry.cebe || '').trim().replace(/^(CEBE|CECO)/i, '');
+                  if (entryCebe.startsWith(normalizedPropCebe)) lineCebeMatch = true;
                 }
+
+                let lineCecoMatch = false;
+                if (normalizedIncomeCecos.length > 0) {
+                  if (l.ceco) {
+                    const lineCeco = String(l.ceco).trim().replace(/^(CEBE|CECO)/i, '');
+                    if (normalizedIncomeCecos.some(c => lineCeco.startsWith(c))) lineCecoMatch = true;
+                  } else {
+                    const entryCeco = String(entry.ceco || '').trim().replace(/^(CEBE|CECO)/i, '');
+                    if (normalizedIncomeCecos.some(c => entryCeco.startsWith(c))) lineCecoMatch = true;
+                  }
+                } else {
+                  lineCecoMatch = true;
+                }
+
+                if (lineCebeMatch && lineCecoMatch) match = true;
               });
             }
-            if (!match && entry.cebe) {
-              const entryCebe = String(entry.cebe).trim().replace(/^(CEBE|CECO)/i, '');
-              if (entryCebe.startsWith(normalizedPropCebe)) match = true;
+            if (!match) {
+              let globalCebe = false;
+              if (entry.cebe) {
+                const entryCebe = String(entry.cebe).trim().replace(/^(CEBE|CECO)/i, '');
+                if (entryCebe.startsWith(normalizedPropCebe)) globalCebe = true;
+              }
+              let globalCeco = false;
+              if (normalizedIncomeCecos.length > 0) {
+                if (entry.ceco) {
+                  const entryCeco = String(entry.ceco).trim().replace(/^(CEBE|CECO)/i, '');
+                  if (normalizedIncomeCecos.some(c => entryCeco.startsWith(c))) globalCeco = true;
+                }
+              } else {
+                globalCeco = true;
+              }
+              if (globalCebe && globalCeco) match = true;
             }
             if (match) {
               const yr = entry.date ? entry.date.substring(0, 4) : '';
