@@ -58,8 +58,53 @@ export default function ExtractoContableTab({
 
   // Filter entries that match current CEBE or CECO (hierarchical matching)
   const filteredEntries = useMemo(() => {
-    if (!currentCebe && !currentCeco) return [];
+    if (mode === 'rentals') {
+      if (!currentCebe) return [];
+      const normValueCebe = String(currentCebe).trim().replace(/^(CEBE|CECO)/i, '');
+      const currentRef = String(formData?.reference || '').trim().toUpperCase();
+      if (!currentRef) return [];
 
+      return journalEntries.filter(entry => {
+        let matchCebe = false;
+        let matchRef = false;
+
+        // Check line levels
+        if (entry.lines) {
+          entry.lines.forEach(l => {
+            let lineMatchCebe = false;
+            let lineMatchRef = false;
+            
+            if (l.cebe) {
+              const normField = String(l.cebe).trim().replace(/^(CEBE|CECO)/i, '');
+              if (normField.startsWith(normValueCebe)) lineMatchCebe = true;
+            }
+            if (l.document) {
+              if (String(l.document).trim().toUpperCase() === currentRef) lineMatchRef = true;
+            }
+
+            if (lineMatchCebe && lineMatchRef) {
+              matchCebe = true;
+              matchRef = true;
+            }
+          });
+        }
+
+        // Fallback check on global header for old entries
+        if (!matchCebe && entry.cebe) {
+          const normField = String(entry.cebe).trim().replace(/^(CEBE|CECO)/i, '');
+          if (normField.startsWith(normValueCebe)) matchCebe = true;
+        }
+        if (!matchRef && (entry.document || entry.documentName)) {
+          const docVal = String(entry.document || entry.documentName || '').trim().toUpperCase();
+          if (docVal === currentRef) matchRef = true;
+        }
+
+        return matchCebe && matchRef;
+      }).sort((a, b) => new Date(b.date) - new Date(a.date));
+    }
+
+    // Default properties mode (as before)
+    if (!currentCebe && !currentCeco) return [];
     const normValueCebe = currentCebe ? String(currentCebe).trim().replace(/^(CEBE|CECO)/i, '') : '';
     const normValueCeco = currentCeco ? String(currentCeco).trim().replace(/^(CEBE|CECO)/i, '') : '';
 
@@ -67,7 +112,6 @@ export default function ExtractoContableTab({
       let matchCebe = false;
       let matchCeco = false;
 
-      // Check global levels first (for backward compatibility)
       if (normValueCebe && entry.cebe) {
         const normField = String(entry.cebe).trim().replace(/^(CEBE|CECO)/i, '');
         if (normField.startsWith(normValueCebe)) matchCebe = true;
@@ -77,7 +121,6 @@ export default function ExtractoContableTab({
         if (normField.startsWith(normValueCeco)) matchCeco = true;
       }
 
-      // Check line levels next
       if (entry.lines) {
         entry.lines.forEach(l => {
           if (normValueCebe && l.cebe) {
@@ -93,7 +136,7 @@ export default function ExtractoContableTab({
 
       return matchCebe || matchCeco;
     }).sort((a, b) => new Date(b.date) - new Date(a.date));
-  }, [journalEntries, currentCebe, currentCeco]);
+  }, [journalEntries, currentCebe, currentCeco, formData?.reference, mode]);
 
   // Calculate totals
   const totals = useMemo(() => {
@@ -102,54 +145,86 @@ export default function ExtractoContableTab({
 
     const normValueCebe = currentCebe ? String(currentCebe).trim().replace(/^(CEBE|CECO)/i, '') : '';
     const normValueCeco = currentCeco ? String(currentCeco).trim().replace(/^(CEBE|CECO)/i, '') : '';
+    const currentRef = String(formData?.reference || '').trim().toUpperCase();
 
     filteredEntries.forEach(entry => {
       let cebeEntryAmount = 0;
       let cecoEntryAmount = 0;
       let hasLineMatchCebe = false;
-      let hasLineMatchCeco = false;
 
-      // Check line level matches
-      if (entry.lines) {
-        entry.lines.forEach(l => {
-          let lineMatchCebe = false;
-          let lineMatchCeco = false;
-          if (normValueCebe && l.cebe) {
-            const normField = String(l.cebe).trim().replace(/^(CEBE|CECO)/i, '');
-            if (normField.startsWith(normValueCebe)) lineMatchCebe = true;
-          }
-          if (normValueCeco && l.ceco) {
-            const normField = String(l.ceco).trim().replace(/^(CEBE|CECO)/i, '');
-            if (normField.startsWith(normValueCeco)) lineMatchCeco = true;
-          }
+      if (mode === 'rentals') {
+        if (entry.lines) {
+          entry.lines.forEach(l => {
+            let lineMatchCebe = false;
+            let lineMatchRef = false;
+            if (l.cebe) {
+              const normField = String(l.cebe).trim().replace(/^(CEBE|CECO)/i, '');
+              if (normField.startsWith(normValueCebe)) lineMatchCebe = true;
+            }
+            if (l.document) {
+              if (String(l.document).trim().toUpperCase() === currentRef) lineMatchRef = true;
+            }
 
-          if (lineMatchCebe) {
-            cebeEntryAmount += (Number(l.debit) || 0) + (Number(l.credit) || 0);
-            hasLineMatchCebe = true;
-          }
-          if (lineMatchCeco) {
-            cecoEntryAmount += (Number(l.debit) || 0) + (Number(l.credit) || 0);
-            hasLineMatchCeco = true;
-          }
-        });
-      }
-
-      // If no lines matched but global matched (fallback for old data)
-      if (!hasLineMatchCebe && normValueCebe && entry.cebe) {
-        const normField = String(entry.cebe).trim().replace(/^(CEBE|CECO)/i, '');
-        if (normField.startsWith(normValueCebe)) {
-          cebeEntryAmount = entry.total || 0;
+            if (lineMatchCebe && lineMatchRef) {
+              cebeEntryAmount += (Number(l.debit) || 0) + (Number(l.credit) || 0);
+              hasLineMatchCebe = true;
+            }
+          });
         }
-      }
-      if (!hasLineMatchCeco && normValueCeco && entry.ceco) {
-        const normField = String(entry.ceco).trim().replace(/^(CEBE|CECO)/i, '');
-        if (normField.startsWith(normValueCeco)) {
-          cecoEntryAmount = entry.total || 0;
-        }
-      }
 
-      cebeSum += cebeEntryAmount;
-      cecoSum += cecoEntryAmount;
+        if (!hasLineMatchCebe && entry.cebe) {
+          const normField = String(entry.cebe).trim().replace(/^(CEBE|CECO)/i, '');
+          if (normField.startsWith(normValueCebe)) {
+            const docVal = String(entry.document || entry.documentName || '').trim().toUpperCase();
+            if (docVal === currentRef) {
+              cebeEntryAmount = entry.total || 0;
+            }
+          }
+        }
+        cebeSum += cebeEntryAmount;
+      } else {
+        // Properties mode
+        let hasLineMatchCeco = false;
+        if (entry.lines) {
+          entry.lines.forEach(l => {
+            let lineMatchCebe = false;
+            let lineMatchCeco = false;
+            if (normValueCebe && l.cebe) {
+              const normField = String(l.cebe).trim().replace(/^(CEBE|CECO)/i, '');
+              if (normField.startsWith(normValueCebe)) lineMatchCebe = true;
+            }
+            if (normValueCeco && l.ceco) {
+              const normField = String(l.ceco).trim().replace(/^(CEBE|CECO)/i, '');
+              if (normField.startsWith(normValueCeco)) lineMatchCeco = true;
+            }
+
+            if (lineMatchCebe) {
+              cebeEntryAmount += (Number(l.debit) || 0) + (Number(l.credit) || 0);
+              hasLineMatchCebe = true;
+            }
+            if (lineMatchCeco) {
+              cecoEntryAmount += (Number(l.debit) || 0) + (Number(l.credit) || 0);
+              hasLineMatchCeco = true;
+            }
+          });
+        }
+
+        if (!hasLineMatchCebe && normValueCebe && entry.cebe) {
+          const normField = String(entry.cebe).trim().replace(/^(CEBE|CECO)/i, '');
+          if (normField.startsWith(normValueCebe)) {
+            cebeEntryAmount = entry.total || 0;
+          }
+        }
+        if (!hasLineMatchCeco && normValueCeco && entry.ceco) {
+          const normField = String(entry.ceco).trim().replace(/^(CEBE|CECO)/i, '');
+          if (normField.startsWith(normValueCeco)) {
+            cecoEntryAmount = entry.total || 0;
+          }
+        }
+
+        cebeSum += cebeEntryAmount;
+        cecoSum += cecoEntryAmount;
+      }
     });
 
     return {
@@ -157,7 +232,7 @@ export default function ExtractoContableTab({
       ceco: cecoSum,
       balance: cebeSum - cecoSum
     };
-  }, [filteredEntries, currentCebe, currentCeco]);
+  }, [filteredEntries, currentCebe, currentCeco, formData?.reference, mode]);
 
   const handleCebeChange = (e) => {
     const val = e.target.value;
@@ -191,8 +266,8 @@ export default function ExtractoContableTab({
     <div className="flex flex-col gap-4 text-xs font-sans text-slate-800">
       {/* Selector Inputs (only editable if mode === 'rentals', otherwise read-only show or select from inputs) */}
       {mode === 'rentals' ? (
-        <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 p-3 bg-slate-100 border border-slate-300 win-bevel">
-          <div className="flex flex-col gap-1">
+        <div className="p-3 bg-slate-100 border border-slate-300 win-bevel flex flex-col gap-2">
+          <div className="flex flex-col gap-1 max-w-sm">
             <label className="text-[10px] font-bold text-slate-700 uppercase">CEBE Asociado (Ingresos):</label>
             <select 
               className="win-input w-full cursor-pointer" 
@@ -205,19 +280,11 @@ export default function ExtractoContableTab({
               ))}
             </select>
           </div>
-          <div className="flex flex-col gap-1">
-            <label className="text-[10px] font-bold text-slate-700 uppercase">CECO Asociado (Gastos):</label>
-            <select 
-              className="win-input w-full cursor-pointer" 
-              value={currentCeco} 
-              onChange={handleCecoChange}
-            >
-              <option value="">-- Seleccionar CECO --</option>
-              {cecos.map(c => (
-                <option key={c.id} value={c.code}>{c.code} - {c.name}</option>
-              ))}
-            </select>
-          </div>
+          {formData?.reference && (
+            <div className="text-[10px] text-slate-500 font-semibold uppercase mt-1">
+              Filtro por Referencia Alquiler (en Documento): <span className="font-mono bg-white px-1.5 py-0.5 border border-slate-300 rounded font-bold text-slate-700">{formData.reference}</span>
+            </div>
+          )}
         </div>
       ) : (
         <div className="p-3 bg-slate-100 border border-slate-300 win-bevel flex flex-col sm:flex-row sm:justify-between sm:items-center gap-2">
@@ -244,34 +311,36 @@ export default function ExtractoContableTab({
       )}
 
       {/* Metrics Cards */}
-      <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
+      <div className={`grid grid-cols-1 ${mode === 'rentals' ? 'sm:grid-cols-2' : 'sm:grid-cols-3'} gap-3`}>
         <div className="p-3 bg-slate-50 border border-slate-200 rounded shadow-sm flex items-center justify-between">
           <div>
             <div className="text-[9px] font-bold text-slate-600 uppercase mb-1">Total CEBE (Ingresos)</div>
             <div className="font-mono text-[15px] font-bold text-green-700">
-              {totals.cebe.toLocaleString('de-DE', { minimumFractionDigits: 2 })} €
+              {totals.cebe.toLocaleString('es-ES', { minimumFractionDigits: 2 })} €
             </div>
           </div>
           <TrendingUp className="w-8 h-8 text-green-600/30 shrink-0" />
         </div>
 
-        <div className="p-3 bg-slate-50 border border-slate-200 rounded shadow-sm flex items-center justify-between">
-          <div>
-            <div className="text-[9px] font-bold text-slate-600 uppercase mb-1">Total CECO (Gastos)</div>
-            <div className="font-mono text-[15px] font-bold text-red-600">
-              -{totals.ceco.toLocaleString('de-DE', { minimumFractionDigits: 2 })} €
+        {mode !== 'rentals' && (
+          <div className="p-3 bg-slate-50 border border-slate-200 rounded shadow-sm flex items-center justify-between">
+            <div>
+              <div className="text-[9px] font-bold text-slate-600 uppercase mb-1">Total CECO (Gastos)</div>
+              <div className="font-mono text-[15px] font-bold text-red-600">
+                -{totals.ceco.toLocaleString('es-ES', { minimumFractionDigits: 2 })} €
+              </div>
             </div>
+            <TrendingDown className="w-8 h-8 text-red-600/30 shrink-0" />
           </div>
-          <TrendingDown className="w-8 h-8 text-red-600/30 shrink-0" />
-        </div>
+        )}
 
         <div className={`p-3 border rounded shadow-sm flex items-center justify-between ${totals.balance >= 0 ? 'bg-blue-50/50 border-blue-200' : 'bg-amber-50/50 border-amber-200'}`}>
           <div>
             <div className={`text-[9px] font-bold uppercase mb-1 ${totals.balance >= 0 ? 'text-blue-700' : 'text-amber-800'}`}>
-              Balance Neto (CEBE - CECO)
+              {mode === 'rentals' ? 'Balance Recaudado' : 'Balance Neto (CEBE - CECO)'}
             </div>
             <div className={`font-mono text-[15px] font-bold ${totals.balance >= 0 ? 'text-blue-950' : 'text-amber-950'}`}>
-              {totals.balance.toLocaleString('de-DE', { minimumFractionDigits: 2 })} €
+              {totals.cebe.toLocaleString('es-ES', { minimumFractionDigits: 2 })} €
             </div>
           </div>
           <div className="font-bold text-[18px] opacity-20 font-mono shrink-0">

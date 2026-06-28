@@ -333,8 +333,6 @@ export default function Rentals() {
   const formTabs = [
     { id: 'general', name: 'Datos Generales', icon: FileText },
     { id: 'docs', name: 'Documentos', icon: FileText },
-    { id: 'ingresos', name: 'Ingresos / Facturación', icon: Building2 },
-    { id: 'gastos', name: 'Gastos Asociados', icon: Key },
     { id: 'extracto', name: 'Extracto', icon: FileText }
   ];
 
@@ -1444,48 +1442,6 @@ export default function Rentals() {
                       </div>
                     </div>
                   )}
-
-                    {activeFormTab === 'ingresos' && (
-                      <div className="space-y-4 max-w-xl">
-                        <div className="space-y-1">
-                          <label className="text-[10px] font-bold text-slate-700 uppercase">CEBE Asociado (Ingresos):</label>
-                          <p className="text-[11px] text-gray-600 mb-2">
-                            Selecciona el CEBE al que se imputarán los ingresos de este alquiler.
-                          </p>
-                          {renderCebeSelector('incomeCebeId', 'CEBE Ingresos')}
-                        </div>
-                        <div className="pt-2">
-                          <button 
-                            className="px-4 py-1.5 bg-[#4a69bd] text-white text-[11px] font-bold uppercase shadow-sm hover:bg-[#3b5598]"
-                            onClick={() => handleOpenAccounting('ingresos')}
-                          >
-                            Añadir Asiento
-                          </button>
-                        </div>
-                        <AnalyticsJournalViewer type="cebe" value={formData.incomeCebeId} userIds={queryUserIds?.length > 0 ? queryUserIds : [user.uid]} setPreviewDocument={setPreviewDocument} />
-                      </div>
-                    )}
-
-                    {activeFormTab === 'gastos' && (
-                      <div className="space-y-4 max-w-xl">
-                        <div className="space-y-1">
-                          <label className="text-[10px] font-bold text-slate-700 uppercase">CECO Asociado (Gastos):</label>
-                          <p className="text-[11px] text-gray-600 mb-2">
-                            Selecciona el CECO al que se imputarán los gastos fijos de este alquiler.
-                          </p>
-                          {renderCecoSelector('expenseCecoId', 'CECO Gastos')}
-                        </div>
-                        <div className="pt-2">
-                          <button 
-                            className="px-4 py-1.5 bg-[#4a69bd] text-white text-[11px] font-bold uppercase shadow-sm hover:bg-[#3b5598]"
-                            onClick={() => handleOpenAccounting('gastos')}
-                          >
-                            Añadir Asiento
-                          </button>
-                        </div>
-                        <AnalyticsJournalViewer type="ceco" value={formData.expenseCecoId} userIds={queryUserIds?.length > 0 ? queryUserIds : [user.uid]} setPreviewDocument={setPreviewDocument} />
-                      </div>
-                    )}
 
                     {activeFormTab === 'extracto' && (
                       <ExtractoContableTab 
