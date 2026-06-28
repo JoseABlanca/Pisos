@@ -21,6 +21,9 @@ export default function PrintPage() {
   // States for selected report template and filter
   const [selectedTemplate, setSelectedTemplate] = useState('diario'); // diario, mayor, sumas_saldos, activos, alquileres, clientes
   const [selectedYear, setSelectedYear] = useState(new Date().getFullYear());
+  const [selectedYears, setSelectedYears] = useState([]);
+  const [selectedMonths, setSelectedMonths] = useState([]);
+  const [selectedQuarters, setSelectedQuarters] = useState([]);
   
   // Database collections states
   const [accounts, setAccounts] = useState([]);
@@ -96,6 +99,53 @@ export default function PrintPage() {
     });
     return Array.from(years).sort((a, b) => b - a);
   }, [journalEntries]);
+
+  // Combined timeline and dropdown filters for print entries
+  const filteredEntriesForPrint = useMemo(() => {
+    let list = journalEntries;
+    
+    // 1. Year filter (either timeline or dropdown)
+    if (selectedYears.length > 0) {
+      list = list.filter(entry => {
+        if (!entry.date) return false;
+        const yr = new Date(entry.date).getFullYear().toString();
+        return selectedYears.includes(yr);
+      });
+    } else {
+      list = list.filter(entry => {
+        if (!entry.date) return false;
+        return new Date(entry.date).getFullYear() === selectedYear;
+      });
+    }
+    
+    // 2. Month / Quarter filters from timeline
+    if (selectedMonths.length > 0 || selectedQuarters.length > 0) {
+      const months = ['Ene', 'Feb', 'Mar', 'Abr', 'May', 'Jun', 'Jul', 'Ago', 'Sep', 'Oct', 'Nov', 'Dic'];
+      list = list.filter(entry => {
+        if (!entry.date) return false;
+        const m = new Date(entry.date).getMonth();
+        
+        const matchMonth = selectedMonths.includes(months[m]);
+        const matchQuarter = selectedQuarters.some(q => {
+          if (q === '1T') return [0, 1, 2].includes(m);
+          if (q === '2T') return [3, 4, 5].includes(m);
+          if (q === '3T') return [6, 7, 8].includes(m);
+          if (q === '4T') return [9, 10, 11].includes(m);
+          return false;
+        });
+        
+        if (selectedMonths.length > 0 && selectedQuarters.length > 0) {
+          return matchMonth || matchQuarter;
+        } else if (selectedMonths.length > 0) {
+          return matchMonth;
+        } else {
+          return matchQuarter;
+        }
+      });
+    }
+    
+    return list;
+  }, [journalEntries, selectedYear, selectedYears, selectedMonths, selectedQuarters]);
 
   // Handle Print execution
   const handlePrint = () => {
@@ -220,11 +270,15 @@ export default function PrintPage() {
 
   // Reusable Page Header
   const renderPageHeader = (title) => {
+    const isAccounting = ['Diario de Movimientos', 'Libro Mayor de Cuentas', 'Balance de Sumas y Saldos'].includes(title);
+    const subtitle = isAccounting
+      ? `Ejercicio Contable: ${selectedYears.length > 0 ? selectedYears.join(', ') : selectedYear}${selectedMonths.length > 0 || selectedQuarters.length > 0 ? ` (${[...selectedQuarters, ...selectedMonths].join(', ')})` : ''}`
+      : `Ejercicio Contable: ${selectedYear}`;
     return (
       <div className="border-b-2 border-slate-800 pb-3 flex justify-between items-end mb-4 select-none">
         <div>
           <h2 className="text-xl font-bold uppercase tracking-tight text-slate-900">{title}</h2>
-          <p className="text-[10px] text-slate-500 font-bold uppercase">Ejercicio Contable: {selectedYear}</p>
+          <p className="text-[10px] text-slate-500 font-bold uppercase">{subtitle}</p>
         </div>
         <div className="text-right text-[10px] text-slate-500 font-mono">
           Fecha Emisión: {new Date().toLocaleDateString()}
@@ -256,8 +310,7 @@ export default function PrintPage() {
 
     // 1. DIARIO DE MOVIMIENTOS
     if (selectedTemplate === 'diario') {
-      const yearEntries = journalEntries
-        .filter(entry => entry.date && new Date(entry.date).getFullYear() === selectedYear)
+      const yearEntries = filteredEntriesForPrint
         .sort((a, b) => new Date(a.date) - new Date(b.date));
       const entryPages = chunkDiario(yearEntries, 28);
       const totalPages = entryPages.length || 1;
@@ -342,7 +395,7 @@ export default function PrintPage() {
 
     // 2. LIBRO MAYOR
     if (selectedTemplate === 'mayor') {
-      const yearEntries = journalEntries.filter(entry => entry.date && new Date(entry.date).getFullYear() === selectedYear);
+      const yearEntries = filteredEntriesForPrint;
       const accountMovements = {};
       accounts.forEach(acc => {
         accountMovements[acc.id] = { account: acc, lines: [], debitSum: 0, creditSum: 0 };
@@ -462,7 +515,7 @@ export default function PrintPage() {
 
     // 3. BALANCE DE SUMAS Y SALDOS
     if (selectedTemplate === 'sumas_saldos') {
-      const yearEntries = journalEntries.filter(entry => entry.date && new Date(entry.date).getFullYear() === selectedYear);
+      const yearEntries = filteredEntriesForPrint;
       const sumsMap = {};
       accounts.forEach(acc => {
         sumsMap[acc.id] = { code: acc.code, name: acc.name, type: acc.type, debit: 0, credit: 0 };
@@ -854,6 +907,53 @@ export default function PrintPage() {
           </p>
         </div>
       </div>
+
+      {/* Quick Month Filter Bar (no-print) */}
+      {['diario', 'mayor', 'sumas_saldos'].includes(selectedTemplate) && (
+        <div className="w-10 bg-[#f0f0f0] border border-[#808080] flex flex-col items-center py-2 shrink-0 overflow-y-auto win-bevel no-print gap-1 select-none">
+          {['Ene', 'Feb', 'Mar', 'Abr', 'May', 'Jun', 'Jul', 'Ago', 'Sep', 'Oct', 'Nov', 'Dic'].map(m => (
+            <button 
+              key={m} 
+              onClick={() => setSelectedMonths(prev => prev.includes(m) ? prev.filter(x => x !== m) : [...prev, m])}
+              className={`text-[9px] w-full text-center hover:font-bold py-0.5 transition-colors ${
+                selectedMonths.includes(m) 
+                  ? 'text-blue-700 font-bold bg-[#c0c0c0] shadow-inner' 
+                  : 'text-slate-800 hover:text-blue-700'
+              }`}
+            >
+              {m.toUpperCase()}
+            </button>
+          ))}
+          <div className="h-px bg-slate-400 w-full my-1"></div>
+          {['1T', '2T', '3T', '4T'].map(t => (
+            <button 
+              key={t} 
+              onClick={() => setSelectedQuarters(prev => prev.includes(t) ? prev.filter(x => x !== t) : [...prev, t])}
+              className={`text-[9px] w-full text-center hover:font-bold py-0.5 transition-colors ${
+                selectedQuarters.includes(t) 
+                  ? 'text-blue-700 font-bold bg-[#c0c0c0] shadow-inner' 
+                  : 'text-slate-800 hover:text-blue-700'
+              }`}
+            >
+              {t}
+            </button>
+          ))}
+          <div className="h-px bg-slate-400 w-full my-1"></div>
+          {['2024', '2025', '2026', '2027'].map(yr => (
+            <button 
+              key={yr} 
+              onClick={() => setSelectedYears(prev => prev.includes(yr) ? prev.filter(x => x !== yr) : [...prev, yr])}
+              className={`text-[9px] w-full text-center hover:font-bold py-0.5 transition-colors ${
+                selectedYears.includes(yr) 
+                  ? 'text-blue-700 font-bold bg-[#c0c0c0] shadow-inner' 
+                  : 'text-slate-800 hover:text-blue-700'
+              }`}
+            >
+              {yr}
+            </button>
+          ))}
+        </div>
+      )}
 
       {/* Main Preview Container */}
       <div className="flex-1 flex flex-col bg-[#526075]/20 border border-[#808080] win-bevel min-w-0 relative h-full">
