@@ -322,11 +322,17 @@ export default function ExtractoContableTab({
               if (normExpenseCecos.some(c => normField.startsWith(c))) lineMatchCeco = true;
             }
 
-            if (lineMatchCebe) {
-              cebeEntryAmount += lineAmt;
-            }
-            if (lineMatchCeco) {
-              cecoEntryAmount += lineAmt;
+            if (lineMatchCebe || lineMatchCeco) {
+              const isInc = accCode.startsWith('7');
+              const isExp = accCode.startsWith('6');
+              if (isInc) {
+                cebeEntryAmount += lineAmt;
+              } else if (isExp) {
+                cecoEntryAmount += lineAmt;
+              } else {
+                if (lineMatchCebe) cebeEntryAmount += lineAmt;
+                if (lineMatchCeco) cecoEntryAmount += lineAmt;
+              }
             }
           }
         });
