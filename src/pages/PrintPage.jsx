@@ -104,6 +104,11 @@ export default function PrintPage() {
   const [cecoDropdownOpen, setCecoDropdownOpen] = useState(false);
   const [docDropdownOpen, setDocDropdownOpen] = useState(false);
 
+  const [accountsSearch, setAccountsSearch] = useState('');
+  const [cebeSearch, setCebeSearch] = useState('');
+  const [cecoSearch, setCecoSearch] = useState('');
+  const [docSearch, setDocSearch] = useState('');
+
   const accountsDropdownRef = useRef(null);
   const cebeDropdownRef = useRef(null);
   const cecoDropdownRef = useRef(null);
@@ -113,15 +118,19 @@ export default function PrintPage() {
     const handleOutsideClick = (e) => {
       if (accountsDropdownRef.current && !accountsDropdownRef.current.contains(e.target)) {
         setAccountsDropdownOpen(false);
+        setAccountsSearch('');
       }
       if (cebeDropdownRef.current && !cebeDropdownRef.current.contains(e.target)) {
         setCebeDropdownOpen(false);
+        setCebeSearch('');
       }
       if (cecoDropdownRef.current && !cecoDropdownRef.current.contains(e.target)) {
         setCecoDropdownOpen(false);
+        setCecoSearch('');
       }
       if (docDropdownRef.current && !docDropdownRef.current.contains(e.target)) {
         setDocDropdownOpen(false);
+        setDocSearch('');
       }
     };
     document.addEventListener('mousedown', handleOutsideClick);
@@ -226,6 +235,15 @@ export default function PrintPage() {
     return getSelectableAccounts(accounts);
   }, [accounts]);
 
+  const filteredSelectableAccountsList = useMemo(() => {
+    if (!accountsSearch) return selectableAccountsList;
+    const query = accountsSearch.toLowerCase();
+    return selectableAccountsList.filter(acc => 
+      acc.code.toLowerCase().includes(query) || 
+      acc.name.toLowerCase().includes(query)
+    );
+  }, [selectableAccountsList, accountsSearch]);
+
   // Combined timeline and dropdown filters for print entries
   const filteredEntriesForPrint = useMemo(() => {
     let list = journalEntries;
@@ -297,6 +315,16 @@ export default function PrintPage() {
     return Array.from(set).sort();
   }, [entriesMatchingAccountAndTimeline]);
 
+  const filteredSelectableCebes = useMemo(() => {
+    if (!cebeSearch) return selectableCebes;
+    const query = cebeSearch.toLowerCase();
+    return selectableCebes.filter(c => {
+      const cebeObj = cebes.find(x => x.code === c);
+      const label = cebeObj ? `${c} - ${cebeObj.name}` : c;
+      return label.toLowerCase().includes(query);
+    });
+  }, [selectableCebes, cebeSearch, cebes]);
+
   // Dynamic CECO options
   const selectableCecos = useMemo(() => {
     const set = new Set();
@@ -307,6 +335,16 @@ export default function PrintPage() {
     return Array.from(set).sort();
   }, [entriesMatchingAccountAndTimeline]);
 
+  const filteredSelectableCecos = useMemo(() => {
+    if (!cecoSearch) return selectableCecos;
+    const query = cecoSearch.toLowerCase();
+    return selectableCecos.filter(c => {
+      const cecoObj = cecos.find(x => x.code === c);
+      const label = cecoObj ? `${c} - ${cecoObj.name}` : c;
+      return label.toLowerCase().includes(query);
+    });
+  }, [selectableCecos, cecoSearch, cecos]);
+
   // Dynamic Document options
   const selectableDocuments = useMemo(() => {
     const set = new Set();
@@ -316,6 +354,12 @@ export default function PrintPage() {
     });
     return Array.from(set).sort();
   }, [entriesMatchingAccountAndTimeline]);
+
+  const filteredSelectableDocuments = useMemo(() => {
+    if (!docSearch) return selectableDocuments;
+    const query = docSearch.toLowerCase();
+    return selectableDocuments.filter(d => d.toLowerCase().includes(query));
+  }, [selectableDocuments, docSearch]);
 
   // Helper: check if an entry/line matches active CEBE/CECO/Document filters
   const matchesCenterFilters = (entry, line) => {
@@ -1114,7 +1158,7 @@ export default function PrintPage() {
             
             {/* Custom Dropdown Trigger */}
             <div 
-              onClick={() => setAccountsDropdownOpen(prev => !prev)}
+              onClick={() => setAccountsDropdownOpen(prev => { if (prev) setAccountsSearch(''); return !prev; })}
               className="win-input w-full flex justify-between items-center cursor-pointer select-none bg-white border border-[#a0a0a0] px-2 py-1 text-[11px] font-sans rounded min-h-[24px]"
             >
               <span className="truncate pr-2 text-slate-700">
@@ -1129,6 +1173,14 @@ export default function PrintPage() {
             {/* Floating Dropdown List */}
             {accountsDropdownOpen && (
               <div className="absolute left-3 right-3 top-[calc(100%-8px)] z-50 bg-white border border-[#a0a0a0] shadow-lg max-h-[220px] overflow-y-auto p-1.5 flex flex-col gap-1 rounded win-bevel">
+                <input 
+                  type="text" 
+                  value={accountsSearch} 
+                  onChange={(e) => setAccountsSearch(e.target.value)} 
+                  placeholder="Buscar cuenta..." 
+                  className="w-full text-[10px] px-1.5 py-0.5 border border-slate-300 rounded mb-1 outline-none focus:border-blue-400 font-sans normal-case" 
+                  onClick={(e) => e.stopPropagation()} 
+                />
                 {/* Option "Todos" */}
                 <label className="flex items-center gap-1.5 text-[10px] cursor-pointer hover:bg-slate-50 py-0.5 rounded select-none font-bold text-blue-900 border-b border-slate-100 pb-1">
                   <input 
@@ -1140,7 +1192,7 @@ export default function PrintPage() {
                   <span>Todos</span>
                 </label>
 
-                {selectableAccountsList.map(acc => {
+                {filteredSelectableAccountsList.map(acc => {
                   const indentClass = acc.code.length === 1 
                     ? '' 
                     : acc.code.length === 2 
@@ -1186,7 +1238,7 @@ export default function PrintPage() {
               <span>CEBE</span>
             </div>
             <div
-              onClick={() => setCebeDropdownOpen(prev => !prev)}
+              onClick={() => setCebeDropdownOpen(prev => { if (prev) setCebeSearch(''); return !prev; })}
               className="win-input w-full flex justify-between items-center cursor-pointer select-none bg-white border border-[#a0a0a0] px-2 py-1 text-[11px] font-sans rounded min-h-[24px]"
             >
               <span className="truncate pr-2 text-slate-700">
@@ -1196,14 +1248,22 @@ export default function PrintPage() {
             </div>
             {cebeDropdownOpen && (
               <div className="absolute left-3 right-3 top-[calc(100%-8px)] z-50 bg-white border border-[#a0a0a0] shadow-lg max-h-[180px] overflow-y-auto p-1.5 flex flex-col gap-1 rounded win-bevel">
+                <input 
+                  type="text" 
+                  value={cebeSearch} 
+                  onChange={(e) => setCebeSearch(e.target.value)} 
+                  placeholder="Buscar CEBE..." 
+                  className="w-full text-[10px] px-1.5 py-0.5 border border-slate-300 rounded mb-1 outline-none focus:border-blue-400 font-sans normal-case" 
+                  onClick={(e) => e.stopPropagation()} 
+                />
                 <label className="flex items-center gap-1.5 text-[10px] cursor-pointer hover:bg-slate-50 py-0.5 rounded select-none font-bold text-blue-900 border-b border-slate-100 pb-1">
                   <input type="checkbox" checked={selectedCebes.length === 0} onChange={() => setSelectedCebes([])} className="mt-0.5" />
                   <span>Todos</span>
                 </label>
-                {selectableCebes.length === 0 && (
+                {filteredSelectableCebes.length === 0 && (
                   <span className="text-[10px] text-slate-400 italic px-1">Sin opciones disponibles</span>
                 )}
-                {selectableCebes.map(c => {
+                {filteredSelectableCebes.map(c => {
                   const cebeObj = cebes.find(x => x.code === c);
                   const label = cebeObj ? `${c} - ${cebeObj.name}` : c;
                   return (
@@ -1230,7 +1290,7 @@ export default function PrintPage() {
               <span>CECO</span>
             </div>
             <div
-              onClick={() => setCecoDropdownOpen(prev => !prev)}
+              onClick={() => setCecoDropdownOpen(prev => { if (prev) setCecoSearch(''); return !prev; })}
               className="win-input w-full flex justify-between items-center cursor-pointer select-none bg-white border border-[#a0a0a0] px-2 py-1 text-[11px] font-sans rounded min-h-[24px]"
             >
               <span className="truncate pr-2 text-slate-700">
@@ -1240,14 +1300,22 @@ export default function PrintPage() {
             </div>
             {cecoDropdownOpen && (
               <div className="absolute left-3 right-3 top-[calc(100%-8px)] z-50 bg-white border border-[#a0a0a0] shadow-lg max-h-[180px] overflow-y-auto p-1.5 flex flex-col gap-1 rounded win-bevel">
+                <input 
+                  type="text" 
+                  value={cecoSearch} 
+                  onChange={(e) => setCecoSearch(e.target.value)} 
+                  placeholder="Buscar CECO..." 
+                  className="w-full text-[10px] px-1.5 py-0.5 border border-slate-300 rounded mb-1 outline-none focus:border-blue-400 font-sans normal-case" 
+                  onClick={(e) => e.stopPropagation()} 
+                />
                 <label className="flex items-center gap-1.5 text-[10px] cursor-pointer hover:bg-slate-50 py-0.5 rounded select-none font-bold text-blue-900 border-b border-slate-100 pb-1">
                   <input type="checkbox" checked={selectedCecos.length === 0} onChange={() => setSelectedCecos([])} className="mt-0.5" />
                   <span>Todos</span>
                 </label>
-                {selectableCecos.length === 0 && (
+                {filteredSelectableCecos.length === 0 && (
                   <span className="text-[10px] text-slate-400 italic px-1">Sin opciones disponibles</span>
                 )}
-                {selectableCecos.map(c => {
+                {filteredSelectableCecos.map(c => {
                   const cecoObj = cecos.find(x => x.code === c);
                   const label = cecoObj ? `${c} - ${cecoObj.name}` : c;
                   return (
@@ -1300,7 +1368,7 @@ export default function PrintPage() {
               <span>Documento</span>
             </div>
             <div
-              onClick={() => setDocDropdownOpen(prev => !prev)}
+              onClick={() => setDocDropdownOpen(prev => { if (prev) setDocSearch(''); return !prev; })}
               className="win-input w-full flex justify-between items-center cursor-pointer select-pointer select-none bg-white border border-[#a0a0a0] px-2 py-1 text-[11px] font-sans rounded min-h-[24px]"
             >
               <span className="truncate pr-2 text-slate-700">
@@ -1310,14 +1378,22 @@ export default function PrintPage() {
             </div>
             {docDropdownOpen && (
               <div className="absolute left-3 right-3 top-[calc(100%-8px)] z-50 bg-white border border-[#a0a0a0] shadow-lg max-h-[180px] overflow-y-auto p-1.5 flex flex-col gap-1 rounded win-bevel">
+                <input 
+                  type="text" 
+                  value={docSearch} 
+                  onChange={(e) => setDocSearch(e.target.value)} 
+                  placeholder="Buscar documento..." 
+                  className="w-full text-[10px] px-1.5 py-0.5 border border-slate-300 rounded mb-1 outline-none focus:border-blue-400 font-sans normal-case" 
+                  onClick={(e) => e.stopPropagation()} 
+                />
                 <label className="flex items-center gap-1.5 text-[10px] cursor-pointer hover:bg-slate-50 py-0.5 rounded select-none font-bold text-blue-900 border-b border-slate-100 pb-1">
                   <input type="checkbox" checked={selectedDocuments.length === 0} onChange={() => setSelectedDocuments([])} className="mt-0.5" />
                   <span>Todos</span>
                 </label>
-                {selectableDocuments.length === 0 && (
+                {filteredSelectableDocuments.length === 0 && (
                   <span className="text-[10px] text-slate-400 italic px-1">Sin opciones disponibles</span>
                 )}
-                {selectableDocuments.map(d => (
+                {filteredSelectableDocuments.map(d => (
                   <label key={d} className="flex items-start gap-1.5 text-[10px] cursor-pointer hover:bg-slate-50 py-0.5 rounded select-none">
                     <input
                       type="checkbox"
