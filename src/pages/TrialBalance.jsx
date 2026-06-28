@@ -15,7 +15,9 @@ export default function TrialBalance() {
   const [isRecalculating, setIsRecalculating] = useState(false);
   const [totals, setTotals] = useState({ debit: 0, credit: 0, balance: 0 });
   const [selectedAccount, setSelectedAccount] = useState(null);
-  const [selectedQuickFilter, setSelectedQuickFilter] = useState(null);
+  const [selectedYears, setSelectedYears] = useState([]);
+  const [selectedMonths, setSelectedMonths] = useState([]);
+  const [selectedQuarters, setSelectedQuarters] = useState([]);
 
   // Filters state
   const [filterFechaType, setFilterFechaType] = useState('Hasta este mes');
@@ -74,40 +76,48 @@ export default function TrialBalance() {
       return;
     }
 
-    // 1. Filter Transactions (Date & Diario)
+    // 1. Filter Transactions (Date, Timeline & Diario)
     let filteredTx = rawTransactions;
-    if (selectedQuickFilter) {
-      const months = ['Ene', 'Feb', 'Mar', 'Abr', 'May', 'Jun', 'Jul', 'Ago', 'Sep', 'Oct', 'Nov', 'Dic'];
-      const monthIndex = months.indexOf(selectedQuickFilter);
-      if (monthIndex !== -1) {
-        filteredTx = rawTransactions.filter(tx => {
-          if (!tx.date) return false;
-          const txMonth = parseInt(tx.date.split('-')[1], 10);
-          return txMonth === (monthIndex + 1);
-        });
-      } else {
-        const quarters = {
-          '1T': [1, 2, 3],
-          '2T': [4, 5, 6],
-          '3T': [7, 8, 9],
-          '4T': [10, 11, 12]
-        };
-        const targetMonths = quarters[selectedQuickFilter];
-        if (targetMonths) {
-          filteredTx = rawTransactions.filter(tx => {
-            if (!tx.date) return false;
-            const txMonth = parseInt(tx.date.split('-')[1], 10);
-            return targetMonths.includes(txMonth);
-          });
+
+    // Apply Timeline Multi-selection
+    if (selectedYears.length > 0 || selectedMonths.length > 0 || selectedQuarters.length > 0) {
+      filteredTx = filteredTx.filter(tx => {
+        if (!tx.date) return false;
+        const parts = tx.date.split('-');
+        const y = parseInt(parts[0], 10);
+        const m = parseInt(parts[1], 10) - 1; // 0-based month
+        
+        const months = ['Ene', 'Feb', 'Mar', 'Abr', 'May', 'Jun', 'Jul', 'Ago', 'Sep', 'Oct', 'Nov', 'Dic'];
+
+        if (selectedYears.length > 0) {
+          if (!selectedYears.includes(String(y))) return false;
         }
-      }
-    } else if (filterFechaType === 'Este mes') {
+
+        if (selectedMonths.length > 0 || selectedQuarters.length > 0) {
+          const matchMonth = selectedMonths.includes(months[m]);
+          const matchQuarter = selectedQuarters.some(q => {
+            if (q === '1T') return m >= 0 && m <= 2;
+            if (q === '2T') return m >= 3 && m <= 5;
+            if (q === '3T') return m >= 6 && m <= 8;
+            if (q === '4T') return m >= 9 && m <= 11;
+            return false;
+          });
+          if (!matchMonth && !matchQuarter) return false;
+        }
+        return true;
+      });
+    }
+
+    // Apply other date filters
+    if (selectedYears.length === 0 && selectedMonths.length === 0 && selectedQuarters.length === 0) {
+      if (filterFechaType === 'Este mes') {
         const currentMonth = new Date().getMonth() + 1;
-        filteredTx = rawTransactions.filter(tx => {
+        filteredTx = filteredTx.filter(tx => {
             if (!tx.date) return false;
             const txMonth = parseInt(tx.date.split('-')[1], 10);
             return txMonth === currentMonth;
         });
+      }
     }
 
     // 2. Aggregate sums per account code (aux accounts: code.length > 4)
@@ -190,7 +200,7 @@ export default function TrialBalance() {
     setData(finalAccounts);
     setTotals(newTotals);
 
-  }, [rawAccounts, rawTransactions, selectedQuickFilter, filterFechaType, filterTrimestre, filterDateDesde, filterDateHasta, filterCuentaType, filterCuentaDesde, filterCuentaHasta, verOficiales, verAuxiliares, mostrarSinSaldo, filterDiario]);
+  }, [rawAccounts, rawTransactions, selectedYears, selectedMonths, selectedQuarters, filterFechaType, filterTrimestre, filterDateDesde, filterDateHasta, filterCuentaType, filterCuentaDesde, filterCuentaHasta, verOficiales, verAuxiliares, mostrarSinSaldo, filterDiario]);
 
   const handleFullRecalculate = async () => {
     if (!user) return;
@@ -295,24 +305,34 @@ export default function TrialBalance() {
         )}
 
         {/* Quick Month Filter Bar */}
-        <div className="w-8 border-r border-gray-300 bg-white flex flex-col items-center py-2 shrink-0">
+        <div className="w-8 border-r border-gray-300 bg-white flex flex-col items-center py-2 shrink-0 overflow-y-auto">
            {['Ene', 'Feb', 'Mar', 'Abr', 'May', 'Jun', 'Jul', 'Ago', 'Sep', 'Oct', 'Nov', 'Dic'].map(m => (
               <button 
                 key={m} 
-                onClick={() => setSelectedQuickFilter(selectedQuickFilter === m ? null : m)}
-                className={`text-[10px] w-full text-center hover:font-bold ${selectedQuickFilter === m ? 'text-blue-600 font-bold bg-blue-50' : 'text-[#0d2a63] hover:text-blue-600'} mb-1`}
+                onClick={() => setSelectedMonths(prev => prev.includes(m) ? prev.filter(x => x !== m) : [...prev, m])}
+                className={`text-[10px] w-full text-center hover:font-bold ${selectedMonths.includes(m) ? 'text-blue-600 font-bold bg-blue-50' : 'text-[#0d2a63] hover:text-blue-600'} mb-1`}
               >
                 {m}
               </button>
            ))}
-           <div className="h-2"></div>
+           <div className="h-2 border-b border-gray-300 w-full mb-1"></div>
            {['1T', '2T', '3T', '4T'].map(t => (
               <button 
                 key={t} 
-                onClick={() => setSelectedQuickFilter(selectedQuickFilter === t ? null : t)}
-                className={`text-[10px] w-full text-center hover:font-bold ${selectedQuickFilter === t ? 'text-blue-600 font-bold bg-blue-50' : 'text-[#0d2a63] hover:text-blue-600'} mb-1`}
+                onClick={() => setSelectedQuarters(prev => prev.includes(t) ? prev.filter(x => x !== t) : [...prev, t])}
+                className={`text-[10px] w-full text-center hover:font-bold ${selectedQuarters.includes(t) ? 'text-blue-600 font-bold bg-blue-50' : 'text-[#0d2a63] hover:text-blue-600'} mb-1`}
               >
                 {t}
+              </button>
+           ))}
+           <div className="h-2 border-b border-gray-300 w-full mb-1"></div>
+           {['2024', '2025', '2026', '2027'].map(yr => (
+              <button 
+                key={yr} 
+                onClick={() => setSelectedYears(prev => prev.includes(yr) ? prev.filter(x => x !== yr) : [...prev, yr])}
+                className={`text-[10px] w-full text-center hover:font-bold ${selectedYears.includes(yr) ? 'text-blue-600 font-bold bg-blue-50' : 'text-[#0d2a63] hover:text-blue-600'} mb-1`}
+              >
+                {yr}
               </button>
            ))}
         </div>

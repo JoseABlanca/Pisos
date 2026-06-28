@@ -551,6 +551,7 @@ export default function ExtractoContableTab({
                         if (accCode.startsWith('7')) {
                           cebeEntryAmount += lineAmt;
                           if (l.cebe) matchedLineCebes.add(l.cebe);
+                          if (l.ceco) matchedLineCecos.add(l.ceco);
                         } else if (accCode.startsWith('6')) {
                           cecoEntryAmount += lineAmt;
                           if (l.ceco) matchedLineCecos.add(l.ceco);
@@ -631,38 +632,69 @@ export default function ExtractoContableTab({
                     }
                   }
 
-                  const isCebe = cebeEntryAmount > 0;
+                   const isCebe = cebeEntryAmount > 0;
                   const isCeco = cecoEntryAmount > 0;
                   let signedAmount = 0;
 
-                  if (isCebe && !isCeco) {
-                    const cebesList = Array.from(matchedLineCebes).map(code => {
-                      const name = getCebeName(code);
-                      return name && name !== code ? `${code} - ${name}` : code;
-                    });
-                    displayCenter = `CEBE: ${cebesList.join(', ')}`;
-                    amountColor = 'text-green-700 font-bold';
-                    signedAmount = cebeEntryAmount;
-                  } else if (!isCebe && isCeco) {
-                    const cecosList = Array.from(matchedLineCecos).map(code => {
-                      const name = getCecoName(code);
-                      return name && name !== code ? `${code} - ${name}` : code;
-                    });
-                    displayCenter = `CECO: ${cecosList.join(', ')}`;
-                    amountColor = 'text-red-600 font-bold';
-                    signedAmount = -cecoEntryAmount;
-                  } else if (isCebe && isCeco) {
-                    const cebesList = Array.from(matchedLineCebes).map(code => {
-                      const name = getCebeName(code);
-                      return name && name !== code ? `${code} - ${name}` : code;
-                    });
-                    const cecosList = Array.from(matchedLineCecos).map(code => {
-                      const name = getCecoName(code);
-                      return name && name !== code ? `${code} - ${name}` : code;
-                    });
-                    displayCenter = `AMBOS (${cebesList.join(', ')} / ${cecosList.join(', ')})`;
-                    amountColor = 'text-slate-700';
-                    signedAmount = cebeEntryAmount - cecoEntryAmount;
+                  if (mode === 'rentals') {
+                    // In rentals mode, always prioritize displaying the CECO(s) in the CECO column
+                    if (matchedLineCecos.size > 0) {
+                      const cecosList = Array.from(matchedLineCecos).map(code => {
+                        const name = getCecoName(code);
+                        return name && name !== code ? `${code} - ${name}` : code;
+                      });
+                      displayCenter = cecosList.join(', ');
+                    } else if (matchedLineCebes.size > 0) {
+                      const cebesList = Array.from(matchedLineCebes).map(code => {
+                        const name = getCebeName(code);
+                        return name && name !== code ? `${code} - ${name}` : code;
+                      });
+                      displayCenter = cebesList.join(', ');
+                    } else {
+                      displayCenter = '';
+                    }
+
+                    if (isCebe && !isCeco) {
+                      amountColor = 'text-green-700 font-bold';
+                      signedAmount = cebeEntryAmount;
+                    } else if (!isCebe && isCeco) {
+                      amountColor = 'text-red-600 font-bold';
+                      signedAmount = -cecoEntryAmount;
+                    } else {
+                      amountColor = 'text-slate-700';
+                      signedAmount = cebeEntryAmount - cecoEntryAmount;
+                    }
+                  } else {
+                    // Properties mode (original formatting)
+                    if (isCebe && !isCeco) {
+                      const cebesList = Array.from(matchedLineCebes).map(code => {
+                        const name = getCebeName(code);
+                        return name && name !== code ? `${code} - ${name}` : code;
+                      });
+                      displayCenter = `CEBE: ${cebesList.join(', ')}`;
+                      amountColor = 'text-green-700 font-bold';
+                      signedAmount = cebeEntryAmount;
+                    } else if (!isCebe && isCeco) {
+                      const cecosList = Array.from(matchedLineCecos).map(code => {
+                        const name = getCecoName(code);
+                        return name && name !== code ? `${code} - ${name}` : code;
+                      });
+                      displayCenter = `CECO: ${cecosList.join(', ')}`;
+                      amountColor = 'text-red-600 font-bold';
+                      signedAmount = -cecoEntryAmount;
+                    } else if (isCebe && isCeco) {
+                      const cebesList = Array.from(matchedLineCebes).map(code => {
+                        const name = getCebeName(code);
+                        return name && name !== code ? `${code} - ${name}` : code;
+                      });
+                      const cecosList = Array.from(matchedLineCecos).map(code => {
+                        const name = getCecoName(code);
+                        return name && name !== code ? `${code} - ${name}` : code;
+                      });
+                      displayCenter = `AMBOS (${cebesList.join(', ')} / ${cecosList.join(', ')})`;
+                      amountColor = 'text-slate-700';
+                      signedAmount = cebeEntryAmount - cecoEntryAmount;
+                    }
                   }
 
                   const displayDocUrl = matchedLineDocUrl || entry.documentUrl;

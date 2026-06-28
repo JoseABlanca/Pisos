@@ -150,7 +150,9 @@ export default function Journal() {
   const [isMobile, setIsMobile] = useState(window.innerWidth < 768);
   const [showSidebar, setShowSidebar] = useState(true);
   const [dateFilter, setDateFilter] = useState('Todos');
-  const [timelineFilter, setTimelineFilter] = useState(null);
+  const [selectedYears, setSelectedYears] = useState([]);
+  const [selectedMonths, setSelectedMonths] = useState([]);
+  const [selectedQuarters, setSelectedQuarters] = useState([]);
   const [selectedEntryIds, setSelectedEntryIds] = useState(new Set());
 
   useEffect(() => {
@@ -354,26 +356,26 @@ export default function Journal() {
       // "100 últimos asientos", "Creados/modificados hoy", "Filtro/s seleccionado/s" not fully implemented
     }
 
-    // 4. Timeline Filter
-    if (timelineFilter) {
-      const d = new Date(item.date);
-      const m = d.getMonth();
-      const y = d.getFullYear();
-      
-      const months = ['ENE','FEB','MAR','ABR','MAY','JUN','JUL','AGO','SEP','OCT','NOV','DIC'];
-      if (months.includes(timelineFilter)) {
-        if (m !== months.indexOf(timelineFilter)) return false;
-      } else if (timelineFilter === '1T') {
-        if (m < 0 || m > 2) return false;
-      } else if (timelineFilter === '2T') {
-        if (m < 3 || m > 5) return false;
-      } else if (timelineFilter === '3T') {
-        if (m < 6 || m > 8) return false;
-      } else if (timelineFilter === '4T') {
-        if (m < 9 || m > 11) return false;
-      } else if (/^\d{4}$/.test(timelineFilter)) {
-        if (y !== parseInt(timelineFilter, 10)) return false;
-      }
+    // 4. Timeline Filter (Multi-selection)
+    const dateParts = item.date.split('-');
+    const y = parseInt(dateParts[0], 10);
+    const m = parseInt(dateParts[1], 10) - 1; // 0-based month
+    const months = ['ENE','FEB','MAR','ABR','MAY','JUN','JUL','AGO','SEP','OCT','NOV','DIC'];
+
+    if (selectedYears.length > 0) {
+      if (!selectedYears.includes(String(y))) return false;
+    }
+
+    if (selectedMonths.length > 0 || selectedQuarters.length > 0) {
+      const matchMonth = selectedMonths.includes(months[m]);
+      const matchQuarter = selectedQuarters.some(q => {
+        if (q === '1T') return m >= 0 && m <= 2;
+        if (q === '2T') return m >= 3 && m <= 5;
+        if (q === '3T') return m >= 6 && m <= 8;
+        if (q === '4T') return m >= 9 && m <= 11;
+        return false;
+      });
+      if (!matchMonth && !matchQuarter) return false;
     }
 
     return true;
@@ -485,33 +487,33 @@ export default function Journal() {
             {['ENE','FEB','MAR','ABR','MAY','JUN','JUL','AGO','SEP','OCT','NOV','DIC'].map(m => (
                <span 
                  key={m} 
-                 onClick={() => setTimelineFilter(timelineFilter === m ? null : m)}
-                 className={`hover:text-blue-600 cursor-pointer p-0.5 w-full text-center ${timelineFilter === m ? 'bg-blue-100 text-blue-700' : ''}`}
+                 onClick={() => setSelectedMonths(prev => prev.includes(m) ? prev.filter(x => x !== m) : [...prev, m])}
+                 className={`hover:text-blue-600 cursor-pointer p-0.5 w-full text-center ${selectedMonths.includes(m) ? 'bg-blue-100 text-blue-700 font-bold' : ''}`}
                >
                  {m}
                </span>
             ))}
             <span 
-              onClick={() => setTimelineFilter(timelineFilter === '1T' ? null : '1T')}
-              className={`mt-2 pt-2 border-t border-gray-300 w-full text-center hover:text-blue-600 cursor-pointer ${timelineFilter === '1T' ? 'bg-blue-100 text-blue-700' : ''}`}
+              onClick={() => setSelectedQuarters(prev => prev.includes('1T') ? prev.filter(x => x !== '1T') : [...prev, '1T'])}
+              className={`mt-2 pt-2 border-t border-gray-300 w-full text-center hover:text-blue-600 cursor-pointer ${selectedQuarters.includes('1T') ? 'bg-blue-100 text-blue-700 font-bold' : ''}`}
             >1T</span>
             <span 
-              onClick={() => setTimelineFilter(timelineFilter === '2T' ? null : '2T')}
-              className={`w-full text-center hover:text-blue-600 cursor-pointer ${timelineFilter === '2T' ? 'bg-blue-100 text-blue-700' : ''}`}
+              onClick={() => setSelectedQuarters(prev => prev.includes('2T') ? prev.filter(x => x !== '2T') : [...prev, '2T'])}
+              className={`w-full text-center hover:text-blue-600 cursor-pointer ${selectedQuarters.includes('2T') ? 'bg-blue-100 text-blue-700 font-bold' : ''}`}
             >2T</span>
             <span 
-              onClick={() => setTimelineFilter(timelineFilter === '3T' ? null : '3T')}
-              className={`w-full text-center hover:text-blue-600 cursor-pointer ${timelineFilter === '3T' ? 'bg-blue-100 text-blue-700' : ''}`}
+              onClick={() => setSelectedQuarters(prev => prev.includes('3T') ? prev.filter(x => x !== '3T') : [...prev, '3T'])}
+              className={`w-full text-center hover:text-blue-600 cursor-pointer ${selectedQuarters.includes('3T') ? 'bg-blue-100 text-blue-700 font-bold' : ''}`}
             >3T</span>
             <span 
-              onClick={() => setTimelineFilter(timelineFilter === '4T' ? null : '4T')}
-              className={`w-full text-center hover:text-blue-600 cursor-pointer ${timelineFilter === '4T' ? 'bg-blue-100 text-blue-700' : ''}`}
+              onClick={() => setSelectedQuarters(prev => prev.includes('4T') ? prev.filter(x => x !== '4T') : [...prev, '4T'])}
+              className={`w-full text-center hover:text-blue-600 cursor-pointer ${selectedQuarters.includes('4T') ? 'bg-blue-100 text-blue-700 font-bold' : ''}`}
             >4T</span>
             {['2024', '2025', '2026', '2027'].map((yr, idx) => (
               <span 
                 key={yr}
-                onClick={() => setTimelineFilter(timelineFilter === yr ? null : yr)}
-                className={`w-full text-center hover:text-blue-600 cursor-pointer ${idx === 0 ? 'mt-2 pt-2 border-t border-gray-300' : ''} ${timelineFilter === yr ? 'bg-blue-100 text-blue-700' : ''}`}
+                onClick={() => setSelectedYears(prev => prev.includes(yr) ? prev.filter(x => x !== yr) : [...prev, yr])}
+                className={`w-full text-center hover:text-blue-600 cursor-pointer ${idx === 0 ? 'mt-2 pt-2 border-t border-gray-300' : ''} ${selectedYears.includes(yr) ? 'bg-blue-100 text-blue-700 font-bold' : ''}`}
               >
                 {yr}
               </span>
