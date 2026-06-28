@@ -211,8 +211,8 @@ export default function Ledger({ initialMode }) {
           if (m < 6 || m > 8) return false;
         } else if (timelineFilter === '4T') {
           if (m < 9 || m > 11) return false;
-        } else if (timelineFilter === '2024' || timelineFilter === '2026') {
-          if (y !== parseInt(timelineFilter)) return false;
+        } else if (/^\d{4}$/.test(timelineFilter)) {
+          if (y !== parseInt(timelineFilter, 10)) return false;
         }
       }
       return true;
@@ -372,10 +372,15 @@ export default function Ledger({ initialMode }) {
                 onClick={() => setTimelineFilter(timelineFilter === '4T' ? null : '4T')}
                 className={`w-full text-center hover:text-blue-600 cursor-pointer ${timelineFilter === '4T' ? 'bg-blue-100 text-blue-700' : ''}`}
               >4T</span>
+            {['2024', '2025', '2026', '2027'].map((yr, idx) => (
               <span 
-                onClick={() => setTimelineFilter(timelineFilter === '2026' ? null : '2026')}
-                className={`mt-2 pt-2 border-t border-gray-300 w-full text-center hover:text-blue-600 cursor-pointer ${timelineFilter === '2026' ? 'bg-blue-100 text-blue-700' : ''}`}
-              >2026</span>
+                key={yr}
+                onClick={() => setTimelineFilter(timelineFilter === yr ? null : yr)}
+                className={`w-full text-center hover:text-blue-600 cursor-pointer ${idx === 0 ? 'mt-2 pt-2 border-t border-gray-300' : ''} ${timelineFilter === yr ? 'bg-blue-100 text-blue-700' : ''}`}
+              >
+                {yr}
+              </span>
+            ))}
             </div>
           )}
 
