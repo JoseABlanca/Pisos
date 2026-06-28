@@ -610,7 +610,7 @@ export default function PrintPage() {
                       const rowBg = entryIndex % 2 === 0 ? 'bg-white' : 'bg-slate-50';
                       rows.push(
                         <tr key={`entry-${entry.id}`} className={`font-bold border-t border-slate-200 ${rowBg}`}>
-                          <td className="py-1 px-1 text-slate-600 font-mono">{formatDate(entry.date)}</td>
+                          <td className="py-1 px-1 text-slate-600 font-sans tabular-nums">{formatDate(entry.date)}</td>
                           <td className="py-1 px-1 text-slate-600">{entry.number || entryIndex + 1}</td>
                           <td className="py-1 px-1 text-slate-900 uppercase" colSpan="2">{entry.description}</td>
                           <td className="py-1 px-1 text-right font-sans tabular-nums text-slate-900">{formatCurrency(entry.total)}</td>
@@ -753,7 +753,7 @@ export default function PrintPage() {
                             runningBalance += isAssetOrExpense ? movement : -movement;
                             return (
                               <tr key={idx} className="border-b border-slate-100 hover:bg-slate-50">
-                                <td className="py-0.5 px-1 font-mono">{formatDate(line.date)}</td>
+                                <td className="py-0.5 px-1 font-sans tabular-nums">{formatDate(line.date)}</td>
                                 <td className="py-0.5 px-1 text-center font-mono">{line.entryNo || '-'}</td>
                                 <td className="py-0.5 px-1 truncate max-w-[200px] uppercase">{line.description}</td>
                                 <td className="py-0.5 px-1 text-right font-sans tabular-nums text-slate-650">{line.debit > 0 ? formatCurrency(line.debit) : ''}</td>
