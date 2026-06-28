@@ -268,6 +268,54 @@ export default function JournalEntry() {
     }
   }, [cecos, selectedCeco]);
 
+  // Clean invalid line-level CEBE/CECO codes once master lists are loaded
+  useEffect(() => {
+    if (lines.length === 0) return;
+    
+    let changed = false;
+    const newLines = lines.map(line => {
+      let updatedCebe = line.cebe;
+      let updatedCeco = line.ceco;
+
+      if (line.cebe && cebes.length > 0) {
+        const norm = line.cebe.replace(/^(CEBE|CECO)/i, '').trim();
+        const matched = cebes.find(c => c.code.replace(/^(CEBE|CECO)/i, '').trim() === norm);
+        if (matched) {
+          if (matched.code !== line.cebe) {
+            updatedCebe = matched.code;
+            changed = true;
+          }
+        } else {
+          updatedCebe = '';
+          changed = true;
+        }
+      }
+
+      if (line.ceco && cecos.length > 0) {
+        const norm = line.ceco.replace(/^(CEBE|CECO)/i, '').trim();
+        const matched = cecos.find(c => c.code.replace(/^(CEBE|CECO)/i, '').trim() === norm);
+        if (matched) {
+          if (matched.code !== line.ceco) {
+            updatedCeco = matched.code;
+            changed = true;
+          }
+        } else {
+          updatedCeco = '';
+          changed = true;
+        }
+      }
+
+      if (updatedCebe !== line.cebe || updatedCeco !== line.ceco) {
+        return { ...line, cebe: updatedCebe, ceco: updatedCeco };
+      }
+      return line;
+    });
+
+    if (changed) {
+      setLines(newLines);
+    }
+  }, [cebes, cecos, lines]);
+
   const updateLine = (index, field, value) => {
     const newLines = [...lines];
     
@@ -368,7 +416,7 @@ export default function JournalEntry() {
       const globalDocName = firstDoc ? firstDoc.documentName : null;
       
       if (isEditing) {
-        await updateJournalEntry(user.uid, entryId, globalDescription, formattedLines, originalLines, date, analytics, globalDocUrl, globalDocName);
+        await updateJournalEntry(user.uid, entryId, globalDescription, formattedLines, originalLines, date, analytics, globalDocUrl, globalDocName, nextEntryNumber);
         alert(`Asiento ${nextEntryNumber} actualizado correctamente.`);
         navigate('/journal-list');
       } else {

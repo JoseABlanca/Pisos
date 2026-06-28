@@ -28,7 +28,7 @@ const inferAccountType = (code, providedType) => {
 /**
  * Registra un Asiento Contable y sus Transacciones validando por Partida Doble.
  */
-export const registerJournalEntry = async (userId, description, entries, customDate = null, analytics = null, entryId = null, documentUrl = null, documentName = null) => {
+export const registerJournalEntry = async (userId, description, entries, customDate = null, analytics = null, entryId = null, documentUrl = null, documentName = null, originalNumber = null) => {
   try {
     let totalDebit = 0;
     let totalCredit = 0;
@@ -56,12 +56,15 @@ export const registerJournalEntry = async (userId, description, entries, customD
       }
 
       const counterRef = doc(db, 'counters', `journal_${userId}`);
-      const counterSnap = await transaction.get(counterRef);
-      let nextSeq = 1;
-      if (counterSnap.exists()) {
-        nextSeq = (counterSnap.data().lastValue || 0) + 1;
+      let nextSeq = originalNumber;
+      if (!nextSeq) {
+        const counterSnap = await transaction.get(counterRef);
+        nextSeq = 1;
+        if (counterSnap.exists()) {
+          nextSeq = (counterSnap.data().lastValue || 0) + 1;
+        }
+        transaction.set(counterRef, { lastValue: nextSeq }, { merge: true });
       }
-      transaction.set(counterRef, { lastValue: nextSeq }, { merge: true });
 
       const journalRef = entryId ? doc(db, 'journal_entries', entryId) : doc(collection(db, 'journal_entries'));
       journalId = journalRef.id;
@@ -217,7 +220,7 @@ export const deleteJournalEntry = async (userId, entryId, lines) => {
 /**
  * Actualiza un asiento existente (Revisión Completa).
  */
-export const updateJournalEntry = async (userId, entryId, description, newLines, oldLines, customDate, analytics = null, documentUrl = null, documentName = null) => {
+export const updateJournalEntry = async (userId, entryId, description, newLines, oldLines, customDate, analytics = null, documentUrl = null, documentName = null, originalNumber = null) => {
   try {
     let finalAnalytics = analytics;
     if (!finalAnalytics) {
@@ -233,7 +236,7 @@ export const updateJournalEntry = async (userId, entryId, description, newLines,
     // For safety and consistency, we revert the old one and register a new one (keeping same ID preferably or header)
     // To maintain the sequential number, we'll do it manually
     await deleteJournalEntry(userId, entryId, oldLines);
-    await registerJournalEntry(userId, description, newLines, customDate, finalAnalytics, entryId, documentUrl, documentName);
+    await registerJournalEntry(userId, description, newLines, customDate, finalAnalytics, entryId, documentUrl, documentName, originalNumber);
     return { success: true };
   } catch (error) {
     console.error("Error updating entry:", error);
