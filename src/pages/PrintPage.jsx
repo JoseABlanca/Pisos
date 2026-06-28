@@ -2,6 +2,7 @@ import { useState, useEffect, useMemo, useRef } from 'react';
 import { db } from '../firebase/config';
 import { collection, query, where, onSnapshot } from 'firebase/firestore';
 import { useAuth } from '../context/AuthContext';
+import { useSearchParams } from 'react-router-dom';
 import { 
   Printer, 
   BookOpen, 
@@ -12,7 +13,10 @@ import {
   Users, 
   Calendar, 
   RefreshCw, 
-  CheckCircle 
+  CheckCircle,
+  TrendingUp,
+  Landmark,
+  Scale
 } from 'lucide-react';
 
 const SpanishAccountingNames = {
@@ -81,12 +85,65 @@ const isAccountMatched = (accountCodeOrId, selectedAccounts, accountsList) => {
   });
 };
 
+// Spanish capital-gains tax brackets (IRPF savings base 2024)
+const TAX_BRACKETS = [
+  { up: 6000,    rate: 0.19 },
+  { up: 50000,   rate: 0.21 },
+  { up: 200000,  rate: 0.23 },
+  { up: 300000,  rate: 0.27 },
+  { up: Infinity, rate: 0.28 },
+];
+
+function calcTax(gain) {
+  if (gain <= 0) return 0;
+  let tax = 0;
+  let prev = 0;
+  for (const bracket of TAX_BRACKETS) {
+    const slice = Math.min(gain - prev, bracket.up - prev);
+    if (slice <= 0) break;
+    tax += slice * bracket.rate;
+    prev = bracket.up;
+    if (gain <= bracket.up) break;
+  }
+  return tax;
+}
+
 // App name variable — change here to update it everywhere in reports
 const APP_NAME = 'Nexo Finance';
+
+const templatesByCategory = {
+  contabilidad: [
+    { id: 'diario', name: 'Diario de Movimientos', icon: BookOpen },
+    { id: 'mayor', name: 'Libro Mayor', icon: FileText },
+    { id: 'sumas_saldos', name: 'Sumas y Saldos', icon: Columns }
+  ],
+  inversiones: [
+    { id: 'activos', name: 'Inventario de Activos', icon: Building2 },
+    { id: 'alquileres', name: 'Contratos de Alquiler', icon: Key },
+    { id: 'clientes', name: 'Fichero de Clientes', icon: Users }
+  ],
+  renta_variable: [
+    { id: 'rv_portfolio', name: 'Cartera Consolidada', icon: TrendingUp },
+    { id: 'rv_transactions', name: 'Transacciones RV', icon: BookOpen }
+  ],
+  crowdfunding: [
+    { id: 'cf_portfolio', name: 'Cartera Consolidada', icon: Landmark },
+    { id: 'cf_transactions', name: 'Transacciones CF', icon: BookOpen }
+  ],
+  impuestos: [
+    { id: 'taxes_total', name: 'Resumen Fiscal General', icon: Scale },
+    { id: 'taxes_real_estate', name: 'Fiscalidad Inmobiliaria', icon: Building2 },
+    { id: 'taxes_rv', name: 'Fiscalidad Renta Variable', icon: TrendingUp },
+    { id: 'taxes_cf', name: 'Fiscalidad Crowdfunding', icon: Landmark }
+  ]
+};
 
 export default function PrintPage() {
   const { user, queryUserIds } = useAuth();
   
+  const [searchParams, setSearchParams] = useSearchParams();
+  const activeCategory = searchParams.get('category') || 'contabilidad';
+
   // States for selected report template and filter
   const [selectedTemplate, setSelectedTemplate] = useState('diario'); // diario, mayor, sumas_saldos, activos, alquileres, clientes
   const [selectedYear, setSelectedYear] = useState(new Date().getFullYear());
@@ -113,6 +170,21 @@ export default function PrintPage() {
   const cebeDropdownRef = useRef(null);
   const cecoDropdownRef = useRef(null);
   const docDropdownRef = useRef(null);
+
+  // Sync category parameter
+  useEffect(() => {
+    if (!searchParams.get('category')) {
+      setSearchParams({ category: 'contabilidad' }, { replace: true });
+    }
+  }, [searchParams, setSearchParams]);
+
+  // Sync selected template on category change
+  useEffect(() => {
+    const list = templatesByCategory[activeCategory] || templatesByCategory.contabilidad;
+    if (list.length > 0) {
+      setSelectedTemplate(list[0].id);
+    }
+  }, [activeCategory]);
 
   useEffect(() => {
     const handleOutsideClick = (e) => {
@@ -145,6 +217,16 @@ export default function PrintPage() {
   const [properties, setProperties] = useState([]);
   const [rentals, setRentals] = useState([]);
   const [customers, setCustomers] = useState([]);
+
+  // Renta Variable and Crowdfunding states
+  const [rvAssets, setRvAssets] = useState([]);
+  const [rvTransactions, setRvTransactions] = useState([]);
+  const [rvBrokers, setRvBrokers] = useState([]);
+  const [cfProjects, setCfProjects] = useState([]);
+  const [cfPlatforms, setCfPlatforms] = useState([]);
+  const [cfTransactions, setCfTransactions] = useState([]);
+  const [cfInvestments, setCfInvestments] = useState([]);
+
   const [loading, setLoading] = useState(true);
 
   // Subscriptions to Firestore
@@ -203,6 +285,42 @@ export default function PrintPage() {
       }
     );
 
+    // RV & CF subscriptions
+    const unsubRvAssets = onSnapshot(
+      query(collection(db, 'rv_assets'), where('userId', 'in', userIds)),
+      (snap) => setRvAssets(snap.docs.map(doc => ({ id: doc.id, ...doc.data() })))
+    );
+
+    const unsubRvTransactions = onSnapshot(
+      query(collection(db, 'rv_transactions'), where('userId', 'in', userIds)),
+      (snap) => setRvTransactions(snap.docs.map(doc => ({ id: doc.id, ...doc.data() })))
+    );
+
+    const unsubRvBrokers = onSnapshot(
+      query(collection(db, 'rv_brokers'), where('userId', 'in', userIds)),
+      (snap) => setRvBrokers(snap.docs.map(doc => ({ id: doc.id, ...doc.data() })))
+    );
+
+    const unsubCfProjects = onSnapshot(
+      query(collection(db, 'cf_projects'), where('userId', 'in', userIds)),
+      (snap) => setCfProjects(snap.docs.map(doc => ({ id: doc.id, ...doc.data() })))
+    );
+
+    const unsubCfPlatforms = onSnapshot(
+      query(collection(db, 'cf_platforms'), where('userId', 'in', userIds)),
+      (snap) => setCfPlatforms(snap.docs.map(doc => ({ id: doc.id, ...doc.data() })))
+    );
+
+    const unsubCfTransactions = onSnapshot(
+      query(collection(db, 'cf_transactions'), where('userId', 'in', userIds)),
+      (snap) => setCfTransactions(snap.docs.map(doc => ({ id: doc.id, ...doc.data() })))
+    );
+
+    const unsubCfInvestments = onSnapshot(
+      query(collection(db, 'cf_investments'), where('userId', 'in', userIds)),
+      (snap) => setCfInvestments(snap.docs.map(doc => ({ id: doc.id, ...doc.data() })))
+    );
+
     // Let loading finish after some time or when main data is retrieved
     const timer = setTimeout(() => setLoading(false), 800);
 
@@ -214,6 +332,13 @@ export default function PrintPage() {
       unsubCustomers();
       unsubCebes();
       unsubCecos();
+      unsubRvAssets();
+      unsubRvTransactions();
+      unsubRvBrokers();
+      unsubCfProjects();
+      unsubCfPlatforms();
+      unsubCfTransactions();
+      unsubCfInvestments();
       clearTimeout(timer);
     };
   }, [user, queryUserIds]);
@@ -230,11 +355,15 @@ export default function PrintPage() {
     return Array.from(years).sort((a, b) => b - a);
   }, [journalEntries]);
 
+  const activeYearsFilter = useMemo(() => {
+    if (selectedYears.length > 0) return selectedYears.map(Number);
+    return [selectedYear];
+  }, [selectedYears, selectedYear]);
+
   // Hierarchical selectable accounts list
   const selectableAccountsList = useMemo(() => {
     return getSelectableAccounts(accounts);
   }, [accounts]);
-
   const filteredSelectableAccountsList = useMemo(() => {
     if (!accountsSearch) return selectableAccountsList;
     const query = accountsSearch.toLowerCase();
@@ -244,6 +373,570 @@ export default function PrintPage() {
     );
   }, [selectableAccountsList, accountsSearch]);
 
+  // Compute Renta Variable holdings
+  const computedRvHoldings = useMemo(() => {
+    const rates = {
+      EUR: 1.0,
+      USD: 1.08,
+      GBP: 0.85,
+      CHF: 0.95,
+      JPY: 130.0
+    };
+
+    rvAssets.forEach(a => {
+      if (a.type && a.type.toLowerCase() === 'divisa') {
+        const price = parseFloat(a.currentPrice);
+        if (price > 0) {
+          const id = String(a.id).toUpperCase();
+          const name = String(a.name).toUpperCase();
+          if (id === 'USD' || id === 'GBP' || id === 'CHF' || id === 'JPY') {
+            rates[id] = price;
+          } else if (id.includes('EURUSD') || name.includes('EUR/USD') || name.includes('EURUSD')) {
+            rates['USD'] = price;
+          } else if (id.includes('EURGBP') || name.includes('EUR/GBP') || name.includes('EURGBP')) {
+            rates['GBP'] = price;
+          } else if (id.includes('EURCHF') || name.includes('EUR/CHF') || name.includes('EURCHF')) {
+            rates['CHF'] = price;
+          } else if (id.includes('EURJPY') || name.includes('EUR/JPY') || name.includes('EURJPY')) {
+            rates['JPY'] = price;
+          } else if (id.startsWith('EUR') && id.length >= 6) {
+            const currencyCode = id.substring(3, 6);
+            rates[currencyCode] = price;
+          }
+        }
+      }
+    });
+
+    const assetsMap = new Map(rvAssets.map(a => [a.id, a]));
+    const brokersMap = new Map(rvBrokers.map(b => [b.id, b]));
+    const chronTx = [...rvTransactions].sort((a, b) => new Date(a.date).getTime() - new Date(b.date).getTime());
+
+    const positions = {};
+    let totalDividendsEUR = 0;
+
+    chronTx.forEach(tx => {
+      const asset = assetsMap.get(tx.assetId);
+      const broker = brokersMap.get(tx.brokerId);
+      const key = `${tx.assetId}_${tx.brokerId}`;
+      const rate = tx.exchangeRate || 1.0;
+
+      if (tx.type === 'Dividendo') {
+        const divEUR = (parseFloat(tx.quantity) * parseFloat(tx.price) - (parseFloat(tx.fee) || 0)) / rate;
+        totalDividendsEUR += divEUR;
+        return;
+      }
+
+      if (!positions[key]) {
+        positions[key] = {
+          symbol: tx.assetId,
+          name: asset?.name || tx.assetId,
+          type: asset?.type || 'Acción',
+          sector: asset?.sector || 'Otros',
+          currency: asset?.currency || 'EUR',
+          brokerId: tx.brokerId,
+          brokerName: broker?.name || tx.brokerId,
+          quantity: 0,
+          costBasisEUR: 0,
+          pmcEUR: 0
+        };
+      }
+
+      const pos = positions[key];
+      const q = parseFloat(tx.quantity) || 0;
+      const p = parseFloat(tx.price) || 0;
+      const f = parseFloat(tx.fee) || 0;
+
+      if (tx.type === 'Compra') {
+        const costEUR = (q * p + f) / rate;
+        pos.costBasisEUR += costEUR;
+        pos.quantity += q;
+        pos.pmcEUR = pos.quantity > 0 ? pos.costBasisEUR / pos.quantity : 0;
+      } else if (tx.type === 'Venta') {
+        const costReductionEUR = q * pos.pmcEUR;
+        pos.costBasisEUR = Math.max(0, pos.costBasisEUR - costReductionEUR);
+        pos.quantity = Math.max(0, pos.quantity - q);
+        if (pos.quantity === 0) {
+          pos.costBasisEUR = 0;
+          pos.pmcEUR = 0;
+        }
+      }
+    });
+
+    const finalHoldings = Object.values(positions)
+      .filter(pos => pos.quantity > 0)
+      .map(pos => {
+        const asset = assetsMap.get(pos.symbol);
+        const currentPriceRaw = asset ? parseFloat(asset.currentPrice) || 0 : 0;
+        const assetRate = rates[pos.currency] || 1.0;
+
+        const totalCostEUR = pos.costBasisEUR;
+        const currentValueEUR = (pos.quantity * currentPriceRaw) / assetRate;
+        const pnlEUR = currentValueEUR - totalCostEUR;
+        const pnlPercent = totalCostEUR > 0 ? (pnlEUR / totalCostEUR) * 100 : 0;
+
+        return {
+          ...pos,
+          pmc: pos.pmcEUR,
+          currentPrice: currentPriceRaw / assetRate,
+          totalCost: totalCostEUR,
+          currentValue: currentValueEUR,
+          pnl: pnlEUR,
+          pnlPercent
+        };
+      });
+
+    const totalCostEUR = finalHoldings.reduce((sum, h) => sum + h.totalCost, 0);
+    const totalMarketValueEUR = finalHoldings.reduce((sum, h) => sum + h.currentValue, 0);
+    const totalPnLEUR = totalMarketValueEUR - totalCostEUR;
+    const totalPnLPercent = totalCostEUR > 0 ? (totalPnLEUR / totalCostEUR) * 100 : 0;
+
+    const totalCashEUR = rvBrokers.reduce((sum, b) => {
+      const brokerRate = rates[b.currency] || 1.0;
+      return sum + (parseFloat(b.cashBalance) || 0) / brokerRate;
+    }, 0);
+
+    return {
+      holdings: finalHoldings,
+      summary: {
+        totalCost: totalCostEUR,
+        totalValue: totalMarketValueEUR,
+        pnl: totalPnLEUR,
+        pnlPercent: totalPnLPercent,
+        dividends: totalDividendsEUR,
+        cash: totalCashEUR,
+        grandTotal: totalMarketValueEUR + totalCashEUR
+      }
+    };
+  }, [rvTransactions, rvAssets, rvBrokers]);
+
+  // Compute Crowdfunding holdings
+  const computedCfHoldings = useMemo(() => {
+    const activeProjectIds = new Set(cfProjects.map(p => p.id));
+    const projectInvestments = {};
+    const platformInvestments = {};
+
+    cfTransactions.forEach(tx => {
+      const pId = tx.projectId;
+      const platId = tx.platformId;
+      const amt = parseFloat(tx.amount) || 0;
+      const isPurchase = tx.type === 'Compra';
+
+      if (pId && activeProjectIds.has(pId)) {
+        if (!projectInvestments[pId]) projectInvestments[pId] = 0;
+        projectInvestments[pId] += isPurchase ? amt : -amt;
+
+        if (platId) {
+          if (!platformInvestments[platId]) platformInvestments[platId] = 0;
+          platformInvestments[platId] += isPurchase ? amt : -amt;
+        }
+      }
+    });
+
+    const projectRents = {};
+    cfProjects.forEach(p => {
+      const pId = p.id;
+      const incomeCebe = String(p.incomeCebeId || '').trim().replace(/^(CEBE|CECO)/i, '');
+      const expenseCeco = String(p.expenseCecoId || '').trim().replace(/^(CEBE|CECO)/i, '');
+
+      let gross = 0;
+      let expenses = 0;
+
+      journalEntries.forEach(entry => {
+        if (incomeCebe) {
+          const entryCebe = String(entry.cebe || '').trim().replace(/^(CEBE|CECO)/i, '');
+          if (entryCebe && entryCebe.startsWith(incomeCebe)) {
+            gross += parseFloat(entry.total) || 0;
+          }
+        }
+        if (expenseCeco) {
+          const entryCeco = String(entry.ceco || '').trim().replace(/^(CEBE|CECO)/i, '');
+          if (entryCeco && entryCeco.startsWith(expenseCeco)) {
+            expenses += parseFloat(entry.total) || 0;
+          }
+        }
+      });
+
+      projectRents[pId] = { gross, expenses, net: gross - expenses };
+    });
+
+    const rows = [];
+    cfProjects.forEach(p => {
+      const pId = p.id;
+      const pName = p.name || pId;
+      const platform = cfPlatforms.find(pl => pl.id === p.platformId);
+      const platformName = platform ? platform.name : (p.platformId || '-');
+
+      const investment = projectInvestments[pId] || 0;
+      const rents = projectRents[pId] || { gross: 0, expenses: 0, net: 0 };
+      const gross = rents.gross;
+      const expenses = rents.expenses;
+      const netRents = rents.net;
+      const totalGross = investment + gross;
+      const totalNet = investment + netRents;
+      const yieldGross = investment > 0 ? (gross / investment) * 100 : 0;
+      const yieldNet = investment > 0 ? (netRents / investment) * 100 : 0;
+
+      if (investment !== 0 || gross !== 0 || expenses !== 0) {
+        rows.push({
+          id: pId,
+          groupName: `${pName} (${platformName})`,
+          investment,
+          grossRents: gross,
+          expenses,
+          netRents,
+          totalGross,
+          totalNet,
+          yieldGross,
+          yieldNet,
+          status: p.status || 'activo'
+        });
+      }
+    });
+
+    let totalInvested = 0;
+    let totalRentasBrutas = 0;
+    let totalGastos = 0;
+
+    cfProjects.forEach(p => {
+      totalInvested += projectInvestments[p.id] || 0;
+      const rents = projectRents[p.id] || { gross: 0, expenses: 0, net: 0 };
+      totalRentasBrutas += rents.gross;
+      totalGastos += rents.expenses;
+    });
+
+    const totalRentasNetas = totalRentasBrutas - totalGastos;
+    const totalCurrentValueGross = totalInvested + totalRentasBrutas;
+    const totalCurrentValueNet = totalInvested + totalRentasNetas;
+    const avgReturnGross = totalInvested > 0 ? (totalRentasBrutas / totalInvested) * 100 : 0;
+    const avgReturnNet = totalInvested > 0 ? (totalRentasNetas / totalInvested) * 100 : 0;
+
+    return {
+      rows,
+      summary: {
+        totalInvested,
+        totalCurrentValueGross,
+        totalCurrentValueNet,
+        totalReturnGross: totalRentasBrutas,
+        totalReturnNet: totalRentasNetas,
+        avgReturnGross,
+        avgReturnNet
+      }
+    };
+  }, [cfProjects, cfPlatforms, cfTransactions, journalEntries]);
+
+  // Compute Taxes
+  const taxesData = useMemo(() => {
+    // 1. Real Estate
+    const reTaxes = properties.map(p => {
+      const propertyCebe = String(p.cebe || '').trim();
+      const taxIncomeCecos = p.taxIncomeCecos || [];
+      const taxExpenseCecos = p.taxExpenseCecos || [];
+
+      let ingresos = 0;
+      let gastos = 0;
+      
+      const normalizedPropCebe = propertyCebe ? propertyCebe.replace(/^(CEBE|CECO)/i, '') : '';
+      const normalizedIncomeCecos = taxIncomeCecos.map(c => c.replace(/^(CEBE|CECO)/i, ''));
+      const normalizedExpenseCecos = taxExpenseCecos.map(c => c.replace(/^(CEBE|CECO)/i, ''));
+
+      journalEntries.forEach(entry => {
+        if (!entry.isImpuesto) return;
+        const entryYr = entry.date ? parseInt(entry.date.substring(0, 4), 10) : null;
+        if (entryYr && !activeYearsFilter.includes(entryYr)) return;
+
+        // Income match
+        let isIncome = false;
+        if (entry.lines) {
+          entry.lines.forEach(l => {
+            const accCode = String(l.accountCode || '');
+            if (!accCode.startsWith('7')) return;
+            let matchCebe = false;
+            if (l.cebe && normalizedPropCebe && String(l.cebe).trim().replace(/^(CEBE|CECO)/i, '').startsWith(normalizedPropCebe)) matchCebe = true;
+            else if (!l.cebe && normalizedPropCebe && String(entry.cebe || '').trim().replace(/^(CEBE|CECO)/i, '').startsWith(normalizedPropCebe)) matchCebe = true;
+            
+            let matchCeco = normalizedIncomeCecos.length === 0;
+            if (normalizedIncomeCecos.length > 0 && l.ceco && normalizedIncomeCecos.some(c => String(l.ceco).trim().replace(/^(CEBE|CECO)/i, '').startsWith(c))) matchCeco = true;
+
+            if (matchCebe && matchCeco) {
+              ingresos += (Number(l.debit) || 0) + (Number(l.credit) || 0);
+              isIncome = true;
+            }
+          });
+        }
+        if (!isIncome && normalizedPropCebe && entry.cebe && String(entry.cebe).trim().replace(/^(CEBE|CECO)/i, '').startsWith(normalizedPropCebe)) {
+          let matchCeco = normalizedIncomeCecos.length === 0;
+          if (normalizedIncomeCecos.length > 0 && entry.ceco && normalizedIncomeCecos.some(c => String(entry.ceco).trim().replace(/^(CEBE|CECO)/i, '').startsWith(c))) matchCeco = true;
+          if (matchCeco) ingresos += parseFloat(entry.total) || 0;
+        }
+
+        // Expense match
+        let isExpense = false;
+        if (entry.lines) {
+          entry.lines.forEach(l => {
+            const accCode = String(l.accountCode || '');
+            if (!accCode.startsWith('6')) return;
+            let matchCebe = true;
+            if (l.cebe && normalizedPropCebe) matchCebe = String(l.cebe).trim().replace(/^(CEBE|CECO)/i, '').startsWith(normalizedPropCebe);
+            else if (!l.cebe && entry.cebe && normalizedPropCebe) matchCebe = String(entry.cebe).trim().replace(/^(CEBE|CECO)/i, '').startsWith(normalizedPropCebe);
+            
+            let matchCeco = normalizedExpenseCecos.length === 0;
+            if (normalizedExpenseCecos.length > 0 && l.ceco && normalizedExpenseCecos.some(c => String(l.ceco).trim().replace(/^(CEBE|CECO)/i, '').startsWith(c))) matchCeco = true;
+
+            if (matchCebe && matchCeco) {
+              gastos += (Number(l.debit) || 0) + (Number(l.credit) || 0);
+              isExpense = true;
+            }
+          });
+        }
+        if (!isExpense && entry.cebe && normalizedPropCebe && String(entry.cebe).trim().replace(/^(CEBE|CECO)/i, '').startsWith(normalizedPropCebe)) {
+          let matchCeco = normalizedExpenseCecos.length === 0;
+          if (normalizedExpenseCecos.length > 0 && entry.ceco && normalizedExpenseCecos.some(c => String(entry.ceco).trim().replace(/^(CEBE|CECO)/i, '').startsWith(c))) matchCeco = true;
+          if (matchCeco) gastos += parseFloat(entry.total) || 0;
+        }
+      });
+
+      const purchasePrice = parseFloat(p.financials?.purchasePrice || p.finPurchasePrice) || 0;
+      const acquisitionCosts = parseFloat(p.financials?.acquisitionCosts || p.finAcquisitionCosts) || 0;
+      const agentFees = parseFloat(p.financials?.agentFees || p.finAgentFees) || 0;
+      const acquisitionExpensesSum = (p.financials?.acquisitionExpenses || []).reduce((sum, exp) => sum + (parseFloat(exp.amount) || 0), 0);
+      const baseValue = purchasePrice + acquisitionCosts + agentFees + acquisitionExpensesSum;
+      const amortizacion = baseValue * 0.80 * 0.03;
+
+      return {
+        id: p.id,
+        name: p.name,
+        ingresos,
+        gastos,
+        amortizacion: ingresos > 0 ? amortizacion : 0,
+        beneficioNeto: ingresos - gastos - (ingresos > 0 ? amortizacion : 0)
+      };
+    });
+
+    // 2. Renta Variable FIFO Capital gains
+    const assetMap = {};
+    rvTransactions.forEach(tx => {
+      if (!['Compra', 'Venta'].includes(tx.type)) return;
+      const key = tx.assetId || tx.asset || '';
+      if (!assetMap[key]) assetMap[key] = { buys: [], sells: [] };
+      if (tx.type === 'Compra') assetMap[key].buys.push({ ...tx });
+      if (tx.type === 'Venta') assetMap[key].sells.push({ ...tx });
+    });
+
+    const rvGains = [];
+    Object.entries(assetMap).forEach(([assetId, { buys, sells }]) => {
+      const asset = rvAssets.find(a => a.id === assetId);
+      buys.sort((a, b) => (a.date || '').localeCompare(b.date || ''));
+      sells.sort((a, b) => (a.date || '').localeCompare(b.date || ''));
+
+      const queue = buys.map(b => ({
+        qty: parseFloat(b.quantity) || 0,
+        priceEUR: parseFloat(b.priceEUR || b.price) || 0,
+        fee: parseFloat(b.fee) || 0,
+      }));
+
+      sells.forEach(sell => {
+        const year = sell.date ? parseInt(sell.date.substring(0, 4), 10) : null;
+        if (activeYearsFilter.length > 0 && (!year || !activeYearsFilter.includes(year))) return;
+
+        let qtyToSell = parseFloat(sell.quantity) || 0;
+        const sellPriceEUR = parseFloat(sell.priceEUR || sell.price) || 0;
+        const sellFee = parseFloat(sell.fee) || 0;
+        const sellTotal = qtyToSell * sellPriceEUR - sellFee;
+
+        let costBasis = 0;
+        let remaining = qtyToSell;
+
+        while (remaining > 0 && queue.length > 0) {
+          const lot = queue[0];
+          const take = Math.min(lot.qty, remaining);
+          const lotCost = (lot.priceEUR + lot.fee / lot.qty) * take;
+          costBasis += lotCost;
+          lot.qty -= take;
+          remaining -= take;
+          if (lot.qty < 0.0001) queue.shift();
+        }
+
+        const gain = sellTotal - costBasis;
+        const tax = calcTax(gain);
+
+        rvGains.push({
+          assetId,
+          assetName: asset?.name || assetId,
+          date: sell.date,
+          year,
+          qty: qtyToSell,
+          sellPriceEUR,
+          sellTotal,
+          costBasis,
+          gain,
+          tax
+        });
+      });
+    });
+
+    const rvDividends = rvTransactions
+      .filter(tx => tx.type === 'Dividendo')
+      .filter(tx => {
+        const year = tx.date ? parseInt(tx.date.substring(0, 4), 10) : null;
+        return activeYearsFilter.includes(year);
+      })
+      .map(tx => {
+        const asset = rvAssets.find(a => a.id === (tx.assetId || tx.asset));
+        const gross = parseFloat(tx.totalAmountEUR || tx.totalAmount) || 0;
+        const withholding = parseFloat(tx.withholding || tx.fee) || 0;
+        const net = gross - withholding;
+        const tax = calcTax(gross);
+        return {
+          assetId: tx.assetId || tx.asset || '',
+          assetName: asset?.name || tx.assetId || '',
+          date: tx.date,
+          gross,
+          withholding,
+          net,
+          tax,
+        };
+      });
+
+    // 3. Crowdfunding
+    const cfRendimientos = cfInvestments
+      .filter(inv => {
+        if (inv.status === 'activo') return false;
+        const endYear = inv.endDate ? parseInt(inv.endDate.substring(0, 4), 10) : null;
+        return activeYearsFilter.includes(endYear);
+      })
+      .map(inv => {
+        const platform = cfPlatforms.find(p => p.id === inv.platformId);
+        const project  = cfProjects.find(p => p.id === inv.projectId);
+        const invested = parseFloat(inv.amount) || 0;
+        const received = parseFloat(inv.currentValue) || invested;
+        const gain     = received - invested;
+        const rate     = parseFloat(inv.returnRate) || (invested > 0 ? (gain / invested) * 100 : 0);
+        const tax      = calcTax(gain);
+        return {
+          id: inv.id,
+          projectName: project?.name || inv.projectId || '—',
+          platformName: platform?.name || inv.platformId || '—',
+          type: inv.type || '—',
+          endDate: inv.endDate || '—',
+          invested,
+          received,
+          gain,
+          rate,
+          tax,
+        };
+      });
+
+    const cfActivas = cfInvestments
+      .filter(inv => {
+        if (inv.status !== 'activo') return false;
+        const startYear = inv.startDate ? parseInt(inv.startDate.substring(0, 4), 10) : null;
+        return activeYearsFilter.includes(startYear);
+      })
+      .map(inv => {
+        const platform = cfPlatforms.find(p => p.id === inv.platformId);
+        const project  = cfProjects.find(p => p.id === inv.projectId);
+        const invested = parseFloat(inv.amount) || 0;
+        const rate     = parseFloat(inv.returnRate) || 0;
+        const expectedGain = invested * (rate / 100);
+        const expectedTax  = calcTax(expectedGain);
+        return {
+          id: inv.id,
+          projectName: project?.name || inv.projectId || '—',
+          platformName: platform?.name || inv.platformId || '—',
+          invested,
+          rate,
+          expectedGain,
+          expectedTax,
+        };
+      });
+
+    // Overview
+    const yearlyOverview = [];
+    const minYearOverall = 2020;
+    const currentYr = new Date().getFullYear();
+    for (let yr = minYearOverall; yr <= currentYr + 1; yr++) {
+      const taxIncomesYear = journalEntries.filter(entry => {
+        if (!entry.isImpuesto) return false;
+        const entryYr = entry.date ? entry.date.substring(0, 4) : '';
+        return entryYr === yr.toString() && !!entry.cebe;
+      });
+      const reIngresos = taxIncomesYear.reduce((sum, e) => sum + (parseFloat(e.total) || 0), 0);
+
+      const taxExpensesYear = journalEntries.filter(entry => {
+        if (!entry.isImpuesto) return false;
+        const entryYr = entry.date ? entry.date.substring(0, 4) : '';
+        return entryYr === yr.toString() && !!entry.ceco;
+      });
+      const reGastos = taxExpensesYear.reduce((sum, e) => sum + (parseFloat(e.total) || 0), 0);
+
+      let reAmortizacion = 0;
+      properties.forEach(p => {
+        let owned = true;
+        const acqDate = p.financials?.acquisitionDate || p.finAcquisitionDate;
+        if (acqDate) {
+          const acqY = parseInt(acqDate.substring(0, 4), 10);
+          if (!isNaN(acqY) && acqY > yr) owned = false;
+        }
+        if (!owned) return;
+        const propertyCebe = String(p.cebe || '').trim();
+        if (!propertyCebe) return;
+
+        const propertyIncomesYear = journalEntries.filter(entry => {
+          if (!entry.isImpuesto) return false;
+          const entryYr = entry.date ? entry.date.substring(0, 4) : '';
+          if (entryYr !== yr.toString()) return false;
+          const entryCebe = String(entry.cebe || '').trim().replace(/^(CEBE|CECO)/i, '');
+          const normalizedPropCebe = propertyCebe.replace(/^(CEBE|CECO)/i, '');
+          return entryCebe.startsWith(normalizedPropCebe);
+        });
+
+        if (propertyIncomesYear.length === 0) return;
+        const purchasePrice = parseFloat(p.financials?.purchasePrice || p.finPurchasePrice) || 0;
+        const acquisitionCosts = parseFloat(p.financials?.acquisitionCosts || p.finAcquisitionCosts) || 0;
+        const agentFees = parseFloat(p.financials?.agentFees || p.finAgentFees) || 0;
+        const acquisitionExpensesSum = (p.financials?.acquisitionExpenses || []).reduce((sum, exp) => sum + (parseFloat(exp.amount) || 0), 0);
+        const baseValue = purchasePrice + acquisitionCosts + agentFees + acquisitionExpensesSum;
+        reAmortizacion += baseValue * 0.80 * 0.03;
+      });
+
+      const reNeto = reIngresos - reGastos - reAmortizacion;
+
+      const rvGainTotal = rvGains.filter(g => g.year === yr).reduce((s, r) => s + r.gain, 0);
+      const rvDivTotal = rvDividends.filter(d => d.year === yr).reduce((s, r) => s + r.gross, 0);
+
+      const cfGainTotal = cfRendimientos.filter(r => {
+        const endYear = r.endDate ? parseInt(r.endDate.substring(0, 4), 10) : null;
+        return endYear === yr;
+      }).reduce((s, r) => s + r.gain, 0);
+
+      const baseImponible = (reNeto > 0 ? reNeto : 0) + rvGainTotal + rvDivTotal + cfGainTotal;
+      const impuestoEstimado = calcTax(baseImponible);
+
+      if (reIngresos > 0 || reGastos > 0 || rvGainTotal !== 0 || rvDivTotal > 0 || cfGainTotal !== 0) {
+        yearlyOverview.push({
+          year: yr,
+          reIngresos,
+          reGastos,
+          reAmortizacion,
+          reNeto,
+          rvGains: rvGainTotal,
+          rvDividends: rvDivTotal,
+          cfGains: cfGainTotal,
+          baseImponible,
+          impuestoEstimado
+        });
+      }
+    }
+
+    return {
+      reTaxes,
+      rvGains,
+      rvDividends,
+      cfRendimientos,
+      cfActivas,
+      yearlyOverview: yearlyOverview.sort((a, b) => b.year - a.year)
+    };
+  }, [properties, rentals, journalEntries, rvTransactions, rvAssets, cfInvestments, cfPlatforms, cfProjects, activeYearsFilter]);
   // Combined timeline and dropdown filters for print entries
   const filteredEntriesForPrint = useMemo(() => {
     let list = journalEntries;
@@ -1060,6 +1753,720 @@ export default function PrintPage() {
       }
     }
 
+    // 7. CARTERA DE RENTA VARIABLE
+    if (selectedTemplate === 'rv_portfolio') {
+      const listPages = chunkFlatList(computedRvHoldings.holdings, 30);
+      const totalPages = listPages.length || 1;
+      const sum = computedRvHoldings.summary;
+
+      if (listPages.length === 0) {
+        pageViews.push(
+          <div key="empty-rv" className="page-sheet relative">
+            {renderPageHeader('Cartera de Renta Variable')}
+            <p className="text-center py-12 text-slate-450 italic text-[10px]">No hay posiciones registradas.</p>
+            {renderPageFooter(1, 1, auditNumber)}
+          </div>
+        );
+      } else {
+        listPages.forEach((pageItems, pageIdx) => {
+          const isLastPage = pageIdx === listPages.length - 1;
+          pageViews.push(
+            <div key={`rv-p-${pageIdx}`} className="page-sheet relative">
+              <div>
+                {renderPageHeader('Cartera de Renta Variable - Posiciones')}
+                
+                {pageIdx === 0 && (
+                  <div className="grid grid-cols-3 gap-2 mb-4 text-[10px] select-none no-print border border-slate-350 p-2 bg-slate-50">
+                    <div>
+                      <span className="text-slate-500 font-bold block uppercase text-[8px]">Inversión Total</span>
+                      <span className="font-mono font-bold text-slate-800 text-[12px]">{formatCurrency(sum.totalCost)} €</span>
+                    </div>
+                    <div>
+                      <span className="text-slate-500 font-bold block uppercase text-[8px]">Valor de Mercado</span>
+                      <span className="font-mono font-bold text-slate-800 text-[12px]">{formatCurrency(sum.totalValue)} €</span>
+                    </div>
+                    <div>
+                      <span className="text-slate-500 font-bold block uppercase text-[8px]">Rendimiento Total (PnL)</span>
+                      <span className={`font-mono font-bold text-[12px] ${sum.pnl >= 0 ? 'text-green-700' : 'text-red-700'}`}>
+                        {formatCurrency(sum.pnl)} € ({sum.pnlPercent.toFixed(2)}%)
+                      </span>
+                    </div>
+                    <div className="pt-2 border-t border-slate-200">
+                      <span className="text-slate-500 font-bold block uppercase text-[8px]">Dividendos Cobrados</span>
+                      <span className="font-mono font-bold text-slate-800 text-[12px]">{formatCurrency(sum.dividends)} €</span>
+                    </div>
+                    <div className="pt-2 border-t border-slate-200">
+                      <span className="text-slate-500 font-bold block uppercase text-[8px]">Efectivo en Brokers</span>
+                      <span className="font-mono font-bold text-slate-800 text-[12px]">{formatCurrency(sum.cash)} €</span>
+                    </div>
+                    <div className="pt-2 border-t border-slate-200">
+                      <span className="text-slate-500 font-bold block uppercase text-[8px]">Total Cartera</span>
+                      <span className="font-mono font-bold text-slate-800 text-[12px]">{formatCurrency(sum.grandTotal)} €</span>
+                    </div>
+                  </div>
+                )}
+
+                <table className="w-full text-[10px] border-collapse">
+                  <thead>
+                    <tr className="border-b border-slate-400 bg-slate-100 font-bold text-slate-700">
+                      <th className="py-2 px-1 text-left w-16">Ticker</th>
+                      <th className="py-2 px-1 text-left">Activo</th>
+                      <th className="py-2 px-1 text-left w-20">Broker</th>
+                      <th className="py-2 px-1 text-right w-16">Cant.</th>
+                      <th className="py-2 px-1 text-right w-20">PMC</th>
+                      <th className="py-2 px-1 text-right w-20">Precio Act.</th>
+                      <th className="py-2 px-1 text-right w-24">Coste Total</th>
+                      <th className="py-2 px-1 text-right w-24">Valor Actual</th>
+                      <th className="py-2 px-1 text-right w-24">Rend. (%)</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {pageItems.map(h => (
+                      <tr key={`${h.symbol}_${h.brokerId}`} className="border-b border-slate-100 hover:bg-slate-50">
+                        <td className="py-2 px-1 font-mono font-bold text-slate-650">{h.symbol}</td>
+                        <td className="py-2 px-1 font-bold text-slate-800 uppercase truncate max-w-[120px]">{h.name}</td>
+                        <td className="py-2 px-1 text-slate-600 uppercase text-[9px]">{h.brokerName}</td>
+                        <td className="py-2 px-1 text-right font-mono tabular-nums">{h.quantity.toFixed(4)}</td>
+                        <td className="py-2 px-1 text-right font-sans tabular-nums">{formatCurrency(h.pmc)}</td>
+                        <td className="py-2 px-1 text-right font-sans tabular-nums">{formatCurrency(h.currentPrice)}</td>
+                        <td className="py-2 px-1 text-right font-sans tabular-nums">{formatCurrency(h.totalCost)}</td>
+                        <td className="py-2 px-1 text-right font-sans tabular-nums font-bold text-slate-800">{formatCurrency(h.currentValue)}</td>
+                        <td className={`py-2 px-1 text-right font-sans font-bold tabular-nums ${h.pnl >= 0 ? 'text-green-700' : 'text-red-700'}`}>
+                          {h.pnlPercent.toFixed(2)}%
+                        </td>
+                      </tr>
+                    ))}
+                    {isLastPage && (
+                      <tr className="bg-slate-100 font-bold border-t-2 border-slate-400 text-[11px]">
+                        <td className="py-2 px-1" colSpan="3">TOTAL POSICIONES:</td>
+                        <td className="py-2 px-1" colSpan="3"></td>
+                        <td className="py-2 px-1 text-right font-sans tabular-nums">{formatCurrency(sum.totalCost)}</td>
+                        <td className="py-2 px-1 text-right font-sans tabular-nums text-slate-900">{formatCurrency(sum.totalValue)}</td>
+                        <td className={`py-2 px-1 text-right font-sans font-bold tabular-nums ${sum.pnl >= 0 ? 'text-green-700' : 'text-red-700'}`}>
+                          {sum.pnlPercent.toFixed(2)}%
+                        </td>
+                      </tr>
+                    )}
+                  </tbody>
+                </table>
+              </div>
+              {renderPageFooter(pageIdx + 1, totalPages, auditNumber)}
+            </div>
+          );
+        });
+      }
+    }
+
+    // 8. TRANSACCIONES DE RENTA VARIABLE
+    if (selectedTemplate === 'rv_transactions') {
+      const chronTx = [...rvTransactions].sort((a, b) => new Date(b.date) - new Date(a.date));
+      const listPages = chunkFlatList(chronTx, 34);
+      const totalPages = listPages.length || 1;
+
+      if (listPages.length === 0) {
+        pageViews.push(
+          <div key="empty-rv-tx" className="page-sheet relative">
+            {renderPageHeader('Transacciones de Renta Variable')}
+            <p className="text-center py-12 text-slate-450 italic text-[10px]">No hay transacciones registradas.</p>
+            {renderPageFooter(1, 1, auditNumber)}
+          </div>
+        );
+      } else {
+        listPages.forEach((pageItems, pageIdx) => {
+          pageViews.push(
+            <div key={`rv-tx-${pageIdx}`} className="page-sheet relative">
+              <div>
+                {renderPageHeader('Registro de Transacciones de Renta Variable')}
+                <table className="w-full text-[10px] border-collapse">
+                  <thead>
+                    <tr className="border-b border-slate-400 bg-slate-100 font-bold text-slate-700">
+                      <th className="py-2 px-1 text-left w-16">Fecha</th>
+                      <th className="py-2 px-1 text-left w-16">Tipo</th>
+                      <th className="py-2 px-1 text-left w-16">Ticker</th>
+                      <th className="py-2 px-1 text-left">Broker</th>
+                      <th className="py-2 px-1 text-right w-16">Cant.</th>
+                      <th className="py-2 px-1 text-right w-20">Precio</th>
+                      <th className="py-2 px-1 text-right w-20">Comisión</th>
+                      <th className="py-2 px-1 text-center w-12">Divisa</th>
+                      <th className="py-2 px-1 text-right w-24">Total (EUR)</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {pageItems.map((tx, idx) => {
+                      const qty = parseFloat(tx.quantity) || 0;
+                      const price = parseFloat(tx.price) || 0;
+                      const fee = parseFloat(tx.fee) || 0;
+                      const rate = parseFloat(tx.exchangeRate) || 1.0;
+                      const totalAmountEUR = tx.type === 'Dividendo'
+                        ? (qty * price - fee) / rate
+                        : tx.type === 'Compra'
+                          ? (qty * price + fee) / rate
+                          : (qty * price - fee) / rate;
+
+                      return (
+                        <tr key={tx.id || idx} className="border-b border-slate-100 hover:bg-slate-50">
+                          <td className="py-1.5 px-1 font-mono text-slate-650">{formatDate(tx.date)}</td>
+                          <td className="py-1.5 px-1 font-bold">
+                            <span className={`px-1 py-0.5 rounded text-[8px] uppercase ${
+                              tx.type === 'Compra' ? 'bg-blue-100 text-blue-800' :
+                              tx.type === 'Venta' ? 'bg-orange-100 text-orange-850' : 'bg-green-100 text-green-800'
+                            }`}>
+                              {tx.type}
+                            </span>
+                          </td>
+                          <td className="py-1.5 px-1 font-mono font-bold text-slate-800">{tx.assetId}</td>
+                          <td className="py-1.5 px-1 uppercase text-slate-600 truncate max-w-[80px]">{tx.brokerId}</td>
+                          <td className="py-1.5 px-1 text-right font-mono">{qty.toFixed(4)}</td>
+                          <td className="py-1.5 px-1 text-right font-mono">{price.toFixed(2)}</td>
+                          <td className="py-1.5 px-1 text-right font-mono">{fee.toFixed(2)}</td>
+                          <td className="py-1.5 px-1 text-center font-mono text-[9px] text-slate-500">{tx.currency || 'EUR'}</td>
+                          <td className="py-1.5 px-1 text-right font-sans font-bold tabular-nums text-slate-800">
+                            {formatCurrency(totalAmountEUR)}
+                          </td>
+                        </tr>
+                      );
+                    })}
+                  </tbody>
+                </table>
+              </div>
+              {renderPageFooter(pageIdx + 1, totalPages, auditNumber)}
+            </div>
+          );
+        });
+      }
+    }
+
+    // 9. CARTERA DE CROWDFUNDING
+    if (selectedTemplate === 'cf_portfolio') {
+      const listPages = chunkFlatList(computedCfHoldings.rows, 32);
+      const totalPages = listPages.length || 1;
+      const sum = computedCfHoldings.summary;
+
+      if (listPages.length === 0) {
+        pageViews.push(
+          <div key="empty-cf" className="page-sheet relative">
+            {renderPageHeader('Cartera de Crowdfunding')}
+            <p className="text-center py-12 text-slate-450 italic text-[10px]">No hay activos de crowdfunding.</p>
+            {renderPageFooter(1, 1, auditNumber)}
+          </div>
+        );
+      } else {
+        listPages.forEach((pageItems, pageIdx) => {
+          const isLastPage = pageIdx === listPages.length - 1;
+          pageViews.push(
+            <div key={`cf-p-${pageIdx}`} className="page-sheet relative">
+              <div>
+                {renderPageHeader('Cartera de Crowdfunding - Posiciones')}
+
+                {pageIdx === 0 && (
+                  <div className="grid grid-cols-4 gap-2 mb-4 text-[10px] select-none no-print border border-slate-350 p-2 bg-slate-50">
+                    <div>
+                      <span className="text-slate-500 font-bold block uppercase text-[8px]">Total Invertido</span>
+                      <span className="font-mono font-bold text-slate-800 text-[12px]">{formatCurrency(sum.totalInvested)} €</span>
+                    </div>
+                    <div>
+                      <span className="text-slate-500 font-bold block uppercase text-[8px]">Valor Actual (Neto)</span>
+                      <span className="font-mono font-bold text-slate-800 text-[12px]">{formatCurrency(sum.totalCurrentValueNet)} €</span>
+                    </div>
+                    <div>
+                      <span className="text-slate-500 font-bold block uppercase text-[8px]">Rentas Netas</span>
+                      <span className="font-mono font-bold text-green-700 text-[12px]">+{formatCurrency(sum.totalReturnNet)} €</span>
+                    </div>
+                    <div>
+                      <span className="text-slate-500 font-bold block uppercase text-[8px]">Rentabilidad Neta Media</span>
+                      <span className="font-mono font-bold text-blue-900 text-[12px]">{sum.avgReturnNet.toFixed(2)}%</span>
+                    </div>
+                  </div>
+                )}
+
+                <table className="w-full text-[10px] border-collapse">
+                  <thead>
+                    <tr className="border-b border-slate-400 bg-slate-100 font-bold text-slate-700">
+                      <th className="py-2 px-1 text-left">Activo / Proyecto</th>
+                      <th className="py-2 px-1 text-right w-24">Inversión</th>
+                      <th className="py-2 px-1 text-right w-20">Rentas Brutas</th>
+                      <th className="py-2 px-1 text-right w-20">Gastos</th>
+                      <th className="py-2 px-1 text-right w-20">Rentas Netas</th>
+                      <th className="py-2 px-1 text-right w-24">Importe Neto</th>
+                      <th className="py-2 px-1 text-right w-20">Rent. Neta</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {pageItems.map(r => (
+                      <tr key={r.id} className="border-b border-slate-100 hover:bg-slate-50">
+                        <td className="py-2 px-1 font-bold text-slate-800 uppercase truncate max-w-[180px]">{r.groupName}</td>
+                        <td className="py-2 px-1 text-right font-mono tabular-nums">{formatCurrency(r.investment)}</td>
+                        <td className="py-2 px-1 text-right font-mono tabular-nums text-slate-650">{formatCurrency(r.grossRents)}</td>
+                        <td className="py-2 px-1 text-right font-mono tabular-nums text-red-650">{formatCurrency(r.expenses)}</td>
+                        <td className="py-2 px-1 text-right font-mono tabular-nums text-green-700 font-semibold">{formatCurrency(r.netRents)}</td>
+                        <td className="py-2 px-1 text-right font-mono tabular-nums font-bold text-slate-800">{formatCurrency(r.totalNet)}</td>
+                        <td className="py-2 px-1 text-right font-mono font-bold text-blue-800">{r.yieldNet.toFixed(2)}%</td>
+                      </tr>
+                    ))}
+                    {isLastPage && (
+                      <tr className="bg-slate-100 font-bold border-t-2 border-slate-400 text-[11px]">
+                        <td className="py-2 px-1">TOTAL GENERAL:</td>
+                        <td className="py-2 px-1 text-right font-sans tabular-nums">{formatCurrency(sum.totalInvested)}</td>
+                        <td className="py-2 px-1 text-right font-sans tabular-nums">{formatCurrency(sum.totalReturnGross)}</td>
+                        <td className="py-2 px-1 text-right font-sans tabular-nums text-red-650">{formatCurrency(sum.totalReturnGross - sum.totalReturnNet)}</td>
+                        <td className="py-2 px-1 text-right font-sans tabular-nums text-green-700 font-extrabold">{formatCurrency(sum.totalReturnNet)}</td>
+                        <td className="py-2 px-1 text-right font-sans tabular-nums text-slate-900">{formatCurrency(sum.totalCurrentValueNet)}</td>
+                        <td className="py-2 px-1 text-right font-sans font-bold text-blue-900">{sum.avgReturnNet.toFixed(2)}%</td>
+                      </tr>
+                    )}
+                  </tbody>
+                </table>
+              </div>
+              {renderPageFooter(pageIdx + 1, totalPages, auditNumber)}
+            </div>
+          );
+        });
+      }
+    }
+
+    // 10. TRANSACCIONES DE CROWDFUNDING
+    if (selectedTemplate === 'cf_transactions') {
+      const chronTx = [...cfTransactions].sort((a, b) => new Date(b.date) - new Date(a.date));
+      const listPages = chunkFlatList(chronTx, 34);
+      const totalPages = listPages.length || 1;
+
+      if (listPages.length === 0) {
+        pageViews.push(
+          <div key="empty-cf-tx" className="page-sheet relative">
+            {renderPageHeader('Transacciones de Crowdfunding')}
+            <p className="text-center py-12 text-slate-450 italic text-[10px]">No hay transacciones registradas.</p>
+            {renderPageFooter(1, 1, auditNumber)}
+          </div>
+        );
+      } else {
+        listPages.forEach((pageItems, pageIdx) => {
+          pageViews.push(
+            <div key={`cf-tx-${pageIdx}`} className="page-sheet relative">
+              <div>
+                {renderPageHeader('Registro de Transacciones de Crowdfunding')}
+                <table className="w-full text-[10px] border-collapse">
+                  <thead>
+                    <tr className="border-b border-slate-400 bg-slate-100 font-bold text-slate-700">
+                      <th className="py-2 px-1 text-left w-16">Fecha</th>
+                      <th className="py-2 px-1 text-left">Proyecto</th>
+                      <th className="py-2 px-1 text-left w-32">Plataforma</th>
+                      <th className="py-2 px-1 text-left w-20">Tipo</th>
+                      <th className="py-2 px-1 text-right w-24">Importe</th>
+                      <th className="py-2 px-1 text-left w-40">Notas</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {pageItems.map((tx, idx) => {
+                      const platform = cfPlatforms.find(p => p.id === tx.platformId);
+                      const project  = cfProjects.find(p => p.id === tx.projectId);
+                      const amount = parseFloat(tx.amount) || 0;
+
+                      return (
+                        <tr key={tx.id || idx} className="border-b border-slate-100 hover:bg-slate-50">
+                          <td className="py-1.5 px-1 font-mono text-slate-650">{formatDate(tx.date)}</td>
+                          <td className="py-1.5 px-1 font-bold text-slate-800 uppercase truncate max-w-[120px]">{project ? project.name : tx.projectId}</td>
+                          <td className="py-1.5 px-1 uppercase text-[9px] text-slate-650 truncate max-w-[100px]">{platform ? platform.name : tx.platformId}</td>
+                          <td className="py-1.5 px-1 font-semibold text-slate-600">{tx.type || '—'}</td>
+                          <td className="py-1.5 px-1 text-right font-sans font-bold tabular-nums text-slate-800">{formatCurrency(amount)}</td>
+                          <td className="py-1.5 px-1 text-slate-555 text-[9px] truncate max-w-[150px]" title={tx.notes}>{tx.notes || '—'}</td>
+                        </tr>
+                      );
+                    })}
+                  </tbody>
+                </table>
+              </div>
+              {renderPageFooter(pageIdx + 1, totalPages, auditNumber)}
+            </div>
+          );
+        });
+      }
+    }
+
+    // 11. IMPUESTOS - RESUMEN GENERAL
+    if (selectedTemplate === 'taxes_total') {
+      const overview = taxesData.yearlyOverview;
+      const listPages = chunkFlatList(overview, 34);
+      const totalPages = listPages.length || 1;
+
+      if (listPages.length === 0) {
+        pageViews.push(
+          <div key="empty-taxes-total" className="page-sheet relative">
+            {renderPageHeader('Impuestos - Resumen Fiscal General')}
+            <p className="text-center py-12 text-slate-450 italic text-[10px]">No hay datos fiscales para reportar.</p>
+            {renderPageFooter(1, 1, auditNumber)}
+          </div>
+        );
+      } else {
+        listPages.forEach((pageItems, pageIdx) => {
+          pageViews.push(
+            <div key={`taxes-tot-${pageIdx}`} className="page-sheet relative">
+              <div>
+                {renderPageHeader('Resumen Fiscal General (IRPF)')}
+                <table className="w-full text-[10px] border-collapse">
+                  <thead>
+                    <tr className="border-b border-slate-400 bg-slate-100 font-bold text-slate-700">
+                      <th className="py-2 px-1 text-center w-16">Ejercicio</th>
+                      <th className="py-2 px-1 text-right">Rend. Inmuebles</th>
+                      <th className="py-2 px-1 text-right">Amort. Inmuebles</th>
+                      <th className="py-2 px-1 text-right">Ganancias RV</th>
+                      <th className="py-2 px-1 text-right">Dividendos RV</th>
+                      <th className="py-2 px-1 text-right">Rend. Crowdfunding</th>
+                      <th className="py-2 px-1 text-right font-bold text-blue-900">Base Imponible</th>
+                      <th className="py-2 px-1 text-right font-bold text-amber-900">Cuota Est. IRPF</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {pageItems.map(row => (
+                      <tr key={row.year} className="border-b border-slate-100 hover:bg-slate-50">
+                        <td className="py-2 px-1 text-center font-bold text-slate-700">{row.year}</td>
+                        <td className="py-2 px-1 text-right font-mono tabular-nums text-slate-650">{formatCurrency(row.reNeto)}</td>
+                        <td className="py-2 px-1 text-right font-mono tabular-nums text-slate-500">{formatCurrency(row.reAmortizacion)}</td>
+                        <td className="py-2 px-1 text-right font-mono tabular-nums text-slate-650">{formatCurrency(row.rvGains)}</td>
+                        <td className="py-2 px-1 text-right font-mono tabular-nums text-slate-650">{formatCurrency(row.rvDividends)}</td>
+                        <td className="py-2 px-1 text-right font-mono tabular-nums text-slate-650">{formatCurrency(row.cfGains)}</td>
+                        <td className="py-2 px-1 text-right font-sans font-bold tabular-nums text-blue-800 bg-blue-50/50">{formatCurrency(row.baseImponible)}</td>
+                        <td className="py-2 px-1 text-right font-sans font-bold tabular-nums text-amber-900 bg-amber-50/30">{formatCurrency(row.impuestoEstimado)}</td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </div>
+              {renderPageFooter(pageIdx + 1, totalPages, auditNumber)}
+            </div>
+          );
+        });
+      }
+    }
+
+    // 12. IMPUESTOS - FISCALIDAD INMOBILIARIA
+    if (selectedTemplate === 'taxes_real_estate') {
+      const listPages = chunkFlatList(taxesData.reTaxes, 34);
+      const totalPages = listPages.length || 1;
+
+      const totals = taxesData.reTaxes.reduce((t, r) => {
+        t.ingresos += r.ingresos;
+        t.gastos += r.gastos;
+        t.amortizacion += r.amortizacion;
+        t.beneficioNeto += r.beneficioNeto;
+        return t;
+      }, { ingresos: 0, gastos: 0, amortizacion: 0, beneficioNeto: 0 });
+
+      if (listPages.length === 0) {
+        pageViews.push(
+          <div key="empty-taxes-re" className="page-sheet relative">
+            {renderPageHeader('Impuestos - Fiscalidad Inmobiliaria')}
+            <p className="text-center py-12 text-slate-450 italic text-[10px]">No hay activos inmobiliarios con datos fiscales.</p>
+            {renderPageFooter(1, 1, auditNumber)}
+          </div>
+        );
+      } else {
+        listPages.forEach((pageItems, pageIdx) => {
+          const isLastPage = pageIdx === listPages.length - 1;
+          pageViews.push(
+            <div key={`taxes-re-${pageIdx}`} className="page-sheet relative">
+              <div>
+                {renderPageHeader('Fiscalidad de Inversiones Inmobiliarias')}
+                <table className="w-full text-[10px] border-collapse">
+                  <thead>
+                    <tr className="border-b border-slate-400 bg-slate-100 font-bold text-slate-700">
+                      <th className="py-2 px-1 text-left w-16">ID</th>
+                      <th className="py-2 px-1 text-left">Finca</th>
+                      <th className="py-2 px-1 text-right w-24">Ingresos Brutos</th>
+                      <th className="py-2 px-1 text-right w-24">Gastos Deducibles</th>
+                      <th className="py-2 px-1 text-right w-24">Amortización (3%)</th>
+                      <th className="py-2 px-1 text-right w-24 font-bold text-blue-900">Rendimiento Neto</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {pageItems.map(r => (
+                      <tr key={r.id} className="border-b border-slate-100 hover:bg-slate-50">
+                        <td className="py-2 px-1 font-mono text-slate-600">{r.id}</td>
+                        <td className="py-2 px-1 font-bold text-slate-800 uppercase">{r.name}</td>
+                        <td className="py-2 px-1 text-right font-mono tabular-nums text-slate-650">{formatCurrency(r.ingresos)}</td>
+                        <td className="py-2 px-1 text-right font-mono tabular-nums text-slate-650">{formatCurrency(r.gastos)}</td>
+                        <td className="py-2 px-1 text-right font-mono tabular-nums text-slate-500">{formatCurrency(r.amortizacion)}</td>
+                        <td className="py-2 px-1 text-right font-sans font-bold tabular-nums text-blue-800">{formatCurrency(r.beneficioNeto)}</td>
+                      </tr>
+                    ))}
+                    {isLastPage && (
+                      <tr className="bg-slate-100 font-bold border-t-2 border-slate-400 text-[11px]">
+                        <td className="py-2 px-1" colSpan="2">TOTAL GENERAL:</td>
+                        <td className="py-2 px-1 text-right font-sans tabular-nums">{formatCurrency(totals.ingresos)}</td>
+                        <td className="py-2 px-1 text-right font-sans tabular-nums">{formatCurrency(totals.gastos)}</td>
+                        <td className="py-2 px-1 text-right font-sans tabular-nums text-slate-500">{formatCurrency(totals.amortizacion)}</td>
+                        <td className="py-2 px-1 text-right font-sans font-bold tabular-nums text-blue-900">{formatCurrency(totals.beneficioNeto)}</td>
+                      </tr>
+                    )}
+                  </tbody>
+                </table>
+              </div>
+              {renderPageFooter(pageIdx + 1, totalPages, auditNumber)}
+            </div>
+          );
+        });
+      }
+    }
+
+    // 13. IMPUESTOS - FISCALIDAD RENTA VARIABLE
+    if (selectedTemplate === 'taxes_rv') {
+      const gains = taxesData.rvGains;
+      const dividends = taxesData.rvDividends;
+      
+      const totalGain = gains.reduce((s, r) => s + r.gain, 0);
+      const totalGainTax = gains.reduce((s, r) => s + r.tax, 0);
+      const totalGrossDiv = dividends.reduce((s, r) => s + r.gross, 0);
+      const totalWithholdingDiv = dividends.reduce((s, r) => s + r.withholding, 0);
+      const totalDivTax = dividends.reduce((s, r) => s + r.tax, 0);
+
+      const gainPages = chunkFlatList(gains, 30);
+      const divPages = chunkFlatList(dividends, 30);
+      const totalPages = (gainPages.length || 1) + (divPages.length || 1);
+      let pageCounter = 1;
+
+      if (gainPages.length === 0) {
+        pageViews.push(
+          <div key="empty-gains" className="page-sheet relative">
+            {renderPageHeader('Fiscalidad RV - Ganancias Patrimoniales')}
+            <p className="text-center py-12 text-slate-450 italic text-[10px]">No hay operaciones de venta registradas para este año.</p>
+            {renderPageFooter(pageCounter++, totalPages, auditNumber)}
+          </div>
+        );
+      } else {
+        gainPages.forEach((pageItems, pageIdx) => {
+          const isLastPage = pageIdx === gainPages.length - 1;
+          pageViews.push(
+            <div key={`taxes-rv-g-${pageIdx}`} className="page-sheet relative">
+              <div>
+                {renderPageHeader('Fiscalidad RV - Ganancias Patrimoniales (FIFO)')}
+                <table className="w-full text-[10px] border-collapse">
+                  <thead>
+                    <tr className="border-b border-slate-400 bg-slate-100 font-bold text-slate-700">
+                      <th className="py-2 px-1 text-left w-16">Fecha</th>
+                      <th className="py-2 px-1 text-left">Activo</th>
+                      <th className="py-2 px-1 text-right w-16">Cant.</th>
+                      <th className="py-2 px-1 text-right w-24">Precio Venta</th>
+                      <th className="py-2 px-1 text-right w-24">Valor Venta</th>
+                      <th className="py-2 px-1 text-right w-24">Coste Adq.</th>
+                      <th className="py-2 px-1 text-right w-24 font-bold text-blue-900">Ganancia/Pérdida</th>
+                      <th className="py-2 px-1 text-right w-20">Cuota Est.</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {pageItems.map((r, idx) => (
+                      <tr key={idx} className="border-b border-slate-100 hover:bg-slate-50">
+                        <td className="py-1.5 px-1 font-mono text-slate-650">{formatDate(r.date)}</td>
+                        <td className="py-1.5 px-1 font-bold text-slate-800 uppercase truncate max-w-[120px]">{r.assetName} ({r.assetId})</td>
+                        <td className="py-1.5 px-1 text-right font-mono">{r.qty.toFixed(4)}</td>
+                        <td className="py-1.5 px-1 text-right font-mono">{formatCurrency(r.sellPriceEUR)}</td>
+                        <td className="py-1.5 px-1 text-right font-mono">{formatCurrency(r.sellTotal)}</td>
+                        <td className="py-1.5 px-1 text-right font-mono">{formatCurrency(r.costBasis)}</td>
+                        <td className={`py-1.5 px-1 text-right font-sans font-bold ${r.gain >= 0 ? 'text-green-700' : 'text-red-700'}`}>{formatCurrency(r.gain)}</td>
+                        <td className="py-1.5 px-1 text-right font-sans font-bold text-amber-900">{formatCurrency(r.tax)}</td>
+                      </tr>
+                    ))}
+                    {isLastPage && (
+                      <tr className="bg-slate-100 font-bold border-t-2 border-slate-400 text-[10px]">
+                        <td className="py-2 px-1" colSpan="3">TOTAL GANANCIAS RV:</td>
+                        <td className="py-2 px-1" colSpan="2"></td>
+                        <td className="py-2 px-1 text-right font-sans">{formatCurrency(gains.reduce((s, r) => s + r.costBasis, 0))}</td>
+                        <td className={`py-2 px-1 text-right font-sans font-bold ${totalGain >= 0 ? 'text-green-700' : 'text-red-700'}`}>{formatCurrency(totalGain)}</td>
+                        <td className="py-2 px-1 text-right font-sans font-bold text-amber-900">{formatCurrency(totalGainTax)}</td>
+                      </tr>
+                    )}
+                  </tbody>
+                </table>
+              </div>
+              {renderPageFooter(pageCounter++, totalPages, auditNumber)}
+            </div>
+          );
+        });
+      }
+
+      if (divPages.length === 0) {
+        pageViews.push(
+          <div key="empty-divs" className="page-sheet relative">
+            {renderPageHeader('Fiscalidad RV - Dividendos y Retenciones')}
+            <p className="text-center py-12 text-slate-450 italic text-[10px]">No hay cobros de dividendos registrados para este año.</p>
+            {renderPageFooter(pageCounter++, totalPages, auditNumber)}
+          </div>
+        );
+      } else {
+        divPages.forEach((pageItems, pageIdx) => {
+          const isLastPage = pageIdx === divPages.length - 1;
+          pageViews.push(
+            <div key={`taxes-rv-d-${pageIdx}`} className="page-sheet relative">
+              <div>
+                {renderPageHeader('Fiscalidad RV - Dividendos y Retenciones')}
+                <table className="w-full text-[10px] border-collapse">
+                  <thead>
+                    <tr className="border-b border-slate-400 bg-slate-100 font-bold text-slate-700">
+                      <th className="py-2 px-1 text-left w-16">Fecha</th>
+                      <th className="py-2 px-1 text-left">Activo</th>
+                      <th className="py-2 px-1 text-right w-24">Importe Bruto</th>
+                      <th className="py-2 px-1 text-right w-24">Retención</th>
+                      <th className="py-2 px-1 text-right w-24">Importe Neto</th>
+                      <th className="py-2 px-1 text-right w-24 font-bold text-amber-900">Cuota Est.</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {pageItems.map((r, idx) => (
+                      <tr key={idx} className="border-b border-slate-100 hover:bg-slate-50">
+                        <td className="py-1.5 px-1 font-mono text-slate-650">{formatDate(r.date)}</td>
+                        <td className="py-1.5 px-1 font-bold text-slate-800 uppercase truncate max-w-[180px]">{r.assetName} ({r.assetId})</td>
+                        <td className="py-1.5 px-1 text-right font-mono tabular-nums">{formatCurrency(r.gross)}</td>
+                        <td className="py-1.5 px-1 text-right font-mono tabular-nums text-red-650">{formatCurrency(r.withholding)}</td>
+                        <td className="py-1.5 px-1 text-right font-mono tabular-nums text-green-700 font-semibold">{formatCurrency(r.net)}</td>
+                        <td className="py-1.5 px-1 text-right font-sans font-bold tabular-nums text-amber-900">{formatCurrency(r.tax)}</td>
+                      </tr>
+                    ))}
+                    {isLastPage && (
+                      <tr className="bg-slate-100 font-bold border-t-2 border-slate-400 text-[10px]">
+                        <td className="py-2 px-1" colSpan="2">TOTAL DIVIDENDOS RV:</td>
+                        <td className="py-2 px-1 text-right font-sans">{formatCurrency(totalGrossDiv)}</td>
+                        <td className="py-2 px-1 text-right font-sans text-red-650">{formatCurrency(totalWithholdingDiv)}</td>
+                        <td className="py-2 px-1 text-right font-sans text-green-700 font-bold">{formatCurrency(totalGrossDiv - totalWithholdingDiv)}</td>
+                        <td className="py-2 px-1 text-right font-sans font-bold text-amber-900">{formatCurrency(totalDivTax)}</td>
+                      </tr>
+                    )}
+                  </tbody>
+                </table>
+              </div>
+              {renderPageFooter(pageCounter++, totalPages, auditNumber)}
+            </div>
+          );
+        });
+      }
+    }
+
+    // 14. IMPUESTOS - FISCALIDAD CROWDFUNDING
+    if (selectedTemplate === 'taxes_cf') {
+      const rends = taxesData.cfRendimientos;
+      const acts = taxesData.cfActivas;
+
+      const totalGain = rends.reduce((s, r) => s + r.gain, 0);
+      const totalTax = rends.reduce((s, r) => s + r.tax, 0);
+      const totalInvestedActs = acts.reduce((s, r) => s + r.invested, 0);
+      const totalExpectedGain = acts.reduce((s, r) => s + r.expectedGain, 0);
+      const totalExpectedTax = acts.reduce((s, r) => s + r.expectedTax, 0);
+
+      const rendPages = chunkFlatList(rends, 30);
+      const actPages = chunkFlatList(acts, 30);
+      const totalPages = (rendPages.length || 1) + (actPages.length || 1);
+      let pageCounter = 1;
+
+      if (rendPages.length === 0) {
+        pageViews.push(
+          <div key="empty-cf-rends" className="page-sheet relative">
+            {renderPageHeader('Fiscalidad CF - Rendimientos Realizados')}
+            <p className="text-center py-12 text-slate-450 italic text-[10px]">No hay rendimientos realizados (amortizados) en este año.</p>
+            {renderPageFooter(pageCounter++, totalPages, auditNumber)}
+          </div>
+        );
+      } else {
+        rendPages.forEach((pageItems, pageIdx) => {
+          const isLastPage = pageIdx === rendPages.length - 1;
+          pageViews.push(
+            <div key={`taxes-cf-r-${pageIdx}`} className="page-sheet relative">
+              <div>
+                {renderPageHeader('Fiscalidad CF - Rendimientos Realizados (Amortizados)')}
+                <table className="w-full text-[10px] border-collapse">
+                  <thead>
+                    <tr className="border-b border-slate-400 bg-slate-100 font-bold text-slate-700">
+                      <th className="py-2 px-1 text-left w-16">Fecha fin</th>
+                      <th className="py-2 px-1 text-left">Proyecto</th>
+                      <th className="py-2 px-1 text-left w-24">Plataforma</th>
+                      <th className="py-2 px-1 text-right w-24">Invertido</th>
+                      <th className="py-2 px-1 text-right w-24">Recibido</th>
+                      <th className="py-2 px-1 text-right w-24 font-bold text-blue-900">Rendimiento Realizado</th>
+                      <th className="py-2 px-1 text-right w-20">Cuota Est.</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {pageItems.map((r, idx) => (
+                      <tr key={idx} className="border-b border-slate-100 hover:bg-slate-50">
+                        <td className="py-1.5 px-1 font-mono text-slate-650">{formatDate(r.endDate)}</td>
+                        <td className="py-1.5 px-1 font-bold text-slate-800 uppercase truncate max-w-[120px]">{r.projectName}</td>
+                        <td className="py-1.5 px-1 uppercase text-[9px] text-slate-600 truncate max-w-[90px]">{r.platformName}</td>
+                        <td className="py-1.5 px-1 text-right font-mono tabular-nums">{formatCurrency(r.invested)}</td>
+                        <td className="py-1.5 px-1 text-right font-mono tabular-nums">{formatCurrency(r.received)}</td>
+                        <td className={`py-1.5 px-1 text-right font-sans font-bold tabular-nums ${r.gain >= 0 ? 'text-green-700' : 'text-red-700'}`}>{formatCurrency(r.gain)}</td>
+                        <td className="py-1.5 px-1 text-right font-sans font-bold tabular-nums text-amber-900">{formatCurrency(r.tax)}</td>
+                      </tr>
+                    ))}
+                    {isLastPage && (
+                      <tr className="bg-slate-100 font-bold border-t-2 border-slate-400 text-[10px]">
+                        <td className="py-2 px-1" colSpan="3">TOTAL REALIZADOS CF:</td>
+                        <td className="py-2 px-1 text-right font-sans">{formatCurrency(rends.reduce((s, r) => s + r.invested, 0))}</td>
+                        <td className="py-2 px-1 text-right font-sans">{formatCurrency(rends.reduce((s, r) => s + r.received, 0))}</td>
+                        <td className={`py-2 px-1 text-right font-sans font-bold ${totalGain >= 0 ? 'text-green-700' : 'text-red-700'}`}>{formatCurrency(totalGain)}</td>
+                        <td className="py-2 px-1 text-right font-sans font-bold text-amber-900">{formatCurrency(totalTax)}</td>
+                      </tr>
+                    )}
+                  </tbody>
+                </table>
+              </div>
+              {renderPageFooter(pageCounter++, totalPages, auditNumber)}
+            </div>
+          );
+        });
+      }
+
+      if (actPages.length === 0) {
+        pageViews.push(
+          <div key="empty-cf-acts" className="page-sheet relative">
+            {renderPageHeader('Fiscalidad CF - Inversiones Activas')}
+            <p className="text-center py-12 text-slate-450 italic text-[10px]">No hay inversiones activas registradas para este año.</p>
+            {renderPageFooter(pageCounter++, totalPages, auditNumber)}
+          </div>
+        );
+      } else {
+        actPages.forEach((pageItems, pageIdx) => {
+          const isLastPage = pageIdx === actPages.length - 1;
+          pageViews.push(
+            <div key={`taxes-cf-a-${pageIdx}`} className="page-sheet relative">
+              <div>
+                {renderPageHeader('Fiscalidad CF - Rendimientos Esperados de Inversiones Activas')}
+                <table className="w-full text-[10px] border-collapse">
+                  <thead>
+                    <tr className="border-b border-slate-400 bg-slate-100 font-bold text-slate-700">
+                      <th className="py-2 px-1 text-left">Proyecto</th>
+                      <th className="py-2 px-1 text-left w-24">Plataforma</th>
+                      <th className="py-2 px-1 text-right w-24">Invertido</th>
+                      <th className="py-2 px-1 text-center w-20">Tasa Anual</th>
+                      <th className="py-2 px-1 text-right w-24 font-bold text-blue-900">Interés Estimado</th>
+                      <th className="py-2 px-1 text-right w-20 font-bold text-amber-900">Cuota Est.</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {pageItems.map((r, idx) => (
+                      <tr key={idx} className="border-b border-slate-100 hover:bg-slate-50">
+                        <td className="py-1.5 px-1 font-bold text-slate-800 uppercase truncate max-w-[140px]">{r.projectName}</td>
+                        <td className="py-1.5 px-1 uppercase text-[9px] text-slate-600 truncate max-w-[90px]">{r.platformName}</td>
+                        <td className="py-1.5 px-1 text-right font-mono tabular-nums">{formatCurrency(r.invested)}</td>
+                        <td className="py-1.5 px-1 text-center font-mono">{r.rate.toFixed(2)}%</td>
+                        <td className="py-1.5 px-1 text-right font-mono tabular-nums text-green-700 font-semibold">{formatCurrency(r.expectedGain)}</td>
+                        <td className="py-1.5 px-1 text-right font-sans font-bold tabular-nums text-amber-900">{formatCurrency(r.expectedTax)}</td>
+                      </tr>
+                    ))}
+                    {isLastPage && (
+                      <tr className="bg-slate-100 font-bold border-t-2 border-slate-400 text-[10px]">
+                        <td className="py-2 px-1" colSpan="2">TOTAL ESPERADOS CF:</td>
+                        <td className="py-2 px-1 text-right font-sans">{formatCurrency(totalInvestedActs)}</td>
+                        <td className="py-2 px-1"></td>
+                        <td className="py-2 px-1 text-right font-sans text-green-700 font-bold">{formatCurrency(totalExpectedGain)}</td>
+                        <td className="py-2 px-1 text-right font-sans font-bold text-amber-900">{formatCurrency(totalExpectedTax)}</td>
+                      </tr>
+                    )}
+                  </tbody>
+                </table>
+              </div>
+              {renderPageFooter(pageCounter++, totalPages, auditNumber)}
+            </div>
+          );
+        });
+      }
+    }
+
     return pageViews;
   };
 
@@ -1136,14 +2543,7 @@ export default function PrintPage() {
           <div className="bg-[#cbd5e0] font-bold p-1.5 uppercase text-[10px] border-b border-[#a0a0a0] text-slate-700">
             Plantillas Disponibles
           </div>
-          {[
-            { id: 'diario', name: 'Diario de Movimientos', icon: BookOpen },
-            { id: 'mayor', name: 'Libro Mayor', icon: FileText },
-            { id: 'sumas_saldos', name: 'Sumas y Saldos', icon: Columns },
-            { id: 'activos', name: 'Inventario de Activos', icon: Building2 },
-            { id: 'alquileres', name: 'Contratos de Alquiler', icon: Key },
-            { id: 'clientes', name: 'Fichero de Clientes', icon: Users }
-          ].map(t => (
+          {(templatesByCategory[activeCategory] || templatesByCategory.contabilidad).map(t => (
             <button
               key={t.id}
               onClick={() => setSelectedTemplate(t.id)}
@@ -1434,7 +2834,7 @@ export default function PrintPage() {
       </div>
 
       {/* Quick Month Filter Bar (no-print) */}
-      {['diario', 'mayor', 'sumas_saldos'].includes(selectedTemplate) && (
+      {['diario', 'mayor', 'sumas_saldos', 'rv_transactions', 'cf_transactions', 'taxes_total', 'taxes_real_estate', 'taxes_rv', 'taxes_cf'].includes(selectedTemplate) && (
         <div className="w-10 bg-[#f0f0f0] border border-[#808080] flex flex-col items-center py-2 shrink-0 overflow-y-auto win-bevel no-print gap-1 select-none">
           {['Ene', 'Feb', 'Mar', 'Abr', 'May', 'Jun', 'Jul', 'Ago', 'Sep', 'Oct', 'Nov', 'Dic'].map(m => (
             <button 

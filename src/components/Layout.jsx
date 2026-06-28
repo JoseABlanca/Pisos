@@ -1077,6 +1077,16 @@ export default function Layout() {
       }
     ],
     'Impresion': [
+      {
+        group: 'Secciones',
+        items: [
+          { name: 'Contabilidad', path: '/print?category=contabilidad', icon: BookOpen },
+          { name: 'Inversiones\ninmobiliarias', path: '/print?category=inversiones', icon: Building2 },
+          { name: 'Renta\nvariable', path: '/print?category=renta_variable', icon: TrendingUp },
+          { name: 'Crowdfunding', path: '/print?category=crowdfunding', icon: Landmark },
+          { name: 'Impuestos', path: '/print?category=impuestos', icon: Scale }
+        ]
+      },
       { 
         group: 'Acciones', 
         items: [
