@@ -2744,8 +2744,10 @@ export default function PrintPage() {
     // 15. BALANCE DE SITUACIÓN
     if (selectedTemplate === 'balance_situacion') {
       const data = computedAnnualAccounts.sheet;
+      
+      // Page 1: Activo
       pageViews.push(
-        <div key="balance-situacion-p" className="page-sheet relative">
+        <div key="balance-situacion-p1" className="page-sheet relative">
           <div>
             {renderPageHeader('Balance de Situación')}
             
@@ -2777,9 +2779,21 @@ export default function PrintPage() {
                   <span className="font-mono tabular-nums">{formatCurrency(item.value)}</span>
                 </div>
               ))}
+            </div>
+          </div>
+          {renderPageFooter(1, 2, auditNumber)}
+        </div>
+      );
 
+      // Page 2: Pasivo y Patrimonio Neto
+      pageViews.push(
+        <div key="balance-situacion-p2" className="page-sheet relative">
+          <div>
+            {renderPageHeader('Balance de Situación')}
+            
+            <div className="flex flex-col mt-4 text-[10px]">
               {/* PASIVO */}
-              <div className="text-slate-900 font-bold flex justify-between uppercase mb-2 mt-6 border-b-2 border-slate-900 pb-1 text-[10.5px] px-1">
+              <div className="text-slate-900 font-bold flex justify-between uppercase mb-2 border-b-2 border-slate-900 pb-1 text-[10.5px] px-1">
                 <span>PASIVO</span>
                 <span className="font-mono tabular-nums">{formatCurrency(data.total_pasivo)}</span>
               </div>
@@ -2822,21 +2836,9 @@ export default function PrintPage() {
                   <span className="font-mono tabular-nums">{formatCurrency(item.value)}</span>
                 </div>
               ))}
-
-              {/* TOTALES GENERALES */}
-              <div className="grid grid-cols-2 gap-6 mt-6 pt-2 border-t border-slate-350">
-                <div className="flex justify-between py-2 font-black text-slate-900 bg-slate-200 px-2 text-[10.5px] border border-slate-400">
-                  <span>TOTAL ACTIVO</span>
-                  <span className="font-mono tabular-nums">{formatCurrency(data.total_activo)}</span>
-                </div>
-                <div className="flex justify-between py-2 font-black text-slate-900 bg-slate-200 px-2 text-[10.5px] border border-slate-400">
-                  <span>TOTAL PATRIMONIO Y PASIVO</span>
-                  <span className="font-mono tabular-nums">{formatCurrency(data.total_pasivo_patrimonio)}</span>
-                </div>
-              </div>
             </div>
           </div>
-          {renderPageFooter(1, 1, auditNumber)}
+          {renderPageFooter(2, 2, auditNumber)}
         </div>
       );
     }
