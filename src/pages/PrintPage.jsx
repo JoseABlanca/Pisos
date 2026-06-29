@@ -538,6 +538,13 @@ export default function PrintPage() {
     return localStorage.getItem('print_sortDir2') || 'asc';
   });
 
+  const [showSecondSortLevel, setShowSecondSortLevel] = useState(() => {
+    return localStorage.getItem('print_showSecondSortLevel') === 'true' || (localStorage.getItem('print_sortCol2') || 'none') !== 'none';
+  });
+  const [groupByOwner, setGroupByOwner] = useState(() => {
+    return localStorage.getItem('print_groupByOwner') === 'true';
+  });
+
   const [accountsDropdownOpen, setAccountsDropdownOpen] = useState(false);
   const [cebeDropdownOpen, setCebeDropdownOpen] = useState(false);
   const [cecoDropdownOpen, setCecoDropdownOpen] = useState(false);
@@ -735,12 +742,14 @@ export default function PrintPage() {
     localStorage.setItem('print_sortDir1', sortDir1);
     localStorage.setItem('print_sortCol2', sortCol2);
     localStorage.setItem('print_sortDir2', sortDir2);
+    localStorage.setItem('print_showSecondSortLevel', showSecondSortLevel.toString());
+    localStorage.setItem('print_groupByOwner', groupByOwner.toString());
   }, [
     rentPeriod, statusFilterAlquileres, statusFilterClientes, paperSize, pageOrientation,
     selectedYear, selectedYears, selectedMonths, selectedQuarters, selectedAccounts,
     selectedCebes, selectedCecos, selectedDocuments, hideZeroBalances, showVerticalPercentage,
     displayMode, selectedComparisonYears, selectedFilterProperties, selectedFilterRentals,
-    selectedFilterOwners, sortCol1, sortDir1, sortCol2, sortDir2
+    selectedFilterOwners, sortCol1, sortDir1, sortCol2, sortDir2, showSecondSortLevel, groupByOwner
   ]);
 
   
@@ -3076,25 +3085,46 @@ export default function PrintPage() {
 
       const sortedOwnerRows = multiLevelSort(filteredOwnerRows, 'extracto_propietarios', rentals, properties, sortCol1, sortDir1, sortCol2, sortDir2, filteredEntriesForPrint);
 
-      // Group by partner name for summary
+      // Group by partner name
       const partnerGroups = {};
       sortedOwnerRows.forEach(r => {
         if (!partnerGroups[r.partnerName]) partnerGroups[r.partnerName] = [];
         partnerGroups[r.partnerName].push(r);
       });
 
-      // Calculate totals for summation row
+      // Calculate totals for summation row (only relevant for flat mode)
       const totals = sortedOwnerRows.reduce((acc, r) => {
-        acc.percentage += r.percentage;
         acc.currentValue += r.currentValue;
         acc.invested += r.invested;
         acc.gain += r.gain;
         acc.gainPlusInvested += r.gainPlusInvested;
         return acc;
-      }, { percentage: 0, currentValue: 0, invested: 0, gain: 0, gainPlusInvested: 0 });
+      }, { currentValue: 0, invested: 0, gain: 0, gainPlusInvested: 0 });
 
-      const listPages = chunkFlatList(sortedOwnerRows, 28);
-      const totalPages = listPages.length || 1;
+      let listPages = [];
+      let totalPages = 1;
+
+      if (groupByOwner) {
+        // Build blocks: each owner is a block containing owner header, owner rows, and owner subtotal
+        const ownerBlocks = Object.entries(partnerGroups).map(([pName, rows]) => {
+          const valSum = rows.reduce((s, r) => s + r.currentValue, 0);
+          const invSum = rows.reduce((s, r) => s + r.invested, 0);
+          const gainSum = rows.reduce((s, r) => s + r.gain, 0);
+          const sumSum = rows.reduce((s, r) => s + r.gainPlusInvested, 0);
+          
+          return [
+            { type: 'group-header', label: pName },
+            ...rows.map(r => ({ ...r, type: 'group-item' })),
+            { type: 'group-total', label: pName, currentValue: valSum, invested: invSum, gain: gainSum, gainPlusInvested: sumSum }
+          ];
+        }).filter(b => b.length > 0);
+        
+        listPages = paginateBlocks(ownerBlocks, 28, 6);
+        totalPages = listPages.length || 1;
+      } else {
+        listPages = chunkFlatList(sortedOwnerRows, 28);
+        totalPages = listPages.length || 1;
+      }
 
       if (sortedOwnerRows.length === 0) {
         pageViews.push(
@@ -3125,26 +3155,52 @@ export default function PrintPage() {
                     </tr>
                   </thead>
                   <tbody>
-                    {pageItems.map((row, ri) => (
-                      <tr key={`${row.partnerName}-${row.propertyId}-${ri}`} className="border-b border-slate-200 text-[9px] text-slate-800">
-                        {cv('name') && <td className="py-1.5 px-2 uppercase">{row.partnerName}</td>}
-                        {cv('nif') && <td className="py-1.5 px-2">{row.partnerNif}</td>}
-                        {cv('property') && <td className="py-1.5 px-2 uppercase">{row.propertyName}</td>}
-                        {cv('percentage') && <td className="py-1.5 px-2 text-right tabular-nums">{row.percentage.toFixed(2)}%</td>}
-                        {cv('currentValue') && <td className="py-1.5 px-2 text-right tabular-nums">{row.currentValue > 0 ? formatCurrency(row.currentValue) : '---'}</td>}
-                        {cv('invested') && <td className="py-1.5 px-2 text-right tabular-nums">{row.invested > 0 ? formatCurrency(row.invested) : '---'}</td>}
-                        {cv('gain') && <td className="py-1.5 px-2 text-right tabular-nums">{row.gain !== 0 ? formatCurrency(row.gain) : '---'}</td>}
-                        {cv('gainPlusInvested') && <td className="py-1.5 px-2 text-right tabular-nums">{row.gainPlusInvested > 0 ? formatCurrency(row.gainPlusInvested) : '---'}</td>}
-                      </tr>
-                    ))}
+                    {pageItems.map((row, ri) => {
+                      if (row.type === 'group-header') {
+                        return (
+                          <tr key={`ghead-${row.label}-${ri}`} className="bg-slate-100/50 font-bold border-t border-slate-350">
+                            <td colSpan={8} className="py-2 px-2 text-[10px] text-slate-800 font-sans tracking-wide uppercase">
+                              PROPIETARIO: {row.label}
+                            </td>
+                          </tr>
+                        );
+                      }
+                      if (row.type === 'group-total') {
+                        return (
+                          <tr key={`gtotal-${row.label}-${ri}`} className="bg-slate-50 font-bold border-t border-slate-300 border-b-2 border-slate-450 text-[9px] text-slate-805">
+                            {cv('name') && <td className="py-1.5 px-2 font-bold font-sans">SUBTOTAL</td>}
+                            {cv('nif') && <td className="py-1.5 px-2"></td>}
+                            {cv('property') && <td className="py-1.5 px-2"></td>}
+                            {cv('percentage') && <td className="py-1.5 px-2"></td>}
+                            {cv('currentValue') && <td className="py-1.5 px-2 text-right tabular-nums">{formatCurrency(row.currentValue)}</td>}
+                            {cv('invested') && <td className="py-1.5 px-2 text-right tabular-nums">{formatCurrency(row.invested)}</td>}
+                            {cv('gain') && <td className="py-1.5 px-2 text-right tabular-nums">{formatCurrency(row.gain)}</td>}
+                            {cv('gainPlusInvested') && <td className="py-1.5 px-2 text-right tabular-nums">{formatCurrency(row.gainPlusInvested)}</td>}
+                          </tr>
+                        );
+                      }
+
+                      return (
+                        <tr key={`${row.partnerName}-${row.propertyId}-${ri}`} className="border-b border-slate-200 text-[9px] text-slate-800">
+                          {cv('name') && <td className="py-1.5 px-2 uppercase">{row.type === 'group-item' ? '' : row.partnerName}</td>}
+                          {cv('nif') && <td className="py-1.5 px-2">{row.type === 'group-item' ? '' : row.partnerNif}</td>}
+                          {cv('property') && <td className="py-1.5 px-2 uppercase">{row.propertyName}</td>}
+                          {cv('percentage') && <td className="py-1.5 px-2 text-right tabular-nums">{row.percentage.toFixed(2)}%</td>}
+                          {cv('currentValue') && <td className="py-1.5 px-2 text-right tabular-nums">{row.currentValue > 0 ? formatCurrency(row.currentValue) : '---'}</td>}
+                          {cv('invested') && <td className="py-1.5 px-2 text-right tabular-nums">{row.invested > 0 ? formatCurrency(row.invested) : '---'}</td>}
+                          {cv('gain') && <td className="py-1.5 px-2 text-right tabular-nums">{row.gain !== 0 ? formatCurrency(row.gain) : '---'}</td>}
+                          {cv('gainPlusInvested') && <td className="py-1.5 px-2 text-right tabular-nums">{row.gainPlusInvested > 0 ? formatCurrency(row.gainPlusInvested) : '---'}</td>}
+                        </tr>
+                      );
+                    })}
                     
-                    {/* Summation TOTAL row at the end of the last page */}
-                    {isLastPage && (
+                    {/* Summation TOTAL row at the end of the last page (only for flat list) */}
+                    {!groupByOwner && isLastPage && (
                       <tr className="bg-slate-150 font-bold border-t-2 border-slate-400 text-[9px] text-slate-800">
                         {cv('name') && <td className="py-1.5 px-2 font-bold">TOTAL</td>}
                         {cv('nif') && <td className="py-1.5 px-2"></td>}
                         {cv('property') && <td className="py-1.5 px-2"></td>}
-                        {cv('percentage') && <td className="py-1.5 px-2 text-right tabular-nums">{totals.percentage.toFixed(1)}%</td>}
+                        {cv('percentage') && <td className="py-1.5 px-2 text-right"></td>}
                         {cv('currentValue') && <td className="py-1.5 px-2 text-right tabular-nums">{formatCurrency(totals.currentValue)}</td>}
                         {cv('invested') && <td className="py-1.5 px-2 text-right tabular-nums">{formatCurrency(totals.invested)}</td>}
                         {cv('gain') && <td className="py-1.5 px-2 text-right tabular-nums">{formatCurrency(totals.gain)}</td>}
@@ -3153,43 +3209,6 @@ export default function PrintPage() {
                     )}
                   </tbody>
                 </table>
-
-                {/* Summary by partner (last page only) */}
-                {isLastPage && Object.keys(partnerGroups).length > 0 && (
-                  <div className="mt-6">
-                    <div className="text-[9px] font-semibold text-slate-700 uppercase border-b border-slate-300 pb-1 mb-2">Resumen por Propietario</div>
-                    <table className="w-full text-[9px] border-collapse">
-                      <thead>
-                        <tr className="border-b border-slate-400 bg-slate-100 text-[8px] uppercase">
-                          <th className="py-1 px-2 text-left font-semibold">Propietario</th>
-                          <th className="py-1 px-2 text-right w-16 font-semibold">Nº Activos</th>
-                          <th className="py-1 px-2 text-right w-24 font-semibold">V. Actual</th>
-                          <th className="py-1 px-2 text-right w-24 font-semibold">Cap. Aportado</th>
-                          <th className="py-1 px-2 text-right w-24 font-semibold">Ganancia</th>
-                          <th className="py-1 px-2 text-right w-28 font-semibold">Ganancia + Cap. Aportado</th>
-                        </tr>
-                      </thead>
-                      <tbody>
-                        {Object.entries(partnerGroups).map(([pName, rows]) => {
-                          const totalCurrentVal = rows.reduce((s, r) => s + r.currentValue, 0);
-                          const totalInvested = rows.reduce((s, r) => s + r.invested, 0);
-                          const totalGain = rows.reduce((s, r) => s + r.gain, 0);
-                          const totalGainPlusInvested = rows.reduce((s, r) => s + r.gainPlusInvested, 0);
-                          return (
-                            <tr key={pName} className="border-b border-slate-200 text-slate-800">
-                              <td className="py-1 px-2 uppercase">{pName}</td>
-                              <td className="py-1 px-2 text-right">{rows.length}</td>
-                              <td className="py-1 px-2 text-right tabular-nums">{totalCurrentVal > 0 ? formatCurrency(totalCurrentVal) : '---'}</td>
-                              <td className="py-1 px-2 text-right tabular-nums">{totalInvested > 0 ? formatCurrency(totalInvested) : '---'}</td>
-                              <td className="py-1 px-2 text-right tabular-nums">{totalGain !== 0 ? formatCurrency(totalGain) : '---'}</td>
-                              <td className="py-1 px-2 text-right tabular-nums">{totalGainPlusInvested > 0 ? formatCurrency(totalGainPlusInvested) : '---'}</td>
-                            </tr>
-                          );
-                        })}
-                      </tbody>
-                    </table>
-                  </div>
-                )}
               </div>
               {renderPageFooter(pageIdx + 1, totalPages, auditNumber)}
             </div>
@@ -5217,41 +5236,63 @@ export default function PrintPage() {
                 <ArrowUpDown className="w-3.5 h-3.5 text-slate-400" />
                 <span>Ordenación del Informe</span>
               </div>
-              <div className="flex flex-col gap-3">
+              <div className="flex flex-col gap-3.5">
                 {/* 1º Nivel */}
                 <div className="flex flex-col gap-1.5">
                   <span className="text-[9px] font-bold text-slate-400 uppercase font-sans">1º Nivel (Principal)</span>
-                  <div className="flex gap-2">
+                  <select 
+                    value={sortCol1} 
+                    onChange={(e) => setSortCol1(e.target.value)}
+                    className="win-input w-full text-[11px] font-sans rounded h-[24px]"
+                  >
+                    <option value="none">Sin ordenar</option>
+                    {(ALL_COLUMNS[selectedTemplate] || []).map(col => (
+                      <option key={col.id} value={col.id}>{col.label}</option>
+                    ))}
+                  </select>
+                  {sortCol1 !== 'none' && (
                     <select 
-                      value={sortCol1} 
-                      onChange={(e) => setSortCol1(e.target.value)}
-                      className="win-input flex-1 text-[11px] font-sans rounded h-[24px]"
+                      value={sortDir1} 
+                      onChange={(e) => setSortDir1(e.target.value)}
+                      className="win-input w-full text-[11px] font-sans rounded h-[24px] mt-1"
                     >
-                      <option value="none">Sin ordenar</option>
-                      {(ALL_COLUMNS[selectedTemplate] || []).map(col => (
-                        <option key={col.id} value={col.id}>{col.label}</option>
-                      ))}
+                      <option value="asc">Ascendente</option>
+                      <option value="desc">Descendente</option>
                     </select>
-                    {sortCol1 !== 'none' && (
-                      <select 
-                        value={sortDir1} 
-                        onChange={(e) => setSortDir1(e.target.value)}
-                        className="win-input text-[11px] font-sans rounded h-[24px] w-24"
-                      >
-                        <option value="asc">Ascendente</option>
-                        <option value="desc">Descendente</option>
-                      </select>
-                    )}
-                  </div>
+                  )}
                 </div>
+
+                {/* Click to add level */}
+                {!showSecondSortLevel && sortCol1 !== 'none' && (
+                  <button 
+                    type="button"
+                    onClick={() => setShowSecondSortLevel(true)}
+                    className="text-[9px] text-blue-600 hover:underline font-bold text-left self-start mt-0.5 font-sans"
+                  >
+                    + Añadir nivel de ordenación
+                  </button>
+                )}
+
                 {/* 2º Nivel */}
-                <div className="flex flex-col gap-1.5 border-t border-slate-100 pt-2.5">
-                  <span className="text-[9px] font-bold text-slate-400 uppercase font-sans">2º Nivel (Secundario)</span>
-                  <div className="flex gap-2">
+                {showSecondSortLevel && (
+                  <div className="flex flex-col gap-1.5 border-t border-slate-100 pt-3">
+                    <div className="flex justify-between items-center mb-0.5">
+                      <span className="text-[9px] font-bold text-slate-400 uppercase font-sans">2º Nivel (Secundario)</span>
+                      <button 
+                        type="button"
+                        onClick={() => {
+                          setShowSecondSortLevel(false);
+                          setSortCol2('none');
+                        }}
+                        className="text-[8px] text-red-500 hover:underline font-bold font-sans"
+                      >
+                        Quitar nivel
+                      </button>
+                    </div>
                     <select 
                       value={sortCol2} 
                       onChange={(e) => setSortCol2(e.target.value)}
-                      className="win-input flex-1 text-[11px] font-sans rounded h-[24px]"
+                      className="win-input w-full text-[11px] font-sans rounded h-[24px]"
                     >
                       <option value="none">Sin ordenar</option>
                       {(ALL_COLUMNS[selectedTemplate] || []).map(col => (
@@ -5262,14 +5303,14 @@ export default function PrintPage() {
                       <select 
                         value={sortDir2} 
                         onChange={(e) => setSortDir2(e.target.value)}
-                        className="win-input text-[11px] font-sans rounded h-[24px] w-24"
+                        className="win-input w-full text-[11px] font-sans rounded h-[24px] mt-1"
                       >
                         <option value="asc">Ascendente</option>
                         <option value="desc">Descendente</option>
                       </select>
                     )}
                   </div>
-                </div>
+                )}
               </div>
             </div>
           )}
@@ -5393,6 +5434,27 @@ export default function PrintPage() {
                     <option value="inactivo">Solo Inactivos</option>
                   </select>
                 </div>
+              </div>
+            </div>
+          )}
+
+          {/* Options specific to Extracto de Propietarios */}
+          {selectedTemplate === 'extracto_propietarios' && (
+            <div className="bg-white border border-[#a0a0a0] p-3 flex flex-col gap-3">
+              <div className="text-[10px] font-bold text-slate-500 uppercase flex items-center gap-1 select-none">
+                <Sliders className="w-3.5 h-3.5 text-slate-400" />
+                <span>Opciones de Propietarios</span>
+              </div>
+              <div className="flex flex-col gap-2.5">
+                <label className="flex items-center gap-2 cursor-pointer select-none text-[10px] font-semibold text-slate-600 font-sans">
+                  <input 
+                    type="checkbox"
+                    checked={groupByOwner}
+                    onChange={(e) => setGroupByOwner(e.target.checked)}
+                    className="w-3 h-3"
+                  />
+                  <span>Agrupar por Propietario</span>
+                </label>
               </div>
             </div>
           )}
