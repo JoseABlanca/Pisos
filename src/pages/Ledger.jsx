@@ -6,9 +6,11 @@ import ZoomControl from '../components/ZoomControl';
 import { 
   Landmark, ArrowRightLeft, Search, Activity, 
   Printer, Download, Filter, BookOpen, RefreshCw,
-  ChevronRight, ChevronDown, Folder, FileText, PanelLeft, History
+  ChevronRight, ChevronDown, Folder, FileText, PanelLeft, History,
+  X
 } from 'lucide-react';
 import { exportToCSV } from '../utils/exportUtils';
+import Accounts from './Accounts';
 
 export default function Ledger({ initialMode }) {
   const { user, queryUserIds } = useAuth();
@@ -27,6 +29,7 @@ export default function Ledger({ initialMode }) {
   const [selectedMonths, setSelectedMonths] = useState([]);
   const [selectedQuarters, setSelectedQuarters] = useState([]);
   const [showZeroBalance, setShowZeroBalance] = useState(true);
+  const [showAccountsOverlay, setShowAccountsOverlay] = useState(false);
 
   // Sync with prop
   useEffect(() => {
@@ -74,6 +77,14 @@ export default function Ledger({ initialMode }) {
   }, [user]);
 
   const selectedAccount = accounts.find(a => a.id === selectedAccountId);
+
+  const handleAccountSelect = (code, name) => {
+    const acc = accounts.find(a => a.code === code);
+    if (acc) {
+      setSelectedAccountId(acc.id);
+    }
+    setShowAccountsOverlay(false);
+  };
 
   // 3. Build Hierarchical Tree and Calculate Totals
   const buildTree = (allAccounts) => {
@@ -334,11 +345,19 @@ export default function Ledger({ initialMode }) {
                   <div className="bg-gray-200 px-2 py-1 mb-2 font-bold">CUENTA</div>
                   <div className="px-2 space-y-2">
                     <div className="flex space-x-2">
-                      <button className="border border-gray-300 bg-gray-100 hover:bg-gray-200 px-2 py-0.5 rounded shadow-sm">CUENTA</button>
+                      <button 
+                        onDoubleClick={() => setShowAccountsOverlay(true)}
+                        className="border border-gray-300 bg-gray-100 hover:bg-gray-200 px-2 py-0.5 rounded shadow-sm cursor-pointer"
+                        title="Doble clic para elegir cuenta"
+                      >
+                        CUENTA
+                      </button>
                       <select 
                         value={selectedAccountId}
                         onChange={(e) => setSelectedAccountId(e.target.value)}
-                        className="flex-1 border border-gray-300 px-1 py-0.5 outline-none"
+                        onDoubleClick={() => setShowAccountsOverlay(true)}
+                        className="flex-1 border border-gray-300 px-1 py-0.5 outline-none cursor-pointer"
+                        title="Doble clic para elegir cuenta"
                       >
                         {accounts.map(acc => (
                           <option key={acc.id} value={acc.id}>{acc.code}</option>
@@ -659,6 +678,23 @@ export default function Ledger({ initialMode }) {
           <ZoomControl />
         </div>
       </div>
+
+      {/* Accounts Overlay Modal */}
+      {showAccountsOverlay && (
+        <div className="fixed inset-0 bg-black/40 backdrop-blur-sm flex items-center justify-center z-[9998] p-4">
+          <div className="bg-white shadow-2xl rounded-lg flex flex-col w-[92vw] h-[90vh] overflow-hidden max-w-[1200px] border border-gray-400">
+            <div className="flex justify-between items-center px-4 py-2 bg-[#4a69bd] text-white select-none shrink-0">
+              <h2 className="font-bold text-[13px] tracking-wide">CONFIGURACIÓN DE CUENTAS</h2>
+              <button onClick={() => setShowAccountsOverlay(false)} className="hover:bg-white/20 p-1 rounded">
+                <X className="w-5 h-5" />
+              </button>
+            </div>
+            <div className="flex-1 overflow-hidden relative">
+              <Accounts isModal={true} onAccountSelect={handleAccountSelect} />
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 }
