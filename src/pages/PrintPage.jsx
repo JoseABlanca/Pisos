@@ -4514,8 +4514,11 @@ export default function PrintPage() {
             </div>
           )}
 
-          {/* Transaction Filters (Hidden for financial statements) */}
-          {!['balance_situacion', 'cuenta_resultados', 'flujo_caja'].includes(selectedTemplate) && (
+          {/* Transaction Filters (Hidden for financial statements, inmobiliaria, RV and CF) */}
+          {!['balance_situacion', 'cuenta_resultados', 'flujo_caja',
+             'activos', 'alquileres', 'clientes', 'extracto_propietarios',
+             'rv_portfolio', 'rv_transactions',
+             'cf_portfolio', 'cf_transactions'].includes(selectedTemplate) && (
             <>
               {/* Cuentas a Mostrar Filter */}
               <div className="bg-white border border-[#a0a0a0] p-3 flex flex-col gap-2 relative" ref={accountsDropdownRef}>
