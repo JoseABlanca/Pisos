@@ -234,42 +234,127 @@ export default function PrintPage() {
   const [showRightPanel, setShowRightPanel] = useState(true);
 
   // States for selected report template and filter
-  const [selectedTemplate, setSelectedTemplate] = useState('diario'); // diario, mayor, sumas_saldos, activos, alquileres, clientes
-  const [selectedYear, setSelectedYear] = useState(new Date().getFullYear());
-  const [selectedYears, setSelectedYears] = useState([]);
-  const [selectedMonths, setSelectedMonths] = useState([]);
-  const [selectedQuarters, setSelectedQuarters] = useState([]);
-  const [selectedAccounts, setSelectedAccounts] = useState([]);
-  const [selectedCebes, setSelectedCebes] = useState([]);
-  const [selectedCecos, setSelectedCecos] = useState([]);
-  const [selectedDocuments, setSelectedDocuments] = useState([]);
-  const [filterImpuesto, setFilterImpuesto] = useState(false);
-  const [maxDigits, setMaxDigits] = useState(10);
+  const [selectedTemplate, setSelectedTemplate] = useState('diario');
+  const [selectedYear, setSelectedYear] = useState(() => {
+    const saved = localStorage.getItem('print_selectedYear');
+    return saved ? parseInt(saved, 10) : new Date().getFullYear();
+  });
+  const [selectedYears, setSelectedYears] = useState(() => {
+    try {
+      const saved = localStorage.getItem('print_selectedYears');
+      return saved ? JSON.parse(saved) : [];
+    } catch(e) { return []; }
+  });
+  const [selectedMonths, setSelectedMonths] = useState(() => {
+    try {
+      const saved = localStorage.getItem('print_selectedMonths');
+      return saved ? JSON.parse(saved) : [];
+    } catch(e) { return []; }
+  });
+  const [selectedQuarters, setSelectedQuarters] = useState(() => {
+    try {
+      const saved = localStorage.getItem('print_selectedQuarters');
+      return saved ? JSON.parse(saved) : [];
+    } catch(e) { return []; }
+  });
+  const [selectedAccounts, setSelectedAccounts] = useState(() => {
+    try {
+      const saved = localStorage.getItem('print_selectedAccounts');
+      return saved ? JSON.parse(saved) : [];
+    } catch(e) { return []; }
+  });
+  const [selectedCebes, setSelectedCebes] = useState(() => {
+    try {
+      const saved = localStorage.getItem('print_selectedCebes');
+      return saved ? JSON.parse(saved) : [];
+    } catch(e) { return []; }
+  });
+  const [selectedCecos, setSelectedCecos] = useState(() => {
+    try {
+      const saved = localStorage.getItem('print_selectedCecos');
+      return saved ? JSON.parse(saved) : [];
+    } catch(e) { return []; }
+  });
+  const [selectedDocuments, setSelectedDocuments] = useState(() => {
+    try {
+      const saved = localStorage.getItem('print_selectedDocuments');
+      return saved ? JSON.parse(saved) : [];
+    } catch(e) { return []; }
+  });
+  const [filterImpuesto, setFilterImpuesto] = useState(() => {
+    return localStorage.getItem('print_filterImpuesto') === 'true';
+  });
+  const [maxDigits, setMaxDigits] = useState(() => {
+    const saved = localStorage.getItem('print_maxDigits');
+    return saved ? parseInt(saved, 10) : 10;
+  });
   const [isDatesCollapsed, setIsDatesCollapsed] = useState(true);
-  const [hideZeroBalances, setHideZeroBalances] = useState(false);
-  const [showVerticalPercentage, setShowVerticalPercentage] = useState(false);
-  const [displayMode, setDisplayMode] = useState('euros'); // euros, percent
-  const [selectedComparisonYears, setSelectedComparisonYears] = useState([]); // list of comparative years
+  const [hideZeroBalances, setHideZeroBalances] = useState(() => {
+    return localStorage.getItem('print_hideZeroBalances') === 'true';
+  });
+  const [showVerticalPercentage, setShowVerticalPercentage] = useState(() => {
+    return localStorage.getItem('print_showVerticalPercentage') === 'true';
+  });
+  const [displayMode, setDisplayMode] = useState(() => {
+    return localStorage.getItem('print_displayMode') || 'euros';
+  });
+  const [selectedComparisonYears, setSelectedComparisonYears] = useState(() => {
+    try {
+      const saved = localStorage.getItem('print_selectedComparisonYears');
+      return saved ? JSON.parse(saved) : [];
+    } catch(e) { return []; }
+  });
+
+  // Multi-select dropdown states for properties, rentals, and owners
+  const [selectedFilterProperties, setSelectedFilterProperties] = useState(() => {
+    try {
+      const saved = localStorage.getItem('print_selectedFilterProperties');
+      return saved ? JSON.parse(saved) : [];
+    } catch(e) { return []; }
+  });
+  const [selectedFilterRentals, setSelectedFilterRentals] = useState(() => {
+    try {
+      const saved = localStorage.getItem('print_selectedFilterRentals');
+      return saved ? JSON.parse(saved) : [];
+    } catch(e) { return []; }
+  });
+  const [selectedFilterOwners, setSelectedFilterOwners] = useState(() => {
+    try {
+      const saved = localStorage.getItem('print_selectedFilterOwners');
+      return saved ? JSON.parse(saved) : [];
+    } catch(e) { return []; }
+  });
+
   const [accountsDropdownOpen, setAccountsDropdownOpen] = useState(false);
   const [cebeDropdownOpen, setCebeDropdownOpen] = useState(false);
   const [cecoDropdownOpen, setCecoDropdownOpen] = useState(false);
   const [docDropdownOpen, setDocDropdownOpen] = useState(false);
   const [colDropdownOpen, setColDropdownOpen] = useState(false);
+  const [propFilterDropdownOpen, setPropFilterDropdownOpen] = useState(false);
+  const [rentFilterDropdownOpen, setRentFilterDropdownOpen] = useState(false);
+  const [ownerFilterDropdownOpen, setOwnerFilterDropdownOpen] = useState(false);
 
   const [accountsSearch, setAccountsSearch] = useState('');
   const [cebeSearch, setCebeSearch] = useState('');
   const [cecoSearch, setCecoSearch] = useState('');
   const [docSearch, setDocSearch] = useState('');
+  const [propFilterSearch, setPropFilterSearch] = useState('');
+  const [rentFilterSearch, setRentFilterSearch] = useState('');
+  const [ownerFilterSearch, setOwnerFilterSearch] = useState('');
 
   const accountsDropdownRef = useRef(null);
   const cebeDropdownRef = useRef(null);
   const cecoDropdownRef = useRef(null);
   const docDropdownRef = useRef(null);
   const colDropdownRef = useRef(null);
+  const propFilterDropdownRef = useRef(null);
+  const rentFilterDropdownRef = useRef(null);
+  const ownerFilterDropdownRef = useRef(null);
 
   // Paper / layout configuration
-  const [paperSize, setPaperSize] = useState('A4'); // A4, A5, Letter
-  const [pageOrientation, setPageOrientation] = useState('portrait'); // portrait, landscape
+  const [paperSize, setPaperSize] = useState(() => localStorage.getItem('print_paperSize') || 'A4');
+  const [pageOrientation, setPageOrientation] = useState(() => localStorage.getItem('print_pageOrientation') || 'portrait');
+
 
   // Visible columns per template (keys = templateId, value = Set of visible column ids)
   const ALL_COLUMNS = {
@@ -310,7 +395,8 @@ export default function PrintPage() {
       { id: 'status', label: 'Estado' },
       { id: 'address', label: 'Dirección' },
       { id: 'nationality', label: 'Nacionalidad' },
-      { id: 'propertyRental', label: 'Inmueble / Alquiler' },
+      { id: 'propertyName', label: 'Inmueble (Piso)' },
+      { id: 'rentalRef', label: 'Referencia Alquiler' },
     ],
     extracto_propietarios: [
       { id: 'name', label: 'Nombre Propietario' },
@@ -325,7 +411,7 @@ export default function PrintPage() {
   const defaultVisibleColumns = {
     activos: new Set(['id','name','address','cebe_ceco','accountingAccount','ingresos','gastos','servicios','netYield']),
     alquileres: new Set(['reference','property','tenants','startDate','endDate','rentAmount','expenses','netYield','status']),
-    clientes: new Set(['id','name','dni','phone','email','status','propertyRental']),
+    clientes: new Set(['id','name','dni','phone','email','status','propertyName','rentalRef']),
     extracto_propietarios: new Set(['name','nif','property','percentage','purchasePrice','currentValue']),
   };
   const [visibleColumns, setVisibleColumns] = useState(defaultVisibleColumns);
@@ -392,10 +478,53 @@ export default function PrintPage() {
         setDocDropdownOpen(false);
         setDocSearch('');
       }
+      if (propFilterDropdownRef.current && !propFilterDropdownRef.current.contains(e.target)) {
+        setPropFilterDropdownOpen(false);
+        setPropFilterSearch('');
+      }
+      if (rentFilterDropdownRef.current && !rentFilterDropdownRef.current.contains(e.target)) {
+        setRentFilterDropdownOpen(false);
+        setRentFilterSearch('');
+      }
+      if (ownerFilterDropdownRef.current && !ownerFilterDropdownRef.current.contains(e.target)) {
+        setOwnerFilterDropdownOpen(false);
+        setOwnerFilterSearch('');
+      }
     };
     document.addEventListener('mousedown', handleOutsideClick);
     return () => document.removeEventListener('mousedown', handleOutsideClick);
   }, []);
+
+  // Sync print settings/filters to localStorage
+  useEffect(() => {
+    localStorage.setItem('print_rentPeriod', rentPeriod);
+    localStorage.setItem('print_statusFilterAlquileres', statusFilterAlquileres);
+    localStorage.setItem('print_statusFilterClientes', statusFilterClientes);
+    localStorage.setItem('print_paperSize', paperSize);
+    localStorage.setItem('print_pageOrientation', pageOrientation);
+    localStorage.setItem('print_selectedYear', selectedYear.toString());
+    localStorage.setItem('print_selectedYears', JSON.stringify(selectedYears));
+    localStorage.setItem('print_selectedMonths', JSON.stringify(selectedMonths));
+    localStorage.setItem('print_selectedQuarters', JSON.stringify(selectedQuarters));
+    localStorage.setItem('print_selectedAccounts', JSON.stringify(selectedAccounts));
+    localStorage.setItem('print_selectedCebes', JSON.stringify(selectedCebes));
+    localStorage.setItem('print_selectedCecos', JSON.stringify(selectedCecos));
+    localStorage.setItem('print_selectedDocuments', JSON.stringify(selectedDocuments));
+    localStorage.setItem('print_hideZeroBalances', hideZeroBalances.toString());
+    localStorage.setItem('print_showVerticalPercentage', showVerticalPercentage.toString());
+    localStorage.setItem('print_displayMode', displayMode);
+    localStorage.setItem('print_selectedComparisonYears', JSON.stringify(selectedComparisonYears));
+    localStorage.setItem('print_selectedFilterProperties', JSON.stringify(selectedFilterProperties));
+    localStorage.setItem('print_selectedFilterRentals', JSON.stringify(selectedFilterRentals));
+    localStorage.setItem('print_selectedFilterOwners', JSON.stringify(selectedFilterOwners));
+  }, [
+    rentPeriod, statusFilterAlquileres, statusFilterClientes, paperSize, pageOrientation,
+    selectedYear, selectedYears, selectedMonths, selectedQuarters, selectedAccounts,
+    selectedCebes, selectedCecos, selectedDocuments, hideZeroBalances, showVerticalPercentage,
+    displayMode, selectedComparisonYears, selectedFilterProperties, selectedFilterRentals,
+    selectedFilterOwners
+  ]);
+
   
   // Database collections states
   const [accounts, setAccounts] = useState([]);
@@ -2349,10 +2478,16 @@ export default function PrintPage() {
     // 4. INVENTARIO DE ACTIVOS INMOBILIARIOS
     if (selectedTemplate === 'activos') {
       const cv = (colId) => isColVisible('activos', colId);
-      const listPages = chunkFlatList(properties, 34);
+      
+      const filteredProperties = properties.filter(p => {
+        if (selectedFilterProperties.length > 0 && !selectedFilterProperties.includes(p.id)) return false;
+        return true;
+      });
+
+      const listPages = chunkFlatList(filteredProperties, 34);
       const totalPages = listPages.length || 1;
 
-      if (listPages.length === 0) {
+      if (filteredProperties.length === 0) {
         pageViews.push(
           <div key="empty" className="page-sheet relative">
             {renderPageHeader('Inventario de Activos Inmobiliarios')}
@@ -2430,6 +2565,8 @@ export default function PrintPage() {
       const filteredRentals = rentals.filter(r => {
         const status = r.status || 'activo';
         if (statusFilterAlquileres !== 'todos' && status !== statusFilterAlquileres) return false;
+        if (selectedFilterProperties.length > 0 && !selectedFilterProperties.includes(r.propertyId)) return false;
+        if (selectedFilterRentals.length > 0 && !selectedFilterRentals.includes(r.reference)) return false;
         return true;
       });
 
@@ -2462,6 +2599,19 @@ export default function PrintPage() {
             if (exp.period === 'trimestral') return sum + amt / 3;
             return sum + amt;
           }, 0);
+        };
+
+        const getRentalStartDate = (r) => {
+          if (r.rentalType === 'alquiler por habitaciones' && Array.isArray(r.rooms) && r.rooms.length > 0) {
+            const dates = r.rooms
+              .map(room => room.startDate)
+              .filter(dateStr => !!dateStr);
+            if (dates.length > 0) {
+              dates.sort();
+              return dates[0];
+            }
+          }
+          return r.startDate;
         };
 
         listPages.forEach((pageItems, pageIdx) => {
@@ -2500,12 +2650,14 @@ export default function PrintPage() {
                       const expensesVal = baseExpenses * monthsMultiplier;
                       const netYieldVal = rentVal - expensesVal;
                       
+                      const startDateVal = getRentalStartDate(r);
+                      
                       return (
                         <tr key={r.id || r.reference} className="border-b border-slate-200 text-[9px] text-slate-800">
                           {cv('reference') && <td className="py-1.5 px-2">{r.reference || '---'}</td>}
                           {cv('property') && <td className="py-1.5 px-2 uppercase">{prop ? prop.name : r.propertyId}</td>}
                           {cv('tenants') && <td className="py-1.5 px-2 uppercase">{tenantDisplay}</td>}
-                          {cv('startDate') && <td className="py-1.5 px-2 text-center">{r.startDate ? formatDate(r.startDate) : '---'}</td>}
+                          {cv('startDate') && <td className="py-1.5 px-2 text-center">{startDateVal ? formatDate(startDateVal) : '---'}</td>}
                           {cv('endDate') && <td className="py-1.5 px-2 text-center">{r.endDate ? formatDate(r.endDate) : 'INDET.'}</td>}
                           {cv('depositAmount') && <td className="py-1.5 px-2 text-right tabular-nums">{r.depositAmount > 0 ? formatCurrency(r.depositAmount) : '---'}</td>}
                           {cv('rentAmount') && <td className="py-1.5 px-2 text-right tabular-nums">{formatCurrency(rentVal)}</td>}
@@ -2533,6 +2685,16 @@ export default function PrintPage() {
       const filteredCustomers = customers.filter(c => {
         const status = c.status || 'activo';
         if (statusFilterClientes !== 'todos' && status !== statusFilterClientes) return false;
+        
+        if (selectedFilterProperties.length > 0) {
+          const rent = rentals.find(r => 
+            (r.id && c.rentalReference && r.id === c.rentalReference) || 
+            (r.reference && c.rentalReference && r.reference === c.rentalReference) ||
+            r.tenantId === c.id || 
+            (r.tenants && r.tenants.some(t => t.id === c.id))
+          );
+          if (!rent || !selectedFilterProperties.includes(rent.propertyId)) return false;
+        }
         return true;
       });
 
@@ -2563,7 +2725,8 @@ export default function PrintPage() {
                       {cv('email') && <th className="py-1.5 px-2 text-left font-semibold">Email</th>}
                       {cv('address') && <th className="py-1.5 px-2 text-left w-36 font-semibold">Dirección</th>}
                       {cv('nationality') && <th className="py-1.5 px-2 text-left w-20 font-semibold">Nac.</th>}
-                      {cv('propertyRental') && <th className="py-1.5 px-2 text-left font-semibold">Inmueble / Alquiler</th>}
+                      {cv('propertyName') && <th className="py-1.5 px-2 text-left font-semibold">Inmueble</th>}
+                      {cv('rentalRef') && <th className="py-1.5 px-2 text-left w-24 font-semibold">Ref. Alquiler</th>}
                       {cv('status') && <th className="py-1.5 px-2 text-center w-16 font-semibold">Estado</th>}
                     </tr>
                   </thead>
@@ -2578,12 +2741,13 @@ export default function PrintPage() {
                       );
                       const prop = rent ? properties.find(p => p.id === rent.propertyId) : null;
                       
-                      let propertyRentalDisplay = '---';
+                      let propNameDisplay = '---';
+                      let rentalRefDisplay = '---';
                       if (rent) {
-                        const propName = prop ? prop.name : rent.propertyId;
-                        propertyRentalDisplay = `${propName} (${rent.reference || 'Ref: ---'})`;
+                        propNameDisplay = prop ? prop.name : rent.propertyId;
+                        rentalRefDisplay = rent.reference || '---';
                       } else if (c.floor || (Array.isArray(c.floors) && c.floors.length > 0)) {
-                        propertyRentalDisplay = c.floor || c.floors.join(', ');
+                        propNameDisplay = c.floor || c.floors.join(', ');
                       }
 
                       return (
@@ -2595,7 +2759,8 @@ export default function PrintPage() {
                           {cv('email') && <td className="py-1.5 px-2 lowercase truncate max-w-[140px]" title={c.email}>{c.email || '---'}</td>}
                           {cv('address') && <td className="py-1.5 px-2 uppercase">{c.address || '---'}</td>}
                           {cv('nationality') && <td className="py-1.5 px-2">{c.nationality || '---'}</td>}
-                          {cv('propertyRental') && <td className="py-1.5 px-2 uppercase">{propertyRentalDisplay}</td>}
+                          {cv('propertyName') && <td className="py-1.5 px-2 uppercase">{propNameDisplay}</td>}
+                          {cv('rentalRef') && <td className="py-1.5 px-2 uppercase">{rentalRefDisplay}</td>}
                           {cv('status') && <td className="py-1.5 px-2 text-center uppercase text-[8px]">{c.status || 'activo'}</td>}
                         </tr>
                       );
@@ -2648,17 +2813,23 @@ export default function PrintPage() {
         }
       });
 
+      const filteredOwnerRows = ownerRows.filter(row => {
+        if (selectedFilterProperties.length > 0 && !selectedFilterProperties.includes(row.propertyId)) return false;
+        if (selectedFilterOwners.length > 0 && !selectedFilterOwners.includes(row.partnerName)) return false;
+        return true;
+      });
+
       // Group by partner name for summary
       const partnerGroups = {};
-      ownerRows.forEach(r => {
+      filteredOwnerRows.forEach(r => {
         if (!partnerGroups[r.partnerName]) partnerGroups[r.partnerName] = [];
         partnerGroups[r.partnerName].push(r);
       });
 
-      const listPages = chunkFlatList(ownerRows, 30);
+      const listPages = chunkFlatList(filteredOwnerRows, 30);
       const totalPages = listPages.length || 1;
 
-      if (ownerRows.length === 0) {
+      if (filteredOwnerRows.length === 0) {
         pageViews.push(
           <div key="empty-prop" className="page-sheet relative">
             {renderPageHeader('Extracto de Propietarios')}
@@ -4534,6 +4705,213 @@ export default function PrintPage() {
                     <option key={d} value={d}>{d} {d === 1 ? 'dígito' : 'dígitos'}</option>
                   ))}
                 </select>
+              </div>
+            </div>
+          )}
+
+          {/* Filtros Inmobiliarios (Multiselección) */}
+          {['activos', 'alquileres', 'clientes', 'extracto_propietarios'].includes(selectedTemplate) && (
+            <div className="bg-white border border-[#a0a0a0] p-3 flex flex-col gap-3">
+              <div className="text-[10px] font-bold text-slate-500 uppercase flex items-center gap-1 select-none">
+                <Sliders className="w-3.5 h-3.5 text-slate-400" />
+                <span>Filtros Inmobiliarios</span>
+              </div>
+              <div className="flex flex-col gap-3">
+                {/* 1. Dropdown Fincas (Activos) - shown for activos, alquileres, clientes, propietarios */}
+                {['activos', 'alquileres', 'clientes', 'extracto_propietarios'].includes(selectedTemplate) && (
+                  <div className="flex flex-col gap-1 relative" ref={propFilterDropdownRef}>
+                    <span className="text-[9px] font-bold text-slate-400 uppercase font-sans">Fincas (Activos)</span>
+                    <div 
+                      onClick={() => setPropFilterDropdownOpen(prev => !prev)}
+                      className="win-input w-full flex justify-between items-center cursor-pointer select-none bg-white border border-[#a0a0a0] px-2 py-1 text-[11px] font-sans rounded min-h-[24px]"
+                    >
+                      <span className="truncate pr-2 text-slate-700 font-sans">
+                        {selectedFilterProperties.length === 0 
+                          ? 'Todas' 
+                          : selectedFilterProperties.map(pid => {
+                              const p = properties.find(x => x.id === pid);
+                              return p ? p.name : pid;
+                            }).join(', ')
+                        }
+                      </span>
+                      <span className="text-[9px] text-slate-500">▼</span>
+                    </div>
+                    
+                    {propFilterDropdownOpen && (
+                      <div className="absolute top-[38px] left-0 right-0 bg-white border border-[#808080] shadow-[2px_2px_4px_rgba(0,0,0,0.15)] z-20 max-h-60 overflow-y-auto p-1.5 flex flex-col gap-1">
+                        <div className="flex justify-between items-center pb-1 border-b border-slate-100 mb-1">
+                          <span className="text-[8px] text-slate-400 uppercase font-bold font-sans">Buscar finca</span>
+                          {selectedFilterProperties.length > 0 && (
+                            <button 
+                              onClick={() => setSelectedFilterProperties([])}
+                              className="text-[8px] text-blue-600 hover:underline font-bold font-sans"
+                            >
+                              Limpiar
+                            </button>
+                          )}
+                        </div>
+                        <input
+                          type="text"
+                          placeholder="Buscar..."
+                          value={propFilterSearch}
+                          onChange={(e) => setPropFilterSearch(e.target.value)}
+                          className="w-full border border-[#a0a0a0] px-1 py-0.5 text-[10px] font-sans mb-1.5 outline-none"
+                        />
+                        {properties.filter(p => (p.name || '').toLowerCase().includes(propFilterSearch.toLowerCase())).map(p => {
+                          const isChecked = selectedFilterProperties.includes(p.id);
+                          return (
+                            <label key={p.id} className="flex items-center gap-1.5 cursor-pointer select-none text-[10px] text-slate-700 hover:bg-slate-50 p-0.5 font-sans">
+                              <input
+                                type="checkbox"
+                                checked={isChecked}
+                                onChange={(e) => {
+                                  if (e.target.checked) {
+                                    setSelectedFilterProperties(prev => [...prev, p.id]);
+                                  } else {
+                                    setSelectedFilterProperties(prev => prev.filter(x => x !== p.id));
+                                  }
+                                }}
+                                className="w-3 h-3"
+                              />
+                              <span className="uppercase">{p.name}</span>
+                            </label>
+                          );
+                        })}
+                      </div>
+                    )}
+                  </div>
+                )}
+
+                {/* 2. Dropdown Alquileres (Referencia) - shown for alquileres */}
+                {selectedTemplate === 'alquileres' && (
+                  <div className="flex flex-col gap-1 relative" ref={rentFilterDropdownRef}>
+                    <span className="text-[9px] font-bold text-slate-400 uppercase font-sans">Contratos (Referencia)</span>
+                    <div 
+                      onClick={() => setRentFilterDropdownOpen(prev => !prev)}
+                      className="win-input w-full flex justify-between items-center cursor-pointer select-none bg-white border border-[#a0a0a0] px-2 py-1 text-[11px] font-sans rounded min-h-[24px]"
+                    >
+                      <span className="truncate pr-2 text-slate-700 font-sans">
+                        {selectedFilterRentals.length === 0 ? 'Todos' : selectedFilterRentals.join(', ')}
+                      </span>
+                      <span className="text-[9px] text-slate-500">▼</span>
+                    </div>
+                    
+                    {rentFilterDropdownOpen && (
+                      <div className="absolute top-[38px] left-0 right-0 bg-white border border-[#808080] shadow-[2px_2px_4px_rgba(0,0,0,0.15)] z-20 max-h-60 overflow-y-auto p-1.5 flex flex-col gap-1">
+                        <div className="flex justify-between items-center pb-1 border-b border-slate-100 mb-1 font-sans">
+                          <span className="text-[8px] text-slate-400 uppercase font-bold font-sans">Buscar referencia</span>
+                          {selectedFilterRentals.length > 0 && (
+                            <button 
+                              onClick={() => setSelectedFilterRentals([])}
+                              className="text-[8px] text-blue-600 hover:underline font-bold font-sans"
+                            >
+                              Limpiar
+                            </button>
+                          )}
+                        </div>
+                        <input
+                          type="text"
+                          placeholder="Buscar..."
+                          value={rentFilterSearch}
+                          onChange={(e) => setRentFilterSearch(e.target.value)}
+                          className="w-full border border-[#a0a0a0] px-1 py-0.5 text-[10px] font-sans mb-1.5 outline-none"
+                        />
+                        {rentals.filter(r => (r.reference || '').toLowerCase().includes(rentFilterSearch.toLowerCase())).map(r => {
+                          const isChecked = selectedFilterRentals.includes(r.reference);
+                          return (
+                            <label key={r.id || r.reference} className="flex items-center gap-1.5 cursor-pointer select-none text-[10px] text-slate-700 hover:bg-slate-50 p-0.5 font-sans">
+                              <input
+                                type="checkbox"
+                                checked={isChecked}
+                                onChange={(e) => {
+                                  if (e.target.checked) {
+                                    setSelectedFilterRentals(prev => [...prev, r.reference]);
+                                  } else {
+                                    setSelectedFilterRentals(prev => prev.filter(x => x !== r.reference));
+                                  }
+                                }}
+                                className="w-3 h-3"
+                              />
+                              <span>{r.reference}</span>
+                            </label>
+                          );
+                        })}
+                      </div>
+                    )}
+                  </div>
+                )}
+
+                {/* 3. Dropdown Propietarios - shown for extracto_propietarios */}
+                {selectedTemplate === 'extracto_propietarios' && (
+                  <div className="flex flex-col gap-1 relative" ref={ownerFilterDropdownRef}>
+                    <span className="text-[9px] font-bold text-slate-400 uppercase font-sans">Propietarios (Socios)</span>
+                    <div 
+                      onClick={() => setOwnerFilterDropdownOpen(prev => !prev)}
+                      className="win-input w-full flex justify-between items-center cursor-pointer select-none bg-white border border-[#a0a0a0] px-2 py-1 text-[11px] font-sans rounded min-h-[24px]"
+                    >
+                      <span className="truncate pr-2 text-slate-700 font-sans">
+                        {selectedFilterOwners.length === 0 ? 'Todos' : selectedFilterOwners.join(', ')}
+                      </span>
+                      <span className="text-[9px] text-slate-500">▼</span>
+                    </div>
+                    
+                    {ownerFilterDropdownOpen && (() => {
+                      // Extract unique owner names from properties
+                      const availableOwners = [];
+                      properties.forEach(p => {
+                        (p.owners || []).forEach(o => {
+                          if (o.name && !availableOwners.includes(o.name)) {
+                            availableOwners.push(o.name);
+                          }
+                        });
+                      });
+                      availableOwners.sort();
+                      
+                      return (
+                        <div className="absolute top-[38px] left-0 right-0 bg-white border border-[#808080] shadow-[2px_2px_4px_rgba(0,0,0,0.15)] z-20 max-h-60 overflow-y-auto p-1.5 flex flex-col gap-1">
+                          <div className="flex justify-between items-center pb-1 border-b border-slate-100 mb-1 font-sans">
+                            <span className="text-[8px] text-slate-400 uppercase font-bold font-sans">Buscar propietario</span>
+                            {selectedFilterOwners.length > 0 && (
+                              <button 
+                                onClick={() => setSelectedFilterOwners([])}
+                                className="text-[8px] text-blue-600 hover:underline font-bold font-sans"
+                              >
+                                Limpiar
+                              </button>
+                            )}
+                          </div>
+                          <input
+                            type="text"
+                            placeholder="Buscar..."
+                            value={ownerFilterSearch}
+                            onChange={(e) => setOwnerFilterSearch(e.target.value)}
+                            className="w-full border border-[#a0a0a0] px-1 py-0.5 text-[10px] font-sans mb-1.5 outline-none"
+                          />
+                          {availableOwners.filter(name => name.toLowerCase().includes(ownerFilterSearch.toLowerCase())).map(name => {
+                            const isChecked = selectedFilterOwners.includes(name);
+                            return (
+                              <label key={name} className="flex items-center gap-1.5 cursor-pointer select-none text-[10px] text-slate-700 hover:bg-slate-50 p-0.5 font-sans">
+                                <input
+                                  type="checkbox"
+                                  checked={isChecked}
+                                  onChange={(e) => {
+                                    if (e.target.checked) {
+                                      setSelectedFilterOwners(prev => [...prev, name]);
+                                    } else {
+                                      setSelectedFilterOwners(prev => prev.filter(x => x !== name));
+                                    }
+                                  }}
+                                  className="w-3 h-3"
+                                />
+                                <span>{name}</span>
+                              </label>
+                            );
+                          })}
+                        </div>
+                      );
+                    })()}
+                  </div>
+                )}
               </div>
             </div>
           )}
