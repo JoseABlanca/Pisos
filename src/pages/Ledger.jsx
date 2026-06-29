@@ -30,6 +30,8 @@ export default function Ledger({ initialMode }) {
   const [selectedQuarters, setSelectedQuarters] = useState([]);
   const [showZeroBalance, setShowZeroBalance] = useState(true);
   const [showAccountsOverlay, setShowAccountsOverlay] = useState(false);
+  const [isDatesCollapsed, setIsDatesCollapsed] = useState(true);
+  const [maxDigits, setMaxDigits] = useState(10);
 
   // Sync with prop
   useEffect(() => {
@@ -106,8 +108,69 @@ export default function Ledger({ initialMode }) {
     }
   };
 
+  // Dynamic balance aggregation per account based on filters
+  const accountBalances = useMemo(() => {
+    const balances = {};
+    accounts.forEach(acc => {
+      balances[acc.id] = 0;
+    });
+
+    journalEntries.forEach(entry => {
+      const d = new Date(entry.date);
+      const today = new Date();
+      
+      if (dateFilter !== 'Todos') {
+        if (dateFilter === 'Hoy') {
+          if (d.toDateString() !== today.toDateString()) return;
+        } else if (dateFilter === 'Última semana') {
+          const lastWeek = new Date(today);
+          lastWeek.setDate(today.getDate() - 7);
+          if (d < lastWeek) return;
+        } else if (dateFilter === 'Último mes') {
+          const lastMonth = new Date(today);
+          lastMonth.setMonth(today.getMonth() - 1);
+          if (d < lastMonth) return;
+        }
+      }
+
+      const y = d.getFullYear();
+      const mVal = d.getMonth();
+      const months = ['ENE','FEB','MAR','ABR','MAY','JUN','JUL','AGO','SEP','OCT','NOV','DIC'];
+
+      if (selectedYears.length > 0) {
+        if (!selectedYears.includes(String(y))) return;
+      }
+
+      if (selectedMonths.length > 0 || selectedQuarters.length > 0) {
+        const matchMonth = selectedMonths.includes(months[mVal]);
+        const matchQuarter = selectedQuarters.some(q => {
+          if (q === '1T') return mVal >= 0 && mVal <= 2;
+          if (q === '2T') return mVal >= 3 && mVal <= 5;
+          if (q === '3T') return mVal >= 6 && mVal <= 8;
+          if (q === '4T') return mVal >= 9 && mVal <= 11;
+          return false;
+        });
+        if (!matchMonth && !matchQuarter) return;
+      }
+
+      const lines = entry.lines || [];
+      lines.forEach(line => {
+        const accId = String(line.accountId || '');
+        if (accId && balances[accId] !== undefined) {
+          const debit = parseFloat(line.debit || 0);
+          const credit = parseFloat(line.credit || 0);
+          balances[accId] += (debit - credit);
+        }
+      });
+    });
+
+    return balances;
+  }, [journalEntries, accounts, dateFilter, selectedYears, selectedMonths, selectedQuarters]);
+
   // 3. Build Hierarchical Tree and Calculate Totals
   const buildTree = (allAccounts) => {
+    if (allAccounts.length === 0) return [];
+    
     // Dictionary of nodes
     const nodes = {};
     allAccounts.forEach(acc => {
@@ -129,9 +192,9 @@ export default function Ledger({ initialMode }) {
       node.children.forEach(child => {
         childSum += calculateRecursiveBalance(child);
       });
-      // In this app, only terminal subaccounts usually have balance, 
-      // but we sum everything up to the roots
-      const nodeOwnBalance = node.balance_actual || 0;
+      const isAsset = ['Activo', 'Gasto'].includes(node.type);
+      const rawBalance = accountBalances[node.id] !== undefined ? accountBalances[node.id] : (node.balance_actual || 0);
+      const nodeOwnBalance = isAsset ? rawBalance : -rawBalance;
       node.totalBalance = nodeOwnBalance + childSum;
       return node.totalBalance;
     };
@@ -140,20 +203,26 @@ export default function Ledger({ initialMode }) {
     return roots;
   };
 
-  const treeData = buildTree(accounts);
+  const treeData = useMemo(() => {
+    return buildTree(accounts);
+  }, [accounts, accountBalances]);
 
-  // 4. Flatten tree for rendering (with indentation)
-  const flattenTree = ( nodes, depth = 0, results = []) => {
+  // 4. Flatten tree for rendering (with indentation and depth limit filter)
+  const flattenTree = (nodes, depth = 0, results = []) => {
     nodes.forEach(node => {
-      results.push({ ...node, depth });
-      if (expandedNodes[node.id] !== false) { // Default expanded for this report
-        flattenTree(node.children, depth + 1, results);
+      if (!node.code || node.code.length <= maxDigits) {
+        results.push({ ...node, depth });
+        if (expandedNodes[node.id] !== false) { // Default expanded for this report
+          flattenTree(node.children, depth + 1, results);
+        }
       }
     });
     return results;
   };
 
-  const visibleSummary = flattenTree(treeData);
+  const visibleSummary = useMemo(() => {
+    return flattenTree(treeData);
+  }, [treeData, expandedNodes, maxDigits]);
 
   const toggleNode = (id) => {
     setExpandedNodes(prev => ({ ...prev, [id]: !prev[id] }));
@@ -289,6 +358,86 @@ export default function Ledger({ initialMode }) {
     exportToCSV(data, name);
   };
 
+  const renderDateFilters = () => {
+    return (
+      <div className="p-2 border-b border-gray-300">
+        <div 
+          className="bg-gray-200 px-2 py-1 mb-2 font-bold flex justify-between items-center cursor-pointer select-none hover:bg-gray-300 transition-colors"
+          onClick={() => setIsDatesCollapsed(!isDatesCollapsed)}
+        >
+          <span>FECHAS</span>
+          <span className="text-[9px]">{isDatesCollapsed ? '▶' : '▼'}</span>
+        </div>
+        {!isDatesCollapsed && (
+          <div className="space-y-2 pt-1">
+            <div className="grid grid-cols-2 gap-y-1.5 px-2">
+              <label className="flex items-center space-x-1 cursor-pointer">
+                <input 
+                  type="radio" 
+                  name="dateFilter" 
+                  checked={dateFilter === 'Todos'} 
+                  onChange={() => setDateFilter('Todos')} 
+                  className="w-3 h-3 text-blue-600" 
+                />
+                <span>TODOS</span>
+              </label>
+              <label className="flex items-center space-x-1 cursor-pointer">
+                <input 
+                  type="radio" 
+                  name="dateFilter" 
+                  checked={dateFilter === 'Última semana'} 
+                  onChange={() => setDateFilter('Última semana')} 
+                  className="w-3 h-3 text-blue-600" 
+                />
+                <span>ÚLTIMA SEMANA</span>
+              </label>
+              <label className="flex items-center space-x-1 cursor-pointer">
+                <input 
+                  type="radio" 
+                  name="dateFilter" 
+                  checked={dateFilter === 'Hoy'} 
+                  onChange={() => setDateFilter('Hoy')} 
+                  className="w-3 h-3 text-blue-600" 
+                />
+                <span>HOY</span>
+              </label>
+              <label className="flex items-center space-x-1 cursor-pointer">
+                <input 
+                  type="radio" 
+                  name="dateFilter" 
+                  checked={dateFilter === 'Último mes'} 
+                  onChange={() => setDateFilter('Último mes')} 
+                  className="w-3 h-3 text-blue-600" 
+                />
+                <span>ÚLTIMO MES</span>
+              </label>
+            </div>
+            
+            {/* Additional Date options */}
+            <div className="space-y-1.5 px-2 mt-2 pt-2 border-t border-gray-200/50">
+              <div className="flex items-center space-x-1 opacity-60">
+                <input type="radio" name="dateFilter" disabled className="w-3 h-3 text-blue-600" />
+                <span className="w-16">TRIMESTRE:</span>
+                <select disabled className="flex-1 border border-gray-300 px-1 py-0.5 text-[10px] outline-none">
+                  <option>PRIMER TRIMESTR</option>
+                </select>
+              </div>
+              <div className="flex items-center space-x-1 opacity-60">
+                <input type="radio" name="dateFilter" disabled className="w-3 h-3 text-blue-600" />
+                <span className="w-16">ENTRE:</span>
+                <input type="date" disabled className="flex-1 border border-gray-300 px-1 py-0.5 text-[10px] outline-none" />
+              </div>
+              <div className="flex items-center space-x-1 pl-4 opacity-60">
+                <span className="w-13">HASTA:</span>
+                <input type="date" disabled className="flex-1 border border-gray-300 px-1 py-0.5 text-[10px] outline-none" />
+              </div>
+            </div>
+          </div>
+        )}
+      </div>
+    );
+  };
+
   // Calculate Totals for Footer
   const totalDebit = movements.reduce((s, m) => s + m.debit, 0);
   const totalCredit = movements.reduce((s, m) => s + m.credit, 0);
@@ -318,47 +467,7 @@ export default function Ledger({ initialMode }) {
           {showSidebar && (
             <div className="w-64 border-r border-gray-300 bg-[#f3f4f6] flex flex-col shrink-0 text-[11px] text-gray-800">
               <div className="flex-1 overflow-y-auto space-y-4">
-                
-                {/* Fechas */}
-                <div className="p-2">
-                  <div className="bg-gray-200 px-2 py-1 mb-2 font-bold">FECHAS</div>
-                  <div className="grid grid-cols-2 gap-y-1.5 px-2">
-                    <label className="flex items-center space-x-1 cursor-pointer">
-                      <input type="radio" name="dateFilter" checked={dateFilter === 'Todos'} onChange={() => setDateFilter('Todos')} className="w-3 h-3 text-blue-600" />
-                      <span>TODOS</span>
-                    </label>
-                    <label className="flex items-center space-x-1 cursor-pointer">
-                      <input type="radio" name="dateFilter" checked={dateFilter === 'Última semana'} onChange={() => setDateFilter('Última semana')} className="w-3 h-3 text-blue-600" />
-                      <span>ÚLTIMA SEMANA</span>
-                    </label>
-                    <label className="flex items-center space-x-1 cursor-pointer">
-                      <input type="radio" name="dateFilter" checked={dateFilter === 'Hoy'} onChange={() => setDateFilter('Hoy')} className="w-3 h-3 text-blue-600" />
-                      <span>HOY</span>
-                    </label>
-                    <label className="flex items-center space-x-1 cursor-pointer">
-                      <input type="radio" name="dateFilter" checked={dateFilter === 'Último mes'} onChange={() => setDateFilter('Último mes')} className="w-3 h-3 text-blue-600" />
-                      <span>ÚLTIMO MES</span>
-                    </label>
-                  </div>
-                  <div className="space-y-1.5 px-2 mt-2">
-                    <div className="flex items-center space-x-1">
-                      <input type="radio" name="dateFilter" className="w-3 h-3 text-blue-600" />
-                      <span className="w-16">TRIMESTRE:</span>
-                      <select className="flex-1 border border-gray-300 px-1 py-0.5 text-[11px] outline-none">
-                        <option>PRIMER TRIMESTR</option>
-                      </select>
-                    </div>
-                    <div className="flex items-center space-x-1">
-                      <input type="radio" name="dateFilter" className="w-3 h-3 text-blue-600" />
-                      <span className="w-16">ENTRE:</span>
-                      <input type="date" className="flex-1 border border-gray-300 px-1 py-0.5 text-[11px] outline-none" />
-                    </div>
-                    <div className="flex items-center space-x-1 pl-4">
-                      <span className="w-13">HASTA:</span>
-                      <input type="date" className="flex-1 border border-gray-300 px-1 py-0.5 text-[11px] outline-none" />
-                    </div>
-                  </div>
-                </div>
+                {renderDateFilters()}
 
                 {/* Cuenta */}
                 <div className="p-2">
@@ -597,29 +706,53 @@ export default function Ledger({ initialMode }) {
 
       <div className="flex flex-1 overflow-hidden border border-[#808080] bg-white">
         {/* Sidebar */}
-        <div className="win-sidebar overflow-hidden">
-          <div className="pt-4 px-1 space-y-1">
-            <button 
-              className="btn-sidebar w-full h-10 px-1 border border-white shadow-[1px_1px_0px_#000] active:shadow-none active:translate-x-[0.5px] active:translate-y-[0.5px] flex items-center justify-center font-bold text-[11px] uppercase tracking-tighter"
-              onClick={() => {
-                const newExpanded = {};
-                accounts.forEach(acc => {
-                  newExpanded[acc.id] = true;
-                });
-                setExpandedNodes(newExpanded);
-              }}
-            >
-              Expandir
-            </button>
-            <button 
-              className="btn-sidebar w-full h-10 px-1 border border-white shadow-[1px_1px_0px_#000] active:shadow-none active:translate-x-[0.5px] active:translate-y-[0.5px] flex items-center justify-center font-bold text-[11px] uppercase tracking-tighter"
-              onClick={() => setExpandedNodes({})}
-            >
-              Contraer
-            </button>
+        <div className="w-64 border-r border-gray-300 bg-[#f3f4f6] flex flex-col shrink-0 text-[11px] text-gray-800">
+          <div className="flex-1 overflow-y-auto space-y-4">
+            {renderDateFilters()}
+            
+            {/* Profundidad de Cuentas */}
+            <div className="p-2 border-b border-gray-300">
+              <div className="bg-gray-200 px-2 py-1 mb-2 font-bold uppercase">PROFUNDIDAD</div>
+              <div className="px-2">
+                <select 
+                  value={maxDigits} 
+                  onChange={(e) => setMaxDigits(parseInt(e.target.value))}
+                  className="w-full border border-gray-300 px-1 py-1 outline-none cursor-pointer text-[11px]"
+                >
+                  <option value={10}>TODOS (MAX)</option>
+                  {[1,2,3,4,5,6,7,8,9,10].map(d => (
+                    <option key={d} value={d}>{d} {d === 1 ? 'dígito' : 'dígitos'}</option>
+                  ))}
+                </select>
+              </div>
+            </div>
+            
+            {/* Acciones */}
+            <div className="p-2">
+              <div className="bg-gray-200 px-2 py-1 mb-2 font-bold uppercase">ACCIONES</div>
+              <div className="px-2 space-y-2">
+                <button 
+                  className="border border-gray-300 bg-gray-100 hover:bg-gray-200 px-3 py-1 rounded shadow-sm w-full font-bold text-[10px] uppercase cursor-pointer"
+                  onClick={() => {
+                    const newExpanded = {};
+                    accounts.forEach(acc => {
+                      newExpanded[acc.id] = true;
+                    });
+                    setExpandedNodes(newExpanded);
+                  }}
+                >
+                  Expandir Todo
+                </button>
+                <button 
+                  className="border border-gray-300 bg-gray-100 hover:bg-gray-200 px-3 py-1 rounded shadow-sm w-full font-bold text-[10px] uppercase cursor-pointer"
+                  onClick={() => setExpandedNodes({})}
+                >
+                  Contraer Todo
+                </button>
+              </div>
+            </div>
           </div>
 
-          <div className="flex-1"></div>
           <div className="p-1 bg-[#23272a] text-white text-[8px] font-bold text-center uppercase tracking-widest border-t border-[#808080]">
             ACTIVE SYSTEM
           </div>
