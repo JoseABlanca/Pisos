@@ -228,11 +228,13 @@ export default function PrintPage() {
       { id: 'reference', label: 'Referencia' },
       { id: 'property', label: 'Inmueble' },
       { id: 'tenants', label: 'Inquilinos' },
-      { id: 'period', label: 'Período' },
+      { id: 'startDate', label: 'Fecha Inicio' },
+      { id: 'endDate', label: 'Fecha Fin' },
       { id: 'depositAmount', label: 'Fianza' },
       { id: 'rentAmount', label: 'Renta' },
+      { id: 'expenses', label: 'Gastos' },
+      { id: 'netYield', label: 'Rendimiento Neto' },
       { id: 'status', label: 'Estado' },
-      { id: 'nextReview', label: 'Próxima Revisión' },
     ],
     clientes: [
       { id: 'id', label: 'ID' },
@@ -243,6 +245,7 @@ export default function PrintPage() {
       { id: 'status', label: 'Estado' },
       { id: 'address', label: 'Dirección' },
       { id: 'nationality', label: 'Nacionalidad' },
+      { id: 'propertyRental', label: 'Inmueble / Alquiler' },
     ],
     extracto_propietarios: [
       { id: 'name', label: 'Nombre Propietario' },
@@ -256,11 +259,16 @@ export default function PrintPage() {
   };
   const defaultVisibleColumns = {
     activos: new Set(['id','name','address','cebe_ceco','accountingAccount','mortgagePending']),
-    alquileres: new Set(['reference','property','tenants','period','depositAmount','rentAmount','status']),
-    clientes: new Set(['id','name','dni','phone','email','status']),
+    alquileres: new Set(['reference','property','tenants','startDate','endDate','rentAmount','expenses','netYield','status']),
+    clientes: new Set(['id','name','dni','phone','email','status','propertyRental']),
     extracto_propietarios: new Set(['name','nif','property','percentage','purchasePrice','currentValue']),
   };
   const [visibleColumns, setVisibleColumns] = useState(defaultVisibleColumns);
+
+  const [rentPeriod, setRentPeriod] = useState('mes'); // 'mes' or 'anual'
+  const [statusFilterAlquileres, setStatusFilterAlquileres] = useState('todos'); // 'todos','activo','inactivo'
+  const [statusFilterClientes, setStatusFilterClientes] = useState('todos'); // 'todos','activo','inactivo'
+
 
   const toggleColumn = (templateId, colId) => {
     setVisibleColumns(prev => {
@@ -2297,7 +2305,7 @@ export default function PrintPage() {
                   </thead>
                   <tbody>
                     {pageItems.map((p, ri) => (
-                      <tr key={p.id} className={`border-b border-slate-200 text-[9px] text-slate-800 ${ri % 2 === 1 ? 'bg-slate-50' : ''}`}>
+                      <tr key={p.id} className="border-b border-slate-200 text-[9px] text-slate-800">
                         {cv('id') && <td className="py-1.5 px-2">{p.id}</td>}
                         {cv('name') && <td className="py-1.5 px-2 uppercase">{p.name}</td>}
                         {cv('address') && <td className="py-1.5 px-2 uppercase">{p.address}{p.city ? `, ${p.city}` : ''}</td>}
@@ -2328,7 +2336,15 @@ export default function PrintPage() {
     // 5. CONTRATOS DE ALQUILER
     if (selectedTemplate === 'alquileres') {
       const cv = (colId) => isColVisible('alquileres', colId);
-      const listPages = chunkFlatList(rentals, 32);
+      
+      // Filter rentals based on state
+      const filteredRentals = rentals.filter(r => {
+        const status = r.status || 'activo';
+        if (statusFilterAlquileres !== 'todos' && status !== statusFilterAlquileres) return false;
+        return true;
+      });
+
+      const listPages = chunkFlatList(filteredRentals, 32);
       const totalPages = listPages.length || 1;
 
       if (listPages.length === 0) {
@@ -2340,6 +2356,25 @@ export default function PrintPage() {
           </div>
         );
       } else {
+        // Helper to get base monthly rent equivalent
+        const getMonthlyRent = (r) => {
+          const amt = parseFloat(r.rentAmount) || 0;
+          if (r.paymentPeriod === 'anual') return amt / 12;
+          if (r.paymentPeriod === 'trimestral') return amt / 3;
+          return amt;
+        };
+
+        // Helper to get total monthly expenses sum
+        const getMonthlyExpenses = (r) => {
+          return (r.expenses || []).reduce((sum, exp) => {
+            if (exp.includeInSum === false) return sum;
+            let amt = parseFloat(exp.amount) || 0;
+            if (exp.period === 'anual') return sum + amt / 12;
+            if (exp.period === 'trimestral') return sum + amt / 3;
+            return sum + amt;
+          }, 0);
+        };
+
         listPages.forEach((pageItems, pageIdx) => {
           pageViews.push(
             <div key={pageIdx} className="page-sheet relative">
@@ -2351,10 +2386,12 @@ export default function PrintPage() {
                       {cv('reference') && <th className="py-1.5 px-2 text-left w-16 font-semibold">Referencia</th>}
                       {cv('property') && <th className="py-1.5 px-2 text-left w-36 font-semibold">Inmueble</th>}
                       {cv('tenants') && <th className="py-1.5 px-2 text-left font-semibold">Inquilinos</th>}
-                      {cv('period') && <th className="py-1.5 px-2 text-center w-24 font-semibold">Período</th>}
+                      {cv('startDate') && <th className="py-1.5 px-2 text-center w-22 font-semibold">Fecha Inicio</th>}
+                      {cv('endDate') && <th className="py-1.5 px-2 text-center w-22 font-semibold">Fecha Fin</th>}
                       {cv('depositAmount') && <th className="py-1.5 px-2 text-right w-20 font-semibold">Fianza</th>}
-                      {cv('rentAmount') && <th className="py-1.5 px-2 text-right w-20 font-semibold">Renta/mes</th>}
-                      {cv('nextReview') && <th className="py-1.5 px-2 text-center w-20 font-semibold">Próx. Revisión</th>}
+                      {cv('rentAmount') && <th className="py-1.5 px-2 text-right w-22 font-semibold">{rentPeriod === 'anual' ? 'Renta/Año' : 'Renta/Mes'}</th>}
+                      {cv('expenses') && <th className="py-1.5 px-2 text-right w-22 font-semibold">{rentPeriod === 'anual' ? 'Gastos/Año' : 'Gastos/Mes'}</th>}
+                      {cv('netYield') && <th className="py-1.5 px-2 text-right w-22 font-semibold">{rentPeriod === 'anual' ? 'Rend. Neto/Año' : 'Rend. Neto/Mes'}</th>}
                       {cv('status') && <th className="py-1.5 px-2 text-center w-16 font-semibold">Estado</th>}
                     </tr>
                   </thead>
@@ -2365,19 +2402,25 @@ export default function PrintPage() {
                       const tenantDisplay = r.tenants?.length > 0 
                         ? r.tenants.map(t => t.name).join(', ') 
                         : (cust ? cust.name : 'Ninguno');
+
+                      const baseRent = getMonthlyRent(r);
+                      const baseExpenses = getMonthlyExpenses(r);
+
+                      const rentVal = rentPeriod === 'anual' ? baseRent * 12 : baseRent;
+                      const expensesVal = rentPeriod === 'anual' ? baseExpenses * 12 : baseExpenses;
+                      const netYieldVal = rentVal - expensesVal;
                       
                       return (
-                        <tr key={r.id || r.reference} className={`border-b border-slate-200 text-[9px] text-slate-800 ${ri % 2 === 1 ? 'bg-slate-50' : ''}`}>
+                        <tr key={r.id || r.reference} className="border-b border-slate-200 text-[9px] text-slate-800">
                           {cv('reference') && <td className="py-1.5 px-2">{r.reference || '---'}</td>}
                           {cv('property') && <td className="py-1.5 px-2 uppercase">{prop ? prop.name : r.propertyId}</td>}
                           {cv('tenants') && <td className="py-1.5 px-2 uppercase">{tenantDisplay}</td>}
-                          {cv('period') && <td className="py-1.5 px-2 text-center text-[8px]">
-                            {r.startDate ? formatDate(r.startDate) : '---'} al <br/>
-                            {r.endDate ? formatDate(r.endDate) : 'INDET.'}
-                          </td>}
+                          {cv('startDate') && <td className="py-1.5 px-2 text-center">{r.startDate ? formatDate(r.startDate) : '---'}</td>}
+                          {cv('endDate') && <td className="py-1.5 px-2 text-center">{r.endDate ? formatDate(r.endDate) : 'INDET.'}</td>}
                           {cv('depositAmount') && <td className="py-1.5 px-2 text-right tabular-nums">{r.depositAmount > 0 ? formatCurrency(r.depositAmount) : '---'}</td>}
-                          {cv('rentAmount') && <td className="py-1.5 px-2 text-right tabular-nums">{formatCurrency(r.rentAmount)}</td>}
-                          {cv('nextReview') && <td className="py-1.5 px-2 text-center text-[8px]">{r.nextReviewDate ? formatDate(r.nextReviewDate) : '---'}</td>}
+                          {cv('rentAmount') && <td className="py-1.5 px-2 text-right tabular-nums">{formatCurrency(rentVal)}</td>}
+                          {cv('expenses') && <td className="py-1.5 px-2 text-right tabular-nums">{formatCurrency(expensesVal)}</td>}
+                          {cv('netYield') && <td className="py-1.5 px-2 text-right tabular-nums">{formatCurrency(netYieldVal)}</td>}
                           {cv('status') && <td className="py-1.5 px-2 text-center uppercase text-[8px]">{r.status || 'activo'}</td>}
                         </tr>
                       );
