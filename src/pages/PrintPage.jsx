@@ -179,7 +179,8 @@ export default function PrintPage() {
   const [selectedCecos, setSelectedCecos] = useState([]);
   const [selectedDocuments, setSelectedDocuments] = useState([]);
   const [filterImpuesto, setFilterImpuesto] = useState(false);
-
+  const [maxDigits, setMaxDigits] = useState(10);
+  const [isDatesCollapsed, setIsDatesCollapsed] = useState(true);
   const [accountsDropdownOpen, setAccountsDropdownOpen] = useState(false);
   const [cebeDropdownOpen, setCebeDropdownOpen] = useState(false);
   const [cecoDropdownOpen, setCecoDropdownOpen] = useState(false);
@@ -970,7 +971,26 @@ export default function PrintPage() {
     const aggregatedMap = {};
     
     const startLimit = new Date(selectedYear, 0, 1);
-    const endLimit = new Date(selectedYear, 11, 31, 23, 59, 59);
+    let endLimit = new Date(selectedYear, 11, 31, 23, 59, 59);
+
+    if (selectedMonths.length > 0) {
+      const monthNames = ['Ene', 'Feb', 'Mar', 'Abr', 'May', 'Jun', 'Jul', 'Ago', 'Sep', 'Oct', 'Nov', 'Dic'];
+      let maxMonthIndex = 0;
+      selectedMonths.forEach(m => {
+        const idx = monthNames.indexOf(m);
+        if (idx > maxMonthIndex) maxMonthIndex = idx;
+      });
+      endLimit = new Date(selectedYear, maxMonthIndex + 1, 0, 23, 59, 59);
+    } else if (selectedQuarters.length > 0) {
+      let maxMonthIndex = 2; // Default 1T (Jan-Mar)
+      selectedQuarters.forEach(q => {
+        if (q === '1T' && maxMonthIndex < 2) maxMonthIndex = 2;
+        if (q === '2T' && maxMonthIndex < 5) maxMonthIndex = 5;
+        if (q === '3T' && maxMonthIndex < 8) maxMonthIndex = 8;
+        if (q === '4T' && maxMonthIndex < 11) maxMonthIndex = 11;
+      });
+      endLimit = new Date(selectedYear, maxMonthIndex + 1, 0, 23, 59, 59);
+    }
 
     accounts.forEach(account => {
       let movementSum = 0;
@@ -1209,7 +1229,7 @@ export default function PrintPage() {
       income: incomeData,
       cashflow: cashFlowData
     };
-  }, [accounts, journalEntries, selectedYear]);
+  }, [accounts, journalEntries, selectedYear, selectedMonths, selectedQuarters]);
 
   // Combined timeline and dropdown filters for print entries
   const filteredEntriesForPrint = useMemo(() => {
@@ -1755,7 +1775,7 @@ export default function PrintPage() {
       const yearEntries = filteredEntriesForPrint;
       const sumsMap = {};
       accounts.forEach(acc => {
-        sumsMap[acc.id] = { code: acc.code, name: acc.name, type: acc.type, debit: 0, credit: 0 };
+        sumsMap[acc.id] = { id: acc.id, code: acc.code, name: acc.name, type: acc.type, parentId: acc.parentId, debit: 0, credit: 0 };
       });
       yearEntries.forEach(entry => {
         if (entry.lines) {
@@ -1768,7 +1788,38 @@ export default function PrintPage() {
         }
       });
 
+      // Recursive consolidation of debits and credits for parent accounts
+      const recursiveSums = {};
+      const calcRecursiveSums = (id) => {
+        if (recursiveSums[id] !== undefined) return recursiveSums[id];
+        const self = sumsMap[id] || { debit: 0, credit: 0 };
+        let debitSum = self.debit || 0;
+        let creditSum = self.credit || 0;
+        
+        const children = accounts.filter(a => String(a.parentId) === String(id));
+        children.forEach(child => {
+          const childRes = calcRecursiveSums(child.id);
+          debitSum += childRes.debit;
+          creditSum += childRes.credit;
+        });
+        
+        recursiveSums[id] = { debit: debitSum, credit: creditSum };
+        return recursiveSums[id];
+      };
+      
+      accounts.forEach(acc => calcRecursiveSums(acc.id));
+      
+      // Update sumsMap with recursive sums
+      accounts.forEach(acc => {
+        const res = recursiveSums[acc.id];
+        if (res) {
+          sumsMap[acc.id].debit = res.debit;
+          sumsMap[acc.id].credit = res.credit;
+        }
+      });
+
       const list = Object.values(sumsMap)
+        .filter(s => !s.code || s.code.length <= maxDigits)
         .filter(s => (s.debit > 0 || s.credit > 0) && isAccountMatched(s.code, selectedAccounts, accounts))
         .map(s => {
           const isAssetOrExpense = ['Activo', 'Gasto'].includes(s.type);
@@ -3131,66 +3182,98 @@ export default function PrintPage() {
           {/* Timeline Period Selection inside Right Panel */}
           {['diario', 'mayor', 'sumas_saldos', 'rv_transactions', 'cf_transactions', 'taxes_total', 'taxes_real_estate', 'taxes_rv', 'taxes_cf', 'balance_situacion', 'cuenta_resultados', 'flujo_caja'].includes(selectedTemplate) && (
             <div className="bg-white border border-[#a0a0a0] p-3 flex flex-col gap-2">
-              <div className="text-[10px] font-bold text-slate-500 uppercase flex items-center gap-1 select-none">
-                <Calendar className="w-3.5 h-3.5 text-slate-400" />
-                <span>Período Temporal</span>
+              <div 
+                className="text-[10px] font-bold text-slate-500 uppercase flex items-center justify-between cursor-pointer select-none hover:text-slate-800"
+                onClick={() => setIsDatesCollapsed(!isDatesCollapsed)}
+              >
+                <div className="flex items-center gap-1">
+                  <Calendar className="w-3.5 h-3.5 text-slate-400" />
+                  <span>Período Temporal</span>
+                </div>
+                <span className="text-[9px]">{isDatesCollapsed ? '▶' : '▼'}</span>
               </div>
               
-              {/* Years Selector */}
-              <div className="text-[9px] font-bold text-slate-400 uppercase mt-1">Años</div>
-              <div className="grid grid-cols-4 gap-1">
-                {['2024', '2025', '2026', '2027'].map(yr => (
-                  <button 
-                    key={yr} 
-                    onClick={() => {
-                      setSelectedYears(prev => prev.includes(yr) ? prev.filter(x => x !== yr) : [...prev, yr]);
-                      setSelectedYear(parseInt(yr));
-                    }}
-                    className={`text-[9px] text-center hover:font-bold py-1 border transition-colors rounded ${
-                      selectedYears.includes(yr) 
-                        ? 'text-blue-700 font-bold bg-[#c0c0c0] border-slate-400 shadow-inner' 
-                        : 'text-slate-800 bg-slate-50 border-slate-200 hover:text-blue-700'
-                    }`}
-                  >
-                    {yr}
-                  </button>
-                ))}
-              </div>
+              {!isDatesCollapsed && (
+                <div className="flex flex-col gap-2 pt-2 border-t border-slate-100 mt-1">
+                  {/* Years Selector */}
+                  <div className="text-[9px] font-bold text-slate-400 uppercase mt-1">Años</div>
+                  <div className="grid grid-cols-4 gap-1">
+                    {['2024', '2025', '2026', '2027'].map(yr => (
+                      <button 
+                        key={yr} 
+                        onClick={() => {
+                          setSelectedYears(prev => prev.includes(yr) ? prev.filter(x => x !== yr) : [...prev, yr]);
+                          setSelectedYear(parseInt(yr));
+                        }}
+                        className={`text-[9px] text-center hover:font-bold py-1 border transition-colors rounded ${
+                          selectedYears.includes(yr) 
+                            ? 'text-blue-700 font-bold bg-[#c0c0c0] border-slate-400 shadow-inner' 
+                            : 'text-slate-800 bg-slate-50 border-slate-200 hover:text-blue-700'
+                        }`}
+                      >
+                        {yr}
+                      </button>
+                    ))}
+                  </div>
 
-              {/* Quarters Selector */}
-              <div className="text-[9px] font-bold text-slate-400 uppercase mt-1">Trimestres</div>
-              <div className="grid grid-cols-4 gap-1">
-                {['1T', '2T', '3T', '4T'].map(t => (
-                  <button 
-                    key={t} 
-                    onClick={() => setSelectedQuarters(prev => prev.includes(t) ? prev.filter(x => x !== t) : [...prev, t])}
-                    className={`text-[9px] text-center hover:font-bold py-1 border transition-colors rounded ${
-                      selectedQuarters.includes(t) 
-                        ? 'text-blue-700 font-bold bg-[#c0c0c0] border-slate-400 shadow-inner' 
-                        : 'text-slate-800 bg-slate-50 border-slate-200 hover:text-blue-700'
-                    }`}
-                  >
-                    {t}
-                  </button>
-                ))}
-              </div>
+                  {/* Quarters Selector */}
+                  <div className="text-[9px] font-bold text-slate-400 uppercase mt-1">Trimestres</div>
+                  <div className="grid grid-cols-4 gap-1">
+                    {['1T', '2T', '3T', '4T'].map(t => (
+                      <button 
+                        key={t} 
+                        onClick={() => setSelectedQuarters(prev => prev.includes(t) ? prev.filter(x => x !== t) : [...prev, t])}
+                        className={`text-[9px] text-center hover:font-bold py-1 border transition-colors rounded ${
+                          selectedQuarters.includes(t) 
+                            ? 'text-blue-700 font-bold bg-[#c0c0c0] border-slate-400 shadow-inner' 
+                            : 'text-slate-800 bg-slate-50 border-slate-200 hover:text-blue-700'
+                        }`}
+                      >
+                        {t}
+                      </button>
+                    ))}
+                  </div>
 
-              {/* Months Selector */}
-              <div className="text-[9px] font-bold text-slate-400 uppercase mt-1">Meses</div>
-              <div className="grid grid-cols-4 gap-1">
-                {['Ene', 'Feb', 'Mar', 'Abr', 'May', 'Jun', 'Jul', 'Ago', 'Sep', 'Oct', 'Nov', 'Dic'].map(m => (
-                  <button 
-                    key={m} 
-                    onClick={() => setSelectedMonths(prev => prev.includes(m) ? prev.filter(x => x !== m) : [...prev, m])}
-                    className={`text-[9px] text-center hover:font-bold py-1 border transition-colors rounded ${
-                      selectedMonths.includes(m) 
-                        ? 'text-blue-700 font-bold bg-[#c0c0c0] border-slate-400 shadow-inner' 
-                        : 'text-slate-800 bg-slate-50 border-slate-200 hover:text-blue-700'
-                    }`}
-                  >
-                    {m.toUpperCase()}
-                  </button>
-                ))}
+                  {/* Months Selector */}
+                  <div className="text-[9px] font-bold text-slate-400 uppercase mt-1">Meses</div>
+                  <div className="grid grid-cols-4 gap-1">
+                    {['Ene', 'Feb', 'Mar', 'Abr', 'May', 'Jun', 'Jul', 'Ago', 'Sep', 'Oct', 'Nov', 'Dic'].map(m => (
+                      <button 
+                        key={m} 
+                        onClick={() => setSelectedMonths(prev => prev.includes(m) ? prev.filter(x => x !== m) : [...prev, m])}
+                        className={`text-[9px] text-center hover:font-bold py-1 border transition-colors rounded ${
+                          selectedMonths.includes(m) 
+                            ? 'text-blue-700 font-bold bg-[#c0c0c0] border-slate-400 shadow-inner' 
+                            : 'text-slate-800 bg-slate-50 border-slate-200 hover:text-blue-700'
+                        }`}
+                      >
+                        {m.toUpperCase()}
+                      </button>
+                    ))}
+                  </div>
+                </div>
+              )}
+            </div>
+          )}
+
+          {/* Depth Level Filter (Profundidad) */}
+          {['balance_situacion', 'sumas_saldos'].includes(selectedTemplate) && (
+            <div className="bg-white border border-[#a0a0a0] p-3 flex flex-col gap-2">
+              <div className="text-[10px] font-bold text-slate-500 uppercase flex items-center gap-1 select-none">
+                <Sliders className="w-3.5 h-3.5 text-slate-400" />
+                <span>Profundidad</span>
+              </div>
+              <div className="mt-1">
+                <select 
+                  value={maxDigits} 
+                  onChange={(e) => setMaxDigits(parseInt(e.target.value))}
+                  className="w-full border border-gray-300 px-1 py-1 outline-none cursor-pointer text-[11px] font-sans"
+                >
+                  <option value={10}>TODOS (MAX)</option>
+                  {[1,2,3,4,5,6,7,8,9,10].map(d => (
+                    <option key={d} value={d}>{d} {d === 1 ? 'dígito' : 'dígitos'}</option>
+                  ))}
+                </select>
               </div>
             </div>
           )}
