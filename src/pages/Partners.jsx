@@ -7,9 +7,10 @@ import {
   Check, X, Search, Plus, Trash2, Edit, Save, 
   User, Phone, Mail, MapPin, CreditCard, FileText, 
   ArrowLeft, Download, Building2, UserCircle, PieChart, TrendingUp,
-  ChevronLeft, ChevronRight, Filter, PanelLeft
+  ChevronLeft, ChevronRight, Filter, PanelLeft, Eye, RefreshCw
 } from 'lucide-react';
 import { handleExportFormat } from '../utils/exportUtils';
+import { uploadFileToStorage } from '../utils/storageUtils';
 import { useTableColumns } from '../hooks/useTableColumns';
 import { useTableFilters } from '../hooks/useTableFilters';
 import { exportToPDF } from '../utils/pdfExport';
@@ -36,6 +37,8 @@ export default function Partners() {
   const [filterValue, setFilterValue] = useState('');
   const [isFilterActive, setIsFilterActive] = useState(false);
   const [statusFilter, setStatusFilter] = useState('todos');
+  const [isUploading, setIsUploading] = useState(false);
+  const [previewDocument, setPreviewDocument] = useState(null);
 
   const { user, queryUserIds } = useAuth();
   const [isMobile, setIsMobile] = useState(window.innerWidth < 768);
@@ -245,6 +248,46 @@ export default function Partners() {
       deletePartnerFromCloud(selectedPartner.id);
       setPartners(partners.filter(p => p.id !== selectedPartner.id));
       setSelectedPartner(null);
+    }
+  };
+
+  const handlePartnerFileUpload = async (e) => {
+    const files = Array.from(e.target.files);
+    if (!files.length || !user || !formData.id) return;
+
+    setIsUploading(true);
+    try {
+      const newDocs = [];
+      for (const file of files) {
+        const url = await uploadFileToStorage(file, user.uid, 'partners', formData.id, 'docs');
+        newDocs.push({
+          id: Date.now() + Math.random().toString(36).substring(7),
+          name: file.name,
+          url,
+          type: file.type || 'application/octet-stream',
+          uploadedAt: new Date().toISOString()
+        });
+      }
+
+      setFormData(prev => ({
+        ...prev,
+        documents: [...(prev.documents || []), ...newDocs]
+      }));
+    } catch (error) {
+      console.error('Error uploading document:', error);
+      alert('Error al subir el documento: ' + error.message);
+    } finally {
+      setIsUploading(false);
+      e.target.value = '';
+    }
+  };
+
+  const deletePartnerDocument = (docId) => {
+    if (window.confirm('¿Seguro que desea eliminar este documento?')) {
+      setFormData(prev => ({
+        ...prev,
+        documents: (prev.documents || []).filter(d => d.id !== docId)
+      }));
     }
   };
 
@@ -677,22 +720,67 @@ export default function Partners() {
                   <div className="space-y-3">
                     <div className="flex justify-between items-center">
                       <p className="text-[10px] font-bold text-blue-800 uppercase italic">Expediente Digital</p>
-                      <button className="btn-classic px-2 py-1 flex items-center text-[10px]">
-                        <Plus className="w-3 h-3 mr-1" /> Adjuntar
-                      </button>
+                      <input 
+                        type="file" 
+                        multiple 
+                        id="partner-doc-upload" 
+                        className="hidden" 
+                        onChange={handlePartnerFileUpload} 
+                        disabled={isUploading} 
+                      />
+                      <label 
+                        htmlFor="partner-doc-upload" 
+                        className={`btn-classic px-2 py-1 flex items-center text-[10px] cursor-pointer ${isUploading ? 'opacity-50 pointer-events-none' : ''}`}
+                      >
+                        {isUploading ? (
+                          <>
+                            <RefreshCw className="w-3 h-3 mr-1 animate-spin" /> Subiendo...
+                          </>
+                        ) : (
+                          <>
+                            <Plus className="w-3 h-3 mr-1" /> Adjuntar
+                          </>
+                        )}
+                      </label>
                     </div>
                     <div className="border border-[#808080] bg-white min-h-[150px]">
                       <table className="win-table w-full">
                         <thead>
                           <tr>
                             <th>Documento</th>
-                            <th className="w-10">Acción</th>
+                            <th className="w-16">Acción</th>
                           </tr>
                         </thead>
                         <tbody>
-                          <tr>
-                            <td colSpan="2" className="text-center py-10 text-slate-400 italic">No hay documentos</td>
-                          </tr>
+                          {(formData.documents || []).length === 0 ? (
+                            <tr>
+                              <td colSpan="2" className="text-center py-10 text-slate-400 italic">No hay documentos</td>
+                            </tr>
+                          ) : (
+                            (formData.documents || []).map((doc) => (
+                              <tr key={doc.id}>
+                                <td className="text-[11px] text-slate-800">{doc.name}</td>
+                                <td>
+                                  <div className="flex items-center gap-1">
+                                    <button 
+                                      className="p-1 hover:bg-blue-50 text-blue-600 rounded" 
+                                      onClick={() => setPreviewDocument(doc)} 
+                                      title="Previsualizar"
+                                    >
+                                      <Eye className="w-3.5 h-3.5" />
+                                    </button>
+                                    <button 
+                                      className="p-1 hover:bg-red-50 text-red-600 rounded" 
+                                      onClick={() => deletePartnerDocument(doc.id)} 
+                                      title="Eliminar"
+                                    >
+                                      <Trash2 className="w-3.5 h-3.5" />
+                                    </button>
+                                  </div>
+                                </td>
+                              </tr>
+                            ))
+                          )}
                         </tbody>
                       </table>
                     </div>
@@ -705,6 +793,57 @@ export default function Partners() {
                 <div className="flex justify-end gap-2 shrink-0 pt-2 pb-1 pr-1 bg-[#d4d0c8] border-t border-[#808080]">
                   <button className="px-6 py-1 border border-gray-400 bg-gray-100 hover:bg-gray-200 shadow-sm text-[11px] font-bold uppercase" onClick={handleSave}>Aceptar</button>
                   <button className="px-6 py-1 border border-gray-400 bg-gray-100 hover:bg-gray-200 shadow-sm text-[11px] font-bold uppercase" onClick={() => setShowForm(false)}>Cancelar</button>
+                </div>
+              </div>
+            </div>
+          </Window>
+        </div>
+      )}
+
+      {/* Preview Modal */}
+      {previewDocument && (
+        <div className="fixed inset-0 bg-black/40 backdrop-blur-sm flex items-center justify-center z-[60]">
+          <Window 
+            title={`Vista Previa: ${previewDocument.name}`}
+            width={isMobile ? "100%" : "800px"}
+            initialPos={{ x: isMobile ? 0 : 100, y: isMobile ? 0 : 50 }}
+            onClose={() => setPreviewDocument(null)}
+          >
+            <div className="bg-[#d4d0c8] p-1 h-[600px] flex flex-col">
+              <div className="flex-1 bg-white border border-[#808080] border-t-0 p-1 win-bevel overflow-hidden flex flex-col">
+                <div className="bg-[#cbd5e0] font-bold p-1 mb-1 uppercase text-[10px] border-b border-[#808080] shrink-0 flex justify-between items-center">
+                  <span>Previsualización</span>
+                  <button onClick={() => setPreviewDocument(null)} className="hover:bg-red-500 px-1"><X className="w-3 h-3" /></button>
+                </div>
+                <div className="flex-1 overflow-auto bg-slate-100 flex items-center justify-center relative">
+                  {(previewDocument.type?.toLowerCase().includes('pdf') || previewDocument.name.toLowerCase().endsWith('.pdf')) ? (
+                    <object 
+                      data={previewDocument.url} 
+                      type="application/pdf"
+                      className="absolute inset-0 w-full h-full border-none" 
+                      title={previewDocument.name} 
+                    >
+                      <iframe 
+                        src={`https://docs.google.com/viewer?url=${encodeURIComponent(previewDocument.url)}&embedded=true`} 
+                        className="absolute inset-0 w-full h-full border-none" 
+                        title={previewDocument.name} 
+                      />
+                    </object>
+                  ) : (previewDocument.type?.toLowerCase().includes('image') || previewDocument.name.toLowerCase().match(/\.(jpg|jpeg|png)$/)) ? (
+                    <img 
+                      src={previewDocument.url} 
+                      alt={previewDocument.name} 
+                      className="max-w-full max-h-full object-contain" 
+                    />
+                  ) : (
+                    <div className="text-slate-500 font-bold p-10 text-center flex flex-col items-center">
+                      <FileText className="w-16 h-16 text-slate-300 mb-4" />
+                      Vista previa no disponible en el navegador para este tipo de archivo.<br/>
+                      <a href={previewDocument.url} download={previewDocument.name} className="text-blue-600 underline mt-2 block">
+                        Haz clic aquí para descargarlo manualmente
+                      </a>
+                    </div>
+                  )}
                 </div>
               </div>
             </div>
