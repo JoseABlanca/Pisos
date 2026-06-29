@@ -2479,12 +2479,22 @@ export default function PrintPage() {
                   </thead>
                   <tbody>
                     {pageItems.map((c, ri) => {
-                      // Find if this customer belongs to any rental
-                      const rent = rentals.find(r => r.tenantId === c.id || (r.tenants && r.tenants.some(t => t.id === c.id)));
+                      // Find if this customer belongs to any rental by ref, id, or tenant relationship
+                      const rent = rentals.find(r => 
+                        (r.id && c.rentalReference && r.id === c.rentalReference) || 
+                        (r.reference && c.rentalReference && r.reference === c.rentalReference) ||
+                        r.tenantId === c.id || 
+                        (r.tenants && r.tenants.some(t => t.id === c.id))
+                      );
                       const prop = rent ? properties.find(p => p.id === rent.propertyId) : null;
-                      const propertyRentalDisplay = rent 
-                        ? `${prop ? prop.name : rent.propertyId} (${rent.reference || 'Ref: ---'})` 
-                        : '---';
+                      
+                      let propertyRentalDisplay = '---';
+                      if (rent) {
+                        const propName = prop ? prop.name : rent.propertyId;
+                        propertyRentalDisplay = `${propName} (${rent.reference || 'Ref: ---'})`;
+                      } else if (c.floor || (Array.isArray(c.floors) && c.floors.length > 0)) {
+                        propertyRentalDisplay = c.floor || c.floors.join(', ');
+                      }
 
                       return (
                         <tr key={c.id} className="border-b border-slate-200 text-[9px] text-slate-800">
