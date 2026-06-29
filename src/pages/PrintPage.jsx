@@ -150,6 +150,36 @@ const getPropertyMetrics = (p, entriesList) => {
   };
 };
 
+const isCustomerAssociatedWithProperty = (c, propertyId, rentalsList, propertiesList) => {
+  const rent = rentalsList.find(r => 
+    (r.id && c.rentalReference && r.id === c.rentalReference) || 
+    (r.reference && c.rentalReference && r.reference === c.rentalReference) ||
+    r.tenantId === c.id || 
+    (r.tenants && r.tenants.some(t => t.id === c.id))
+  );
+  if (rent && rent.propertyId === propertyId) {
+    return true;
+  }
+  
+  const prop = propertiesList.find(p => p.id === propertyId);
+  if (prop) {
+    const propNameLower = (prop.name || '').toLowerCase().trim();
+    const propIdLower = (prop.id || '').toLowerCase().trim();
+    
+    if (c.floor) {
+      const fLower = String(c.floor).toLowerCase().trim();
+      if (fLower === propNameLower || fLower === propIdLower) return true;
+    }
+    if (Array.isArray(c.floors)) {
+      return c.floors.some(f => {
+        const fLower = String(f).toLowerCase().trim();
+        return fLower === propNameLower || fLower === propIdLower;
+      });
+    }
+  }
+  return false;
+};
+
 const getLogicalBlocks = (rows) => {
   const blocks = [];
   let currentBlock = [];
@@ -2772,13 +2802,8 @@ export default function PrintPage() {
         
         const activePropFilters = selectedFilterProperties.clientes || [];
         if (activePropFilters.length > 0) {
-          const rent = rentals.find(r => 
-            (r.id && c.rentalReference && r.id === c.rentalReference) || 
-            (r.reference && c.rentalReference && r.reference === c.rentalReference) ||
-            r.tenantId === c.id || 
-            (r.tenants && r.tenants.some(t => t.id === c.id))
-          );
-          if (!rent || !activePropFilters.includes(rent.propertyId)) return false;
+          const matchesAny = activePropFilters.some(pid => isCustomerAssociatedWithProperty(c, pid, rentals, properties));
+          if (!matchesAny) return false;
         }
         return true;
       });
@@ -3844,11 +3869,11 @@ export default function PrintPage() {
         });
       });
 
-      // Split into pages dynamically using block-based flex pagination
-      const chunkedActivoPages = paginateBlocks(getLogicalBlocks(activoRows), 28, 7);
-      const chunkedPasivoPages = paginateBlocks(getLogicalBlocks(pasivoPatrimonioRows), 28, 7);
+      // Combine all rows into a single list and split dynamically using block-based flex pagination
+      const allBalanceRows = [...activoRows, ...pasivoPatrimonioRows];
+      const chunkedPages = paginateBlocks(getLogicalBlocks(allBalanceRows), 28, 7);
       
-      const totalPages = chunkedActivoPages.length + chunkedPasivoPages.length;
+      const totalPages = chunkedPages.length || 1;
       
       let pageIndex = 1;
 
@@ -4023,35 +4048,19 @@ export default function PrintPage() {
         );
       };
 
-      if (chunkedActivoPages.length === 0) {
+      if (allBalanceRows.length === 0) {
         pageViews.push(
-          <div key="activo-empty" className="page-sheet relative flex flex-col justify-between">
+          <div key="empty" className="page-sheet relative flex flex-col justify-between">
             <div>
               {renderPageHeader('Balance de Situación')}
-              <p className="text-center py-12 text-slate-400 italic text-[10px]">No hay activos que mostrar.</p>
+              <p className="text-center py-12 text-slate-400 italic text-[10px]">No hay datos registrados.</p>
             </div>
             {renderPageFooter(pageIndex++, totalPages || 1, auditNumber)}
           </div>
         );
       } else {
-        chunkedActivoPages.forEach((pageRows) => {
-          pageViews.push(renderRowsPage(pageRows, pageIndex++, totalPages, 'activo'));
-        });
-      }
-
-      if (chunkedPasivoPages.length === 0) {
-        pageViews.push(
-          <div key="pasivo-empty" className="page-sheet relative flex flex-col justify-between">
-            <div>
-              {renderPageHeader('Balance de Situación')}
-              <p className="text-center py-12 text-slate-400 italic text-[10px]">No hay pasivos o patrimonio que mostrar.</p>
-            </div>
-            {renderPageFooter(pageIndex++, totalPages || 1, auditNumber)}
-          </div>
-        );
-      } else {
-        chunkedPasivoPages.forEach((pageRows) => {
-          pageViews.push(renderRowsPage(pageRows, pageIndex++, totalPages, 'pasivo-patrimonio'));
+        chunkedPages.forEach((pageRows) => {
+          pageViews.push(renderRowsPage(pageRows, pageIndex++, totalPages, 'balance'));
         });
       }
     }
