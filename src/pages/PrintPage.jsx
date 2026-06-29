@@ -3088,18 +3088,18 @@ export default function PrintPage() {
               
               <table className="w-full text-[10px] border-collapse mt-4">
                 <thead>
-                  <tr className="border-b border-slate-400 bg-slate-50 font-bold text-slate-700 text-[8px] uppercase">
-                    <th className="py-1.5 px-1 text-left">Concepto Contable</th>
+                  <tr className="bg-slate-50/50 font-bold text-slate-700 text-[8px] uppercase">
+                    <th className="py-1.5 px-1 text-left"></th>
                     <th className="py-1.5 px-1 text-right w-24">
                       {comparisonYear ? `EJERCICIO ${selectedYear}` : 'IMPORTE'}
                     </th>
                     {comparisonYear && (
-                      <th className="py-1.5 px-1 text-right w-24 border-l border-slate-200">
+                      <th className="py-1.5 px-1 text-right w-24">
                         {`EJERCICIO ${comparisonYear}`}
                       </th>
                     )}
                     {showVerticalPercentage && (
-                      <th className="py-1.5 px-1 text-right w-20 border-l border-slate-200 pr-5">
+                      <th className="py-1.5 px-1 text-right w-20 pr-5">
                         % VERT.
                       </th>
                     )}
@@ -3109,18 +3109,18 @@ export default function PrintPage() {
                   {pageRows.map((row, idx) => {
                     if (row.type === 'main-header') {
                       return (
-                        <tr key={idx} className="font-bold text-slate-900 border-b border-slate-300 text-[10.5px] uppercase bg-white">
+                        <tr key={idx} className="font-bold text-slate-900 text-[10.5px] uppercase bg-white">
                           <td className="py-2 px-1 font-bold">{row.label}</td>
                           <td className="py-2 px-1 text-right font-mono tabular-nums">
                             {formatValue(row.value, row.divisor)}
                           </td>
                           {comparisonYear && (
-                            <td className="py-2 px-1 text-right font-mono tabular-nums border-l border-slate-100">
+                            <td className="py-2 px-1 text-right font-mono tabular-nums">
                               {formatValue(row.compValue, row.compDivisor)}
                             </td>
                           )}
                           {showVerticalPercentage && (
-                            <td className="py-2 px-1 text-right font-mono tabular-nums text-slate-500 border-l border-slate-100 pr-5">
+                            <td className="py-2 px-1 text-right font-mono tabular-nums text-slate-500 pr-5">
                               {row.divisor ? `${((row.value / row.divisor) * 100).toFixed(1)}%` : '0.0%'}
                             </td>
                           )}
@@ -3129,18 +3129,18 @@ export default function PrintPage() {
                     }
                     if (row.type === 'subheader') {
                       return (
-                        <tr key={idx} className="font-bold text-slate-700 bg-slate-100/70 text-[9.5px] uppercase border-b border-slate-200">
+                        <tr key={idx} className="font-bold text-slate-750 bg-slate-100/30 text-[9.5px] uppercase">
                           <td className="py-1.5 px-2 font-bold">{row.label}</td>
                           <td className="py-1.5 px-1 text-right font-mono tabular-nums">
                             {formatValue(row.value, row.divisor)}
                           </td>
                           {comparisonYear && (
-                            <td className="py-1.5 px-1 text-right font-mono tabular-nums border-l border-slate-100">
+                            <td className="py-1.5 px-1 text-right font-mono tabular-nums">
                               {formatValue(row.compValue, row.compDivisor)}
                             </td>
                           )}
                           {showVerticalPercentage && (
-                            <td className="py-1.5 px-1 text-right font-mono tabular-nums text-slate-500 border-l border-slate-100 pr-5">
+                            <td className="py-1.5 px-1 text-right font-mono tabular-nums text-slate-500 pr-5">
                               {row.divisor ? `${((row.value / row.divisor) * 100).toFixed(1)}%` : '0.0%'}
                             </td>
                           )}
@@ -3149,18 +3149,18 @@ export default function PrintPage() {
                     }
                     if (row.type === 'item') {
                       return (
-                        <tr key={idx} className="font-semibold text-slate-700 bg-slate-50/40 text-[9px] border-b border-slate-150">
+                        <tr key={idx} className="font-semibold text-slate-700 bg-slate-50/20 text-[9px]">
                           <td className="py-1 px-3 font-semibold">{row.label}</td>
                           <td className="py-1 px-1 text-right font-mono tabular-nums">
                             {formatValue(row.value, row.divisor)}
                           </td>
                           {comparisonYear && (
-                            <td className="py-1 px-1 text-right font-mono tabular-nums border-l border-slate-100">
+                            <td className="py-1 px-1 text-right font-mono tabular-nums">
                               {formatValue(row.compValue, row.compDivisor)}
                             </td>
                           )}
                           {showVerticalPercentage && (
-                            <td className="py-1 px-1 text-right font-mono tabular-nums text-slate-500 border-l border-slate-100 pr-5">
+                            <td className="py-1 px-1 text-right font-mono tabular-nums text-slate-500 pr-5">
                               {row.divisor ? `${((row.value / row.divisor) * 100).toFixed(1)}%` : '0.0%'}
                             </td>
                           )}
@@ -3169,18 +3169,18 @@ export default function PrintPage() {
                     }
                     if (row.type === 'account') {
                       return (
-                        <tr key={idx} className="text-slate-650 text-[8px] border-b border-dashed border-slate-100/50">
-                          <td className="py-0.5 px-8 font-normal text-slate-600">{row.code} - {row.name}</td>
+                        <tr key={idx} className="text-slate-600 text-[8px]">
+                          <td className="py-0.5 px-8 font-normal text-slate-650">{row.code} - {row.name}</td>
                           <td className="py-0.5 px-1 text-right font-mono tabular-nums">
                             {formatValue(row.value, row.divisor)}
                           </td>
                           {comparisonYear && (
-                            <td className="py-0.5 px-1 text-right font-mono tabular-nums border-l border-slate-100">
+                            <td className="py-0.5 px-1 text-right font-mono tabular-nums">
                               {formatValue(row.compValue, row.compDivisor)}
                             </td>
                           )}
                           {showVerticalPercentage && (
-                            <td className="py-0.5 px-1 text-right font-mono tabular-nums text-slate-400 border-l border-slate-100 pr-5">
+                            <td className="py-0.5 px-1 text-right font-mono tabular-nums text-slate-400 pr-5">
                               {row.divisor ? `${((row.value / row.divisor) * 100).toFixed(1)}%` : '0.0%'}
                             </td>
                           )}
@@ -3616,12 +3616,12 @@ export default function PrintPage() {
 
           {/* Options specific to Balance de Situación */}
           {selectedTemplate === 'balance_situacion' && (
-            <div className="bg-white border border-[#a0a0a0] p-3 flex flex-col gap-2">
+            <div className="bg-white border border-[#a0a0a0] p-3 flex flex-col gap-3">
               <div className="text-[10px] font-bold text-slate-500 uppercase flex items-center gap-1 select-none">
                 <Sliders className="w-3.5 h-3.5 text-slate-400" />
                 <span>Opciones del Balance</span>
               </div>
-              <div className="flex flex-col gap-2 mt-1">
+              <div className="flex flex-col gap-2.5">
                 <label className="flex items-center gap-2 cursor-pointer select-none text-[10px] font-bold text-slate-600">
                   <input 
                     type="checkbox" 
@@ -3640,6 +3640,48 @@ export default function PrintPage() {
                   />
                   <span>Mostrar Porcentaje Vertical</span>
                 </label>
+
+                {/* Display mode selector */}
+                <div className="flex flex-col gap-1 border-t border-slate-100 pt-2">
+                  <span className="text-[9px] font-bold text-slate-400 uppercase">Valores en</span>
+                  <div className="grid grid-cols-2 gap-1 bg-slate-100 p-0.5 rounded border border-slate-200">
+                    <button 
+                      onClick={() => setDisplayMode('euros')}
+                      className={`text-[9px] text-center py-1 transition-all rounded font-bold ${
+                        displayMode === 'euros' 
+                          ? 'bg-white text-blue-700 shadow-sm border border-slate-200' 
+                          : 'text-slate-500 hover:text-slate-800'
+                      }`}
+                    >
+                      EUROS (€)
+                    </button>
+                    <button 
+                      onClick={() => setDisplayMode('percent')}
+                      className={`text-[9px] text-center py-1 transition-all rounded font-bold ${
+                        displayMode === 'percent' 
+                          ? 'bg-white text-blue-700 shadow-sm border border-slate-200' 
+                          : 'text-slate-500 hover:text-slate-800'
+                      }`}
+                    >
+                      PORCENTAJE (%)
+                    </button>
+                  </div>
+                </div>
+
+                {/* Comparison Year Selector */}
+                <div className="flex flex-col gap-1 border-t border-slate-100 pt-2">
+                  <span className="text-[9px] font-bold text-slate-400 uppercase">Comparativa con</span>
+                  <select 
+                    value={comparisonYear}
+                    onChange={(e) => setComparisonYear(e.target.value)}
+                    className="w-full border border-gray-300 px-1 py-1 outline-none cursor-pointer text-[10px] font-sans rounded bg-white"
+                  >
+                    <option value="">SIN COMPARATIVA</option>
+                    {['2024', '2025', '2026', '2027'].filter(yr => yr !== String(selectedYear)).map(yr => (
+                      <option key={yr} value={yr}>EJERCICIO {yr}</option>
+                    ))}
+                  </select>
+                </div>
               </div>
             </div>
           )}
