@@ -11,6 +11,7 @@ import {
   Building2, 
   Key, 
   Users, 
+  UserCircle,
   Calendar, 
   RefreshCw, 
   CheckCircle,
@@ -19,7 +20,9 @@ import {
   Scale,
   FileSpreadsheet,
   LayoutGrid,
-  Sliders
+  Sliders,
+  RotateCcw,
+  ChevronDown
 } from 'lucide-react';
 
 const SpanishAccountingNames = {
@@ -128,7 +131,8 @@ const templatesByCategory = {
   inversiones: [
     { id: 'activos', name: 'Inventario de Activos', icon: Building2 },
     { id: 'alquileres', name: 'Contratos de Alquiler', icon: Key },
-    { id: 'clientes', name: 'Fichero de Clientes', icon: Users }
+    { id: 'clientes', name: 'Fichero de Clientes', icon: Users },
+    { id: 'extracto_propietarios', name: 'Extracto de Propietarios', icon: UserCircle }
   ],
   renta_variable: [
     { id: 'rv_portfolio', name: 'Cartera Consolidada', icon: TrendingUp },
@@ -189,6 +193,7 @@ export default function PrintPage() {
   const [cebeDropdownOpen, setCebeDropdownOpen] = useState(false);
   const [cecoDropdownOpen, setCecoDropdownOpen] = useState(false);
   const [docDropdownOpen, setDocDropdownOpen] = useState(false);
+  const [colDropdownOpen, setColDropdownOpen] = useState(false);
 
   const [accountsSearch, setAccountsSearch] = useState('');
   const [cebeSearch, setCebeSearch] = useState('');
@@ -199,6 +204,72 @@ export default function PrintPage() {
   const cebeDropdownRef = useRef(null);
   const cecoDropdownRef = useRef(null);
   const docDropdownRef = useRef(null);
+  const colDropdownRef = useRef(null);
+
+  // Paper / layout configuration
+  const [paperSize, setPaperSize] = useState('A4'); // A4, A5, Letter
+  const [pageOrientation, setPageOrientation] = useState('portrait'); // portrait, landscape
+
+  // Visible columns per template (keys = templateId, value = Set of visible column ids)
+  const ALL_COLUMNS = {
+    activos: [
+      { id: 'id', label: 'ID' },
+      { id: 'name', label: 'Nombre Finca' },
+      { id: 'address', label: 'Dirección' },
+      { id: 'cebe_ceco', label: 'CEBE/CECO' },
+      { id: 'accountingAccount', label: 'Cuenta Contable' },
+      { id: 'mortgagePending', label: 'Hip. Pendiente' },
+      { id: 'acquisitionDate', label: 'Fecha Adquisición' },
+      { id: 'purchasePrice', label: 'Precio Compra' },
+      { id: 'currentValue', label: 'Valor Actual' },
+      { id: 'owners', label: 'Propietarios' },
+    ],
+    alquileres: [
+      { id: 'reference', label: 'Referencia' },
+      { id: 'property', label: 'Inmueble' },
+      { id: 'tenants', label: 'Inquilinos' },
+      { id: 'period', label: 'Período' },
+      { id: 'depositAmount', label: 'Fianza' },
+      { id: 'rentAmount', label: 'Renta' },
+      { id: 'status', label: 'Estado' },
+      { id: 'nextReview', label: 'Próxima Revisión' },
+    ],
+    clientes: [
+      { id: 'id', label: 'ID' },
+      { id: 'name', label: 'Nombre Completo' },
+      { id: 'dni', label: 'NIF/DNI' },
+      { id: 'phone', label: 'Teléfono' },
+      { id: 'email', label: 'Email' },
+      { id: 'status', label: 'Estado' },
+      { id: 'address', label: 'Dirección' },
+      { id: 'nationality', label: 'Nacionalidad' },
+    ],
+    extracto_propietarios: [
+      { id: 'name', label: 'Nombre Propietario' },
+      { id: 'nif', label: 'NIF/CIF' },
+      { id: 'property', label: 'Inmueble' },
+      { id: 'percentage', label: '% Propiedad' },
+      { id: 'purchasePrice', label: 'Precio Compra' },
+      { id: 'currentValue', label: 'Valor Actual' },
+      { id: 'invested', label: 'Capital Invertido' },
+    ],
+  };
+  const defaultVisibleColumns = {
+    activos: new Set(['id','name','address','cebe_ceco','accountingAccount','mortgagePending']),
+    alquileres: new Set(['reference','property','tenants','period','depositAmount','rentAmount','status']),
+    clientes: new Set(['id','name','dni','phone','email','status']),
+    extracto_propietarios: new Set(['name','nif','property','percentage','purchasePrice','currentValue']),
+  };
+  const [visibleColumns, setVisibleColumns] = useState(defaultVisibleColumns);
+
+  const toggleColumn = (templateId, colId) => {
+    setVisibleColumns(prev => {
+      const current = new Set(prev[templateId] || []);
+      if (current.has(colId)) { current.delete(colId); } else { current.add(colId); }
+      return { ...prev, [templateId]: current };
+    });
+  };
+  const isColVisible = (templateId, colId) => (visibleColumns[templateId] || defaultVisibleColumns[templateId] || new Set()).has(colId);
 
   // Sync category parameter
   useEffect(() => {
@@ -248,6 +319,7 @@ export default function PrintPage() {
   const [properties, setProperties] = useState([]);
   const [rentals, setRentals] = useState([]);
   const [customers, setCustomers] = useState([]);
+  const [partners, setPartners] = useState([]);
 
   // Renta Variable and Crowdfunding states
   const [rvAssets, setRvAssets] = useState([]);
@@ -317,6 +389,11 @@ export default function PrintPage() {
     );
 
     // RV & CF subscriptions
+    const unsubPartners = onSnapshot(
+      query(collection(db, 'partners'), where('userId', 'in', userIds)),
+      (snap) => setPartners(snap.docs.map(doc => ({ id: doc.id, ...doc.data() })))
+    );
+
     const unsubRvAssets = onSnapshot(
       query(collection(db, 'rv_assets'), where('userId', 'in', userIds)),
       (snap) => setRvAssets(snap.docs.map(doc => ({ id: doc.id, ...doc.data() })))
@@ -363,6 +440,7 @@ export default function PrintPage() {
       unsubCustomers();
       unsubCebes();
       unsubCecos();
+      unsubPartners();
       unsubRvAssets();
       unsubRvTransactions();
       unsubRvBrokers();
@@ -2184,6 +2262,7 @@ export default function PrintPage() {
 
     // 4. INVENTARIO DE ACTIVOS INMOBILIARIOS
     if (selectedTemplate === 'activos') {
+      const cv = (colId) => isColVisible('activos', colId);
       const listPages = chunkFlatList(properties, 34);
       const totalPages = listPages.length || 1;
 
@@ -2203,29 +2282,37 @@ export default function PrintPage() {
                 {renderPageHeader('Inventario de Activos Inmobiliarios')}
                 <table className="w-full text-[10px] border-collapse">
                   <thead>
-                    <tr className="border-b border-slate-400 bg-slate-100 font-bold text-slate-700">
-                      <th className="py-2 px-1 text-left w-16">ID</th>
-                      <th className="py-2 px-1 text-left w-32">Nombre Finca</th>
-                      <th className="py-2 px-1 text-left">Dirección</th>
-                      <th className="py-2 px-1 text-left w-20">CEBE/CECO</th>
-                      <th className="py-2 px-1 text-center w-24">Cuenta Contable</th>
-                      <th className="py-2 px-1 text-right w-24">Hip. Pendiente</th>
+                    <tr className="border-b-2 border-slate-700 bg-slate-100 font-bold text-slate-700 text-[9px] uppercase tracking-wide">
+                      {cv('id') && <th className="py-2 px-1 text-left w-14">ID</th>}
+                      {cv('name') && <th className="py-2 px-1 text-left w-32">Finca</th>}
+                      {cv('address') && <th className="py-2 px-1 text-left">Dirección</th>}
+                      {cv('cebe_ceco') && <th className="py-2 px-1 text-left w-20">CEBE/CECO</th>}
+                      {cv('accountingAccount') && <th className="py-2 px-1 text-center w-24">Cta. Contable</th>}
+                      {cv('acquisitionDate') && <th className="py-2 px-1 text-center w-20">F. Adquisición</th>}
+                      {cv('purchasePrice') && <th className="py-2 px-1 text-right w-22">Precio Compra</th>}
+                      {cv('currentValue') && <th className="py-2 px-1 text-right w-22">Valor Actual</th>}
+                      {cv('mortgagePending') && <th className="py-2 px-1 text-right w-22">Hip. Pendiente</th>}
+                      {cv('owners') && <th className="py-2 px-1 text-left w-28">Propietarios</th>}
                     </tr>
                   </thead>
                   <tbody>
-                    {pageItems.map(p => (
-                      <tr key={p.id} className="border-b border-slate-100 hover:bg-slate-50">
-                        <td className="py-2 px-1 font-mono font-bold text-slate-650">{p.id}</td>
-                        <td className="py-2 px-1 font-bold text-slate-800 uppercase">{p.name}</td>
-                        <td className="py-2 px-1 uppercase">{p.address}, {p.city}</td>
-                        <td className="py-2 px-1 font-mono text-[9px] text-slate-500">
+                    {pageItems.map((p, ri) => (
+                      <tr key={p.id} className={`border-b border-slate-100 text-[9px] ${ri % 2 === 1 ? 'bg-slate-50/50' : ''}`}>
+                        {cv('id') && <td className="py-1.5 px-1 font-mono font-bold text-slate-600">{p.id}</td>}
+                        {cv('name') && <td className="py-1.5 px-1 font-bold text-slate-800 uppercase">{p.name}</td>}
+                        {cv('address') && <td className="py-1.5 px-1 uppercase text-slate-700">{p.address}{p.city ? `, ${p.city}` : ''}</td>}
+                        {cv('cebe_ceco') && <td className="py-1.5 px-1 font-mono text-[8px] text-slate-500">
                           <div>BE: {p.cebe || '---'}</div>
                           <div>CO: {p.ceco || '---'}</div>
-                        </td>
-                        <td className="py-2 px-1 text-center font-mono">{p.accountingAccount || '---'}</td>
-                        <td className="py-2 px-1 text-right font-sans tabular-nums font-semibold text-red-650">
-                          {p.mortgagePending > 0 ? formatCurrency(p.mortgagePending) : '0,00'}
-                        </td>
+                        </td>}
+                        {cv('accountingAccount') && <td className="py-1.5 px-1 text-center font-mono">{p.accountingAccount || '---'}</td>}
+                        {cv('acquisitionDate') && <td className="py-1.5 px-1 text-center font-mono">{p.financials?.acquisitionDate ? formatDate(p.financials.acquisitionDate) : (p.acquisitionDate ? formatDate(p.acquisitionDate) : '---')}</td>}
+                        {cv('purchasePrice') && <td className="py-1.5 px-1 text-right font-sans tabular-nums">{p.financials?.purchasePrice > 0 ? formatCurrency(p.financials.purchasePrice) : (p.purchasePrice > 0 ? formatCurrency(p.purchasePrice) : '---')}</td>}
+                        {cv('currentValue') && <td className="py-1.5 px-1 text-right font-sans tabular-nums text-blue-700 font-semibold">{p.financials?.currentValue > 0 ? formatCurrency(p.financials.currentValue) : (p.currentValue > 0 ? formatCurrency(p.currentValue) : '---')}</td>}
+                        {cv('mortgagePending') && <td className="py-1.5 px-1 text-right font-sans tabular-nums font-semibold text-red-600">{p.mortgagePending > 0 ? formatCurrency(p.mortgagePending) : '0,00'}</td>}
+                        {cv('owners') && <td className="py-1.5 px-1 text-[8px] text-slate-600">
+                          {(p.owners || []).length > 0 ? p.owners.map(o => `${o.name} (${o.percentage}%)`).join(', ') : '---'}
+                        </td>}
                       </tr>
                     ))}
                   </tbody>
@@ -2240,6 +2327,7 @@ export default function PrintPage() {
 
     // 5. CONTRATOS DE ALQUILER
     if (selectedTemplate === 'alquileres') {
+      const cv = (colId) => isColVisible('alquileres', colId);
       const listPages = chunkFlatList(rentals, 32);
       const totalPages = listPages.length || 1;
 
@@ -2259,18 +2347,19 @@ export default function PrintPage() {
                 {renderPageHeader('Listado de Contratos de Alquiler')}
                 <table className="w-full text-[10px] border-collapse">
                   <thead>
-                    <tr className="border-b border-slate-400 bg-slate-100 font-bold text-slate-700">
-                      <th className="py-2 px-1 text-left w-16">Referencia</th>
-                      <th className="py-2 px-1 text-left w-36">Inmueble</th>
-                      <th className="py-2 px-1 text-left">Inquilinos</th>
-                      <th className="py-2 px-1 text-center w-24">Período</th>
-                      <th className="py-2 px-1 text-right w-20">Fianza</th>
-                      <th className="py-2 px-1 text-right w-20">Renta</th>
-                      <th className="py-2 px-1 text-center w-16">Estado</th>
+                    <tr className="border-b-2 border-slate-700 bg-slate-100 font-bold text-slate-700 text-[9px] uppercase tracking-wide">
+                      {cv('reference') && <th className="py-2 px-1 text-left w-16">Referencia</th>}
+                      {cv('property') && <th className="py-2 px-1 text-left w-36">Inmueble</th>}
+                      {cv('tenants') && <th className="py-2 px-1 text-left">Inquilinos</th>}
+                      {cv('period') && <th className="py-2 px-1 text-center w-24">Período</th>}
+                      {cv('depositAmount') && <th className="py-2 px-1 text-right w-20">Fianza</th>}
+                      {cv('rentAmount') && <th className="py-2 px-1 text-right w-20">Renta/mes</th>}
+                      {cv('nextReview') && <th className="py-2 px-1 text-center w-20">Próx. Revisión</th>}
+                      {cv('status') && <th className="py-2 px-1 text-center w-16">Estado</th>}
                     </tr>
                   </thead>
                   <tbody>
-                    {pageItems.map(r => {
+                    {pageItems.map((r, ri) => {
                       const prop = properties.find(p => p.id === r.propertyId);
                       const cust = customers.find(c => c.id === r.tenantId);
                       const tenantDisplay = r.tenants?.length > 0 
@@ -2278,21 +2367,22 @@ export default function PrintPage() {
                         : (cust ? cust.name : 'Ninguno');
                       
                       return (
-                        <tr key={r.id || r.reference} className="border-b border-slate-100 hover:bg-slate-50">
-                          <td className="py-2 px-1 font-mono font-bold text-slate-650">{r.reference || '---'}</td>
-                          <td className="py-2 px-1 uppercase font-bold text-slate-800">{prop ? prop.name : r.propertyId}</td>
-                          <td className="py-2 px-1 uppercase">{tenantDisplay}</td>
-                          <td className="py-2 px-1 text-center font-mono text-[9px]">
+                        <tr key={r.id || r.reference} className={`border-b border-slate-100 text-[9px] ${ri % 2 === 1 ? 'bg-slate-50/50' : ''}`}>
+                          {cv('reference') && <td className="py-1.5 px-1 font-mono font-bold text-slate-600">{r.reference || '---'}</td>}
+                          {cv('property') && <td className="py-1.5 px-1 uppercase font-bold text-slate-800">{prop ? prop.name : r.propertyId}</td>}
+                          {cv('tenants') && <td className="py-1.5 px-1 uppercase text-slate-700">{tenantDisplay}</td>}
+                          {cv('period') && <td className="py-1.5 px-1 text-center font-mono text-[8px]">
                             {r.startDate ? formatDate(r.startDate) : '---'} al <br/>
                             {r.endDate ? formatDate(r.endDate) : 'INDET.'}
-                          </td>
-                          <td className="py-2 px-1 text-right font-sans tabular-nums">{r.depositAmount > 0 ? formatCurrency(r.depositAmount) : '---'}</td>
-                          <td className="py-2 px-1 text-right font-sans tabular-nums font-bold text-green-700">{formatCurrency(r.rentAmount)}</td>
-                          <td className="py-2 px-1 text-center uppercase font-bold text-[9px]">
+                          </td>}
+                          {cv('depositAmount') && <td className="py-1.5 px-1 text-right font-sans tabular-nums">{r.depositAmount > 0 ? formatCurrency(r.depositAmount) : '---'}</td>}
+                          {cv('rentAmount') && <td className="py-1.5 px-1 text-right font-sans tabular-nums font-bold text-green-700">{formatCurrency(r.rentAmount)}</td>}
+                          {cv('nextReview') && <td className="py-1.5 px-1 text-center font-mono text-[8px]">{r.nextReviewDate ? formatDate(r.nextReviewDate) : '---'}</td>}
+                          {cv('status') && <td className="py-1.5 px-1 text-center uppercase font-bold text-[8px]">
                             <span className={`px-1 py-0.5 rounded ${r.status === 'activo' ? 'bg-green-100 text-green-800' : 'bg-slate-100 text-slate-600'}`}>
                               {r.status || 'activo'}
                             </span>
-                          </td>
+                          </td>}
                         </tr>
                       );
                     })}
@@ -2308,6 +2398,7 @@ export default function PrintPage() {
 
     // 6. FICHERO DE CLIENTES / INQUILINOS
     if (selectedTemplate === 'clientes') {
+      const cv = (colId) => isColVisible('clientes', colId);
       const listPages = chunkFlatList(customers, 34);
       const totalPages = listPages.length || 1;
 
@@ -2327,28 +2418,32 @@ export default function PrintPage() {
                 {renderPageHeader('Fichero General de Clientes / Arrendatarios')}
                 <table className="w-full text-[10px] border-collapse">
                   <thead>
-                    <tr className="border-b border-slate-400 bg-slate-100 font-bold text-slate-700">
-                      <th className="py-2 px-1 text-left w-16">ID</th>
-                      <th className="py-2 px-1 text-left w-36">Nombre Completo</th>
-                      <th className="py-2 px-1 text-left w-24">NIF/DNI</th>
-                      <th className="py-2 px-1 text-left w-24">Teléfono</th>
-                      <th className="py-2 px-1 text-left">Correo Electrónico</th>
-                      <th className="py-2 px-1 text-center w-16">Estado</th>
+                    <tr className="border-b-2 border-slate-700 bg-slate-100 font-bold text-slate-700 text-[9px] uppercase tracking-wide">
+                      {cv('id') && <th className="py-2 px-1 text-left w-16">ID</th>}
+                      {cv('name') && <th className="py-2 px-1 text-left w-36">Nombre Completo</th>}
+                      {cv('dni') && <th className="py-2 px-1 text-left w-24">NIF/DNI</th>}
+                      {cv('phone') && <th className="py-2 px-1 text-left w-24">Teléfono</th>}
+                      {cv('email') && <th className="py-2 px-1 text-left">Email</th>}
+                      {cv('address') && <th className="py-2 px-1 text-left w-36">Dirección</th>}
+                      {cv('nationality') && <th className="py-2 px-1 text-left w-20">Nac.</th>}
+                      {cv('status') && <th className="py-2 px-1 text-center w-16">Estado</th>}
                     </tr>
                   </thead>
                   <tbody>
-                    {pageItems.map(c => (
-                      <tr key={c.id} className="border-b border-slate-100 hover:bg-slate-50">
-                        <td className="py-2 px-1 font-mono text-slate-650">{c.id?.substring(0, 6)}</td>
-                        <td className="py-2 px-1 font-bold text-slate-800 uppercase">{c.name} {c.lastName || ''}</td>
-                        <td className="py-2 px-1 font-mono uppercase">{c.dni || '---'}</td>
-                        <td className="py-2 px-1 font-mono">{c.phone || '---'}</td>
-                        <td className="py-2 px-1 lowercase truncate max-w-[150px] text-slate-600" title={c.email}>{c.email || '---'}</td>
-                        <td className="py-2 px-1 text-center uppercase font-bold text-[9px]">
+                    {pageItems.map((c, ri) => (
+                      <tr key={c.id} className={`border-b border-slate-100 text-[9px] ${ri % 2 === 1 ? 'bg-slate-50/50' : ''}`}>
+                        {cv('id') && <td className="py-1.5 px-1 font-mono text-slate-600">{c.id?.substring(0, 6)}</td>}
+                        {cv('name') && <td className="py-1.5 px-1 font-bold text-slate-800 uppercase">{c.name} {c.lastName || ''}</td>}
+                        {cv('dni') && <td className="py-1.5 px-1 font-mono uppercase">{c.dni || '---'}</td>}
+                        {cv('phone') && <td className="py-1.5 px-1 font-mono">{c.phone || '---'}</td>}
+                        {cv('email') && <td className="py-1.5 px-1 lowercase truncate max-w-[140px] text-slate-600" title={c.email}>{c.email || '---'}</td>}
+                        {cv('address') && <td className="py-1.5 px-1 text-slate-600 uppercase">{c.address || '---'}</td>}
+                        {cv('nationality') && <td className="py-1.5 px-1 text-slate-600">{c.nationality || '---'}</td>}
+                        {cv('status') && <td className="py-1.5 px-1 text-center uppercase font-bold text-[8px]">
                           <span className={`px-1.5 py-0.5 rounded ${c.status === 'activo' ? 'bg-blue-100 text-blue-800' : 'bg-slate-100 text-slate-600'}`}>
                             {c.status || 'activo'}
                           </span>
-                        </td>
+                        </td>}
                       </tr>
                     ))}
                   </tbody>
@@ -2361,7 +2456,138 @@ export default function PrintPage() {
       }
     }
 
+    // 6b. EXTRACTO DE PROPIETARIOS
+    if (selectedTemplate === 'extracto_propietarios') {
+      const cv = (colId) => isColVisible('extracto_propietarios', colId);
+      // Build rows: for each property → for each owner → one row
+      const ownerRows = [];
+      properties.forEach(p => {
+        const ownersArr = Array.isArray(p.owners) ? p.owners : [];
+        const purchasePrice = parseFloat(p.financials?.purchasePrice || p.purchasePrice || 0);
+        const currentValue = parseFloat(p.financials?.currentValue || p.currentValue || 0);
+        ownersArr.forEach(o => {
+          const pct = parseFloat(o.percentage) || 0;
+          ownerRows.push({
+            partnerName: o.name || '---',
+            partnerNif: o.nif || '---',
+            propertyName: p.name || p.id,
+            propertyId: p.id,
+            percentage: pct,
+            purchasePrice,
+            currentValue,
+            invested: purchasePrice * (pct / 100),
+            latentPnl: (currentValue - purchasePrice) * (pct / 100),
+          });
+        });
+        if (ownersArr.length === 0) {
+          ownerRows.push({
+            partnerName: '(Sin propietario asignado)',
+            partnerNif: '---',
+            propertyName: p.name || p.id,
+            propertyId: p.id,
+            percentage: 100,
+            purchasePrice,
+            currentValue,
+            invested: purchasePrice,
+            latentPnl: currentValue - purchasePrice,
+          });
+        }
+      });
+
+      // Group by partner name for summary
+      const partnerGroups = {};
+      ownerRows.forEach(r => {
+        if (!partnerGroups[r.partnerName]) partnerGroups[r.partnerName] = [];
+        partnerGroups[r.partnerName].push(r);
+      });
+
+      const listPages = chunkFlatList(ownerRows, 30);
+      const totalPages = listPages.length || 1;
+
+      if (ownerRows.length === 0) {
+        pageViews.push(
+          <div key="empty-prop" className="page-sheet relative">
+            {renderPageHeader('Extracto de Propietarios')}
+            <p className="text-center py-12 text-slate-450 italic text-[10px]">No hay activos con propietarios asignados.</p>
+            {renderPageFooter(1, 1, auditNumber)}
+          </div>
+        );
+      } else {
+        listPages.forEach((pageItems, pageIdx) => {
+          pageViews.push(
+            <div key={`eprop-${pageIdx}`} className="page-sheet relative">
+              <div>
+                {renderPageHeader('Extracto de Propietarios')}
+                <table className="w-full text-[10px] border-collapse">
+                  <thead>
+                    <tr className="border-b-2 border-slate-700 bg-slate-100 font-bold text-slate-700 text-[9px] uppercase tracking-wide">
+                      {cv('name') && <th className="py-2 px-1 text-left w-36">Propietario</th>}
+                      {cv('nif') && <th className="py-2 px-1 text-left w-24">NIF/CIF</th>}
+                      {cv('property') && <th className="py-2 px-1 text-left">Inmueble</th>}
+                      {cv('percentage') && <th className="py-2 px-1 text-right w-16">% Prop.</th>}
+                      {cv('purchasePrice') && <th className="py-2 px-1 text-right w-24">P. Compra</th>}
+                      {cv('currentValue') && <th className="py-2 px-1 text-right w-24">Val. Actual</th>}
+                      {cv('invested') && <th className="py-2 px-1 text-right w-24">Capital Invest.</th>}
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {pageItems.map((row, ri) => (
+                      <tr key={`${row.partnerName}-${row.propertyId}-${ri}`} className={`border-b border-slate-100 text-[9px] ${ri % 2 === 1 ? 'bg-slate-50/50' : ''}`}>
+                        {cv('name') && <td className="py-1.5 px-1 font-bold text-slate-800 uppercase">{row.partnerName}</td>}
+                        {cv('nif') && <td className="py-1.5 px-1 font-mono text-slate-600">{row.partnerNif}</td>}
+                        {cv('property') && <td className="py-1.5 px-1 uppercase text-slate-700">{row.propertyName}</td>}
+                        {cv('percentage') && <td className="py-1.5 px-1 text-right font-bold text-blue-700">{row.percentage.toFixed(2)}%</td>}
+                        {cv('purchasePrice') && <td className="py-1.5 px-1 text-right font-sans tabular-nums">{row.purchasePrice > 0 ? formatCurrency(row.purchasePrice) : '---'}</td>}
+                        {cv('currentValue') && <td className="py-1.5 px-1 text-right font-sans tabular-nums font-semibold text-blue-700">{row.currentValue > 0 ? formatCurrency(row.currentValue) : '---'}</td>}
+                        {cv('invested') && <td className="py-1.5 px-1 text-right font-sans tabular-nums font-bold text-slate-800">{row.invested > 0 ? formatCurrency(row.invested) : '---'}</td>}
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+
+                {/* Summary by partner (last page only) */}
+                {pageIdx === listPages.length - 1 && Object.keys(partnerGroups).length > 0 && (
+                  <div className="mt-6">
+                    <div className="text-[9px] font-bold text-slate-500 uppercase border-b border-slate-300 pb-1 mb-2">Resumen por Propietario</div>
+                    <table className="w-full text-[9px] border-collapse">
+                      <thead>
+                        <tr className="border-b border-slate-300 bg-slate-50 font-bold text-slate-600 text-[8px] uppercase">
+                          <th className="py-1 px-1 text-left">Propietario</th>
+                          <th className="py-1 px-1 text-right w-16">Nº Activos</th>
+                          <th className="py-1 px-1 text-right w-28">Capital Total Invest.</th>
+                          <th className="py-1 px-1 text-right w-28">Valor Actual Total</th>
+                          <th className="py-1 px-1 text-right w-24">PnL Latente</th>
+                        </tr>
+                      </thead>
+                      <tbody>
+                        {Object.entries(partnerGroups).map(([pName, rows]) => {
+                          const totalInvested = rows.reduce((s, r) => s + r.invested, 0);
+                          const totalCurrentVal = rows.reduce((s, r) => s + r.currentValue * (r.percentage / 100), 0);
+                          const totalPnl = totalCurrentVal - totalInvested;
+                          return (
+                            <tr key={pName} className="border-b border-slate-100">
+                              <td className="py-1 px-1 font-bold text-slate-800 uppercase">{pName}</td>
+                              <td className="py-1 px-1 text-right">{rows.length}</td>
+                              <td className="py-1 px-1 text-right font-sans tabular-nums">{totalInvested > 0 ? formatCurrency(totalInvested) : '---'}</td>
+                              <td className="py-1 px-1 text-right font-sans tabular-nums text-blue-700 font-semibold">{totalCurrentVal > 0 ? formatCurrency(totalCurrentVal) : '---'}</td>
+                              <td className={`py-1 px-1 text-right font-sans tabular-nums font-bold ${totalPnl >= 0 ? 'text-green-700' : 'text-red-600'}`}>{totalPnl !== 0 ? formatCurrency(totalPnl) : '---'}</td>
+                            </tr>
+                          );
+                        })}
+                      </tbody>
+                    </table>
+                  </div>
+                )}
+              </div>
+              {renderPageFooter(pageIdx + 1, totalPages, auditNumber)}
+            </div>
+          );
+        });
+      }
+    }
+
     // 7. CARTERA DE RENTA VARIABLE
+
     if (selectedTemplate === 'rv_portfolio') {
       const listPages = chunkFlatList(computedRvHoldings.holdings, 30);
       const totalPages = listPages.length || 1;
@@ -3862,7 +4088,7 @@ export default function PrintPage() {
 
         @media print {
           @page {
-            size: A4 portrait;
+            size: ${paperSize} ${pageOrientation};
             margin: 10mm 14mm;
           }
 
@@ -3904,7 +4130,7 @@ export default function PrintPage() {
 
       {/* Left panel - Templates list */}
       {showLeftPanel && (
-        <div className="w-60 bg-[#f0f0f0] border border-[#808080] shrink-0 p-2 flex flex-col gap-3 win-bevel no-print">
+        <div className="w-60 bg-[#f0f0f0] border border-[#808080] shrink-0 p-2 flex flex-col gap-3 win-bevel no-print overflow-y-auto max-h-full">
           <div className="bg-white border border-[#a0a0a0] flex flex-col">
             <div className="bg-[#cbd5e0] font-bold p-1.5 uppercase text-[10px] border-b border-[#a0a0a0] text-slate-700">
               Plantillas Disponibles
@@ -3930,8 +4156,57 @@ export default function PrintPage() {
               </button>
             ))}
           </div>
+
+          {/* Global View Configuration Panel */}
+          <div className="bg-white border border-[#a0a0a0] p-3 flex flex-col gap-3">
+            <div className="text-[10px] font-bold text-slate-500 uppercase flex items-center gap-1 select-none">
+              <RotateCcw className="w-3.5 h-3.5 text-slate-400" />
+              <span>Configurar Vista</span>
+            </div>
+
+            {/* Paper Size */}
+            <div className="flex flex-col gap-1">
+              <span className="text-[9px] font-bold text-slate-400 uppercase">Tamaño de Página</span>
+              <div className="grid grid-cols-3 gap-1">
+                {['A4', 'A5', 'Letter'].map(size => (
+                  <button
+                    key={size}
+                    onClick={() => setPaperSize(size)}
+                    className={`text-[9px] text-center py-1.5 border transition-all rounded font-bold ${
+                      paperSize === size
+                        ? 'text-blue-700 font-bold bg-[#c0c0c0] border-slate-400 shadow-inner'
+                        : 'text-slate-800 bg-slate-50 border-slate-200 hover:text-blue-700'
+                    }`}
+                  >
+                    {size}
+                  </button>
+                ))}
+              </div>
+            </div>
+
+            {/* Orientation */}
+            <div className="flex flex-col gap-1">
+              <span className="text-[9px] font-bold text-slate-400 uppercase">Orientación</span>
+              <div className="grid grid-cols-2 gap-1">
+                {[{id: 'portrait', label: '▯ Vertical'}, {id: 'landscape', label: '▭ Horizontal'}].map(opt => (
+                  <button
+                    key={opt.id}
+                    onClick={() => setPageOrientation(opt.id)}
+                    className={`text-[9px] text-center py-1.5 border transition-all rounded font-bold ${
+                      pageOrientation === opt.id
+                        ? 'text-blue-700 font-bold bg-[#c0c0c0] border-slate-400 shadow-inner'
+                        : 'text-slate-800 bg-slate-50 border-slate-200 hover:text-blue-700'
+                    }`}
+                  >
+                    {opt.label}
+                  </button>
+                ))}
+              </div>
+            </div>
+          </div>
         </div>
       )}
+
 
       {/* Main Preview Container */}
       <div className="flex-1 flex flex-col bg-[#526075]/20 border border-[#808080] win-bevel min-w-0 relative h-full">
@@ -4093,6 +4368,52 @@ export default function PrintPage() {
                   ))}
                 </select>
               </div>
+            </div>
+          )}
+
+          {/* Column Visibility Filter (for inmobiliaria reports) */}
+          {['activos', 'alquileres', 'clientes', 'extracto_propietarios'].includes(selectedTemplate) && ALL_COLUMNS[selectedTemplate] && (
+            <div className="bg-white border border-[#a0a0a0] p-3 flex flex-col gap-2" ref={colDropdownRef}>
+              <div
+                className="text-[10px] font-bold text-slate-500 uppercase flex items-center justify-between cursor-pointer select-none hover:text-slate-800"
+                onClick={() => setColDropdownOpen(prev => !prev)}
+              >
+                <div className="flex items-center gap-1">
+                  <Columns className="w-3.5 h-3.5 text-slate-400" />
+                  <span>Columnas Visibles</span>
+                </div>
+                <span className="text-[9px]">{colDropdownOpen ? '▼' : '▶'}</span>
+              </div>
+              {colDropdownOpen && (
+                <div className="flex flex-col gap-1.5 pt-2 border-t border-slate-100 mt-1">
+                  <div className="flex justify-between items-center mb-1">
+                    <span className="text-[8px] text-slate-400 uppercase font-bold">Seleccionar columnas</span>
+                    <button
+                      onClick={() => setVisibleColumns(prev => ({
+                        ...prev,
+                        [selectedTemplate]: new Set(ALL_COLUMNS[selectedTemplate].map(c => c.id))
+                      }))}
+                      className="text-[8px] text-blue-600 hover:underline font-bold"
+                    >
+                      Todas
+                    </button>
+                  </div>
+                  {ALL_COLUMNS[selectedTemplate].map(col => {
+                    const isVisible = isColVisible(selectedTemplate, col.id);
+                    return (
+                      <label key={col.id} className="flex items-center gap-2 cursor-pointer select-none text-[10px] font-semibold text-slate-600">
+                        <input
+                          type="checkbox"
+                          checked={isVisible}
+                          onChange={() => toggleColumn(selectedTemplate, col.id)}
+                          className="w-3 h-3 text-blue-600"
+                        />
+                        <span>{col.label}</span>
+                      </label>
+                    );
+                  })}
+                </div>
+              )}
             </div>
           )}
 
