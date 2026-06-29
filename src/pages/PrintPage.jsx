@@ -183,6 +183,8 @@ export default function PrintPage() {
   const [isDatesCollapsed, setIsDatesCollapsed] = useState(true);
   const [hideZeroBalances, setHideZeroBalances] = useState(false);
   const [showVerticalPercentage, setShowVerticalPercentage] = useState(false);
+  const [displayMode, setDisplayMode] = useState('euros'); // euros, percent
+  const [comparisonYear, setComparisonYear] = useState(''); // comparison year, e.g. '2025'
   const [accountsDropdownOpen, setAccountsDropdownOpen] = useState(false);
   const [cebeDropdownOpen, setCebeDropdownOpen] = useState(false);
   const [cecoDropdownOpen, setCecoDropdownOpen] = useState(false);
@@ -1030,6 +1032,71 @@ export default function PrintPage() {
 
     accounts.forEach(a => calcAggregated(a.id));
 
+    // Comparative calculations if comparisonYear is selected
+    const compDirectMap = {};
+    const compAggregatedMap = {};
+    
+    if (comparisonYear) {
+      const cy = parseInt(comparisonYear);
+      const compStartLimit = new Date(cy, 0, 1);
+      let compEndLimit = new Date(cy, 11, 31, 23, 59, 59);
+
+      if (selectedMonths.length > 0) {
+        const monthNames = ['Ene', 'Feb', 'Mar', 'Abr', 'May', 'Jun', 'Jul', 'Ago', 'Sep', 'Oct', 'Nov', 'Dic'];
+        let maxMonthIndex = 0;
+        selectedMonths.forEach(m => {
+          const idx = monthNames.indexOf(m);
+          if (idx > maxMonthIndex) maxMonthIndex = idx;
+        });
+        compEndLimit = new Date(cy, maxMonthIndex + 1, 0, 23, 59, 59);
+      } else if (selectedQuarters.length > 0) {
+        let maxMonthIndex = 2;
+        selectedQuarters.forEach(q => {
+          if (q === '1T' && maxMonthIndex < 2) maxMonthIndex = 2;
+          if (q === '2T' && maxMonthIndex < 5) maxMonthIndex = 5;
+          if (q === '3T' && maxMonthIndex < 8) maxMonthIndex = 8;
+          if (q === '4T' && maxMonthIndex < 11) maxMonthIndex = 11;
+        });
+        compEndLimit = new Date(cy, maxMonthIndex + 1, 0, 23, 59, 59);
+      }
+
+      accounts.forEach(account => {
+        let movementSum = 0;
+        journalEntries.forEach(entry => {
+          const entryDate = new Date(entry.date);
+          const isIncomeExpense = ['Ingreso', 'Gasto'].includes(account.type);
+          const isInRange = isIncomeExpense 
+            ? (entryDate >= compStartLimit && entryDate <= compEndLimit)
+            : (entryDate <= compEndLimit);
+
+          if (isInRange && entry.lines) {
+            entry.lines.forEach(line => {
+              if (line.accountId === account.id) {
+                const debit = parseFloat(line.debit) || 0;
+                const credit = parseFloat(line.credit) || 0;
+                const isAssetOrExpense = ['Activo', 'Gasto'].includes(account.type);
+                movementSum += isAssetOrExpense ? (debit - credit) : (credit - debit);
+              }
+            });
+          }
+        });
+        compDirectMap[account.id] = movementSum;
+      });
+
+      const calcCompAggregated = (id) => {
+        if (compAggregatedMap[id] !== undefined) return compAggregatedMap[id];
+        let sum = compDirectMap[id] || 0;
+        const children = accounts.filter(a => String(a.parentId) === String(id));
+        for (const child of children) {
+          sum += calcCompAggregated(child.id);
+        }
+        compAggregatedMap[id] = sum;
+        return sum;
+      };
+
+      accounts.forEach(a => calcCompAggregated(a.id));
+    }
+
     const getAccountsForGroup = (groupObj, categoryKey) => {
       if (groupObj.isProfitLoss) {
         return accounts.filter(a => ['Ingreso', 'Gasto'].includes(a.type));
@@ -1069,6 +1136,17 @@ export default function PrintPage() {
       return groupAccounts.reduce((sum, a) => sum + (directMap[a.id] || 0), 0);
     };
 
+    const getGroupCompValue = (groupObj, categoryKey) => {
+      if (!comparisonYear) return 0;
+      if (groupObj.isProfitLoss) {
+        const revenues = accounts.filter(a => a.type === 'Ingreso').reduce((sum, a) => sum + (compDirectMap[a.id] || 0), 0);
+        const expenses = accounts.filter(a => a.type === 'Gasto').reduce((sum, a) => sum + (compDirectMap[a.id] || 0), 0);
+        return revenues - expenses;
+      }
+      const groupAccounts = getAccountsForGroup(groupObj, categoryKey);
+      return groupAccounts.reduce((sum, a) => sum + (compDirectMap[a.id] || 0), 0);
+    };
+
     const getAccountsForCategoryItem = (item, categoryKey) => {
       if (item.isProfitLoss) {
         return [];
@@ -1101,7 +1179,8 @@ export default function PrintPage() {
       return levelAccounts.map(acc => ({
         code: acc.code,
         name: acc.name,
-        balance: aggregatedMap[acc.id] || 0
+        balance: aggregatedMap[acc.id] || 0,
+        compBalance: compAggregatedMap[acc.id] || 0
       })).sort((a, b) => a.code.localeCompare(b.code));
     };
 
@@ -1151,40 +1230,53 @@ export default function PrintPage() {
       activo_no_corriente_items: balanceSheet.activo.no_corriente.map(g => ({ 
         ...g, 
         value: getGroupValue(g, 'activo'),
+        compValue: getGroupCompValue(g, 'activo'),
         accounts: getAccountsForCategoryItem(g, 'activo')
       })),
       activo_corriente_items: balanceSheet.activo.corriente.map(g => ({ 
         ...g, 
         value: getGroupValue(g, 'activo'),
+        compValue: getGroupCompValue(g, 'activo'),
         accounts: getAccountsForCategoryItem(g, 'activo')
       })),
       pasivo_no_corriente_items: balanceSheet.pasivo.no_corriente.map(g => ({ 
         ...g, 
         value: getGroupValue(g, 'pasivo'),
+        compValue: getGroupCompValue(g, 'pasivo'),
         accounts: getAccountsForCategoryItem(g, 'pasivo')
       })),
       pasivo_corriente_items: balanceSheet.pasivo.corriente.map(g => ({ 
         ...g, 
         value: getGroupValue(g, 'pasivo'),
+        compValue: getGroupCompValue(g, 'pasivo'),
         accounts: getAccountsForCategoryItem(g, 'pasivo')
       })),
       patrimonio_items: balanceSheet.patrimonio.fondos_propios.map(g => ({ 
         ...g, 
         value: getGroupValue(g, 'patrimonio'),
+        compValue: getGroupCompValue(g, 'patrimonio'),
         accounts: getAccountsForCategoryItem(g, 'patrimonio')
       }))
     };
 
     sheetData.total_activo_no_corriente = sheetData.activo_no_corriente_items.reduce((s, i) => s + i.value, 0);
+    sheetData.total_activo_no_corriente_comp = sheetData.activo_no_corriente_items.reduce((s, i) => s + i.compValue, 0);
     sheetData.total_activo_corriente = sheetData.activo_corriente_items.reduce((s, i) => s + i.value, 0);
+    sheetData.total_activo_corriente_comp = sheetData.activo_corriente_items.reduce((s, i) => s + i.compValue, 0);
     sheetData.total_activo = sheetData.total_activo_no_corriente + sheetData.total_activo_corriente;
+    sheetData.total_activo_comp = sheetData.total_activo_no_corriente_comp + sheetData.total_activo_corriente_comp;
 
     sheetData.total_pasivo_no_corriente = sheetData.pasivo_no_corriente_items.reduce((s, i) => s + i.value, 0);
+    sheetData.total_pasivo_no_corriente_comp = sheetData.pasivo_no_corriente_items.reduce((s, i) => s + i.compValue, 0);
     sheetData.total_pasivo_corriente = sheetData.pasivo_corriente_items.reduce((s, i) => s + i.value, 0);
+    sheetData.total_pasivo_corriente_comp = sheetData.pasivo_corriente_items.reduce((s, i) => s + i.compValue, 0);
     sheetData.total_pasivo = sheetData.total_pasivo_no_corriente + sheetData.total_pasivo_corriente;
+    sheetData.total_pasivo_comp = sheetData.total_pasivo_no_corriente_comp + sheetData.total_pasivo_corriente_comp;
 
     sheetData.total_patrimonio = sheetData.patrimonio_items.reduce((s, i) => s + i.value, 0);
+    sheetData.total_patrimonio_comp = sheetData.patrimonio_items.reduce((s, i) => s + i.compValue, 0);
     sheetData.total_pasivo_patrimonio = sheetData.total_pasivo + sheetData.total_patrimonio;
+    sheetData.total_pasivo_patrimonio_comp = sheetData.total_pasivo_comp + sheetData.total_patrimonio_comp;
 
     const incomeStatement = {
       ingresos: [
@@ -1454,6 +1546,14 @@ export default function PrintPage() {
     const num = Number(amount) || 0;
     const formatted = Math.abs(num).toLocaleString('es-ES', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
     return num < 0 ? `${formatted}-` : `${formatted}\u00a0`;
+  };
+
+  const formatValue = (val, divisor) => {
+    if (displayMode === 'percent') {
+      const pct = divisor ? (val / divisor) * 100 : 0;
+      return `${pct.toFixed(1)}%`;
+    }
+    return formatCurrency(val);
   };
 
   // Helper for sentence case names
@@ -2856,87 +2956,119 @@ export default function PrintPage() {
       
       const activoRows = [];
       // ACTIVO Header
-      activoRows.push({ type: 'main-header', label: 'ACTIVO', value: data.total_activo, divisor: data.total_activo });
+      if (!hideZeroBalances || Math.abs(data.total_activo) > 0.005 || (comparisonYear && Math.abs(data.total_activo_comp) > 0.005)) {
+        activoRows.push({ type: 'main-header', label: 'ACTIVO', value: data.total_activo, compValue: data.total_activo_comp, divisor: data.total_activo, compDivisor: data.total_activo_comp });
+      }
       
       // A) ACTIVO NO CORRIENTE Subheader
-      activoRows.push({ type: 'subheader', label: 'A) ACTIVO NO CORRIENTE', value: data.total_activo_no_corriente, divisor: data.total_activo });
+      if (!hideZeroBalances || Math.abs(data.total_activo_no_corriente) > 0.005 || (comparisonYear && Math.abs(data.total_activo_no_corriente_comp) > 0.005)) {
+        activoRows.push({ type: 'subheader', label: 'A) ACTIVO NO CORRIENTE', value: data.total_activo_no_corriente, compValue: data.total_activo_no_corriente_comp, divisor: data.total_activo, compDivisor: data.total_activo_comp });
+      }
       
       data.activo_no_corriente_items.forEach(item => {
         const itemAccounts = item.accounts || [];
         const filteredAccounts = hideZeroBalances 
-          ? itemAccounts.filter(a => Math.abs(a.balance) > 0.005)
+          ? itemAccounts.filter(a => Math.abs(a.balance) > 0.005 || (comparisonYear && Math.abs(a.compBalance) > 0.005))
           : itemAccounts;
           
-        activoRows.push({ type: 'item', label: item.label, value: item.value, divisor: data.total_activo });
+        const hasValue = Math.abs(item.value) > 0.005 || (comparisonYear && Math.abs(item.compValue) > 0.005);
+        if (hideZeroBalances && !hasValue) return;
+        
+        activoRows.push({ type: 'item', label: item.label, value: item.value, compValue: item.compValue, divisor: data.total_activo, compDivisor: data.total_activo_comp });
         filteredAccounts.forEach(acc => {
-          activoRows.push({ type: 'account', code: acc.code, name: acc.name, value: acc.balance, divisor: data.total_activo });
+          activoRows.push({ type: 'account', code: acc.code, name: acc.name, value: acc.balance, compValue: acc.compBalance, divisor: data.total_activo, compDivisor: data.total_activo_comp });
         });
       });
       
       // B) ACTIVO CORRIENTE Subheader
-      activoRows.push({ type: 'subheader', label: 'B) ACTIVO CORRIENTE', value: data.total_activo_corriente, divisor: data.total_activo });
+      if (!hideZeroBalances || Math.abs(data.total_activo_corriente) > 0.005 || (comparisonYear && Math.abs(data.total_activo_corriente_comp) > 0.005)) {
+        activoRows.push({ type: 'subheader', label: 'B) ACTIVO CORRIENTE', value: data.total_activo_corriente, compValue: data.total_activo_corriente_comp, divisor: data.total_activo, compDivisor: data.total_activo_comp });
+      }
       
       data.activo_corriente_items.forEach(item => {
         const itemAccounts = item.accounts || [];
         const filteredAccounts = hideZeroBalances 
-          ? itemAccounts.filter(a => Math.abs(a.balance) > 0.005)
+          ? itemAccounts.filter(a => Math.abs(a.balance) > 0.005 || (comparisonYear && Math.abs(a.compBalance) > 0.005))
           : itemAccounts;
           
-        activoRows.push({ type: 'item', label: item.label, value: item.value, divisor: data.total_activo });
+        const hasValue = Math.abs(item.value) > 0.005 || (comparisonYear && Math.abs(item.compValue) > 0.005);
+        if (hideZeroBalances && !hasValue) return;
+        
+        activoRows.push({ type: 'item', label: item.label, value: item.value, compValue: item.compValue, divisor: data.total_activo, compDivisor: data.total_activo_comp });
         filteredAccounts.forEach(acc => {
-          activoRows.push({ type: 'account', code: acc.code, name: acc.name, value: acc.balance, divisor: data.total_activo });
+          activoRows.push({ type: 'account', code: acc.code, name: acc.name, value: acc.balance, compValue: acc.compBalance, divisor: data.total_activo, compDivisor: data.total_activo_comp });
         });
       });
 
       const pasivoPatrimonioRows = [];
+      
       // PASIVO Header
-      pasivoPatrimonioRows.push({ type: 'main-header', label: 'PASIVO', value: data.total_pasivo, divisor: data.total_pasivo_patrimonio });
+      if (!hideZeroBalances || Math.abs(data.total_pasivo) > 0.005 || (comparisonYear && Math.abs(data.total_pasivo_comp) > 0.005)) {
+        pasivoPatrimonioRows.push({ type: 'main-header', label: 'PASIVO', value: data.total_pasivo, compValue: data.total_pasivo_comp, divisor: data.total_pasivo_patrimonio, compDivisor: data.total_pasivo_patrimonio_comp });
+      }
       
       // A) PASIVO NO CORRIENTE Subheader
-      pasivoPatrimonioRows.push({ type: 'subheader', label: 'A) PASIVO NO CORRIENTE', value: data.total_pasivo_no_corriente, divisor: data.total_pasivo_patrimonio });
+      if (!hideZeroBalances || Math.abs(data.total_pasivo_no_corriente) > 0.005 || (comparisonYear && Math.abs(data.total_pasivo_no_corriente_comp) > 0.005)) {
+        pasivoPatrimonioRows.push({ type: 'subheader', label: 'A) PASIVO NO CORRIENTE', value: data.total_pasivo_no_corriente, compValue: data.total_pasivo_no_corriente_comp, divisor: data.total_pasivo_patrimonio, compDivisor: data.total_pasivo_patrimonio_comp });
+      }
       
       data.pasivo_no_corriente_items.forEach(item => {
         const itemAccounts = item.accounts || [];
         const filteredAccounts = hideZeroBalances 
-          ? itemAccounts.filter(a => Math.abs(a.balance) > 0.005)
+          ? itemAccounts.filter(a => Math.abs(a.balance) > 0.005 || (comparisonYear && Math.abs(a.compBalance) > 0.005))
           : itemAccounts;
           
-        pasivoPatrimonioRows.push({ type: 'item', label: item.label, value: item.value, divisor: data.total_pasivo_patrimonio });
+        const hasValue = Math.abs(item.value) > 0.005 || (comparisonYear && Math.abs(item.compValue) > 0.005);
+        if (hideZeroBalances && !hasValue) return;
+        
+        pasivoPatrimonioRows.push({ type: 'item', label: item.label, value: item.value, compValue: item.compValue, divisor: data.total_pasivo_patrimonio, compDivisor: data.total_pasivo_patrimonio_comp });
         filteredAccounts.forEach(acc => {
-          pasivoPatrimonioRows.push({ type: 'account', code: acc.code, name: acc.name, value: acc.balance, divisor: data.total_pasivo_patrimonio });
+          pasivoPatrimonioRows.push({ type: 'account', code: acc.code, name: acc.name, value: acc.balance, compValue: acc.compBalance, divisor: data.total_pasivo_patrimonio, compDivisor: data.total_pasivo_patrimonio_comp });
         });
       });
       
       // B) PASIVO CORRIENTE Subheader
-      pasivoPatrimonioRows.push({ type: 'subheader', label: 'B) PASIVO CORRIENTE', value: data.total_pasivo_corriente, divisor: data.total_pasivo_patrimonio });
+      if (!hideZeroBalances || Math.abs(data.total_pasivo_corriente) > 0.005 || (comparisonYear && Math.abs(data.total_pasivo_corriente_comp) > 0.005)) {
+        pasivoPatrimonioRows.push({ type: 'subheader', label: 'B) PASIVO CORRIENTE', value: data.total_pasivo_corriente, compValue: data.total_pasivo_corriente_comp, divisor: data.total_pasivo_patrimonio, compDivisor: data.total_pasivo_patrimonio_comp });
+      }
       
       data.pasivo_corriente_items.forEach(item => {
         const itemAccounts = item.accounts || [];
         const filteredAccounts = hideZeroBalances 
-          ? itemAccounts.filter(a => Math.abs(a.balance) > 0.005)
+          ? itemAccounts.filter(a => Math.abs(a.balance) > 0.005 || (comparisonYear && Math.abs(a.compBalance) > 0.005))
           : itemAccounts;
           
-        pasivoPatrimonioRows.push({ type: 'item', label: item.label, value: item.value, divisor: data.total_pasivo_patrimonio });
+        const hasValue = Math.abs(item.value) > 0.005 || (comparisonYear && Math.abs(item.compValue) > 0.005);
+        if (hideZeroBalances && !hasValue) return;
+        
+        pasivoPatrimonioRows.push({ type: 'item', label: item.label, value: item.value, compValue: item.compValue, divisor: data.total_pasivo_patrimonio, compDivisor: data.total_pasivo_patrimonio_comp });
         filteredAccounts.forEach(acc => {
-          pasivoPatrimonioRows.push({ type: 'account', code: acc.code, name: acc.name, value: acc.balance, divisor: data.total_pasivo_patrimonio });
+          pasivoPatrimonioRows.push({ type: 'account', code: acc.code, name: acc.name, value: acc.balance, compValue: acc.compBalance, divisor: data.total_pasivo_patrimonio, compDivisor: data.total_pasivo_patrimonio_comp });
         });
       });
       
       // PATRIMONIO NETO Header
-      pasivoPatrimonioRows.push({ type: 'main-header', label: 'PATRIMONIO NETO', value: data.total_patrimonio, divisor: data.total_pasivo_patrimonio });
+      if (!hideZeroBalances || Math.abs(data.total_patrimonio) > 0.005 || (comparisonYear && Math.abs(data.total_patrimonio_comp) > 0.005)) {
+        pasivoPatrimonioRows.push({ type: 'main-header', label: 'PATRIMONIO NETO', value: data.total_patrimonio, compValue: data.total_patrimonio_comp, divisor: data.total_pasivo_patrimonio, compDivisor: data.total_pasivo_patrimonio_comp });
+      }
       
       // A) PATRIMONIO NETO Subheader
-      pasivoPatrimonioRows.push({ type: 'subheader', label: 'A) PATRIMONIO NETO', value: data.total_patrimonio, divisor: data.total_pasivo_patrimonio });
+      if (!hideZeroBalances || Math.abs(data.total_patrimonio) > 0.005 || (comparisonYear && Math.abs(data.total_patrimonio_comp) > 0.005)) {
+        pasivoPatrimonioRows.push({ type: 'subheader', label: 'A) PATRIMONIO NETO', value: data.total_patrimonio, compValue: data.total_patrimonio_comp, divisor: data.total_pasivo_patrimonio, compDivisor: data.total_pasivo_patrimonio_comp });
+      }
       
       data.patrimonio_items.forEach(item => {
         const itemAccounts = item.accounts || [];
         const filteredAccounts = hideZeroBalances 
-          ? itemAccounts.filter(a => Math.abs(a.balance) > 0.005)
+          ? itemAccounts.filter(a => Math.abs(a.balance) > 0.005 || (comparisonYear && Math.abs(a.compBalance) > 0.005))
           : itemAccounts;
           
-        pasivoPatrimonioRows.push({ type: 'item', label: item.label, value: item.value, divisor: data.total_pasivo_patrimonio });
+        const hasValue = Math.abs(item.value) > 0.005 || (comparisonYear && Math.abs(item.compValue) > 0.005);
+        if (hideZeroBalances && !hasValue) return;
+        
+        pasivoPatrimonioRows.push({ type: 'item', label: item.label, value: item.value, compValue: item.compValue, divisor: data.total_pasivo_patrimonio, compDivisor: data.total_pasivo_patrimonio_comp });
         filteredAccounts.forEach(acc => {
-          pasivoPatrimonioRows.push({ type: 'account', code: acc.code, name: acc.name, value: acc.balance, divisor: data.total_pasivo_patrimonio });
+          pasivoPatrimonioRows.push({ type: 'account', code: acc.code, name: acc.name, value: acc.balance, compValue: acc.compBalance, divisor: data.total_pasivo_patrimonio, compDivisor: data.total_pasivo_patrimonio_comp });
         });
       });
 
@@ -2954,69 +3086,111 @@ export default function PrintPage() {
             <div className="flex-1">
               {renderPageHeader('Balance de Situación')}
               
-              <div className="flex flex-col mt-4 text-[10px]">
-                {showVerticalPercentage && (
-                  <div className="flex justify-end text-[8px] font-bold text-slate-400 uppercase border-b border-slate-200 pb-0.5 mb-1 px-1">
-                    <span className="w-24 text-right pr-2">Importe</span>
-                    <span className="w-16 text-right">% Vert.</span>
-                  </div>
-                )}
-                {pageRows.map((row, idx) => {
-                  if (row.type === 'main-header') {
-                    return (
-                      <div key={idx} className="text-slate-900 font-bold flex justify-between uppercase mb-2 border-b-2 border-slate-900 pb-1 text-[10.5px] px-1 mt-4">
-                        <span className="flex-1">{row.label}</span>
-                        <span className="font-mono tabular-nums w-24 text-right">{formatCurrency(row.value)}</span>
-                        {showVerticalPercentage && (
-                          <span className="font-mono tabular-nums w-16 text-right text-slate-500">
-                            {row.divisor ? `${((row.value / row.divisor) * 100).toFixed(1)}%` : '0.0%'}
-                          </span>
-                        )}
-                      </div>
-                    );
-                  }
-                  if (row.type === 'subheader') {
-                    return (
-                      <div key={idx} className="flex justify-between font-bold text-slate-700 bg-slate-100 px-2 py-1 uppercase mb-1 border-b border-slate-200 mt-2">
-                        <span className="flex-1">{row.label}</span>
-                        <span className="font-mono tabular-nums w-24 text-right">{formatCurrency(row.value)}</span>
-                        {showVerticalPercentage && (
-                          <span className="font-mono tabular-nums w-16 text-right text-slate-500">
-                            {row.divisor ? `${((row.value / row.divisor) * 100).toFixed(1)}%` : '0.0%'}
-                          </span>
-                        )}
-                      </div>
-                    );
-                  }
-                  if (row.type === 'item') {
-                    return (
-                      <div key={idx} className="flex justify-between pl-3 py-1 font-semibold text-slate-700 bg-slate-50/50 border-b border-slate-100">
-                        <span className="flex-1">{row.label}</span>
-                        <span className="font-mono tabular-nums w-24 text-right">{formatCurrency(row.value)}</span>
-                        {showVerticalPercentage && (
-                          <span className="font-mono tabular-nums w-16 text-right text-slate-500">
-                            {row.divisor ? `${((row.value / row.divisor) * 100).toFixed(1)}%` : '0.0%'}
-                          </span>
-                        )}
-                      </div>
-                    );
-                  }
-                  if (row.type === 'account') {
-                    return (
-                      <div key={idx} className="flex justify-between pl-8 py-0.5 text-[9px] text-slate-600 border-b border-dashed border-slate-100/50">
-                        <span className="flex-1">{row.code} - {row.name}</span>
-                        <span className="font-mono tabular-nums w-24 text-right">{formatCurrency(row.value)}</span>
-                        {showVerticalPercentage && (
-                          <span className="font-mono tabular-nums w-16 text-right text-slate-400">
-                            {row.divisor ? `${((row.value / row.divisor) * 100).toFixed(1)}%` : '0.0%'}
-                          </span>
-                        )}
-                      </div>
-                    );
-                  }
-                  return null;
-                })}
-              </div>
+              <table className="w-full text-[10px] border-collapse mt-4">
+                <thead>
+                  <tr className="border-b border-slate-400 bg-slate-50 font-bold text-slate-700 text-[8px] uppercase">
+                    <th className="py-1.5 px-1 text-left">Concepto Contable</th>
+                    <th className="py-1.5 px-1 text-right w-24">
+                      {comparisonYear ? `EJERCICIO ${selectedYear}` : 'IMPORTE'}
+                    </th>
+                    {comparisonYear && (
+                      <th className="py-1.5 px-1 text-right w-24 border-l border-slate-200">
+                        {`EJERCICIO ${comparisonYear}`}
+                      </th>
+                    )}
+                    {showVerticalPercentage && (
+                      <th className="py-1.5 px-1 text-right w-20 border-l border-slate-200 pr-5">
+                        % VERT.
+                      </th>
+                    )}
+                  </tr>
+                </thead>
+                <tbody>
+                  {pageRows.map((row, idx) => {
+                    if (row.type === 'main-header') {
+                      return (
+                        <tr key={idx} className="font-bold text-slate-900 border-b border-slate-300 text-[10.5px] uppercase bg-white">
+                          <td className="py-2 px-1 font-bold">{row.label}</td>
+                          <td className="py-2 px-1 text-right font-mono tabular-nums">
+                            {formatValue(row.value, row.divisor)}
+                          </td>
+                          {comparisonYear && (
+                            <td className="py-2 px-1 text-right font-mono tabular-nums border-l border-slate-100">
+                              {formatValue(row.compValue, row.compDivisor)}
+                            </td>
+                          )}
+                          {showVerticalPercentage && (
+                            <td className="py-2 px-1 text-right font-mono tabular-nums text-slate-500 border-l border-slate-100 pr-5">
+                              {row.divisor ? `${((row.value / row.divisor) * 100).toFixed(1)}%` : '0.0%'}
+                            </td>
+                          )}
+                        </tr>
+                      );
+                    }
+                    if (row.type === 'subheader') {
+                      return (
+                        <tr key={idx} className="font-bold text-slate-700 bg-slate-100/70 text-[9.5px] uppercase border-b border-slate-200">
+                          <td className="py-1.5 px-2 font-bold">{row.label}</td>
+                          <td className="py-1.5 px-1 text-right font-mono tabular-nums">
+                            {formatValue(row.value, row.divisor)}
+                          </td>
+                          {comparisonYear && (
+                            <td className="py-1.5 px-1 text-right font-mono tabular-nums border-l border-slate-100">
+                              {formatValue(row.compValue, row.compDivisor)}
+                            </td>
+                          )}
+                          {showVerticalPercentage && (
+                            <td className="py-1.5 px-1 text-right font-mono tabular-nums text-slate-500 border-l border-slate-100 pr-5">
+                              {row.divisor ? `${((row.value / row.divisor) * 100).toFixed(1)}%` : '0.0%'}
+                            </td>
+                          )}
+                        </tr>
+                      );
+                    }
+                    if (row.type === 'item') {
+                      return (
+                        <tr key={idx} className="font-semibold text-slate-700 bg-slate-50/40 text-[9px] border-b border-slate-150">
+                          <td className="py-1 px-3 font-semibold">{row.label}</td>
+                          <td className="py-1 px-1 text-right font-mono tabular-nums">
+                            {formatValue(row.value, row.divisor)}
+                          </td>
+                          {comparisonYear && (
+                            <td className="py-1 px-1 text-right font-mono tabular-nums border-l border-slate-100">
+                              {formatValue(row.compValue, row.compDivisor)}
+                            </td>
+                          )}
+                          {showVerticalPercentage && (
+                            <td className="py-1 px-1 text-right font-mono tabular-nums text-slate-500 border-l border-slate-100 pr-5">
+                              {row.divisor ? `${((row.value / row.divisor) * 100).toFixed(1)}%` : '0.0%'}
+                            </td>
+                          )}
+                        </tr>
+                      );
+                    }
+                    if (row.type === 'account') {
+                      return (
+                        <tr key={idx} className="text-slate-650 text-[8px] border-b border-dashed border-slate-100/50">
+                          <td className="py-0.5 px-8 font-normal text-slate-600">{row.code} - {row.name}</td>
+                          <td className="py-0.5 px-1 text-right font-mono tabular-nums">
+                            {formatValue(row.value, row.divisor)}
+                          </td>
+                          {comparisonYear && (
+                            <td className="py-0.5 px-1 text-right font-mono tabular-nums border-l border-slate-100">
+                              {formatValue(row.compValue, row.compDivisor)}
+                            </td>
+                          )}
+                          {showVerticalPercentage && (
+                            <td className="py-0.5 px-1 text-right font-mono tabular-nums text-slate-400 border-l border-slate-100 pr-5">
+                              {row.divisor ? `${((row.value / row.divisor) * 100).toFixed(1)}%` : '0.0%'}
+                            </td>
+                          )}
+                        </tr>
+                      );
+                    }
+                    return null;
+                  })}
+                </tbody>
+              </table>
             </div>
             {renderPageFooter(currentPage, totalPagesCount, auditNumber)}
           </div>
