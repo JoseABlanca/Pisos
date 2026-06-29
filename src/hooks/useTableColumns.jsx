@@ -43,7 +43,7 @@ export const useTableColumns = (tableId, defaultColumns) => {
   useEffect(() => {
     // Map tableId to the action prefix used in Layout ribbon items
     const actionMap = {
-      'customers': 'customers',
+      'customers': 'customer',
       'properties': 'real-estate',
       'rentals': 'rentals',
       'partners': 'partner',
