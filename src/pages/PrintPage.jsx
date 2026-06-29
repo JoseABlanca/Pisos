@@ -1331,79 +1331,173 @@ export default function PrintPage() {
     };
 
     const incomeData = {
-      ingresos_items: incomeStatement.ingresos.map(g => ({ ...g, value: getGroupValue(g, 'ingreso') })),
-      gastos_items: incomeStatement.gastos.map(g => ({ ...g, value: getGroupValue(g, 'gasto') }))
+      ingresos_items: incomeStatement.ingresos.map(g => ({ 
+        ...g, 
+        value: getGroupValue(g, 'ingreso'),
+        compValues: getGroupCompValues(g, 'ingreso')
+      })),
+      gastos_items: incomeStatement.gastos.map(g => ({ 
+        ...g, 
+        value: getGroupValue(g, 'gasto'),
+        compValues: getGroupCompValues(g, 'gasto')
+      }))
     };
 
     incomeData.total_ingresos = incomeData.ingresos_items.reduce((s, i) => s + i.value, 0);
+    incomeData.total_ingresos_comp = {};
     incomeData.total_gastos = incomeData.gastos_items.reduce((s, i) => s + i.value, 0);
+    incomeData.total_gastos_comp = {};
     incomeData.resultado_neto = incomeData.total_ingresos - incomeData.total_gastos;
+    incomeData.resultado_neto_comp = {};
 
-    const cfCategories = {
-      explotacion_cobros: { label: '(+) Cobros de clientes y arrendamientos', val: 0 },
-      explotacion_pagos_prov: { label: '(-) Pagos a proveedores y acreedores por gastos', val: 0 },
-      explotacion_pagos_pers: { label: '(-) Pagos al personal y tributos', val: 0 },
-      explotacion_otros: { label: '(+/-) Otros cobros/pagos de explotación', val: 0 },
-      inversion_pagos: { label: '(-) Adquisición de activos (propiedades, etc.)', val: 0 },
-      inversion_cobros: { label: '(+) Enajenación/venta de activos', val: 0 },
-      financiacion_cobros: { label: '(+) Cobros por emisión de capital o deudas', val: 0 },
-      financiacion_pagos: { label: '(-) Pagos por devolución de deudas o dividendos', val: 0 }
+    selectedComparisonYears.forEach(yrStr => {
+      incomeData.total_ingresos_comp[yrStr] = incomeData.ingresos_items.reduce((s, i) => s + (i.compValues[yrStr] || 0), 0);
+      incomeData.total_gastos_comp[yrStr] = incomeData.gastos_items.reduce((s, i) => s + (i.compValues[yrStr] || 0), 0);
+      incomeData.resultado_neto_comp[yrStr] = incomeData.total_ingresos_comp[yrStr] - incomeData.total_gastos_comp[yrStr];
+    });
+
+    const computeCashFlowForPeriod = (yearVal) => {
+      const start = new Date(yearVal, 0, 1);
+      let end = new Date(yearVal, 11, 31, 23, 59, 59);
+
+      if (selectedMonths.length > 0) {
+        const monthNames = ['Ene', 'Feb', 'Mar', 'Abr', 'May', 'Jun', 'Jul', 'Ago', 'Sep', 'Oct', 'Nov', 'Dic'];
+        let maxMonthIndex = 0;
+        selectedMonths.forEach(m => {
+          const idx = monthNames.indexOf(m);
+          if (idx > maxMonthIndex) maxMonthIndex = idx;
+        });
+        end = new Date(yearVal, maxMonthIndex + 1, 0, 23, 59, 59);
+      } else if (selectedQuarters.length > 0) {
+        let maxMonthIndex = 2;
+        selectedQuarters.forEach(q => {
+          if (q === '1T' && maxMonthIndex < 2) maxMonthIndex = 2;
+          if (q === '2T' && maxMonthIndex < 5) maxMonthIndex = 5;
+          if (q === '3T' && maxMonthIndex < 8) maxMonthIndex = 8;
+          if (q === '4T' && maxMonthIndex < 11) maxMonthIndex = 11;
+        });
+        end = new Date(yearVal, maxMonthIndex + 1, 0, 23, 59, 59);
+      }
+
+      const cats = {
+        explotacion_cobros: { label: '(+) Cobros de clientes y arrendamientos', val: 0 },
+        explotacion_pagos_prov: { label: '(-) Pagos a proveedores y acreedores por gastos', val: 0 },
+        explotacion_pagos_pers: { label: '(-) Pagos al personal y tributos', val: 0 },
+        explotacion_otros: { label: '(+/-) Otros cobros/pagos de explotación', val: 0 },
+        inversion_pagos: { label: '(-) Adquisición de activos (propiedades, etc.)', val: 0 },
+        inversion_cobros: { label: '(+) Enajenación/venta de activos', val: 0 },
+        financiacion_cobros: { label: '(+) Cobros por emisión de capital o deudas', val: 0 },
+        financiacion_pagos: { label: '(-) Pagos por devolución de deudas o dividendos', val: 0 }
+      };
+
+      journalEntries.forEach(entry => {
+        const entryDate = new Date(entry.date);
+        if (entryDate >= start && entryDate <= end && entry.lines) {
+          const bankLines = entry.lines.filter(l => String(l.accountCode || '').startsWith('57'));
+          if (bankLines.length > 0) {
+            entry.lines.forEach(l => {
+              const code = String(l.accountCode || '');
+              if (code.startsWith('57')) return;
+
+              const debit = parseFloat(l.debit) || 0;
+              const credit = parseFloat(l.credit) || 0;
+              const balance = debit - credit;
+
+              if (code.startsWith('70') || code.startsWith('43') || code.startsWith('75')) {
+                cats.explotacion_cobros.val += balance < 0 ? Math.abs(balance) : -balance;
+              } else if (code.startsWith('60') || code.startsWith('62') || code.startsWith('40') || code.startsWith('41')) {
+                cats.explotacion_pagos_prov.val += balance > 0 ? balance : -Math.abs(balance);
+              } else if (code.startsWith('64') || code.startsWith('63') || code.startsWith('46') || code.startsWith('47')) {
+                cats.explotacion_pagos_pers.val += balance > 0 ? balance : -Math.abs(balance);
+              } else if (code.startsWith('21') || code.startsWith('22')) {
+                cats.inversion_pagos.val += balance > 0 ? balance : 0;
+                cats.inversion_cobros.val += balance < 0 ? Math.abs(balance) : 0;
+              } else if (code.startsWith('17') || code.startsWith('52') || code.startsWith('10')) {
+                if (balance < 0) cats.financiacion_cobros.val += Math.abs(balance);
+                else cats.financiacion_pagos.val += balance;
+              } else {
+                cats.explotacion_otros.val += balance < 0 ? Math.abs(balance) : -balance;
+              }
+            });
+          }
+        }
+      });
+
+      const items = {
+        explotacion: [
+          { label: cats.explotacion_cobros.label, value: cats.explotacion_cobros.val },
+          { label: cats.explotacion_pagos_prov.label, value: -Math.abs(cats.explotacion_pagos_prov.val) },
+          { label: cats.explotacion_pagos_pers.label, value: -Math.abs(cats.explotacion_pagos_pers.val) },
+          { label: cats.explotacion_otros.label, value: cats.explotacion_otros.val }
+        ],
+        inversion: [
+          { label: cats.inversion_pagos.label, value: -Math.abs(cats.inversion_pagos.val) },
+          { label: cats.inversion_cobros.label, value: cats.inversion_cobros.val }
+        ],
+        financiacion: [
+          { label: cats.financiacion_cobros.label, value: cats.financiacion_cobros.val },
+          { label: cats.financiacion_pagos.label, value: -Math.abs(cats.financiacion_pagos.val) }
+        ]
+      };
+
+      const total_explotacion = items.explotacion.reduce((s, i) => s + i.value, 0);
+      const total_inversion = items.inversion.reduce((s, i) => s + i.value, 0);
+      const total_financiacion = items.financiacion.reduce((s, i) => s + i.value, 0);
+      const total_neto = total_explotacion + total_inversion + total_financiacion;
+
+      return {
+        items,
+        total_explotacion,
+        total_inversion,
+        total_financiacion,
+        total_neto
+      };
     };
 
-    journalEntries.forEach(entry => {
-      const entryDate = new Date(entry.date);
-      if (entryDate >= startLimit && entryDate <= endLimit && entry.lines) {
-        const bankLines = entry.lines.filter(l => String(l.accountCode || '').startsWith('57'));
-        if (bankLines.length > 0) {
-          entry.lines.forEach(l => {
-            const code = String(l.accountCode || '');
-            if (code.startsWith('57')) return;
-
-            const debit = parseFloat(l.debit) || 0;
-            const credit = parseFloat(l.credit) || 0;
-            const balance = debit - credit;
-
-            if (code.startsWith('70') || code.startsWith('43') || code.startsWith('75')) {
-              cfCategories.explotacion_cobros.val += balance < 0 ? Math.abs(balance) : -balance;
-            } else if (code.startsWith('60') || code.startsWith('62') || code.startsWith('40') || code.startsWith('41')) {
-              cfCategories.explotacion_pagos_prov.val += balance > 0 ? balance : -Math.abs(balance);
-            } else if (code.startsWith('64') || code.startsWith('63') || code.startsWith('46') || code.startsWith('47')) {
-              cfCategories.explotacion_pagos_pers.val += balance > 0 ? balance : -Math.abs(balance);
-            } else if (code.startsWith('21') || code.startsWith('22')) {
-              cfCategories.inversion_pagos.val += balance > 0 ? balance : 0;
-              cfCategories.inversion_cobros.val += balance < 0 ? Math.abs(balance) : 0;
-            } else if (code.startsWith('17') || code.startsWith('52') || code.startsWith('10')) {
-              if (balance < 0) cfCategories.financiacion_cobros.val += Math.abs(balance);
-              else cfCategories.financiacion_pagos.val += balance;
-            } else {
-              cfCategories.explotacion_otros.val += balance < 0 ? Math.abs(balance) : -balance;
-            }
-          });
-        }
-      }
+    const mainCf = computeCashFlowForPeriod(selectedYear);
+    const compCfData = {};
+    selectedComparisonYears.forEach(yrStr => {
+      compCfData[yrStr] = computeCashFlowForPeriod(parseInt(yrStr));
     });
 
     const cashFlowData = {
-      explotacion: [
-        { label: cfCategories.explotacion_cobros.label, value: cfCategories.explotacion_cobros.val },
-        { label: cfCategories.explotacion_pagos_prov.label, value: -Math.abs(cfCategories.explotacion_pagos_prov.val) },
-        { label: cfCategories.explotacion_pagos_pers.label, value: -Math.abs(cfCategories.explotacion_pagos_pers.val) },
-        { label: cfCategories.explotacion_otros.label, value: cfCategories.explotacion_otros.val }
-      ],
-      inversion: [
-        { label: cfCategories.inversion_pagos.label, value: -Math.abs(cfCategories.inversion_pagos.val) },
-        { label: cfCategories.inversion_cobros.label, value: cfCategories.inversion_cobros.val }
-      ],
-      financiacion: [
-        { label: cfCategories.financiacion_cobros.label, value: cfCategories.financiacion_cobros.val },
-        { label: cfCategories.financiacion_pagos.label, value: -Math.abs(cfCategories.financiacion_pagos.val) }
-      ]
+      explotacion: mainCf.items.explotacion.map((item, idx) => {
+        const compValues = {};
+        selectedComparisonYears.forEach(yrStr => {
+          compValues[yrStr] = compCfData[yrStr].items.explotacion[idx].value;
+        });
+        return { ...item, compValues };
+      }),
+      inversion: mainCf.items.inversion.map((item, idx) => {
+        const compValues = {};
+        selectedComparisonYears.forEach(yrStr => {
+          compValues[yrStr] = compCfData[yrStr].items.inversion[idx].value;
+        });
+        return { ...item, compValues };
+      }),
+      financiacion: mainCf.items.financiacion.map((item, idx) => {
+        const compValues = {};
+        selectedComparisonYears.forEach(yrStr => {
+          compValues[yrStr] = compCfData[yrStr].items.financiacion[idx].value;
+        });
+        return { ...item, compValues };
+      }),
+      total_explotacion: mainCf.total_explotacion,
+      total_explotacion_comp: {},
+      total_inversion: mainCf.total_inversion,
+      total_inversion_comp: {},
+      total_financiacion: mainCf.total_financiacion,
+      total_financiacion_comp: {},
+      total_neto: mainCf.total_neto,
+      total_neto_comp: {}
     };
 
-    cashFlowData.total_explotacion = cashFlowData.explotacion.reduce((s, i) => s + i.value, 0);
-    cashFlowData.total_inversion = cashFlowData.inversion.reduce((s, i) => s + i.value, 0);
-    cashFlowData.total_financiacion = cashFlowData.financiacion.reduce((s, i) => s + i.value, 0);
-    cashFlowData.total_neto = cashFlowData.total_explotacion + cashFlowData.total_inversion + cashFlowData.total_financiacion;
+    selectedComparisonYears.forEach(yrStr => {
+      cashFlowData.total_explotacion_comp[yrStr] = compCfData[yrStr].total_explotacion;
+      cashFlowData.total_inversion_comp[yrStr] = compCfData[yrStr].total_inversion;
+      cashFlowData.total_financiacion_comp[yrStr] = compCfData[yrStr].total_financiacion;
+      cashFlowData.total_neto_comp[yrStr] = compCfData[yrStr].total_neto;
+    });
 
     return {
       sheet: sheetData,
@@ -3325,48 +3419,203 @@ export default function PrintPage() {
     // 16. CUENTA DE RESULTADOS
     if (selectedTemplate === 'cuenta_resultados') {
       const data = computedAnnualAccounts.income;
+      const rows = [];
+
+      // I. INGRESOS DE EXPLOTACIÓN
+      const showIngresos = !hideZeroBalances || Math.abs(data.total_ingresos) > 0.005 || selectedComparisonYears.some(yrStr => Math.abs(data.total_ingresos_comp[yrStr]) > 0.005);
+      if (showIngresos) {
+        rows.push({ type: 'subheader', label: 'I. INGRESOS DE EXPLOTACIÓN', value: data.total_ingresos, compValues: data.total_ingresos_comp, divisor: data.total_ingresos, compDivisors: data.total_ingresos_comp });
+        
+        data.ingresos_items.forEach(item => {
+          const hasVal = Math.abs(item.value) > 0.005 || selectedComparisonYears.some(yrStr => Math.abs(item.compValues[yrStr]) > 0.005);
+          if (hideZeroBalances && !hasVal) return;
+          rows.push({ type: 'item', label: item.label, value: item.value, compValues: item.compValues, divisor: data.total_ingresos, compDivisors: data.total_ingresos_comp });
+        });
+
+        rows.push({ type: 'total-row', label: 'Total Ingresos de Explotación', value: data.total_ingresos, compValues: data.total_ingresos_comp, divisor: data.total_ingresos, compDivisors: data.total_ingresos_comp });
+      }
+
+      // II. GASTOS DE EXPLOTACIÓN
+      const showGastos = !hideZeroBalances || Math.abs(data.total_gastos) > 0.005 || selectedComparisonYears.some(yrStr => Math.abs(data.total_gastos_comp[yrStr]) > 0.005);
+      if (showGastos) {
+        rows.push({ type: 'subheader', label: 'II. GASTOS DE EXPLOTACIÓN', value: data.total_gastos, compValues: data.total_gastos_comp, divisor: data.total_ingresos, compDivisors: data.total_ingresos_comp });
+        
+        data.gastos_items.forEach(item => {
+          const hasVal = Math.abs(item.value) > 0.005 || selectedComparisonYears.some(yrStr => Math.abs(item.compValues[yrStr]) > 0.005);
+          if (hideZeroBalances && !hasVal) return;
+          rows.push({ type: 'item', label: item.label, value: item.value, compValues: item.compValues, divisor: data.total_ingresos, compDivisors: data.total_ingresos_comp });
+        });
+
+        rows.push({ type: 'total-row', label: 'Total Gastos de Explotación', value: data.total_gastos, compValues: data.total_gastos_comp, divisor: data.total_ingresos, compDivisors: data.total_ingresos_comp });
+      }
+
+      // III. RESULTADO DEL EJERCICIO (I - II)
+      rows.push({ type: 'main-header', label: 'III. RESULTADO DEL EJERCICIO (I - II)', value: data.resultado_neto, compValues: data.resultado_neto_comp, divisor: data.total_ingresos, compDivisors: data.total_ingresos_comp });
+
+      const isComparativeMode = selectedComparisonYears.length > 0;
+
       pageViews.push(
-        <div key="cuenta-resultados-p" className="page-sheet relative">
-          <div>
+        <div key="cuenta-resultados-p" className="page-sheet relative flex flex-col justify-between">
+          <div className="flex-1">
             {renderPageHeader('Cuenta de Resultados')}
             
-            <div className="flex flex-col mt-4 text-[10px] max-w-2xl mx-auto border border-slate-300 p-4 bg-slate-50/50">
-              <div className="bg-slate-800 text-white font-bold px-3 py-1.5 flex justify-between uppercase mb-2">
-                <span>OPERACIÓN</span>
-                <span>Importe (€)</span>
-              </div>
-              
-              <div className="font-bold text-slate-700 uppercase mb-1.5 border-b border-slate-300 pb-1">I. INGRESOS DE EXPLOTACIÓN</div>
-              {data.ingresos_items.map((item, idx) => (
-                <div key={idx} className="flex justify-between pl-4 py-1.5 border-b border-slate-200">
-                  <span>{item.label}</span>
-                  <span className="font-mono tabular-nums text-green-700">+{formatCurrency(item.value)}</span>
-                </div>
-              ))}
-              <div className="flex justify-between pl-4 py-2 font-bold text-green-800 bg-green-50 border-b-2 border-slate-400 mb-6">
-                <span>Total Ingresos de Explotación</span>
-                <span className="font-mono tabular-nums">+{formatCurrency(data.total_ingresos)}</span>
-              </div>
+            <table className="w-full text-[10px] border-collapse mt-4">
+              {isComparativeMode && (
+                <thead>
+                  <tr className="font-bold text-slate-700 text-[8px] uppercase">
+                    <th className="py-1 px-1 text-left"></th>
+                    <th className="py-1 px-1 text-right w-24">{selectedYear}</th>
+                    {showVerticalPercentage && (
+                      <th className="py-1 px-1 text-right w-20 pr-5 text-slate-400 font-medium">%</th>
+                    )}
+                    {selectedComparisonYears.map(yr => (
+                      <Fragment key={yr}>
+                        <th className="py-1 px-1 text-right w-24">{yr}</th>
+                        {showVerticalPercentage && (
+                          <th className="py-1 px-1 text-right w-20 pr-5 text-slate-400 font-medium">%</th>
+                        )}
+                      </Fragment>
+                    ))}
+                  </tr>
+                </thead>
+              )}
+              <tbody>
+                {rows.map((row, idx) => {
+                  const rowDivisor = row.divisor;
+                  const mainPct = rowDivisor ? `${((row.value / rowDivisor) * 100).toFixed(1)}%` : '0.0%';
 
-              <div className="font-bold text-slate-700 uppercase mb-1.5 border-b border-slate-300 pb-1">II. GASTOS DE EXPLOTACIÓN</div>
-              {data.gastos_items.map((item, idx) => (
-                <div key={idx} className="flex justify-between pl-4 py-1.5 border-b border-slate-200">
-                  <span>{item.label}</span>
-                  <span className="font-mono tabular-nums text-red-700">-{formatCurrency(item.value)}</span>
-                </div>
-              ))}
-              <div className="flex justify-between pl-4 py-2 font-bold text-red-800 bg-red-50 border-b-2 border-slate-400 mb-6">
-                <span>Total Gastos de Explotación</span>
-                <span className="font-mono tabular-nums">-{formatCurrency(data.total_gastos)}</span>
-              </div>
-
-              <div className="flex justify-between py-2.5 font-black text-slate-900 bg-slate-200 px-3 mt-4 text-[11px] border border-slate-400">
-                <span>III. RESULTADO DEL EJERCICIO (I - II)</span>
-                <span className={`font-mono tabular-nums ${data.resultado_neto >= 0 ? 'text-green-800' : 'text-red-800'}`}>
-                  {formatCurrency(data.resultado_neto)}
-                </span>
-              </div>
-            </div>
+                  if (row.type === 'main-header') {
+                    return (
+                      <tr key={idx} className="font-bold text-slate-900 text-[10.5px] uppercase bg-white">
+                        <td className="py-2 px-1 font-bold">{row.label}</td>
+                        <td className="py-2 px-1 text-right font-sans tabular-nums">
+                          {formatValue(row.value, row.divisor)}
+                        </td>
+                        {showVerticalPercentage && (
+                          <td className="py-2 px-1 text-right font-sans tabular-nums text-slate-500 pr-5">
+                            {mainPct}
+                          </td>
+                        )}
+                        {selectedComparisonYears.map(yr => {
+                          const val = (row.compValues || {})[yr] || 0;
+                          const div = (row.compDivisors || {})[yr] || 0;
+                          const pct = div ? `${((val / div) * 100).toFixed(1)}%` : '0.0%';
+                          return (
+                            <Fragment key={yr}>
+                              <td className="py-2 px-1 text-right font-sans tabular-nums">
+                                {formatValue(val, div)}
+                              </td>
+                              {showVerticalPercentage && (
+                                <td className="py-2 px-1 text-right font-sans tabular-nums text-slate-500 pr-5">
+                                  {pct}
+                                </td>
+                              )}
+                            </Fragment>
+                          );
+                        })}
+                      </tr>
+                    );
+                  }
+                  if (row.type === 'subheader') {
+                    return (
+                      <tr key={idx} className="font-bold text-slate-750 bg-slate-100/30 text-[9.5px] uppercase">
+                        <td className="py-1.5 px-2 font-bold">{row.label}</td>
+                        <td className="py-1.5 px-1 text-right font-sans tabular-nums">
+                          {formatValue(row.value, row.divisor)}
+                        </td>
+                        {showVerticalPercentage && (
+                          <td className="py-1.5 px-1 text-right font-sans tabular-nums text-slate-500 pr-5">
+                            {mainPct}
+                          </td>
+                        )}
+                        {selectedComparisonYears.map(yr => {
+                          const val = (row.compValues || {})[yr] || 0;
+                          const div = (row.compDivisors || {})[yr] || 0;
+                          const pct = div ? `${((val / div) * 100).toFixed(1)}%` : '0.0%';
+                          return (
+                            <Fragment key={yr}>
+                              <td className="py-1.5 px-1 text-right font-sans tabular-nums">
+                                {formatValue(val, div)}
+                              </td>
+                              {showVerticalPercentage && (
+                                <td className="py-1.5 px-1 text-right font-sans tabular-nums text-slate-500 pr-5">
+                                  {pct}
+                                </td>
+                              )}
+                            </Fragment>
+                          );
+                        })}
+                      </tr>
+                    );
+                  }
+                  if (row.type === 'item') {
+                    return (
+                      <tr key={idx} className="font-semibold text-slate-700 bg-slate-50/20 text-[9px]">
+                        <td className="py-1 px-3 font-semibold">{row.label}</td>
+                        <td className="py-1 px-1 text-right font-sans tabular-nums">
+                          {formatValue(row.value, row.divisor)}
+                        </td>
+                        {showVerticalPercentage && (
+                          <td className="py-1 px-1 text-right font-sans tabular-nums text-slate-500 pr-5">
+                            {mainPct}
+                          </td>
+                        )}
+                        {selectedComparisonYears.map(yr => {
+                          const val = (row.compValues || {})[yr] || 0;
+                          const div = (row.compDivisors || {})[yr] || 0;
+                          const pct = div ? `${((val / div) * 100).toFixed(1)}%` : '0.0%';
+                          return (
+                            <Fragment key={yr}>
+                              <td className="py-1 px-1 text-right font-sans tabular-nums">
+                                {formatValue(val, div)}
+                              </td>
+                              {showVerticalPercentage && (
+                                <td className="py-1 px-1 text-right font-sans tabular-nums text-slate-500 pr-5">
+                                  {pct}
+                                </td>
+                              )}
+                            </Fragment>
+                          );
+                        })}
+                      </tr>
+                    );
+                  }
+                  if (row.type === 'total-row') {
+                    return (
+                      <tr key={idx} className="font-bold text-slate-800 bg-slate-100/50 text-[9.5px] border-t border-slate-350">
+                        <td className="py-1.5 px-3 font-bold">{row.label}</td>
+                        <td className="py-1.5 px-1 text-right font-sans tabular-nums">
+                          {formatValue(row.value, row.divisor)}
+                        </td>
+                        {showVerticalPercentage && (
+                          <td className="py-1.5 px-1 text-right font-sans tabular-nums text-slate-500 pr-5">
+                            {mainPct}
+                          </td>
+                        )}
+                        {selectedComparisonYears.map(yr => {
+                          const val = (row.compValues || {})[yr] || 0;
+                          const div = (row.compDivisors || {})[yr] || 0;
+                          const pct = div ? `${((val / div) * 100).toFixed(1)}%` : '0.0%';
+                          return (
+                            <Fragment key={yr}>
+                              <td className="py-1.5 px-1 text-right font-sans tabular-nums">
+                                {formatValue(val, div)}
+                              </td>
+                              {showVerticalPercentage && (
+                                <td className="py-1.5 px-1 text-right font-sans tabular-nums text-slate-500 pr-5">
+                                  {pct}
+                                </td>
+                              )}
+                            </Fragment>
+                          );
+                        })}
+                      </tr>
+                    );
+                  }
+                  return null;
+                })}
+              </tbody>
+            </table>
           </div>
           {renderPageFooter(1, 1, auditNumber)}
         </div>
@@ -3376,66 +3625,217 @@ export default function PrintPage() {
     // 17. ESTADO DE FLUJOS DE CAJA
     if (selectedTemplate === 'flujo_caja') {
       const data = computedAnnualAccounts.cashflow;
+      const rows = [];
+
+      // 1. ACTIVIDADES DE EXPLOTACIÓN
+      const showExplotacion = !hideZeroBalances || Math.abs(data.total_explotacion) > 0.005 || selectedComparisonYears.some(yrStr => Math.abs(data.total_explotacion_comp[yrStr]) > 0.005);
+      if (showExplotacion) {
+        rows.push({ type: 'subheader', label: '1. ACTIVIDADES DE EXPLOTACIÓN', value: data.total_explotacion, compValues: data.total_explotacion_comp, divisor: data.total_explotacion, compDivisors: data.total_explotacion_comp });
+        
+        data.explotacion.forEach(item => {
+          const hasVal = Math.abs(item.value) > 0.005 || selectedComparisonYears.some(yrStr => Math.abs(item.compValues[yrStr]) > 0.005);
+          if (hideZeroBalances && !hasVal) return;
+          rows.push({ type: 'item', label: item.label, value: item.value, compValues: item.compValues, divisor: data.total_explotacion, compDivisors: data.total_explotacion_comp });
+        });
+
+        rows.push({ type: 'total-row', label: 'Flujo de efectivo de actividades de explotación', value: data.total_explotacion, compValues: data.total_explotacion_comp, divisor: data.total_explotacion, compDivisors: data.total_explotacion_comp });
+      }
+
+      // 2. ACTIVIDADES DE INVERSIÓN
+      const showInversion = !hideZeroBalances || Math.abs(data.total_inversion) > 0.005 || selectedComparisonYears.some(yrStr => Math.abs(data.total_inversion_comp[yrStr]) > 0.005);
+      if (showInversion) {
+        rows.push({ type: 'subheader', label: '2. ACTIVIDADES DE INVERSIÓN', value: data.total_inversion, compValues: data.total_inversion_comp, divisor: data.total_explotacion, compDivisors: data.total_explotacion_comp });
+        
+        data.inversion.forEach(item => {
+          const hasVal = Math.abs(item.value) > 0.005 || selectedComparisonYears.some(yrStr => Math.abs(item.compValues[yrStr]) > 0.005);
+          if (hideZeroBalances && !hasVal) return;
+          rows.push({ type: 'item', label: item.label, value: item.value, compValues: item.compValues, divisor: data.total_explotacion, compDivisors: data.total_explotacion_comp });
+        });
+
+        rows.push({ type: 'total-row', label: 'Flujo de efectivo de actividades de inversión', value: data.total_inversion, compValues: data.total_inversion_comp, divisor: data.total_explotacion, compDivisors: data.total_explotacion_comp });
+      }
+
+      // 3. ACTIVIDADES DE FINANCIACIÓN
+      const showFinanciacion = !hideZeroBalances || Math.abs(data.total_financiacion) > 0.005 || selectedComparisonYears.some(yrStr => Math.abs(data.total_financiacion_comp[yrStr]) > 0.005);
+      if (showFinanciacion) {
+        rows.push({ type: 'subheader', label: '3. ACTIVIDADES DE FINANCIACIÓN', value: data.total_financiacion, compValues: data.total_financiacion_comp, divisor: data.total_explotacion, compDivisors: data.total_explotacion_comp });
+        
+        data.financiacion.forEach(item => {
+          const hasVal = Math.abs(item.value) > 0.005 || selectedComparisonYears.some(yrStr => Math.abs(item.compValues[yrStr]) > 0.005);
+          if (hideZeroBalances && !hasVal) return;
+          rows.push({ type: 'item', label: item.label, value: item.value, compValues: item.compValues, divisor: data.total_explotacion, compDivisors: data.total_explotacion_comp });
+        });
+
+        rows.push({ type: 'total-row', label: 'Flujo de efectivo de actividades de financiación', value: data.total_financiacion, compValues: data.total_financiacion_comp, divisor: data.total_explotacion, compDivisors: data.total_explotacion_comp });
+      }
+
+      // AUMENTO/DISMINUCIÓN NETO DEL EFECTIVO
+      rows.push({ type: 'main-header', label: 'AUMENTO/DISMINUCIÓN NETO DEL EFECTIVO (1 + 2 + 3)', value: data.total_neto, compValues: data.total_neto_comp, divisor: data.total_explotacion, compDivisors: data.total_explotacion_comp });
+
+      const isComparativeMode = selectedComparisonYears.length > 0;
+
       pageViews.push(
-        <div key="flujo-caja-p" className="page-sheet relative">
-          <div>
+        <div key="flujo-caja-p" className="page-sheet relative flex flex-col justify-between">
+          <div className="flex-1">
             {renderPageHeader('Estado de Flujos de Caja')}
             
-            <div className="flex flex-col mt-4 text-[10px] max-w-2xl mx-auto border border-slate-300 p-4 bg-slate-50/50">
-              <div className="bg-slate-800 text-white font-bold px-3 py-1.5 flex justify-between uppercase mb-2">
-                <span>CATEGORÍA / CONCEPTO</span>
-                <span>Flujo Neto (€)</span>
-              </div>
+            <table className="w-full text-[10px] border-collapse mt-4">
+              {isComparativeMode && (
+                <thead>
+                  <tr className="font-bold text-slate-700 text-[8px] uppercase">
+                    <th className="py-1 px-1 text-left"></th>
+                    <th className="py-1 px-1 text-right w-24">{selectedYear}</th>
+                    {showVerticalPercentage && (
+                      <th className="py-1 px-1 text-right w-20 pr-5 text-slate-400 font-medium">%</th>
+                    )}
+                    {selectedComparisonYears.map(yr => (
+                      <Fragment key={yr}>
+                        <th className="py-1 px-1 text-right w-24">{yr}</th>
+                        {showVerticalPercentage && (
+                          <th className="py-1 px-1 text-right w-20 pr-5 text-slate-400 font-medium">%</th>
+                        )}
+                      </Fragment>
+                    ))}
+                  </tr>
+                </thead>
+              )}
+              <tbody>
+                {rows.map((row, idx) => {
+                  const rowDivisor = row.divisor;
+                  const mainPct = rowDivisor ? `${((row.value / rowDivisor) * 100).toFixed(1)}%` : '0.0%';
 
-              <div className="font-bold text-slate-700 uppercase mb-1 border-b border-slate-300 pb-1">1. ACTIVIDADES DE EXPLOTACIÓN</div>
-              {data.explotacion.map((item, idx) => (
-                <div key={idx} className="flex justify-between pl-4 py-1.5 border-b border-slate-200">
-                  <span>{item.label}</span>
-                  <span className={`font-mono tabular-nums ${item.value >= 0 ? 'text-slate-700' : 'text-red-700'}`}>
-                    {formatCurrency(item.value)}
-                  </span>
-                </div>
-              ))}
-              <div className="flex justify-between pl-4 py-2 font-bold text-slate-800 bg-slate-100/80 border-b border-slate-300 mb-6">
-                <span>Flujo de efectivo de actividades de explotación</span>
-                <span className="font-mono tabular-nums">{formatCurrency(data.total_explotacion)}</span>
-              </div>
-
-              <div className="font-bold text-slate-700 uppercase mb-1 border-b border-slate-300 pb-1">2. ACTIVIDADES DE INVERSIÓN</div>
-              {data.inversion.map((item, idx) => (
-                <div key={idx} className="flex justify-between pl-4 py-1.5 border-b border-slate-200">
-                  <span>{item.label}</span>
-                  <span className={`font-mono tabular-nums ${item.value >= 0 ? 'text-slate-700' : 'text-red-700'}`}>
-                    {formatCurrency(item.value)}
-                  </span>
-                </div>
-              ))}
-              <div className="flex justify-between pl-4 py-2 font-bold text-slate-800 bg-slate-100/80 border-b border-slate-300 mb-6">
-                <span>Flujo de efectivo de actividades de inversión</span>
-                <span className="font-mono tabular-nums">{formatCurrency(data.total_inversion)}</span>
-              </div>
-
-              <div className="font-bold text-slate-700 uppercase mb-1 border-b border-slate-300 pb-1">3. ACTIVIDADES DE FINANCIACIÓN</div>
-              {data.financiacion.map((item, idx) => (
-                <div key={idx} className="flex justify-between pl-4 py-1.5 border-b border-slate-200">
-                  <span>{item.label}</span>
-                  <span className={`font-mono tabular-nums ${item.value >= 0 ? 'text-slate-700' : 'text-red-700'}`}>
-                    {formatCurrency(item.value)}
-                  </span>
-                </div>
-              ))}
-              <div className="flex justify-between pl-4 py-2 font-bold text-slate-800 bg-slate-100/80 border-b border-slate-300 mb-6">
-                <span>Flujo de efectivo de actividades de financiación</span>
-                <span className="font-mono tabular-nums">{formatCurrency(data.total_financiacion)}</span>
-              </div>
-
-              <div className="flex justify-between py-2.5 font-black text-slate-950 bg-slate-200 px-3 mt-4 text-[11px] border border-slate-400">
-                <span>AUMENTO/DISMINUCIÓN NETO DEL EFECTIVO (1 + 2 + 3)</span>
-                <span className={`font-mono tabular-nums ${data.total_neto >= 0 ? 'text-green-800' : 'text-red-800'}`}>
-                  {formatCurrency(data.total_neto)}
-                </span>
-              </div>
-            </div>
+                  if (row.type === 'main-header') {
+                    return (
+                      <tr key={idx} className="font-bold text-slate-900 text-[10.5px] uppercase bg-white">
+                        <td className="py-2 px-1 font-bold">{row.label}</td>
+                        <td className="py-2 px-1 text-right font-sans tabular-nums">
+                          {formatValue(row.value, row.divisor)}
+                        </td>
+                        {showVerticalPercentage && (
+                          <td className="py-2 px-1 text-right font-sans tabular-nums text-slate-500 pr-5">
+                            {mainPct}
+                          </td>
+                        )}
+                        {selectedComparisonYears.map(yr => {
+                          const val = (row.compValues || {})[yr] || 0;
+                          const div = (row.compDivisors || {})[yr] || 0;
+                          const pct = div ? `${((val / div) * 100).toFixed(1)}%` : '0.0%';
+                          return (
+                            <Fragment key={yr}>
+                              <td className="py-2 px-1 text-right font-sans tabular-nums">
+                                {formatValue(val, div)}
+                              </td>
+                              {showVerticalPercentage && (
+                                <td className="py-2 px-1 text-right font-sans tabular-nums text-slate-500 pr-5">
+                                  {pct}
+                                </td>
+                              )}
+                            </Fragment>
+                          );
+                        })}
+                      </tr>
+                    );
+                  }
+                  if (row.type === 'subheader') {
+                    return (
+                      <tr key={idx} className="font-bold text-slate-750 bg-slate-100/30 text-[9.5px] uppercase">
+                        <td className="py-1.5 px-2 font-bold">{row.label}</td>
+                        <td className="py-1.5 px-1 text-right font-sans tabular-nums">
+                          {formatValue(row.value, row.divisor)}
+                        </td>
+                        {showVerticalPercentage && (
+                          <td className="py-1.5 px-1 text-right font-sans tabular-nums text-slate-500 pr-5">
+                            {mainPct}
+                          </td>
+                        )}
+                        {selectedComparisonYears.map(yr => {
+                          const val = (row.compValues || {})[yr] || 0;
+                          const div = (row.compDivisors || {})[yr] || 0;
+                          const pct = div ? `${((val / div) * 100).toFixed(1)}%` : '0.0%';
+                          return (
+                            <Fragment key={yr}>
+                              <td className="py-1.5 px-1 text-right font-sans tabular-nums">
+                                {formatValue(val, div)}
+                              </td>
+                              {showVerticalPercentage && (
+                                <td className="py-1.5 px-1 text-right font-sans tabular-nums text-slate-500 pr-5">
+                                  {pct}
+                                </td>
+                              )}
+                            </Fragment>
+                          );
+                        })}
+                      </tr>
+                    );
+                  }
+                  if (row.type === 'item') {
+                    return (
+                      <tr key={idx} className="font-semibold text-slate-700 bg-slate-50/20 text-[9px]">
+                        <td className="py-1 px-3 font-semibold">{row.label}</td>
+                        <td className="py-1 px-1 text-right font-sans tabular-nums">
+                          {formatValue(row.value, row.divisor)}
+                        </td>
+                        {showVerticalPercentage && (
+                          <td className="py-1 px-1 text-right font-sans tabular-nums text-slate-500 pr-5">
+                            {mainPct}
+                          </td>
+                        )}
+                        {selectedComparisonYears.map(yr => {
+                          const val = (row.compValues || {})[yr] || 0;
+                          const div = (row.compDivisors || {})[yr] || 0;
+                          const pct = div ? `${((val / div) * 100).toFixed(1)}%` : '0.0%';
+                          return (
+                            <Fragment key={yr}>
+                              <td className="py-1 px-1 text-right font-sans tabular-nums">
+                                {formatValue(val, div)}
+                              </td>
+                              {showVerticalPercentage && (
+                                <td className="py-1 px-1 text-right font-sans tabular-nums text-slate-500 pr-5">
+                                  {pct}
+                                </td>
+                              )}
+                            </Fragment>
+                          );
+                        })}
+                      </tr>
+                    );
+                  }
+                  if (row.type === 'total-row') {
+                    return (
+                      <tr key={idx} className="font-bold text-slate-800 bg-slate-100/50 text-[9.5px] border-t border-slate-350">
+                        <td className="py-1.5 px-3 font-bold">{row.label}</td>
+                        <td className="py-1.5 px-1 text-right font-sans tabular-nums">
+                          {formatValue(row.value, row.divisor)}
+                        </td>
+                        {showVerticalPercentage && (
+                          <td className="py-1.5 px-1 text-right font-sans tabular-nums text-slate-500 pr-5">
+                            {mainPct}
+                          </td>
+                        )}
+                        {selectedComparisonYears.map(yr => {
+                          const val = (row.compValues || {})[yr] || 0;
+                          const div = (row.compDivisors || {})[yr] || 0;
+                          const pct = div ? `${((val / div) * 100).toFixed(1)}%` : '0.0%';
+                          return (
+                            <Fragment key={yr}>
+                              <td className="py-1.5 px-1 text-right font-sans tabular-nums">
+                                {formatValue(val, div)}
+                              </td>
+                              {showVerticalPercentage && (
+                                <td className="py-1.5 px-1 text-right font-sans tabular-nums text-slate-500 pr-5">
+                                  {pct}
+                                </td>
+                              )}
+                            </Fragment>
+                          );
+                        })}
+                      </tr>
+                    );
+                  }
+                  return null;
+                })}
+              </tbody>
+            </table>
           </div>
           {renderPageFooter(1, 1, auditNumber)}
         </div>
@@ -3707,11 +4107,11 @@ export default function PrintPage() {
           )}
 
           {/* Options specific to Balance de Situación */}
-          {selectedTemplate === 'balance_situacion' && (
+          {['balance_situacion', 'cuenta_resultados', 'flujo_caja'].includes(selectedTemplate) && (
             <div className="bg-white border border-[#a0a0a0] p-3 flex flex-col gap-3">
               <div className="text-[10px] font-bold text-slate-500 uppercase flex items-center gap-1 select-none">
                 <Sliders className="w-3.5 h-3.5 text-slate-400" />
-                <span>Opciones del Balance</span>
+                <span>Opciones del Informe</span>
               </div>
               <div className="flex flex-col gap-2.5">
                 <label className="flex items-center gap-2 cursor-pointer select-none text-[10px] font-bold text-slate-600">
