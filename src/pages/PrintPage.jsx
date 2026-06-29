@@ -2751,7 +2751,7 @@ export default function PrintPage() {
             
             <div className="flex flex-col mt-4 text-[10px]">
               {/* ACTIVO */}
-              <div className="bg-slate-800 text-white font-bold px-2 py-1 flex justify-between uppercase mb-2">
+              <div className="text-slate-900 font-bold flex justify-between uppercase mb-2 border-b-2 border-slate-900 pb-1 text-[10.5px] px-1">
                 <span>ACTIVO</span>
                 <span className="font-mono tabular-nums">{formatCurrency(data.total_activo)}</span>
               </div>
@@ -2779,7 +2779,7 @@ export default function PrintPage() {
               ))}
 
               {/* PASIVO */}
-              <div className="bg-slate-800 text-white font-bold px-2 py-1 flex justify-between uppercase mb-2 mt-4">
+              <div className="text-slate-900 font-bold flex justify-between uppercase mb-2 mt-6 border-b-2 border-slate-900 pb-1 text-[10.5px] px-1">
                 <span>PASIVO</span>
                 <span className="font-mono tabular-nums">{formatCurrency(data.total_pasivo)}</span>
               </div>
@@ -2807,7 +2807,7 @@ export default function PrintPage() {
               ))}
 
               {/* PATRIMONIO NETO */}
-              <div className="bg-slate-800 text-white font-bold px-2 py-1 flex justify-between uppercase mb-2 mt-4">
+              <div className="text-slate-900 font-bold flex justify-between uppercase mb-2 mt-6 border-b-2 border-slate-900 pb-1 text-[10.5px] px-1">
                 <span>PATRIMONIO NETO</span>
                 <span className="font-mono tabular-nums">{formatCurrency(data.total_patrimonio)}</span>
               </div>
