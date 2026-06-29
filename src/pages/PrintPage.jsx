@@ -1309,169 +1309,52 @@ export default function PrintPage() {
       sheetData.total_pasivo_patrimonio_comp[yrStr] = sheetData.total_pasivo_comp[yrStr] + sheetData.total_patrimonio_comp[yrStr];
     });
 
-    const getSumForPrefixes = (prefixes, categoryKey) => {
-      const matchedAccs = accounts.filter(acc => {
-        const code = acc.code || '';
-        if (categoryKey === 'ingreso' && acc.type !== 'Ingreso') return false;
-        if (categoryKey === 'gasto' && acc.type !== 'Gasto') return false;
-        return prefixes.some(p => code.startsWith(p));
-      });
-      return matchedAccs.reduce((sum, a) => sum + (directMap[a.id] || 0), 0);
+    const incomeStatement = {
+      ingresos: [
+        { label: '1. Importe neto de la cifra de negocios', prefix: '70' },
+        { label: '2. Variación de existencias', prefix: '71' },
+        { label: '3. Trabajos realizados por la empresa para su activo', prefix: '73' },
+        { label: '4. Aprovisionamientos (devoluciones/ingresos)', prefix: '708' },
+        { label: '5. Otros ingresos de explotación', prefixes: ['74', '75'] },
+        { label: '6. Ingresos financieros', prefix: '76' }
+      ],
+      gastos: [
+        { label: '1. Aprovisionamientos', prefix: '60' },
+        { label: '2. Gastos de personal', prefix: '64' },
+        { label: '3. Servicios exteriores', prefix: '62' },
+        { label: '4. Tributos', prefix: '63' },
+        { label: '5. Pérdidas, deterioro y variación de provisiones', prefix: '65' },
+        { label: '6. Otros gastos corrientes de gestión', prefix: '65', exclude: ['650', '651'] },
+        { label: '7. Amortización del inmovilizado', prefix: '68' },
+        { label: '8. Gastos financieros', prefix: '66' }
+      ]
     };
-
-    const getCompSumForPrefixes = (prefixes, categoryKey) => {
-      const compValues = {};
-      selectedComparisonYears.forEach(yrStr => {
-        const currentCompDirect = compDirectMaps[yrStr] || {};
-        const matchedAccs = accounts.filter(acc => {
-          const code = acc.code || '';
-          if (categoryKey === 'ingreso' && acc.type !== 'Ingreso') return false;
-          if (categoryKey === 'gasto' && acc.type !== 'Gasto') return false;
-          return prefixes.some(p => code.startsWith(p));
-        });
-        compValues[yrStr] = matchedAccs.reduce((sum, a) => sum + (currentCompDirect[a.id] || 0), 0);
-      });
-      return compValues;
-    };
-
-    // Calculate income statement values matching the visual photo structure
-    const ventasNetas = getSumForPrefixes(['70'], 'ingreso');
-    const ventasNetasComp = getCompSumForPrefixes(['70'], 'ingreso');
-
-    const costoVentas = getSumForPrefixes(['60'], 'gasto');
-    const costoVentasComp = getCompSumForPrefixes(['60'], 'gasto');
-
-    const utilidadBruta = ventasNetas - costoVentas;
-    const utilidadBrutaComp = {};
-    selectedComparisonYears.forEach(yr => {
-      utilidadBrutaComp[yr] = (ventasNetasComp[yr] || 0) - (costoVentasComp[yr] || 0);
-    });
-
-    const gastosVentas = getSumForPrefixes(['627'], 'gasto');
-    const gastosVentasComp = getCompSumForPrefixes(['627'], 'gasto');
-
-    // Gastos generales y administrativos (all operating expenses group 62, 63, 65 except 627)
-    const gastosGenerales = getSumForPrefixes(['62', '63', '65'], 'gasto') - gastosVentas;
-    const gastosGeneralesComp = {};
-    const raw62_63_65Comp = getCompSumForPrefixes(['62', '63', '65'], 'gasto');
-    selectedComparisonYears.forEach(yr => {
-      gastosGeneralesComp[yr] = (raw62_63_65Comp[yr] || 0) - (gastosVentasComp[yr] || 0);
-    });
-
-    const gastosPersonal = getSumForPrefixes(['64'], 'gasto');
-    const gastosPersonalComp = getCompSumForPrefixes(['64'], 'gasto');
-
-    const dotacionAmortizacion = getSumForPrefixes(['68'], 'gasto');
-    const dotacionAmortizacionComp = getCompSumForPrefixes(['68'], 'gasto');
-
-    const otrosIngresos = getSumForPrefixes(['75'], 'ingreso');
-    const otrosIngresosComp = getCompSumForPrefixes(['75'], 'ingreso');
-
-    const utilidadOperacionAntesOtros = utilidadBruta - (gastosVentas + gastosGenerales + gastosPersonal + dotacionAmortizacion);
-    const utilidadOperacionAntesOtrosComp = {};
-    selectedComparisonYears.forEach(yr => {
-      utilidadOperacionAntesOtrosComp[yr] = (utilidadBrutaComp[yr] || 0) - (
-        (gastosVentasComp[yr] || 0) + (gastosGeneralesComp[yr] || 0) + (gastosPersonalComp[yr] || 0) + (dotacionAmortizacionComp[yr] || 0)
-      );
-    });
-
-    const otrosGastosNeto = otrosIngresos;
-    const otrosGastosNetoComp = otrosIngresosComp;
-
-    const utilidadOperacion = utilidadOperacionAntesOtros + otrosGastosNeto;
-    const utilidadOperacionComp = {};
-    selectedComparisonYears.forEach(yr => {
-      utilidadOperacionComp[yr] = (utilidadOperacionAntesOtrosComp[yr] || 0) + (otrosGastosNetoComp[yr] || 0);
-    });
-
-    const gastosFinancieros = getSumForPrefixes(['66'], 'gasto');
-    const gastosFinancierosComp = getCompSumForPrefixes(['66'], 'gasto');
-
-    const ingresosFinancieros = getSumForPrefixes(['76'], 'ingreso') - getSumForPrefixes(['768'], 'ingreso');
-    const ingresosFinancierosComp = {};
-    const raw76Comp = getCompSumForPrefixes(['76'], 'ingreso');
-    const raw768Comp = getCompSumForPrefixes(['768'], 'ingreso');
-    selectedComparisonYears.forEach(yr => {
-      ingresosFinancierosComp[yr] = (raw76Comp[yr] || 0) - (raw768Comp[yr] || 0);
-    });
-
-    const diferenciasCambio = getSumForPrefixes(['768'], 'ingreso') - getSumForPrefixes(['668'], 'gasto');
-    const diferenciasCambioComp = {};
-    const raw668Comp = getCompSumForPrefixes(['668'], 'gasto');
-    selectedComparisonYears.forEach(yr => {
-      diferenciasCambioComp[yr] = (raw768Comp[yr] || 0) - (raw668Comp[yr] || 0);
-    });
-
-    const utilidadAntesImpuestos = utilidadOperacion - gastosFinancieros + ingresosFinancieros + diferenciasCambio;
-    const utilidadAntesImpuestosComp = {};
-    selectedComparisonYears.forEach(yr => {
-      utilidadAntesImpuestosComp[yr] = (utilidadOperacionComp[yr] || 0) - (gastosFinancierosComp[yr] || 0) + (ingresosFinancierosComp[yr] || 0) + (diferenciasCambioComp[yr] || 0);
-    });
-
-    const impuestoCorriente = getSumForPrefixes(['6300'], 'gasto');
-    const impuestoCorrienteComp = getCompSumForPrefixes(['6300'], 'gasto');
-
-    const impuestoDiferido = getSumForPrefixes(['6301'], 'gasto');
-    const impuestoDiferidoComp = getCompSumForPrefixes(['6301'], 'gasto');
-
-    const totalImpuesto = getSumForPrefixes(['630'], 'gasto');
-    const totalImpuestoComp = getCompSumForPrefixes(['630'], 'gasto');
-
-    let impCorriente = impuestoCorriente;
-    let impCorrienteComp = { ...impuestoCorrienteComp };
-    if (impCorriente === 0 && impuestoDiferido === 0 && totalImpuesto !== 0) {
-      impCorriente = totalImpuesto;
-    }
-    selectedComparisonYears.forEach(yr => {
-      if ((impCorrienteComp[yr] || 0) === 0 && (impuestoDiferidoComp[yr] || 0) === 0 && (totalImpuestoComp[yr] || 0) !== 0) {
-        impCorrienteComp[yr] = totalImpuestoComp[yr];
-      }
-    });
-
-    const utilidadPeriodo = utilidadAntesImpuestos - totalImpuesto;
-    const utilidadPeriodoComp = {};
-    selectedComparisonYears.forEach(yr => {
-      utilidadPeriodoComp[yr] = (utilidadAntesImpuestosComp[yr] || 0) - (totalImpuestoComp[yr] || 0);
-    });
 
     const incomeData = {
-      ventasNetas,
-      ventasNetasComp,
-      costoVentas,
-      costoVentasComp,
-      utilidadBruta,
-      utilidadBrutaComp,
-      gastosVentas,
-      gastosVentasComp,
-      gastosGenerales,
-      gastosGeneralesComp,
-      gastosPersonal,
-      gastosPersonalComp,
-      dotacionAmortizacion,
-      dotacionAmortizacionComp,
-      utilidadOperacionAntesOtros,
-      utilidadOperacionAntesOtrosComp,
-      otrosGastosNeto,
-      otrosGastosNetoComp,
-      utilidadOperacion,
-      utilidadOperacionComp,
-      gastosFinancieros,
-      gastosFinancierosComp,
-      ingresosFinancieros,
-      ingresosFinancierosComp,
-      diferenciasCambio,
-      diferenciasCambioComp,
-      utilidadAntesImpuestos,
-      utilidadAntesImpuestosComp,
-      impCorriente,
-      impCorrienteComp,
-      impuestoDiferido,
-      impuestoDiferidoComp,
-      totalImpuesto,
-      totalImpuestoComp,
-      utilidadPeriodo,
-      utilidadPeriodoComp
+      ingresos_items: incomeStatement.ingresos.map(g => ({ 
+        ...g, 
+        value: getGroupValue(g, 'ingreso'),
+        compValues: getGroupCompValues(g, 'ingreso')
+      })),
+      gastos_items: incomeStatement.gastos.map(g => ({ 
+        ...g, 
+        value: getGroupValue(g, 'gasto'),
+        compValues: getGroupCompValues(g, 'gasto')
+      }))
     };
+
+    incomeData.total_ingresos = incomeData.ingresos_items.reduce((s, i) => s + i.value, 0);
+    incomeData.total_ingresos_comp = {};
+    incomeData.total_gastos = incomeData.gastos_items.reduce((s, i) => s + i.value, 0);
+    incomeData.total_gastos_comp = {};
+    incomeData.resultado_neto = incomeData.total_ingresos - incomeData.total_gastos;
+    incomeData.resultado_neto_comp = {};
+
+    selectedComparisonYears.forEach(yrStr => {
+      incomeData.total_ingresos_comp[yrStr] = incomeData.ingresos_items.reduce((s, i) => s + (i.compValues[yrStr] || 0), 0);
+      incomeData.total_gastos_comp[yrStr] = incomeData.gastos_items.reduce((s, i) => s + (i.compValues[yrStr] || 0), 0);
+      incomeData.resultado_neto_comp[yrStr] = incomeData.total_ingresos_comp[yrStr] - incomeData.total_gastos_comp[yrStr];
+    });
 
     const computeCashFlowForPeriod = (yearVal) => {
       const start = new Date(yearVal, 0, 1);
@@ -3538,111 +3421,32 @@ export default function PrintPage() {
       const data = computedAnnualAccounts.income;
       const rows = [];
 
-      // 1. Ventas netas (Main Header)
-      const hasVentas = Math.abs(data.ventasNetas) > 0.005 || selectedComparisonYears.some(yrStr => Math.abs(data.ventasNetasComp[yrStr]) > 0.005);
-      if (!hideZeroBalances || hasVentas) {
-        rows.push({ type: 'main-header', label: 'Ventas netas', value: data.ventasNetas, compValues: data.ventasNetasComp, divisor: data.ventasNetas, compDivisors: data.ventasNetasComp });
-      }
-
-      // 2. Costo de las ventas (Item)
-      const hasCosto = Math.abs(data.costoVentas) > 0.005 || selectedComparisonYears.some(yrStr => Math.abs(data.costoVentasComp[yrStr]) > 0.005);
-      if (!hideZeroBalances || hasCosto) {
-        rows.push({ type: 'item', label: 'Costo de las ventas', value: -data.costoVentas, compValues: Object.fromEntries(selectedComparisonYears.map(yr => [yr, -data.costoVentasComp[yr]])), divisor: data.ventasNetas, compDivisors: data.ventasNetasComp });
-      }
-
-      // 3. Utilidad bruta (Main Header)
-      const hasUtilidadBruta = Math.abs(data.utilidadBruta) > 0.005 || selectedComparisonYears.some(yrStr => Math.abs(data.utilidadBrutaComp[yrStr]) > 0.005);
-      if (!hideZeroBalances || hasUtilidadBruta) {
-        rows.push({ type: 'main-header', label: 'Utilidad bruta', value: data.utilidadBruta, compValues: data.utilidadBrutaComp, divisor: data.ventasNetas, compDivisors: data.ventasNetasComp });
-      }
-
-      // 4. Gastos de operación:
-      // Gastos de ventas y mercadeo
-      const hasGastosVentas = Math.abs(data.gastosVentas) > 0.005 || selectedComparisonYears.some(yrStr => Math.abs(data.gastosVentasComp[yrStr]) > 0.005);
-      if (!hideZeroBalances || hasGastosVentas) {
-        rows.push({ type: 'item', label: 'Gastos de ventas y mercadeo', value: -data.gastosVentas, compValues: Object.fromEntries(selectedComparisonYears.map(yr => [yr, -data.gastosVentasComp[yr]])), divisor: data.ventasNetas, compDivisors: data.ventasNetasComp });
-      }
-
-      // Gastos generales y administrativos
-      const hasGastosGen = Math.abs(data.gastosGenerales) > 0.005 || selectedComparisonYears.some(yrStr => Math.abs(data.gastosGeneralesComp[yrStr]) > 0.005);
-      if (!hideZeroBalances || hasGastosGen) {
-        rows.push({ type: 'item', label: 'Gastos generales y administrativos', value: -data.gastosGenerales, compValues: Object.fromEntries(selectedComparisonYears.map(yr => [yr, -data.gastosGeneralesComp[yr]])), divisor: data.ventasNetas, compDivisors: data.ventasNetasComp });
-      }
-
-      // Gastos de personal
-      const hasGastosPers = Math.abs(data.gastosPersonal) > 0.005 || selectedComparisonYears.some(yrStr => Math.abs(data.gastosPersonalComp[yrStr]) > 0.005);
-      if (!hideZeroBalances || hasGastosPers) {
-        rows.push({ type: 'item', label: 'Gastos de personal', value: -data.gastosPersonal, compValues: Object.fromEntries(selectedComparisonYears.map(yr => [yr, -data.gastosPersonalComp[yr]])), divisor: data.ventasNetas, compDivisors: data.ventasNetasComp });
-      }
-
-      // Depreciación y amortización
-      const hasAmort = Math.abs(data.dotacionAmortizacion) > 0.005 || selectedComparisonYears.some(yrStr => Math.abs(data.dotacionAmortizacionComp[yrStr]) > 0.005);
-      if (!hideZeroBalances || hasAmort) {
-        rows.push({ type: 'item', label: 'Depreciación y amortización', value: -data.dotacionAmortizacion, compValues: Object.fromEntries(selectedComparisonYears.map(yr => [yr, -data.dotacionAmortizacionComp[yr]])), divisor: data.ventasNetas, compDivisors: data.ventasNetasComp });
-      }
-
-      // 5. Utilidad de operación antes de otros gastos (Main Header)
-      const hasUtilOperAntes = Math.abs(data.utilidadOperacionAntesOtros) > 0.005 || selectedComparisonYears.some(yrStr => Math.abs(data.utilidadOperacionAntesOtrosComp[yrStr]) > 0.005);
-      if (!hideZeroBalances || hasUtilOperAntes) {
-        rows.push({ type: 'main-header', label: 'Utilidad de operación antes de otros gastos', value: data.utilidadOperacionAntesOtros, compValues: data.utilidadOperacionAntesOtrosComp, divisor: data.ventasNetas, compDivisors: data.ventasNetasComp });
-      }
-
-      // 6. Otros gastos, neto
-      const hasOtrosGastos = Math.abs(data.otrosGastosNeto) > 0.005 || selectedComparisonYears.some(yrStr => Math.abs(data.otrosGastosNetoComp[yrStr]) > 0.005);
-      if (!hideZeroBalances || hasOtrosGastos) {
-        rows.push({ type: 'item', label: 'Otros ingresos (gastos), neto', value: data.otrosGastosNeto, compValues: data.otrosGastosNetoComp, divisor: data.ventasNetas, compDivisors: data.ventasNetasComp });
-      }
-
-      // 7. Utilidad de operación (Main Header)
-      const hasUtilOper = Math.abs(data.utilidadOperacion) > 0.005 || selectedComparisonYears.some(yrStr => Math.abs(data.utilidadOperacionComp[yrStr]) > 0.005);
-      if (!hideZeroBalances || hasUtilOper) {
-        rows.push({ type: 'main-header', label: 'Utilidad de operación', value: data.utilidadOperacion, compValues: data.utilidadOperacionComp, divisor: data.ventasNetas, compDivisors: data.ventasNetasComp });
-      }
-
-      // 8. Gastos financieros
-      const hasGastosFin = Math.abs(data.gastosFinancieros) > 0.005 || selectedComparisonYears.some(yrStr => Math.abs(data.gastosFinancierosComp[yrStr]) > 0.005);
-      if (!hideZeroBalances || hasGastosFin) {
-        rows.push({ type: 'item', label: 'Gastos financieros', value: -data.gastosFinancieros, compValues: Object.fromEntries(selectedComparisonYears.map(yr => [yr, -data.gastosFinancierosComp[yr]])), divisor: data.ventasNetas, compDivisors: data.ventasNetasComp });
-      }
-
-      // 9. Ingresos financieros
-      const hasIngresosFin = Math.abs(data.ingresosFinancieros) > 0.005 || selectedComparisonYears.some(yrStr => Math.abs(data.ingresosFinancierosComp[yrStr]) > 0.005);
-      if (!hideZeroBalances || hasIngresosFin) {
-        rows.push({ type: 'item', label: 'Ingresos financieros', value: data.ingresosFinancieros, compValues: data.ingresosFinancierosComp, divisor: data.ventasNetas, compDivisors: data.ventasNetasComp });
-      }
-
-      // 10. Diferencias de cambio, neto
-      const hasDifCambio = Math.abs(data.diferenciasCambio) > 0.005 || selectedComparisonYears.some(yrStr => Math.abs(data.diferenciasCambioComp[yrStr]) > 0.005);
-      if (!hideZeroBalances || hasDifCambio) {
-        rows.push({ type: 'item', label: 'Diferencias de cambio, neto', value: data.diferenciasCambio, compValues: data.diferenciasCambioComp, divisor: data.ventasNetas, compDivisors: data.ventasNetasComp });
-      }
-
-      // 11. Utilidad del período antes de impuestos
-      const hasUtilAntesImp = Math.abs(data.utilidadAntesImpuestos) > 0.005 || selectedComparisonYears.some(yrStr => Math.abs(data.utilidadAntesImpuestosComp[yrStr]) > 0.005);
-      if (!hideZeroBalances || hasUtilAntesImp) {
-        rows.push({ type: 'main-header', label: 'Utilidad del período antes de impuestos', value: data.utilidadAntesImpuestos, compValues: data.utilidadAntesImpuestosComp, divisor: data.ventasNetas, compDivisors: data.ventasNetasComp });
-      }
-
-      // 12. Impuesto sobre la renta
-      const hasImpuestos = Math.abs(data.totalImpuesto) > 0.005 || selectedComparisonYears.some(yrStr => Math.abs(data.totalImpuestoComp[yrStr]) > 0.005);
-      if (!hideZeroBalances || hasImpuestos) {
-        rows.push({ type: 'item', label: 'Impuesto sobre la renta:', value: 0, compValues: null, divisor: 0, compDivisors: null, isHeaderLabelOnly: true });
+      // I. INGRESOS DE EXPLOTACIÓN
+      const showIngresos = !hideZeroBalances || Math.abs(data.total_ingresos) > 0.005 || selectedComparisonYears.some(yrStr => Math.abs(data.total_ingresos_comp[yrStr]) > 0.005);
+      if (showIngresos) {
+        rows.push({ type: 'subheader', label: 'I. INGRESOS DE EXPLOTACIÓN', value: data.total_ingresos, compValues: data.total_ingresos_comp, divisor: data.total_ingresos, compDivisors: data.total_ingresos_comp });
         
-        const hasCorr = Math.abs(data.impCorriente) > 0.005 || selectedComparisonYears.some(yrStr => Math.abs(data.impCorrienteComp[yrStr]) > 0.005);
-        if (!hideZeroBalances || hasCorr) {
-          rows.push({ type: 'item', label: '   Corriente', value: -data.impCorriente, compValues: Object.fromEntries(selectedComparisonYears.map(yr => [yr, -data.impCorrienteComp[yr]])), divisor: data.ventasNetas, compDivisors: data.ventasNetasComp, isIndented: true });
-        }
-
-        const hasDif = Math.abs(data.impuestoDiferido) > 0.005 || selectedComparisonYears.some(yrStr => Math.abs(data.impuestoDiferidoComp[yrStr]) > 0.005);
-        if (!hideZeroBalances || hasDif) {
-          rows.push({ type: 'item', label: '   Diferido', value: -data.impuestoDiferido, compValues: Object.fromEntries(selectedComparisonYears.map(yr => [yr, -data.impuestoDiferidoComp[yr]])), divisor: data.ventasNetas, compDivisors: data.ventasNetasComp, isIndented: true });
-        }
-
-        rows.push({ type: 'total-row', label: 'Total impuesto sobre la renta', value: -data.totalImpuesto, compValues: Object.fromEntries(selectedComparisonYears.map(yr => [yr, -data.totalImpuestoComp[yr]])), divisor: data.ventasNetas, compDivisors: data.ventasNetasComp });
+        data.ingresos_items.forEach(item => {
+          const hasVal = Math.abs(item.value) > 0.005 || selectedComparisonYears.some(yrStr => Math.abs(item.compValues[yrStr]) > 0.005);
+          if (hideZeroBalances && !hasVal) return;
+          rows.push({ type: 'item', label: item.label, value: item.value, compValues: item.compValues, divisor: data.total_ingresos, compDivisors: data.total_ingresos_comp });
+        });
       }
 
-      // 13. Utilidad (pérdida) del período
-      rows.push({ type: 'main-header', label: 'Utilidad (pérdida) del período', value: data.utilidadPeriodo, compValues: data.utilidadPeriodoComp, divisor: data.ventasNetas, compDivisors: data.ventasNetasComp });
+      // II. GASTOS DE EXPLOTACIÓN
+      const showGastos = !hideZeroBalances || Math.abs(data.total_gastos) > 0.005 || selectedComparisonYears.some(yrStr => Math.abs(data.total_gastos_comp[yrStr]) > 0.005);
+      if (showGastos) {
+        rows.push({ type: 'subheader', label: 'II. GASTOS DE EXPLOTACIÓN', value: data.total_gastos, compValues: data.total_gastos_comp, divisor: data.total_ingresos, compDivisors: data.total_ingresos_comp });
+        
+        data.gastos_items.forEach(item => {
+          const hasVal = Math.abs(item.value) > 0.005 || selectedComparisonYears.some(yrStr => Math.abs(item.compValues[yrStr]) > 0.005);
+          if (hideZeroBalances && !hasVal) return;
+          rows.push({ type: 'item', label: item.label, value: item.value, compValues: item.compValues, divisor: data.total_ingresos, compDivisors: data.total_ingresos_comp });
+        });
+      }
+
+      // III. RESULTADO DEL EJERCICIO (I - II)
+      rows.push({ type: 'main-header', label: 'III. RESULTADO DEL EJERCICIO (I - II)', value: data.resultado_neto, compValues: data.resultado_neto_comp, divisor: data.total_ingresos, compDivisors: data.total_ingresos_comp });
 
       const isComparativeMode = selectedComparisonYears.length > 0;
 
@@ -3741,19 +3545,9 @@ export default function PrintPage() {
                     );
                   }
                   if (row.type === 'item') {
-                    if (row.isHeaderLabelOnly) {
-                      const totalCols = (showVerticalPercentage ? 2 : 1) * (1 + selectedComparisonYears.length) + 1;
-                      return (
-                        <tr key={idx} className="font-bold text-slate-700 bg-white text-[9px] uppercase mt-2">
-                          <td className="py-1 px-3 font-bold" colSpan={totalCols}>
-                            {row.label}
-                          </td>
-                        </tr>
-                      );
-                    }
                     return (
                       <tr key={idx} className="font-semibold text-slate-700 bg-slate-50/20 text-[9px]">
-                        <td className={`py-1 ${row.isIndented ? 'pl-6' : 'pl-3'} font-semibold`}>{row.label}</td>
+                        <td className="py-1 px-3 font-semibold">{row.label}</td>
                         <td className="py-1 px-1 text-right font-sans tabular-nums">
                           {formatValue(row.value, row.divisor)}
                         </td>
