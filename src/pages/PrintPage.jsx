@@ -525,11 +525,17 @@ export default function PrintPage() {
     return { extracto_propietarios: [] };
   });
 
-  const [sortLevel1, setSortLevel1] = useState(() => {
-    return localStorage.getItem('print_sortLevel1') || 'none';
+  const [sortCol1, setSortCol1] = useState(() => {
+    return localStorage.getItem('print_sortCol1') || 'none';
   });
-  const [sortLevel2, setSortLevel2] = useState(() => {
-    return localStorage.getItem('print_sortLevel2') || 'none';
+  const [sortDir1, setSortDir1] = useState(() => {
+    return localStorage.getItem('print_sortDir1') || 'asc';
+  });
+  const [sortCol2, setSortCol2] = useState(() => {
+    return localStorage.getItem('print_sortCol2') || 'none';
+  });
+  const [sortDir2, setSortDir2] = useState(() => {
+    return localStorage.getItem('print_sortDir2') || 'asc';
   });
 
   const [accountsDropdownOpen, setAccountsDropdownOpen] = useState(false);
@@ -725,14 +731,16 @@ export default function PrintPage() {
     localStorage.setItem('print_selectedFilterProperties', JSON.stringify(selectedFilterProperties));
     localStorage.setItem('print_selectedFilterRentals', JSON.stringify(selectedFilterRentals));
     localStorage.setItem('print_selectedFilterOwners', JSON.stringify(selectedFilterOwners));
-    localStorage.setItem('print_sortLevel1', sortLevel1);
-    localStorage.setItem('print_sortLevel2', sortLevel2);
+    localStorage.setItem('print_sortCol1', sortCol1);
+    localStorage.setItem('print_sortDir1', sortDir1);
+    localStorage.setItem('print_sortCol2', sortCol2);
+    localStorage.setItem('print_sortDir2', sortDir2);
   }, [
     rentPeriod, statusFilterAlquileres, statusFilterClientes, paperSize, pageOrientation,
     selectedYear, selectedYears, selectedMonths, selectedQuarters, selectedAccounts,
     selectedCebes, selectedCecos, selectedDocuments, hideZeroBalances, showVerticalPercentage,
     displayMode, selectedComparisonYears, selectedFilterProperties, selectedFilterRentals,
-    selectedFilterOwners, sortLevel1, sortLevel2
+    selectedFilterOwners, sortCol1, sortDir1, sortCol2, sortDir2
   ]);
 
   
@@ -2695,7 +2703,7 @@ export default function PrintPage() {
         return true;
       });
 
-      const sortedProperties = multiLevelSort(filteredProperties, 'activos', rentals, properties, sortLevel1, sortLevel2);
+      const sortedProperties = multiLevelSort(filteredProperties, 'activos', rentals, properties, sortCol1, sortDir1, sortCol2, sortDir2, filteredEntriesForPrint);
 
       const listPages = chunkFlatList(sortedProperties, 34);
       const totalPages = listPages.length || 1;
@@ -2788,7 +2796,7 @@ export default function PrintPage() {
         return true;
       });
 
-      const sortedRentals = multiLevelSort(filteredRentals, 'alquileres', rentals, properties, sortLevel1, sortLevel2);
+      const sortedRentals = multiLevelSort(filteredRentals, 'alquileres', rentals, properties, sortCol1, sortDir1, sortCol2, sortDir2, filteredEntriesForPrint);
 
       const listPages = chunkFlatList(sortedRentals, 32);
       const totalPages = listPages.length || 1;
@@ -2914,7 +2922,7 @@ export default function PrintPage() {
         return true;
       });
 
-      const sortedCustomers = multiLevelSort(filteredCustomers, 'clientes', rentals, properties, sortLevel1, sortLevel2);
+      const sortedCustomers = multiLevelSort(filteredCustomers, 'clientes', rentals, properties, sortCol1, sortDir1, sortCol2, sortDir2, filteredEntriesForPrint);
 
       const listPages = chunkFlatList(sortedCustomers, 34);
       const totalPages = listPages.length || 1;
@@ -3066,7 +3074,7 @@ export default function PrintPage() {
         return true;
       });
 
-      const sortedOwnerRows = multiLevelSort(filteredOwnerRows, 'extracto_propietarios', rentals, properties, sortLevel1, sortLevel2);
+      const sortedOwnerRows = multiLevelSort(filteredOwnerRows, 'extracto_propietarios', rentals, properties, sortCol1, sortDir1, sortCol2, sortDir2, filteredEntriesForPrint);
 
       // Group by partner name for summary
       const partnerGroups = {};
@@ -3958,18 +3966,19 @@ export default function PrintPage() {
         });
       });
 
-      const pasivoPatrimonioRows = [];
+      const pasivoRows = [];
+      const patrimonioRows = [];
       
       // PASIVO Header
       const hasPasivoValue = Math.abs(data.total_pasivo) > 0.005 || selectedComparisonYears.some(yrStr => Math.abs(data.total_pasivo_comp[yrStr]) > 0.005);
       if (!hideZeroBalances || hasPasivoValue) {
-        pasivoPatrimonioRows.push({ type: 'main-header', label: 'PASIVO', value: data.total_pasivo, compValues: data.total_pasivo_comp, divisor: data.total_pasivo_patrimonio, compDivisors: data.total_pasivo_patrimonio_comp });
+        pasivoRows.push({ type: 'main-header', label: 'PASIVO', value: data.total_pasivo, compValues: data.total_pasivo_comp, divisor: data.total_pasivo_patrimonio, compDivisors: data.total_pasivo_patrimonio_comp });
       }
       
       // A) PASIVO NO CORRIENTE Subheader
       const hasPasivoNoCorrienteValue = Math.abs(data.total_pasivo_no_corriente) > 0.005 || selectedComparisonYears.some(yrStr => Math.abs(data.total_pasivo_no_corriente_comp[yrStr]) > 0.005);
       if (!hideZeroBalances || hasPasivoNoCorrienteValue) {
-        pasivoPatrimonioRows.push({ type: 'subheader', label: 'A) PASIVO NO CORRIENTE', value: data.total_pasivo_no_corriente, compValues: data.total_pasivo_no_corriente_comp, divisor: data.total_pasivo_patrimonio, compDivisors: data.total_pasivo_patrimonio_comp });
+        pasivoRows.push({ type: 'subheader', label: 'A) PASIVO NO CORRIENTE', value: data.total_pasivo_no_corriente, compValues: data.total_pasivo_no_corriente_comp, divisor: data.total_pasivo_patrimonio, compDivisors: data.total_pasivo_patrimonio_comp });
       }
       
       data.pasivo_no_corriente_items.forEach(item => {
@@ -3981,16 +3990,16 @@ export default function PrintPage() {
         const hasValue = Math.abs(item.value) > 0.005 || selectedComparisonYears.some(yrStr => Math.abs(item.compValues[yrStr]) > 0.005);
         if (hideZeroBalances && !hasValue) return;
         
-        pasivoPatrimonioRows.push({ type: 'item', label: item.label, value: item.value, compValues: item.compValues, divisor: data.total_pasivo_patrimonio, compDivisors: data.total_pasivo_patrimonio_comp });
+        pasivoRows.push({ type: 'item', label: item.label, value: item.value, compValues: item.compValues, divisor: data.total_pasivo_patrimonio, compDivisors: data.total_pasivo_patrimonio_comp });
         filteredAccounts.forEach(acc => {
-          pasivoPatrimonioRows.push({ type: 'account', code: acc.code, name: acc.name, value: acc.balance, compValues: acc.compBalances, divisor: data.total_pasivo_patrimonio, compDivisors: data.total_pasivo_patrimonio_comp });
+          pasivoRows.push({ type: 'account', code: acc.code, name: acc.name, value: acc.balance, compValues: acc.compBalances, divisor: data.total_pasivo_patrimonio, compDivisors: data.total_pasivo_patrimonio_comp });
         });
       });
       
       // B) PASIVO CORRIENTE Subheader
       const hasPasivoCorrienteValue = Math.abs(data.total_pasivo_corriente) > 0.005 || selectedComparisonYears.some(yrStr => Math.abs(data.total_pasivo_corriente_comp[yrStr]) > 0.005);
       if (!hideZeroBalances || hasPasivoCorrienteValue) {
-        pasivoPatrimonioRows.push({ type: 'subheader', label: 'B) PASIVO CORRIENTE', value: data.total_pasivo_corriente, compValues: data.total_pasivo_corriente_comp, divisor: data.total_pasivo_patrimonio, compDivisors: data.total_pasivo_patrimonio_comp });
+        pasivoRows.push({ type: 'subheader', label: 'B) PASIVO CORRIENTE', value: data.total_pasivo_corriente, compValues: data.total_pasivo_corriente_comp, divisor: data.total_pasivo_patrimonio, compDivisors: data.total_pasivo_patrimonio_comp });
       }
       
       data.pasivo_corriente_items.forEach(item => {
@@ -4002,21 +4011,21 @@ export default function PrintPage() {
         const hasValue = Math.abs(item.value) > 0.005 || selectedComparisonYears.some(yrStr => Math.abs(item.compValues[yrStr]) > 0.005);
         if (hideZeroBalances && !hasValue) return;
         
-        pasivoPatrimonioRows.push({ type: 'item', label: item.label, value: item.value, compValues: item.compValues, divisor: data.total_pasivo_patrimonio, compDivisors: data.total_pasivo_patrimonio_comp });
+        pasivoRows.push({ type: 'item', label: item.label, value: item.value, compValues: item.compValues, divisor: data.total_pasivo_patrimonio, compDivisors: data.total_pasivo_patrimonio_comp });
         filteredAccounts.forEach(acc => {
-          pasivoPatrimonioRows.push({ type: 'account', code: acc.code, name: acc.name, value: acc.balance, compValues: acc.compBalances, divisor: data.total_pasivo_patrimonio, compDivisors: data.total_pasivo_patrimonio_comp });
+          pasivoRows.push({ type: 'account', code: acc.code, name: acc.name, value: acc.balance, compValues: acc.compBalances, divisor: data.total_pasivo_patrimonio, compDivisors: data.total_pasivo_patrimonio_comp });
         });
       });
       
       // PATRIMONIO NETO Header
       const hasPatrimonioValue = Math.abs(data.total_patrimonio) > 0.005 || selectedComparisonYears.some(yrStr => Math.abs(data.total_patrimonio_comp[yrStr]) > 0.005);
       if (!hideZeroBalances || hasPatrimonioValue) {
-        pasivoPatrimonioRows.push({ type: 'main-header', label: 'PATRIMONIO NETO', value: data.total_patrimonio, compValues: data.total_patrimonio_comp, divisor: data.total_pasivo_patrimonio, compDivisors: data.total_pasivo_patrimonio_comp });
+        patrimonioRows.push({ type: 'main-header', label: 'PATRIMONIO NETO', value: data.total_patrimonio, compValues: data.total_patrimonio_comp, divisor: data.total_pasivo_patrimonio, compDivisors: data.total_pasivo_patrimonio_comp });
       }
       
       // A) PATRIMONIO NETO Subheader
       if (!hideZeroBalances || hasPatrimonioValue) {
-        pasivoPatrimonioRows.push({ type: 'subheader', label: 'A) PATRIMONIO NETO', value: data.total_patrimonio, compValues: data.total_patrimonio_comp, divisor: data.total_pasivo_patrimonio, compDivisors: data.total_pasivo_patrimonio_comp });
+        patrimonioRows.push({ type: 'subheader', label: 'A) PATRIMONIO NETO', value: data.total_patrimonio, compValues: data.total_patrimonio_comp, divisor: data.total_pasivo_patrimonio, compDivisors: data.total_pasivo_patrimonio_comp });
       }
       
       data.patrimonio_items.forEach(item => {
@@ -4028,15 +4037,16 @@ export default function PrintPage() {
         const hasValue = Math.abs(item.value) > 0.005 || selectedComparisonYears.some(yrStr => Math.abs(item.compValues[yrStr]) > 0.005);
         if (hideZeroBalances && !hasValue) return;
         
-        pasivoPatrimonioRows.push({ type: 'item', label: item.label, value: item.value, compValues: item.compValues, divisor: data.total_pasivo_patrimonio, compDivisors: data.total_pasivo_patrimonio_comp });
+        patrimonioRows.push({ type: 'item', label: item.label, value: item.value, compValues: item.compValues, divisor: data.total_pasivo_patrimonio, compDivisors: data.total_pasivo_patrimonio_comp });
         filteredAccounts.forEach(acc => {
-          pasivoPatrimonioRows.push({ type: 'account', code: acc.code, name: acc.name, value: acc.balance, compValues: acc.compBalances, divisor: data.total_pasivo_patrimonio, compDivisors: data.total_pasivo_patrimonio_comp });
+          patrimonioRows.push({ type: 'account', code: acc.code, name: acc.name, value: acc.balance, compValues: acc.compBalances, divisor: data.total_pasivo_patrimonio, compDivisors: data.total_pasivo_patrimonio_comp });
         });
       });
 
-      // Combine all rows into a single list and split dynamically using block-based flex pagination
-      const allBalanceRows = [...activoRows, ...pasivoPatrimonioRows];
-      const chunkedPages = paginateBlocks(getLogicalBlocks(allBalanceRows), 28, 7);
+      // Combine blocks at the Masa Monetaria level
+      const allBalanceRows = [...activoRows, ...pasivoRows, ...patrimonioRows];
+      const balanceBlocks = [activoRows, pasivoRows, patrimonioRows].filter(b => b.length > 0);
+      const chunkedPages = paginateBlocks(balanceBlocks, 28, 7);
       
       const totalPages = chunkedPages.length || 1;
       
@@ -5207,36 +5217,58 @@ export default function PrintPage() {
                 <ArrowUpDown className="w-3.5 h-3.5 text-slate-400" />
                 <span>Ordenación del Informe</span>
               </div>
-              <div className="flex flex-col gap-2.5">
+              <div className="flex flex-col gap-3">
                 {/* 1º Nivel */}
-                <div className="flex flex-col gap-1">
+                <div className="flex flex-col gap-1.5">
                   <span className="text-[9px] font-bold text-slate-400 uppercase font-sans">1º Nivel (Principal)</span>
-                  <select 
-                    value={sortLevel1} 
-                    onChange={(e) => setSortLevel1(e.target.value)}
-                    className="win-input w-full text-[11px] font-sans rounded"
-                  >
-                    <option value="none">Sin ordenar</option>
-                    <option value="date_asc">Fecha (Más antigua primero)</option>
-                    <option value="date_desc">Fecha (Más reciente primero)</option>
-                    <option value="name_asc">Nombre (A - Z)</option>
-                    <option value="name_desc">Nombre (Z - A)</option>
-                  </select>
+                  <div className="flex gap-2">
+                    <select 
+                      value={sortCol1} 
+                      onChange={(e) => setSortCol1(e.target.value)}
+                      className="win-input flex-1 text-[11px] font-sans rounded h-[24px]"
+                    >
+                      <option value="none">Sin ordenar</option>
+                      {(ALL_COLUMNS[selectedTemplate] || []).map(col => (
+                        <option key={col.id} value={col.id}>{col.label}</option>
+                      ))}
+                    </select>
+                    {sortCol1 !== 'none' && (
+                      <select 
+                        value={sortDir1} 
+                        onChange={(e) => setSortDir1(e.target.value)}
+                        className="win-input text-[11px] font-sans rounded h-[24px] w-24"
+                      >
+                        <option value="asc">Ascendente</option>
+                        <option value="desc">Descendente</option>
+                      </select>
+                    )}
+                  </div>
                 </div>
                 {/* 2º Nivel */}
-                <div className="flex flex-col gap-1 border-t border-slate-100 pt-2">
+                <div className="flex flex-col gap-1.5 border-t border-slate-100 pt-2.5">
                   <span className="text-[9px] font-bold text-slate-400 uppercase font-sans">2º Nivel (Secundario)</span>
-                  <select 
-                    value={sortLevel2} 
-                    onChange={(e) => setSortLevel2(e.target.value)}
-                    className="win-input w-full text-[11px] font-sans rounded"
-                  >
-                    <option value="none">Sin ordenar</option>
-                    <option value="date_asc">Fecha (Más antigua primero)</option>
-                    <option value="date_desc">Fecha (Más reciente primero)</option>
-                    <option value="name_asc">Nombre (A - Z)</option>
-                    <option value="name_desc">Nombre (Z - A)</option>
-                  </select>
+                  <div className="flex gap-2">
+                    <select 
+                      value={sortCol2} 
+                      onChange={(e) => setSortCol2(e.target.value)}
+                      className="win-input flex-1 text-[11px] font-sans rounded h-[24px]"
+                    >
+                      <option value="none">Sin ordenar</option>
+                      {(ALL_COLUMNS[selectedTemplate] || []).map(col => (
+                        <option key={col.id} value={col.id}>{col.label}</option>
+                      ))}
+                    </select>
+                    {sortCol2 !== 'none' && (
+                      <select 
+                        value={sortDir2} 
+                        onChange={(e) => setSortDir2(e.target.value)}
+                        className="win-input text-[11px] font-sans rounded h-[24px] w-24"
+                      >
+                        <option value="asc">Ascendente</option>
+                        <option value="desc">Descendente</option>
+                      </select>
+                    )}
+                  </div>
                 </div>
               </div>
             </div>
