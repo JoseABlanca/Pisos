@@ -4063,70 +4063,83 @@ export default function PrintPage() {
 
   return (
     <div className="flex flex-1 h-full min-h-0 bg-[#d4d0c8] overflow-hidden font-sans select-none p-2 gap-3 relative">
-      {/* Print Stylesheet injection */}
-      <style>{`
-        .page-sheet {
-          width: 210mm;
-          min-height: 277mm;
-          padding: 12mm 14mm;
-          box-sizing: border-box;
-          display: flex;
-          flex-direction: column;
-          justify-content: space-between;
-          background-color: white;
-          color: black;
-          position: relative;
-        }
+      {/* Print Stylesheet injection - dynamic paper size & orientation */}
+      {(() => {
+        // Paper dimensions in mm (width x height) for portrait
+        const paperDims = {
+          'A4':     { w: 210, h: 297 },
+          'A5':     { w: 148, h: 210 },
+          'Letter': { w: 216, h: 279 },
+        };
+        const dims = paperDims[paperSize] || paperDims['A4'];
+        const sheetW = pageOrientation === 'landscape' ? dims.h : dims.w;
+        const sheetH = pageOrientation === 'landscape' ? dims.w : dims.h;
+        return (
+          <style>{`
+            .page-sheet {
+              width: ${sheetW}mm;
+              min-height: ${sheetH - 20}mm;
+              padding: 12mm 14mm;
+              box-sizing: border-box;
+              display: flex;
+              flex-direction: column;
+              justify-content: space-between;
+              background-color: white;
+              color: black;
+              position: relative;
+            }
 
-        @media screen {
-          .page-sheet {
-            box-shadow: 0 10px 15px -3px rgba(0, 0, 0, 0.1), 0 4px 6px -2px rgba(0, 0, 0, 0.05);
-            border: 1px solid #cbd5e1;
-            margin-bottom: 24px;
-          }
-        }
+            @media screen {
+              .page-sheet {
+                box-shadow: 0 10px 15px -3px rgba(0, 0, 0, 0.1), 0 4px 6px -2px rgba(0, 0, 0, 0.05);
+                border: 1px solid #cbd5e1;
+                margin-bottom: 24px;
+              }
+            }
 
-        @media print {
-          @page {
-            size: ${paperSize} ${pageOrientation};
-            margin: 10mm 14mm;
-          }
+            @media print {
+              @page {
+                size: ${paperSize} ${pageOrientation};
+                margin: 10mm 14mm;
+              }
 
-          /* Hide everything in body except our clone */
-          body > *:not(#print-body-clone) {
-            display: none !important;
-          }
+              /* Hide everything in body except our clone */
+              body > *:not(#print-body-clone) {
+                display: none !important;
+              }
 
-          /* The clone sits at body level — no overflow constraints */
-          body > #print-body-clone {
-            display: flex;
-            flex-direction: column;
-            align-items: center;
-            gap: 0;
-            background: white;
-            width: 100%;
-          }
+              /* The clone sits at body level — no overflow constraints */
+              body > #print-body-clone {
+                display: flex;
+                flex-direction: column;
+                align-items: center;
+                gap: 0;
+                background: white;
+                width: 100%;
+              }
 
-          body > #print-body-clone .page-sheet {
-            box-shadow: none !important;
-            border: none !important;
-            margin: 0 !important;
-            width: 100% !important;
-            min-height: 0 !important;
-            page-break-after: always;
-            break-after: page;
-          }
+              body > #print-body-clone .page-sheet {
+                box-shadow: none !important;
+                border: none !important;
+                margin: 0 !important;
+                width: 100% !important;
+                min-height: 0 !important;
+                page-break-after: always;
+                break-after: page;
+              }
 
-          body > #print-body-clone .page-sheet:last-child {
-            page-break-after: avoid;
-            break-after: avoid;
-          }
+              body > #print-body-clone .page-sheet:last-child {
+                page-break-after: avoid;
+                break-after: avoid;
+              }
 
-          .no-print {
-            display: none !important;
-          }
-        }
-      `}</style>
+              .no-print {
+                display: none !important;
+              }
+            }
+          `}</style>
+        );
+      })()}
 
       {/* Left panel - Templates list */}
       {showLeftPanel && (
