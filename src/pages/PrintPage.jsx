@@ -1,4 +1,4 @@
-import { useState, useEffect, useMemo, useRef } from 'react';
+import { useState, useEffect, useMemo, useRef, Fragment } from 'react';
 import { db } from '../firebase/config';
 import { collection, query, where, onSnapshot } from 'firebase/firestore';
 import { useAuth } from '../context/AuthContext';
@@ -184,7 +184,7 @@ export default function PrintPage() {
   const [hideZeroBalances, setHideZeroBalances] = useState(false);
   const [showVerticalPercentage, setShowVerticalPercentage] = useState(false);
   const [displayMode, setDisplayMode] = useState('euros'); // euros, percent
-  const [comparisonYear, setComparisonYear] = useState(''); // comparison year, e.g. '2025'
+  const [selectedComparisonYears, setSelectedComparisonYears] = useState([]); // list of comparative years
   const [accountsDropdownOpen, setAccountsDropdownOpen] = useState(false);
   const [cebeDropdownOpen, setCebeDropdownOpen] = useState(false);
   const [cecoDropdownOpen, setCecoDropdownOpen] = useState(false);
@@ -1032,12 +1032,12 @@ export default function PrintPage() {
 
     accounts.forEach(a => calcAggregated(a.id));
 
-    // Comparative calculations if comparisonYear is selected
-    const compDirectMap = {};
-    const compAggregatedMap = {};
-    
-    if (comparisonYear) {
-      const cy = parseInt(comparisonYear);
+    // Comparative calculations for all selected comparison years
+    const compDirectMaps = {};
+    const compAggregatedMaps = {};
+
+    selectedComparisonYears.forEach(compYrStr => {
+      const cy = parseInt(compYrStr);
       const compStartLimit = new Date(cy, 0, 1);
       let compEndLimit = new Date(cy, 11, 31, 23, 59, 59);
 
@@ -1060,6 +1060,7 @@ export default function PrintPage() {
         compEndLimit = new Date(cy, maxMonthIndex + 1, 0, 23, 59, 59);
       }
 
+      const currentCompDirect = {};
       accounts.forEach(account => {
         let movementSum = 0;
         journalEntries.forEach(entry => {
@@ -1080,22 +1081,26 @@ export default function PrintPage() {
             });
           }
         });
-        compDirectMap[account.id] = movementSum;
+        currentCompDirect[account.id] = movementSum;
       });
 
+      const currentCompAggregated = {};
       const calcCompAggregated = (id) => {
-        if (compAggregatedMap[id] !== undefined) return compAggregatedMap[id];
-        let sum = compDirectMap[id] || 0;
+        if (currentCompAggregated[id] !== undefined) return currentCompAggregated[id];
+        let sum = currentCompDirect[id] || 0;
         const children = accounts.filter(a => String(a.parentId) === String(id));
         for (const child of children) {
           sum += calcCompAggregated(child.id);
         }
-        compAggregatedMap[id] = sum;
+        currentCompAggregated[id] = sum;
         return sum;
       };
 
       accounts.forEach(a => calcCompAggregated(a.id));
-    }
+
+      compDirectMaps[compYrStr] = currentCompDirect;
+      compAggregatedMaps[compYrStr] = currentCompAggregated;
+    });
 
     const getAccountsForGroup = (groupObj, categoryKey) => {
       if (groupObj.isProfitLoss) {
@@ -1136,15 +1141,20 @@ export default function PrintPage() {
       return groupAccounts.reduce((sum, a) => sum + (directMap[a.id] || 0), 0);
     };
 
-    const getGroupCompValue = (groupObj, categoryKey) => {
-      if (!comparisonYear) return 0;
-      if (groupObj.isProfitLoss) {
-        const revenues = accounts.filter(a => a.type === 'Ingreso').reduce((sum, a) => sum + (compDirectMap[a.id] || 0), 0);
-        const expenses = accounts.filter(a => a.type === 'Gasto').reduce((sum, a) => sum + (compDirectMap[a.id] || 0), 0);
-        return revenues - expenses;
-      }
-      const groupAccounts = getAccountsForGroup(groupObj, categoryKey);
-      return groupAccounts.reduce((sum, a) => sum + (compDirectMap[a.id] || 0), 0);
+    const getGroupCompValues = (groupObj, categoryKey) => {
+      const compValues = {};
+      selectedComparisonYears.forEach(yrStr => {
+        const currentCompDirect = compDirectMaps[yrStr] || {};
+        if (groupObj.isProfitLoss) {
+          const revenues = accounts.filter(a => a.type === 'Ingreso').reduce((sum, a) => sum + (currentCompDirect[a.id] || 0), 0);
+          const expenses = accounts.filter(a => a.type === 'Gasto').reduce((sum, a) => sum + (currentCompDirect[a.id] || 0), 0);
+          compValues[yrStr] = revenues - expenses;
+        } else {
+          const groupAccounts = getAccountsForGroup(groupObj, categoryKey);
+          compValues[yrStr] = groupAccounts.reduce((sum, a) => sum + (currentCompDirect[a.id] || 0), 0);
+        }
+      });
+      return compValues;
     };
 
     const getAccountsForCategoryItem = (item, categoryKey) => {
@@ -1176,12 +1186,18 @@ export default function PrintPage() {
 
       const levelAccounts = matched.filter(acc => acc.code && acc.code.length <= maxDigits);
       
-      return levelAccounts.map(acc => ({
-        code: acc.code,
-        name: acc.name,
-        balance: aggregatedMap[acc.id] || 0,
-        compBalance: compAggregatedMap[acc.id] || 0
-      })).sort((a, b) => a.code.localeCompare(b.code));
+      return levelAccounts.map(acc => {
+        const compBalances = {};
+        selectedComparisonYears.forEach(yrStr => {
+          compBalances[yrStr] = (compAggregatedMaps[yrStr] || {})[acc.id] || 0;
+        });
+        return {
+          code: acc.code,
+          name: acc.name,
+          balance: aggregatedMap[acc.id] || 0,
+          compBalances
+        };
+      }).sort((a, b) => a.code.localeCompare(b.code));
     };
 
     const balanceSheet = {
@@ -1230,53 +1246,68 @@ export default function PrintPage() {
       activo_no_corriente_items: balanceSheet.activo.no_corriente.map(g => ({ 
         ...g, 
         value: getGroupValue(g, 'activo'),
-        compValue: getGroupCompValue(g, 'activo'),
+        compValues: getGroupCompValues(g, 'activo'),
         accounts: getAccountsForCategoryItem(g, 'activo')
       })),
       activo_corriente_items: balanceSheet.activo.corriente.map(g => ({ 
         ...g, 
         value: getGroupValue(g, 'activo'),
-        compValue: getGroupCompValue(g, 'activo'),
+        compValues: getGroupCompValues(g, 'activo'),
         accounts: getAccountsForCategoryItem(g, 'activo')
       })),
       pasivo_no_corriente_items: balanceSheet.pasivo.no_corriente.map(g => ({ 
         ...g, 
         value: getGroupValue(g, 'pasivo'),
-        compValue: getGroupCompValue(g, 'pasivo'),
+        compValues: getGroupCompValues(g, 'pasivo'),
         accounts: getAccountsForCategoryItem(g, 'pasivo')
       })),
       pasivo_corriente_items: balanceSheet.pasivo.corriente.map(g => ({ 
         ...g, 
         value: getGroupValue(g, 'pasivo'),
-        compValue: getGroupCompValue(g, 'pasivo'),
+        compValues: getGroupCompValues(g, 'pasivo'),
         accounts: getAccountsForCategoryItem(g, 'pasivo')
       })),
       patrimonio_items: balanceSheet.patrimonio.fondos_propios.map(g => ({ 
         ...g, 
         value: getGroupValue(g, 'patrimonio'),
-        compValue: getGroupCompValue(g, 'patrimonio'),
+        compValues: getGroupCompValues(g, 'patrimonio'),
         accounts: getAccountsForCategoryItem(g, 'patrimonio')
       }))
     };
 
     sheetData.total_activo_no_corriente = sheetData.activo_no_corriente_items.reduce((s, i) => s + i.value, 0);
-    sheetData.total_activo_no_corriente_comp = sheetData.activo_no_corriente_items.reduce((s, i) => s + i.compValue, 0);
     sheetData.total_activo_corriente = sheetData.activo_corriente_items.reduce((s, i) => s + i.value, 0);
-    sheetData.total_activo_corriente_comp = sheetData.activo_corriente_items.reduce((s, i) => s + i.compValue, 0);
     sheetData.total_activo = sheetData.total_activo_no_corriente + sheetData.total_activo_corriente;
-    sheetData.total_activo_comp = sheetData.total_activo_no_corriente_comp + sheetData.total_activo_corriente_comp;
+
+    sheetData.total_activo_no_corriente_comp = {};
+    sheetData.total_activo_corriente_comp = {};
+    sheetData.total_activo_comp = {};
 
     sheetData.total_pasivo_no_corriente = sheetData.pasivo_no_corriente_items.reduce((s, i) => s + i.value, 0);
-    sheetData.total_pasivo_no_corriente_comp = sheetData.pasivo_no_corriente_items.reduce((s, i) => s + i.compValue, 0);
     sheetData.total_pasivo_corriente = sheetData.pasivo_corriente_items.reduce((s, i) => s + i.value, 0);
-    sheetData.total_pasivo_corriente_comp = sheetData.pasivo_corriente_items.reduce((s, i) => s + i.compValue, 0);
     sheetData.total_pasivo = sheetData.total_pasivo_no_corriente + sheetData.total_pasivo_corriente;
-    sheetData.total_pasivo_comp = sheetData.total_pasivo_no_corriente_comp + sheetData.total_pasivo_corriente_comp;
+
+    sheetData.total_pasivo_no_corriente_comp = {};
+    sheetData.total_pasivo_corriente_comp = {};
+    sheetData.total_pasivo_comp = {};
 
     sheetData.total_patrimonio = sheetData.patrimonio_items.reduce((s, i) => s + i.value, 0);
-    sheetData.total_patrimonio_comp = sheetData.patrimonio_items.reduce((s, i) => s + i.compValue, 0);
+    sheetData.total_patrimonio_comp = {};
     sheetData.total_pasivo_patrimonio = sheetData.total_pasivo + sheetData.total_patrimonio;
-    sheetData.total_pasivo_patrimonio_comp = sheetData.total_pasivo_comp + sheetData.total_patrimonio_comp;
+    sheetData.total_pasivo_patrimonio_comp = {};
+
+    selectedComparisonYears.forEach(yrStr => {
+      sheetData.total_activo_no_corriente_comp[yrStr] = sheetData.activo_no_corriente_items.reduce((s, i) => s + (i.compValues[yrStr] || 0), 0);
+      sheetData.total_activo_corriente_comp[yrStr] = sheetData.activo_corriente_items.reduce((s, i) => s + (i.compValues[yrStr] || 0), 0);
+      sheetData.total_activo_comp[yrStr] = sheetData.total_activo_no_corriente_comp[yrStr] + sheetData.total_activo_corriente_comp[yrStr];
+      
+      sheetData.total_pasivo_no_corriente_comp[yrStr] = sheetData.pasivo_no_corriente_items.reduce((s, i) => s + (i.compValues[yrStr] || 0), 0);
+      sheetData.total_pasivo_corriente_comp[yrStr] = sheetData.pasivo_corriente_items.reduce((s, i) => s + (i.compValues[yrStr] || 0), 0);
+      sheetData.total_pasivo_comp[yrStr] = sheetData.total_pasivo_no_corriente_comp[yrStr] + sheetData.total_pasivo_corriente_comp[yrStr];
+
+      sheetData.total_patrimonio_comp[yrStr] = sheetData.patrimonio_items.reduce((s, i) => s + (i.compValues[yrStr] || 0), 0);
+      sheetData.total_pasivo_patrimonio_comp[yrStr] = sheetData.total_pasivo_comp[yrStr] + sheetData.total_patrimonio_comp[yrStr];
+    });
 
     const incomeStatement = {
       ingresos: [
@@ -1379,7 +1410,7 @@ export default function PrintPage() {
       income: incomeData,
       cashflow: cashFlowData
     };
-  }, [accounts, journalEntries, selectedYear, selectedMonths, selectedQuarters, maxDigits]);
+  }, [accounts, journalEntries, selectedYear, selectedMonths, selectedQuarters, maxDigits, selectedComparisonYears]);
 
   // Combined timeline and dropdown filters for print entries
   const filteredEntriesForPrint = useMemo(() => {
@@ -2956,119 +2987,126 @@ export default function PrintPage() {
       
       const activoRows = [];
       // ACTIVO Header
-      if (!hideZeroBalances || Math.abs(data.total_activo) > 0.005 || (comparisonYear && Math.abs(data.total_activo_comp) > 0.005)) {
-        activoRows.push({ type: 'main-header', label: 'ACTIVO', value: data.total_activo, compValue: data.total_activo_comp, divisor: data.total_activo, compDivisor: data.total_activo_comp });
+      const hasActivoValue = Math.abs(data.total_activo) > 0.005 || selectedComparisonYears.some(yrStr => Math.abs(data.total_activo_comp[yrStr]) > 0.005);
+      if (!hideZeroBalances || hasActivoValue) {
+        activoRows.push({ type: 'main-header', label: 'ACTIVO', value: data.total_activo, compValues: data.total_activo_comp, divisor: data.total_activo, compDivisors: data.total_activo_comp });
       }
       
       // A) ACTIVO NO CORRIENTE Subheader
-      if (!hideZeroBalances || Math.abs(data.total_activo_no_corriente) > 0.005 || (comparisonYear && Math.abs(data.total_activo_no_corriente_comp) > 0.005)) {
-        activoRows.push({ type: 'subheader', label: 'A) ACTIVO NO CORRIENTE', value: data.total_activo_no_corriente, compValue: data.total_activo_no_corriente_comp, divisor: data.total_activo, compDivisor: data.total_activo_comp });
+      const hasNoCorrienteValue = Math.abs(data.total_activo_no_corriente) > 0.005 || selectedComparisonYears.some(yrStr => Math.abs(data.total_activo_no_corriente_comp[yrStr]) > 0.005);
+      if (!hideZeroBalances || hasNoCorrienteValue) {
+        activoRows.push({ type: 'subheader', label: 'A) ACTIVO NO CORRIENTE', value: data.total_activo_no_corriente, compValues: data.total_activo_no_corriente_comp, divisor: data.total_activo, compDivisors: data.total_activo_comp });
       }
       
       data.activo_no_corriente_items.forEach(item => {
         const itemAccounts = item.accounts || [];
         const filteredAccounts = hideZeroBalances 
-          ? itemAccounts.filter(a => Math.abs(a.balance) > 0.005 || (comparisonYear && Math.abs(a.compBalance) > 0.005))
+          ? itemAccounts.filter(a => Math.abs(a.balance) > 0.005 || selectedComparisonYears.some(yrStr => Math.abs(a.compBalances[yrStr]) > 0.005))
           : itemAccounts;
           
-        const hasValue = Math.abs(item.value) > 0.005 || (comparisonYear && Math.abs(item.compValue) > 0.005);
+        const hasValue = Math.abs(item.value) > 0.005 || selectedComparisonYears.some(yrStr => Math.abs(item.compValues[yrStr]) > 0.005);
         if (hideZeroBalances && !hasValue) return;
         
-        activoRows.push({ type: 'item', label: item.label, value: item.value, compValue: item.compValue, divisor: data.total_activo, compDivisor: data.total_activo_comp });
+        activoRows.push({ type: 'item', label: item.label, value: item.value, compValues: item.compValues, divisor: data.total_activo, compDivisors: data.total_activo_comp });
         filteredAccounts.forEach(acc => {
-          activoRows.push({ type: 'account', code: acc.code, name: acc.name, value: acc.balance, compValue: acc.compBalance, divisor: data.total_activo, compDivisor: data.total_activo_comp });
+          activoRows.push({ type: 'account', code: acc.code, name: acc.name, value: acc.balance, compValues: acc.compBalances, divisor: data.total_activo, compDivisors: data.total_activo_comp });
         });
       });
       
       // B) ACTIVO CORRIENTE Subheader
-      if (!hideZeroBalances || Math.abs(data.total_activo_corriente) > 0.005 || (comparisonYear && Math.abs(data.total_activo_corriente_comp) > 0.005)) {
-        activoRows.push({ type: 'subheader', label: 'B) ACTIVO CORRIENTE', value: data.total_activo_corriente, compValue: data.total_activo_corriente_comp, divisor: data.total_activo, compDivisor: data.total_activo_comp });
+      const hasCorrienteValue = Math.abs(data.total_activo_corriente) > 0.005 || selectedComparisonYears.some(yrStr => Math.abs(data.total_activo_corriente_comp[yrStr]) > 0.005);
+      if (!hideZeroBalances || hasCorrienteValue) {
+        activoRows.push({ type: 'subheader', label: 'B) ACTIVO CORRIENTE', value: data.total_activo_corriente, compValues: data.total_activo_corriente_comp, divisor: data.total_activo, compDivisors: data.total_activo_comp });
       }
       
       data.activo_corriente_items.forEach(item => {
         const itemAccounts = item.accounts || [];
         const filteredAccounts = hideZeroBalances 
-          ? itemAccounts.filter(a => Math.abs(a.balance) > 0.005 || (comparisonYear && Math.abs(a.compBalance) > 0.005))
+          ? itemAccounts.filter(a => Math.abs(a.balance) > 0.005 || selectedComparisonYears.some(yrStr => Math.abs(a.compBalances[yrStr]) > 0.005))
           : itemAccounts;
           
-        const hasValue = Math.abs(item.value) > 0.005 || (comparisonYear && Math.abs(item.compValue) > 0.005);
+        const hasValue = Math.abs(item.value) > 0.005 || selectedComparisonYears.some(yrStr => Math.abs(item.compValues[yrStr]) > 0.005);
         if (hideZeroBalances && !hasValue) return;
         
-        activoRows.push({ type: 'item', label: item.label, value: item.value, compValue: item.compValue, divisor: data.total_activo, compDivisor: data.total_activo_comp });
+        activoRows.push({ type: 'item', label: item.label, value: item.value, compValues: item.compValues, divisor: data.total_activo, compDivisors: data.total_activo_comp });
         filteredAccounts.forEach(acc => {
-          activoRows.push({ type: 'account', code: acc.code, name: acc.name, value: acc.balance, compValue: acc.compBalance, divisor: data.total_activo, compDivisor: data.total_activo_comp });
+          activoRows.push({ type: 'account', code: acc.code, name: acc.name, value: acc.balance, compValues: acc.compBalances, divisor: data.total_activo, compDivisors: data.total_activo_comp });
         });
       });
 
       const pasivoPatrimonioRows = [];
       
       // PASIVO Header
-      if (!hideZeroBalances || Math.abs(data.total_pasivo) > 0.005 || (comparisonYear && Math.abs(data.total_pasivo_comp) > 0.005)) {
-        pasivoPatrimonioRows.push({ type: 'main-header', label: 'PASIVO', value: data.total_pasivo, compValue: data.total_pasivo_comp, divisor: data.total_pasivo_patrimonio, compDivisor: data.total_pasivo_patrimonio_comp });
+      const hasPasivoValue = Math.abs(data.total_pasivo) > 0.005 || selectedComparisonYears.some(yrStr => Math.abs(data.total_pasivo_comp[yrStr]) > 0.005);
+      if (!hideZeroBalances || hasPasivoValue) {
+        pasivoPatrimonioRows.push({ type: 'main-header', label: 'PASIVO', value: data.total_pasivo, compValues: data.total_pasivo_comp, divisor: data.total_pasivo_patrimonio, compDivisors: data.total_pasivo_patrimonio_comp });
       }
       
       // A) PASIVO NO CORRIENTE Subheader
-      if (!hideZeroBalances || Math.abs(data.total_pasivo_no_corriente) > 0.005 || (comparisonYear && Math.abs(data.total_pasivo_no_corriente_comp) > 0.005)) {
-        pasivoPatrimonioRows.push({ type: 'subheader', label: 'A) PASIVO NO CORRIENTE', value: data.total_pasivo_no_corriente, compValue: data.total_pasivo_no_corriente_comp, divisor: data.total_pasivo_patrimonio, compDivisor: data.total_pasivo_patrimonio_comp });
+      const hasPasivoNoCorrienteValue = Math.abs(data.total_pasivo_no_corriente) > 0.005 || selectedComparisonYears.some(yrStr => Math.abs(data.total_pasivo_no_corriente_comp[yrStr]) > 0.005);
+      if (!hideZeroBalances || hasPasivoNoCorrienteValue) {
+        pasivoPatrimonioRows.push({ type: 'subheader', label: 'A) PASIVO NO CORRIENTE', value: data.total_pasivo_no_corriente, compValues: data.total_pasivo_no_corriente_comp, divisor: data.total_pasivo_patrimonio, compDivisors: data.total_pasivo_patrimonio_comp });
       }
       
       data.pasivo_no_corriente_items.forEach(item => {
         const itemAccounts = item.accounts || [];
         const filteredAccounts = hideZeroBalances 
-          ? itemAccounts.filter(a => Math.abs(a.balance) > 0.005 || (comparisonYear && Math.abs(a.compBalance) > 0.005))
+          ? itemAccounts.filter(a => Math.abs(a.balance) > 0.005 || selectedComparisonYears.some(yrStr => Math.abs(a.compBalances[yrStr]) > 0.005))
           : itemAccounts;
           
-        const hasValue = Math.abs(item.value) > 0.005 || (comparisonYear && Math.abs(item.compValue) > 0.005);
+        const hasValue = Math.abs(item.value) > 0.005 || selectedComparisonYears.some(yrStr => Math.abs(item.compValues[yrStr]) > 0.005);
         if (hideZeroBalances && !hasValue) return;
         
-        pasivoPatrimonioRows.push({ type: 'item', label: item.label, value: item.value, compValue: item.compValue, divisor: data.total_pasivo_patrimonio, compDivisor: data.total_pasivo_patrimonio_comp });
+        pasivoPatrimonioRows.push({ type: 'item', label: item.label, value: item.value, compValues: item.compValues, divisor: data.total_pasivo_patrimonio, compDivisors: data.total_pasivo_patrimonio_comp });
         filteredAccounts.forEach(acc => {
-          pasivoPatrimonioRows.push({ type: 'account', code: acc.code, name: acc.name, value: acc.balance, compValue: acc.compBalance, divisor: data.total_pasivo_patrimonio, compDivisor: data.total_pasivo_patrimonio_comp });
+          pasivoPatrimonioRows.push({ type: 'account', code: acc.code, name: acc.name, value: acc.balance, compValues: acc.compBalances, divisor: data.total_pasivo_patrimonio, compDivisors: data.total_pasivo_patrimonio_comp });
         });
       });
       
       // B) PASIVO CORRIENTE Subheader
-      if (!hideZeroBalances || Math.abs(data.total_pasivo_corriente) > 0.005 || (comparisonYear && Math.abs(data.total_pasivo_corriente_comp) > 0.005)) {
-        pasivoPatrimonioRows.push({ type: 'subheader', label: 'B) PASIVO CORRIENTE', value: data.total_pasivo_corriente, compValue: data.total_pasivo_corriente_comp, divisor: data.total_pasivo_patrimonio, compDivisor: data.total_pasivo_patrimonio_comp });
+      const hasPasivoCorrienteValue = Math.abs(data.total_pasivo_corriente) > 0.005 || selectedComparisonYears.some(yrStr => Math.abs(data.total_pasivo_corriente_comp[yrStr]) > 0.005);
+      if (!hideZeroBalances || hasPasivoCorrienteValue) {
+        pasivoPatrimonioRows.push({ type: 'subheader', label: 'B) PASIVO CORRIENTE', value: data.total_pasivo_corriente, compValues: data.total_pasivo_corriente_comp, divisor: data.total_pasivo_patrimonio, compDivisors: data.total_pasivo_patrimonio_comp });
       }
       
       data.pasivo_corriente_items.forEach(item => {
         const itemAccounts = item.accounts || [];
         const filteredAccounts = hideZeroBalances 
-          ? itemAccounts.filter(a => Math.abs(a.balance) > 0.005 || (comparisonYear && Math.abs(a.compBalance) > 0.005))
+          ? itemAccounts.filter(a => Math.abs(a.balance) > 0.005 || selectedComparisonYears.some(yrStr => Math.abs(a.compBalances[yrStr]) > 0.005))
           : itemAccounts;
           
-        const hasValue = Math.abs(item.value) > 0.005 || (comparisonYear && Math.abs(item.compValue) > 0.005);
+        const hasValue = Math.abs(item.value) > 0.005 || selectedComparisonYears.some(yrStr => Math.abs(item.compValues[yrStr]) > 0.005);
         if (hideZeroBalances && !hasValue) return;
         
-        pasivoPatrimonioRows.push({ type: 'item', label: item.label, value: item.value, compValue: item.compValue, divisor: data.total_pasivo_patrimonio, compDivisor: data.total_pasivo_patrimonio_comp });
+        pasivoPatrimonioRows.push({ type: 'item', label: item.label, value: item.value, compValues: item.compValues, divisor: data.total_pasivo_patrimonio, compDivisors: data.total_pasivo_patrimonio_comp });
         filteredAccounts.forEach(acc => {
-          pasivoPatrimonioRows.push({ type: 'account', code: acc.code, name: acc.name, value: acc.balance, compValue: acc.compBalance, divisor: data.total_pasivo_patrimonio, compDivisor: data.total_pasivo_patrimonio_comp });
+          pasivoPatrimonioRows.push({ type: 'account', code: acc.code, name: acc.name, value: acc.balance, compValues: acc.compBalances, divisor: data.total_pasivo_patrimonio, compDivisors: data.total_pasivo_patrimonio_comp });
         });
       });
       
       // PATRIMONIO NETO Header
-      if (!hideZeroBalances || Math.abs(data.total_patrimonio) > 0.005 || (comparisonYear && Math.abs(data.total_patrimonio_comp) > 0.005)) {
-        pasivoPatrimonioRows.push({ type: 'main-header', label: 'PATRIMONIO NETO', value: data.total_patrimonio, compValue: data.total_patrimonio_comp, divisor: data.total_pasivo_patrimonio, compDivisor: data.total_pasivo_patrimonio_comp });
+      const hasPatrimonioValue = Math.abs(data.total_patrimonio) > 0.005 || selectedComparisonYears.some(yrStr => Math.abs(data.total_patrimonio_comp[yrStr]) > 0.005);
+      if (!hideZeroBalances || hasPatrimonioValue) {
+        pasivoPatrimonioRows.push({ type: 'main-header', label: 'PATRIMONIO NETO', value: data.total_patrimonio, compValues: data.total_patrimonio_comp, divisor: data.total_pasivo_patrimonio, compDivisors: data.total_pasivo_patrimonio_comp });
       }
       
       // A) PATRIMONIO NETO Subheader
-      if (!hideZeroBalances || Math.abs(data.total_patrimonio) > 0.005 || (comparisonYear && Math.abs(data.total_patrimonio_comp) > 0.005)) {
-        pasivoPatrimonioRows.push({ type: 'subheader', label: 'A) PATRIMONIO NETO', value: data.total_patrimonio, compValue: data.total_patrimonio_comp, divisor: data.total_pasivo_patrimonio, compDivisor: data.total_pasivo_patrimonio_comp });
+      if (!hideZeroBalances || hasPatrimonioValue) {
+        pasivoPatrimonioRows.push({ type: 'subheader', label: 'A) PATRIMONIO NETO', value: data.total_patrimonio, compValues: data.total_patrimonio_comp, divisor: data.total_pasivo_patrimonio, compDivisors: data.total_pasivo_patrimonio_comp });
       }
       
       data.patrimonio_items.forEach(item => {
         const itemAccounts = item.accounts || [];
         const filteredAccounts = hideZeroBalances 
-          ? itemAccounts.filter(a => Math.abs(a.balance) > 0.005 || (comparisonYear && Math.abs(a.compBalance) > 0.005))
+          ? itemAccounts.filter(a => Math.abs(a.balance) > 0.005 || selectedComparisonYears.some(yrStr => Math.abs(a.compBalances[yrStr]) > 0.005))
           : itemAccounts;
           
-        const hasValue = Math.abs(item.value) > 0.005 || (comparisonYear && Math.abs(item.compValue) > 0.005);
+        const hasValue = Math.abs(item.value) > 0.005 || selectedComparisonYears.some(yrStr => Math.abs(item.compValues[yrStr]) > 0.005);
         if (hideZeroBalances && !hasValue) return;
         
-        pasivoPatrimonioRows.push({ type: 'item', label: item.label, value: item.value, compValue: item.compValue, divisor: data.total_pasivo_patrimonio, compDivisor: data.total_pasivo_patrimonio_comp });
+        pasivoPatrimonioRows.push({ type: 'item', label: item.label, value: item.value, compValues: item.compValues, divisor: data.total_pasivo_patrimonio, compDivisors: data.total_pasivo_patrimonio_comp });
         filteredAccounts.forEach(acc => {
-          pasivoPatrimonioRows.push({ type: 'account', code: acc.code, name: acc.name, value: acc.balance, compValue: acc.compBalance, divisor: data.total_pasivo_patrimonio, compDivisor: data.total_pasivo_patrimonio_comp });
+          pasivoPatrimonioRows.push({ type: 'account', code: acc.code, name: acc.name, value: acc.balance, compValues: acc.compBalances, divisor: data.total_pasivo_patrimonio, compDivisors: data.total_pasivo_patrimonio_comp });
         });
       });
 
@@ -3081,32 +3119,38 @@ export default function PrintPage() {
       let pageIndex = 1;
 
       const renderRowsPage = (pageRows, currentPage, totalPagesCount, sideTitle) => {
+        const isComparativeMode = selectedComparisonYears.length > 0;
+
         return (
           <div key={`${sideTitle}-${currentPage}`} className="page-sheet relative flex flex-col justify-between">
             <div className="flex-1">
               {renderPageHeader('Balance de Situación')}
               
               <table className="w-full text-[10px] border-collapse mt-4">
-                <thead>
-                  <tr className="bg-slate-50/50 font-bold text-slate-700 text-[8px] uppercase">
-                    <th className="py-1.5 px-1 text-left"></th>
-                    <th className="py-1.5 px-1 text-right w-24">
-                      {comparisonYear ? `EJERCICIO ${selectedYear}` : 'IMPORTE'}
-                    </th>
-                    {comparisonYear && (
-                      <th className="py-1.5 px-1 text-right w-24">
-                        {`EJERCICIO ${comparisonYear}`}
-                      </th>
-                    )}
-                    {showVerticalPercentage && (
-                      <th className="py-1.5 px-1 text-right w-20 pr-5">
-                        % VERT.
-                      </th>
-                    )}
-                  </tr>
-                </thead>
+                {isComparativeMode && (
+                  <thead>
+                    <tr className="font-bold text-slate-700 text-[8px] uppercase">
+                      <th className="py-1 px-1 text-left"></th>
+                      <th className="py-1 px-1 text-right w-24">{selectedYear}</th>
+                      {showVerticalPercentage && (
+                        <th className="py-1 px-1 text-right w-20 pr-5 text-slate-400 font-medium">%</th>
+                      )}
+                      {selectedComparisonYears.map(yr => (
+                        <Fragment key={yr}>
+                          <th className="py-1 px-1 text-right w-24">{yr}</th>
+                          {showVerticalPercentage && (
+                            <th className="py-1 px-1 text-right w-20 pr-5 text-slate-400 font-medium">%</th>
+                          )}
+                        </Fragment>
+                      ))}
+                    </tr>
+                  </thead>
+                )}
                 <tbody>
                   {pageRows.map((row, idx) => {
+                    const rowDivisor = row.divisor;
+                    const mainPct = rowDivisor ? `${((row.value / rowDivisor) * 100).toFixed(1)}%` : '0.0%';
+
                     if (row.type === 'main-header') {
                       return (
                         <tr key={idx} className="font-bold text-slate-900 text-[10.5px] uppercase bg-white">
@@ -3114,16 +3158,28 @@ export default function PrintPage() {
                           <td className="py-2 px-1 text-right font-mono tabular-nums">
                             {formatValue(row.value, row.divisor)}
                           </td>
-                          {comparisonYear && (
-                            <td className="py-2 px-1 text-right font-mono tabular-nums">
-                              {formatValue(row.compValue, row.compDivisor)}
-                            </td>
-                          )}
                           {showVerticalPercentage && (
                             <td className="py-2 px-1 text-right font-mono tabular-nums text-slate-500 pr-5">
-                              {row.divisor ? `${((row.value / row.divisor) * 100).toFixed(1)}%` : '0.0%'}
+                              {mainPct}
                             </td>
                           )}
+                          {selectedComparisonYears.map(yr => {
+                            const val = (row.compValues || {})[yr] || 0;
+                            const div = (row.compDivisors || {})[yr] || 0;
+                            const pct = div ? `${((val / div) * 100).toFixed(1)}%` : '0.0%';
+                            return (
+                              <Fragment key={yr}>
+                                <td className="py-2 px-1 text-right font-mono tabular-nums">
+                                  {formatValue(val, div)}
+                                </td>
+                                {showVerticalPercentage && (
+                                  <td className="py-2 px-1 text-right font-mono tabular-nums text-slate-500 pr-5">
+                                    {pct}
+                                  </td>
+                                )}
+                              </Fragment>
+                            );
+                          })}
                         </tr>
                       );
                     }
@@ -3134,16 +3190,28 @@ export default function PrintPage() {
                           <td className="py-1.5 px-1 text-right font-mono tabular-nums">
                             {formatValue(row.value, row.divisor)}
                           </td>
-                          {comparisonYear && (
-                            <td className="py-1.5 px-1 text-right font-mono tabular-nums">
-                              {formatValue(row.compValue, row.compDivisor)}
-                            </td>
-                          )}
                           {showVerticalPercentage && (
                             <td className="py-1.5 px-1 text-right font-mono tabular-nums text-slate-500 pr-5">
-                              {row.divisor ? `${((row.value / row.divisor) * 100).toFixed(1)}%` : '0.0%'}
+                              {mainPct}
                             </td>
                           )}
+                          {selectedComparisonYears.map(yr => {
+                            const val = (row.compValues || {})[yr] || 0;
+                            const div = (row.compDivisors || {})[yr] || 0;
+                            const pct = div ? `${((val / div) * 100).toFixed(1)}%` : '0.0%';
+                            return (
+                              <Fragment key={yr}>
+                                <td className="py-1.5 px-1 text-right font-mono tabular-nums">
+                                  {formatValue(val, div)}
+                                </td>
+                                {showVerticalPercentage && (
+                                  <td className="py-1.5 px-1 text-right font-mono tabular-nums text-slate-500 pr-5">
+                                    {pct}
+                                  </td>
+                                )}
+                              </Fragment>
+                            );
+                          })}
                         </tr>
                       );
                     }
@@ -3154,16 +3222,28 @@ export default function PrintPage() {
                           <td className="py-1 px-1 text-right font-mono tabular-nums">
                             {formatValue(row.value, row.divisor)}
                           </td>
-                          {comparisonYear && (
-                            <td className="py-1 px-1 text-right font-mono tabular-nums">
-                              {formatValue(row.compValue, row.compDivisor)}
-                            </td>
-                          )}
                           {showVerticalPercentage && (
                             <td className="py-1 px-1 text-right font-mono tabular-nums text-slate-500 pr-5">
-                              {row.divisor ? `${((row.value / row.divisor) * 100).toFixed(1)}%` : '0.0%'}
+                              {mainPct}
                             </td>
                           )}
+                          {selectedComparisonYears.map(yr => {
+                            const val = (row.compValues || {})[yr] || 0;
+                            const div = (row.compDivisors || {})[yr] || 0;
+                            const pct = div ? `${((val / div) * 100).toFixed(1)}%` : '0.0%';
+                            return (
+                              <Fragment key={yr}>
+                                <td className="py-1 px-1 text-right font-mono tabular-nums">
+                                  {formatValue(val, div)}
+                                </td>
+                                {showVerticalPercentage && (
+                                  <td className="py-1 px-1 text-right font-mono tabular-nums text-slate-500 pr-5">
+                                    {pct}
+                                  </td>
+                                )}
+                              </Fragment>
+                            );
+                          })}
                         </tr>
                       );
                     }
@@ -3174,16 +3254,28 @@ export default function PrintPage() {
                           <td className="py-0.5 px-1 text-right font-mono tabular-nums">
                             {formatValue(row.value, row.divisor)}
                           </td>
-                          {comparisonYear && (
-                            <td className="py-0.5 px-1 text-right font-mono tabular-nums">
-                              {formatValue(row.compValue, row.compDivisor)}
-                            </td>
-                          )}
                           {showVerticalPercentage && (
-                            <td className="py-0.5 px-1 text-right font-mono tabular-nums text-slate-400 pr-5">
-                              {row.divisor ? `${((row.value / row.divisor) * 100).toFixed(1)}%` : '0.0%'}
+                            <td className="py-0.5 px-1 text-right font-mono tabular-nums text-slate-450 pr-5">
+                              {mainPct}
                             </td>
                           )}
+                          {selectedComparisonYears.map(yr => {
+                            const val = (row.compBalances || {})[yr] || 0;
+                            const div = (row.compDivisors || {})[yr] || 0;
+                            const pct = div ? `${((val / div) * 100).toFixed(1)}%` : '0.0%';
+                            return (
+                              <Fragment key={yr}>
+                                <td className="py-0.5 px-1 text-right font-mono tabular-nums">
+                                  {formatValue(val, div)}
+                                </td>
+                                {showVerticalPercentage && (
+                                  <td className="py-0.5 px-1 text-right font-mono tabular-nums text-slate-450 pr-5">
+                                    {pct}
+                                  </td>
+                                )}
+                              </Fragment>
+                            );
+                          })}
                         </tr>
                       );
                     }
@@ -3668,19 +3760,31 @@ export default function PrintPage() {
                   </div>
                 </div>
 
-                {/* Comparison Year Selector */}
+                {/* Comparison Years (Multi-select Checkboxes) */}
                 <div className="flex flex-col gap-1 border-t border-slate-100 pt-2">
-                  <span className="text-[9px] font-bold text-slate-400 uppercase">Comparativa con</span>
-                  <select 
-                    value={comparisonYear}
-                    onChange={(e) => setComparisonYear(e.target.value)}
-                    className="w-full border border-gray-300 px-1 py-1 outline-none cursor-pointer text-[10px] font-sans rounded bg-white"
-                  >
-                    <option value="">SIN COMPARATIVA</option>
-                    {['2024', '2025', '2026', '2027'].filter(yr => yr !== String(selectedYear)).map(yr => (
-                      <option key={yr} value={yr}>EJERCICIO {yr}</option>
-                    ))}
-                  </select>
+                  <span className="text-[9px] font-bold text-slate-400 uppercase">Comparar con</span>
+                  <div className="flex flex-col gap-1.5 mt-1">
+                    {['2024', '2025', '2026', '2027'].filter(yr => yr !== String(selectedYear)).map(yr => {
+                      const isChecked = selectedComparisonYears.includes(yr);
+                      return (
+                        <label key={yr} className="flex items-center gap-2 cursor-pointer select-none text-[10px] font-semibold text-slate-600">
+                          <input 
+                            type="checkbox" 
+                            checked={isChecked} 
+                            onChange={(e) => {
+                              if (e.target.checked) {
+                                setSelectedComparisonYears(prev => [...prev, yr].sort((a, b) => b - a));
+                              } else {
+                                setSelectedComparisonYears(prev => prev.filter(y => y !== yr));
+                              }
+                            }} 
+                            className="w-3 h-3 text-blue-600" 
+                          />
+                          <span>EJERCICIO {yr}</span>
+                        </label>
+                      );
+                    })}
+                  </div>
                 </div>
               </div>
             </div>
