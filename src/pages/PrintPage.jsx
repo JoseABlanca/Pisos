@@ -4484,6 +4484,83 @@ export default function PrintPage() {
             </div>
           )}
 
+          {/* Options specific to Contratos de Alquiler */}
+          {selectedTemplate === 'alquileres' && (
+            <div className="bg-white border border-[#a0a0a0] p-3 flex flex-col gap-3">
+              <div className="text-[10px] font-bold text-slate-500 uppercase flex items-center gap-1 select-none">
+                <Sliders className="w-3.5 h-3.5 text-slate-400" />
+                <span>Opciones de Alquileres</span>
+              </div>
+              <div className="flex flex-col gap-2.5">
+                {/* Período de Cálculos */}
+                <div className="flex flex-col gap-1">
+                  <span className="text-[9px] font-bold text-slate-400 uppercase">Cálculos de Renta</span>
+                  <div className="grid grid-cols-2 gap-1 bg-slate-100 p-0.5 rounded border border-slate-200">
+                    <button 
+                      onClick={() => setRentPeriod('mes')}
+                      className={`text-[9px] text-center py-1 transition-all rounded font-bold ${
+                        rentPeriod === 'mes' 
+                          ? 'bg-white text-blue-700 shadow-sm border border-slate-200' 
+                          : 'text-slate-500 hover:text-slate-800'
+                      }`}
+                    >
+                      MENSUAL
+                    </button>
+                    <button 
+                      onClick={() => setRentPeriod('anual')}
+                      className={`text-[9px] text-center py-1 transition-all rounded font-bold ${
+                        rentPeriod === 'anual' 
+                          ? 'bg-white text-blue-700 shadow-sm border border-slate-200' 
+                          : 'text-slate-500 hover:text-slate-800'
+                      }`}
+                    >
+                      ANUAL
+                    </button>
+                  </div>
+                </div>
+
+                {/* Filtro Estado */}
+                <div className="flex flex-col gap-1 border-t border-slate-100 pt-2">
+                  <span className="text-[9px] font-bold text-slate-400 uppercase">Filtrar por Estado</span>
+                  <select 
+                    value={statusFilterAlquileres} 
+                    onChange={(e) => setStatusFilterAlquileres(e.target.value)}
+                    className="win-input w-full text-[11px] font-sans rounded"
+                  >
+                    <option value="todos">Todos los contratos</option>
+                    <option value="activo">Solo Activos</option>
+                    <option value="inactivo">Solo Inactivos</option>
+                  </select>
+                </div>
+              </div>
+            </div>
+          )}
+
+          {/* Options specific to Fichero de Clientes */}
+          {selectedTemplate === 'clientes' && (
+            <div className="bg-white border border-[#a0a0a0] p-3 flex flex-col gap-3">
+              <div className="text-[10px] font-bold text-slate-500 uppercase flex items-center gap-1 select-none">
+                <Sliders className="w-3.5 h-3.5 text-slate-400" />
+                <span>Opciones de Clientes</span>
+              </div>
+              <div className="flex flex-col gap-2.5">
+                {/* Filtro Estado */}
+                <div className="flex flex-col gap-1">
+                  <span className="text-[9px] font-bold text-slate-400 uppercase">Filtrar por Estado</span>
+                  <select 
+                    value={statusFilterClientes} 
+                    onChange={(e) => setStatusFilterClientes(e.target.value)}
+                    className="win-input w-full text-[11px] font-sans rounded"
+                  >
+                    <option value="todos">Todos los clientes</option>
+                    <option value="activo">Solo Activos</option>
+                    <option value="inactivo">Solo Inactivos</option>
+                  </select>
+                </div>
+              </div>
+            </div>
+          )}
+
           {/* Options specific to Balance de Situación */}
           {['balance_situacion', 'cuenta_resultados', 'flujo_caja'].includes(selectedTemplate) && (
             <div className="bg-white border border-[#a0a0a0] p-3 flex flex-col gap-3">
