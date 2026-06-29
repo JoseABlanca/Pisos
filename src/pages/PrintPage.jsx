@@ -3155,11 +3155,11 @@ export default function PrintPage() {
                       return (
                         <tr key={idx} className="font-bold text-slate-900 text-[10.5px] uppercase bg-white">
                           <td className="py-2 px-1 font-bold">{row.label}</td>
-                          <td className="py-2 px-1 text-right font-mono tabular-nums">
+                          <td className="py-2 px-1 text-right font-sans tabular-nums">
                             {formatValue(row.value, row.divisor)}
                           </td>
                           {showVerticalPercentage && (
-                            <td className="py-2 px-1 text-right font-mono tabular-nums text-slate-500 pr-5">
+                            <td className="py-2 px-1 text-right font-sans tabular-nums text-slate-500 pr-5">
                               {mainPct}
                             </td>
                           )}
@@ -3169,11 +3169,11 @@ export default function PrintPage() {
                             const pct = div ? `${((val / div) * 100).toFixed(1)}%` : '0.0%';
                             return (
                               <Fragment key={yr}>
-                                <td className="py-2 px-1 text-right font-mono tabular-nums">
+                                <td className="py-2 px-1 text-right font-sans tabular-nums">
                                   {formatValue(val, div)}
                                 </td>
                                 {showVerticalPercentage && (
-                                  <td className="py-2 px-1 text-right font-mono tabular-nums text-slate-500 pr-5">
+                                  <td className="py-2 px-1 text-right font-sans tabular-nums text-slate-500 pr-5">
                                     {pct}
                                   </td>
                                 )}
@@ -3187,11 +3187,11 @@ export default function PrintPage() {
                       return (
                         <tr key={idx} className="font-bold text-slate-750 bg-slate-100/30 text-[9.5px] uppercase">
                           <td className="py-1.5 px-2 font-bold">{row.label}</td>
-                          <td className="py-1.5 px-1 text-right font-mono tabular-nums">
+                          <td className="py-1.5 px-1 text-right font-sans tabular-nums">
                             {formatValue(row.value, row.divisor)}
                           </td>
                           {showVerticalPercentage && (
-                            <td className="py-1.5 px-1 text-right font-mono tabular-nums text-slate-500 pr-5">
+                            <td className="py-1.5 px-1 text-right font-sans tabular-nums text-slate-500 pr-5">
                               {mainPct}
                             </td>
                           )}
@@ -3201,11 +3201,11 @@ export default function PrintPage() {
                             const pct = div ? `${((val / div) * 100).toFixed(1)}%` : '0.0%';
                             return (
                               <Fragment key={yr}>
-                                <td className="py-1.5 px-1 text-right font-mono tabular-nums">
+                                <td className="py-1.5 px-1 text-right font-sans tabular-nums">
                                   {formatValue(val, div)}
                                 </td>
                                 {showVerticalPercentage && (
-                                  <td className="py-1.5 px-1 text-right font-mono tabular-nums text-slate-500 pr-5">
+                                  <td className="py-1.5 px-1 text-right font-sans tabular-nums text-slate-500 pr-5">
                                     {pct}
                                   </td>
                                 )}
@@ -3219,11 +3219,11 @@ export default function PrintPage() {
                       return (
                         <tr key={idx} className="font-semibold text-slate-700 bg-slate-50/20 text-[9px]">
                           <td className="py-1 px-3 font-semibold">{row.label}</td>
-                          <td className="py-1 px-1 text-right font-mono tabular-nums">
+                          <td className="py-1 px-1 text-right font-sans tabular-nums">
                             {formatValue(row.value, row.divisor)}
                           </td>
                           {showVerticalPercentage && (
-                            <td className="py-1 px-1 text-right font-mono tabular-nums text-slate-500 pr-5">
+                            <td className="py-1 px-1 text-right font-sans tabular-nums text-slate-500 pr-5">
                               {mainPct}
                             </td>
                           )}
@@ -3233,11 +3233,11 @@ export default function PrintPage() {
                             const pct = div ? `${((val / div) * 100).toFixed(1)}%` : '0.0%';
                             return (
                               <Fragment key={yr}>
-                                <td className="py-1 px-1 text-right font-mono tabular-nums">
+                                <td className="py-1 px-1 text-right font-sans tabular-nums">
                                   {formatValue(val, div)}
                                 </td>
                                 {showVerticalPercentage && (
-                                  <td className="py-1 px-1 text-right font-mono tabular-nums text-slate-500 pr-5">
+                                  <td className="py-1 px-1 text-right font-sans tabular-nums text-slate-500 pr-5">
                                     {pct}
                                   </td>
                                 )}
@@ -3251,11 +3251,11 @@ export default function PrintPage() {
                       return (
                         <tr key={idx} className="text-slate-600 text-[8px]">
                           <td className="py-0.5 px-8 font-normal text-slate-650">{row.code} - {row.name}</td>
-                          <td className="py-0.5 px-1 text-right font-mono tabular-nums">
+                          <td className="py-0.5 px-1 text-right font-sans tabular-nums">
                             {formatValue(row.value, row.divisor)}
                           </td>
                           {showVerticalPercentage && (
-                            <td className="py-0.5 px-1 text-right font-mono tabular-nums text-slate-450 pr-5">
+                            <td className="py-0.5 px-1 text-right font-sans tabular-nums text-slate-450 pr-5">
                               {mainPct}
                             </td>
                           )}
@@ -3265,11 +3265,11 @@ export default function PrintPage() {
                             const pct = div ? `${((val / div) * 100).toFixed(1)}%` : '0.0%';
                             return (
                               <Fragment key={yr}>
-                                <td className="py-0.5 px-1 text-right font-mono tabular-nums">
+                                <td className="py-0.5 px-1 text-right font-sans tabular-nums">
                                   {formatValue(val, div)}
                                 </td>
                                 {showVerticalPercentage && (
-                                  <td className="py-0.5 px-1 text-right font-mono tabular-nums text-slate-450 pr-5">
+                                  <td className="py-0.5 px-1 text-right font-sans tabular-nums text-slate-450 pr-5">
                                     {pct}
                                   </td>
                                 )}
