@@ -150,6 +150,54 @@ const getPropertyMetrics = (p, entriesList) => {
   };
 };
 
+const getLogicalBlocks = (rows) => {
+  const blocks = [];
+  let currentBlock = [];
+  
+  rows.forEach(row => {
+    if (row.type === 'main-header' || row.type === 'subheader' || row.type === 'item') {
+      if (currentBlock.length > 0) {
+        blocks.push(currentBlock);
+      }
+      currentBlock = [row];
+    } else {
+      currentBlock.push(row);
+    }
+  });
+  
+  if (currentBlock.length > 0) {
+    blocks.push(currentBlock);
+  }
+  return blocks;
+};
+
+const paginateBlocks = (blocks, baseLimit = 28, maxFlex = 6) => {
+  const pages = [];
+  let currentPageRows = [];
+  
+  blocks.forEach(block => {
+    const potentialLength = currentPageRows.length + block.length;
+    
+    if (potentialLength <= baseLimit) {
+      currentPageRows.push(...block);
+    } else {
+      const overflow = potentialLength - baseLimit;
+      if (overflow <= maxFlex || currentPageRows.length === 0) {
+        currentPageRows.push(...block);
+      } else {
+        pages.push(currentPageRows);
+        currentPageRows = [...block];
+      }
+    }
+  });
+  
+  if (currentPageRows.length > 0) {
+    pages.push(currentPageRows);
+  }
+  return pages;
+};
+
+
 
 
 // Spanish capital-gains tax brackets (IRPF savings base 2024)
@@ -3755,9 +3803,9 @@ export default function PrintPage() {
         });
       });
 
-      // Split into pages dynamically
-      const chunkedActivoPages = chunkFlatList(activoRows, 28);
-      const chunkedPasivoPages = chunkFlatList(pasivoPatrimonioRows, 28);
+      // Split into pages dynamically using block-based flex pagination
+      const chunkedActivoPages = paginateBlocks(getLogicalBlocks(activoRows), 28, 7);
+      const chunkedPasivoPages = paginateBlocks(getLogicalBlocks(pasivoPatrimonioRows), 28, 7);
       
       const totalPages = chunkedActivoPages.length + chunkedPasivoPages.length;
       
