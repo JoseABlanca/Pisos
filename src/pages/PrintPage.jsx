@@ -357,20 +357,50 @@ export default function PrintPage() {
   const [selectedFilterProperties, setSelectedFilterProperties] = useState(() => {
     try {
       const saved = localStorage.getItem('print_selectedFilterProperties');
-      return saved ? JSON.parse(saved) : [];
-    } catch(e) { return []; }
+      if (saved) {
+        const parsed = JSON.parse(saved);
+        if (Array.isArray(parsed)) {
+          return { activos: [], alquileres: [], clientes: [], extracto_propietarios: [] };
+        }
+        return {
+          activos: parsed.activos || [],
+          alquileres: parsed.alquileres || [],
+          clientes: parsed.clientes || [],
+          extracto_propietarios: parsed.extracto_propietarios || []
+        };
+      }
+    } catch(e) {}
+    return { activos: [], alquileres: [], clientes: [], extracto_propietarios: [] };
   });
   const [selectedFilterRentals, setSelectedFilterRentals] = useState(() => {
     try {
       const saved = localStorage.getItem('print_selectedFilterRentals');
-      return saved ? JSON.parse(saved) : [];
-    } catch(e) { return []; }
+      if (saved) {
+        const parsed = JSON.parse(saved);
+        if (Array.isArray(parsed)) {
+          return { alquileres: [] };
+        }
+        return {
+          alquileres: parsed.alquileres || []
+        };
+      }
+    } catch(e) {}
+    return { alquileres: [] };
   });
   const [selectedFilterOwners, setSelectedFilterOwners] = useState(() => {
     try {
       const saved = localStorage.getItem('print_selectedFilterOwners');
-      return saved ? JSON.parse(saved) : [];
-    } catch(e) { return []; }
+      if (saved) {
+        const parsed = JSON.parse(saved);
+        if (Array.isArray(parsed)) {
+          return { extracto_propietarios: [] };
+        }
+        return {
+          extracto_propietarios: parsed.extracto_propietarios || []
+        };
+      }
+    } catch(e) {}
+    return { extracto_propietarios: [] };
   });
 
   const [accountsDropdownOpen, setAccountsDropdownOpen] = useState(false);
@@ -2528,7 +2558,8 @@ export default function PrintPage() {
       const cv = (colId) => isColVisible('activos', colId);
       
       const filteredProperties = properties.filter(p => {
-        if (selectedFilterProperties.length > 0 && !selectedFilterProperties.includes(p.id)) return false;
+        const activePropFilters = selectedFilterProperties.activos || [];
+        if (activePropFilters.length > 0 && !activePropFilters.includes(p.id)) return false;
         return true;
       });
 
@@ -2613,8 +2644,13 @@ export default function PrintPage() {
       const filteredRentals = rentals.filter(r => {
         const status = r.status || 'activo';
         if (statusFilterAlquileres !== 'todos' && status !== statusFilterAlquileres) return false;
-        if (selectedFilterProperties.length > 0 && !selectedFilterProperties.includes(r.propertyId)) return false;
-        if (selectedFilterRentals.length > 0 && !selectedFilterRentals.includes(r.reference)) return false;
+        
+        const activePropFilters = selectedFilterProperties.alquileres || [];
+        if (activePropFilters.length > 0 && !activePropFilters.includes(r.propertyId)) return false;
+        
+        const activeRentFilters = selectedFilterRentals.alquileres || [];
+        if (activeRentFilters.length > 0 && !activeRentFilters.includes(r.reference)) return false;
+        
         return true;
       });
 
@@ -2734,14 +2770,15 @@ export default function PrintPage() {
         const status = c.status || 'activo';
         if (statusFilterClientes !== 'todos' && status !== statusFilterClientes) return false;
         
-        if (selectedFilterProperties.length > 0) {
+        const activePropFilters = selectedFilterProperties.clientes || [];
+        if (activePropFilters.length > 0) {
           const rent = rentals.find(r => 
             (r.id && c.rentalReference && r.id === c.rentalReference) || 
             (r.reference && c.rentalReference && r.reference === c.rentalReference) ||
             r.tenantId === c.id || 
             (r.tenants && r.tenants.some(t => t.id === c.id))
           );
-          if (!rent || !selectedFilterProperties.includes(rent.propertyId)) return false;
+          if (!rent || !activePropFilters.includes(rent.propertyId)) return false;
         }
         return true;
       });
@@ -2862,8 +2899,12 @@ export default function PrintPage() {
       });
 
       const filteredOwnerRows = ownerRows.filter(row => {
-        if (selectedFilterProperties.length > 0 && !selectedFilterProperties.includes(row.propertyId)) return false;
-        if (selectedFilterOwners.length > 0 && !selectedFilterOwners.includes(row.partnerName)) return false;
+        const activePropFilters = selectedFilterProperties.extracto_propietarios || [];
+        if (activePropFilters.length > 0 && !activePropFilters.includes(row.propertyId)) return false;
+        
+        const activeOwnerFilters = selectedFilterOwners.extracto_propietarios || [];
+        if (activeOwnerFilters.length > 0 && !activeOwnerFilters.includes(row.partnerName)) return false;
+        
         return true;
       });
 
@@ -4766,162 +4807,34 @@ export default function PrintPage() {
               </div>
               <div className="flex flex-col gap-3">
                 {/* 1. Dropdown Fincas (Activos) - shown for activos, alquileres, clientes, propietarios */}
-                {['activos', 'alquileres', 'clientes', 'extracto_propietarios'].includes(selectedTemplate) && (
-                  <div className="flex flex-col gap-1 relative" ref={propFilterDropdownRef}>
-                    <span className="text-[9px] font-bold text-slate-400 uppercase font-sans">Fincas (Activos)</span>
-                    <div 
-                      onClick={() => setPropFilterDropdownOpen(prev => !prev)}
-                      className="win-input w-full flex justify-between items-center cursor-pointer select-none bg-white border border-[#a0a0a0] px-2 py-1 text-[11px] font-sans rounded min-h-[24px]"
-                    >
-                      <span className="truncate pr-2 text-slate-700 font-sans">
-                        {selectedFilterProperties.length === 0 
-                          ? 'Todas' 
-                          : selectedFilterProperties.map(pid => {
-                              const p = properties.find(x => x.id === pid);
-                              return p ? p.name : pid;
-                            }).join(', ')
-                        }
-                      </span>
-                      <span className="text-[9px] text-slate-500">▼</span>
-                    </div>
-                    
-                    {propFilterDropdownOpen && (
-                      <div className="absolute top-[38px] left-0 right-0 bg-white border border-[#808080] shadow-[2px_2px_4px_rgba(0,0,0,0.15)] z-20 max-h-60 overflow-y-auto p-1.5 flex flex-col gap-1">
-                        <div className="flex justify-between items-center pb-1 border-b border-slate-100 mb-1">
-                          <span className="text-[8px] text-slate-400 uppercase font-bold font-sans">Buscar finca</span>
-                          {selectedFilterProperties.length > 0 && (
-                            <button 
-                              onClick={() => setSelectedFilterProperties([])}
-                              className="text-[8px] text-blue-600 hover:underline font-bold font-sans"
-                            >
-                              Limpiar
-                            </button>
-                          )}
-                        </div>
-                        <input
-                          type="text"
-                          placeholder="Buscar..."
-                          value={propFilterSearch}
-                          onChange={(e) => setPropFilterSearch(e.target.value)}
-                          className="w-full border border-[#a0a0a0] px-1 py-0.5 text-[10px] font-sans mb-1.5 outline-none"
-                        />
-                        {properties.filter(p => (p.name || '').toLowerCase().includes(propFilterSearch.toLowerCase())).map(p => {
-                          const isChecked = selectedFilterProperties.includes(p.id);
-                          return (
-                            <label key={p.id} className="flex items-center gap-1.5 cursor-pointer select-none text-[10px] text-slate-700 hover:bg-slate-50 p-0.5 font-sans">
-                              <input
-                                type="checkbox"
-                                checked={isChecked}
-                                onChange={(e) => {
-                                  if (e.target.checked) {
-                                    setSelectedFilterProperties(prev => [...prev, p.id]);
-                                  } else {
-                                    setSelectedFilterProperties(prev => prev.filter(x => x !== p.id));
-                                  }
-                                }}
-                                className="w-3 h-3"
-                              />
-                              <span className="uppercase">{p.name}</span>
-                            </label>
-                          );
-                        })}
-                      </div>
-                    )}
-                  </div>
-                )}
-
-                {/* 2. Dropdown Alquileres (Referencia) - shown for alquileres */}
-                {selectedTemplate === 'alquileres' && (
-                  <div className="flex flex-col gap-1 relative" ref={rentFilterDropdownRef}>
-                    <span className="text-[9px] font-bold text-slate-400 uppercase font-sans">Contratos (Referencia)</span>
-                    <div 
-                      onClick={() => setRentFilterDropdownOpen(prev => !prev)}
-                      className="win-input w-full flex justify-between items-center cursor-pointer select-none bg-white border border-[#a0a0a0] px-2 py-1 text-[11px] font-sans rounded min-h-[24px]"
-                    >
-                      <span className="truncate pr-2 text-slate-700 font-sans">
-                        {selectedFilterRentals.length === 0 ? 'Todos' : selectedFilterRentals.join(', ')}
-                      </span>
-                      <span className="text-[9px] text-slate-500">▼</span>
-                    </div>
-                    
-                    {rentFilterDropdownOpen && (
-                      <div className="absolute top-[38px] left-0 right-0 bg-white border border-[#808080] shadow-[2px_2px_4px_rgba(0,0,0,0.15)] z-20 max-h-60 overflow-y-auto p-1.5 flex flex-col gap-1">
-                        <div className="flex justify-between items-center pb-1 border-b border-slate-100 mb-1 font-sans">
-                          <span className="text-[8px] text-slate-400 uppercase font-bold font-sans">Buscar referencia</span>
-                          {selectedFilterRentals.length > 0 && (
-                            <button 
-                              onClick={() => setSelectedFilterRentals([])}
-                              className="text-[8px] text-blue-600 hover:underline font-bold font-sans"
-                            >
-                              Limpiar
-                            </button>
-                          )}
-                        </div>
-                        <input
-                          type="text"
-                          placeholder="Buscar..."
-                          value={rentFilterSearch}
-                          onChange={(e) => setRentFilterSearch(e.target.value)}
-                          className="w-full border border-[#a0a0a0] px-1 py-0.5 text-[10px] font-sans mb-1.5 outline-none"
-                        />
-                        {rentals.filter(r => (r.reference || '').toLowerCase().includes(rentFilterSearch.toLowerCase())).map(r => {
-                          const isChecked = selectedFilterRentals.includes(r.reference);
-                          return (
-                            <label key={r.id || r.reference} className="flex items-center gap-1.5 cursor-pointer select-none text-[10px] text-slate-700 hover:bg-slate-50 p-0.5 font-sans">
-                              <input
-                                type="checkbox"
-                                checked={isChecked}
-                                onChange={(e) => {
-                                  if (e.target.checked) {
-                                    setSelectedFilterRentals(prev => [...prev, r.reference]);
-                                  } else {
-                                    setSelectedFilterRentals(prev => prev.filter(x => x !== r.reference));
-                                  }
-                                }}
-                                className="w-3 h-3"
-                              />
-                              <span>{r.reference}</span>
-                            </label>
-                          );
-                        })}
-                      </div>
-                    )}
-                  </div>
-                )}
-
-                {/* 3. Dropdown Propietarios - shown for extracto_propietarios */}
-                {selectedTemplate === 'extracto_propietarios' && (
-                  <div className="flex flex-col gap-1 relative" ref={ownerFilterDropdownRef}>
-                    <span className="text-[9px] font-bold text-slate-400 uppercase font-sans">Propietarios (Socios)</span>
-                    <div 
-                      onClick={() => setOwnerFilterDropdownOpen(prev => !prev)}
-                      className="win-input w-full flex justify-between items-center cursor-pointer select-none bg-white border border-[#a0a0a0] px-2 py-1 text-[11px] font-sans rounded min-h-[24px]"
-                    >
-                      <span className="truncate pr-2 text-slate-700 font-sans">
-                        {selectedFilterOwners.length === 0 ? 'Todos' : selectedFilterOwners.join(', ')}
-                      </span>
-                      <span className="text-[9px] text-slate-500">▼</span>
-                    </div>
-                    
-                    {ownerFilterDropdownOpen && (() => {
-                      // Extract unique owner names from properties
-                      const availableOwners = [];
-                      properties.forEach(p => {
-                        (p.owners || []).forEach(o => {
-                          if (o.name && !availableOwners.includes(o.name)) {
-                            availableOwners.push(o.name);
+                {['activos', 'alquileres', 'clientes', 'extracto_propietarios'].includes(selectedTemplate) && (() => {
+                  const currentPropFilters = selectedFilterProperties[selectedTemplate] || [];
+                  return (
+                    <div className="flex flex-col gap-1 relative" ref={propFilterDropdownRef}>
+                      <span className="text-[9px] font-bold text-slate-400 uppercase font-sans">Fincas (Activos)</span>
+                      <div 
+                        onClick={() => setPropFilterDropdownOpen(prev => !prev)}
+                        className="win-input w-full flex justify-between items-center cursor-pointer select-none bg-white border border-[#a0a0a0] px-2 py-1 text-[11px] font-sans rounded min-h-[24px]"
+                      >
+                        <span className="truncate pr-2 text-slate-700 font-sans">
+                          {currentPropFilters.length === 0 
+                            ? 'Todas' 
+                            : currentPropFilters.map(pid => {
+                                const p = properties.find(x => x.id === pid);
+                                return p ? p.name : pid;
+                              }).join(', ')
                           }
-                        });
-                      });
-                      availableOwners.sort();
+                        </span>
+                        <span className="text-[9px] text-slate-500">▼</span>
+                      </div>
                       
-                      return (
+                      {propFilterDropdownOpen && (
                         <div className="absolute top-[38px] left-0 right-0 bg-white border border-[#808080] shadow-[2px_2px_4px_rgba(0,0,0,0.15)] z-20 max-h-60 overflow-y-auto p-1.5 flex flex-col gap-1">
-                          <div className="flex justify-between items-center pb-1 border-b border-slate-100 mb-1 font-sans">
-                            <span className="text-[8px] text-slate-400 uppercase font-bold font-sans">Buscar propietario</span>
-                            {selectedFilterOwners.length > 0 && (
+                          <div className="flex justify-between items-center pb-1 border-b border-slate-100 mb-1">
+                            <span className="text-[8px] text-slate-400 uppercase font-bold font-sans">Buscar finca</span>
+                            {currentPropFilters.length > 0 && (
                               <button 
-                                onClick={() => setSelectedFilterOwners([])}
+                                onClick={() => setSelectedFilterProperties(prev => ({ ...prev, [selectedTemplate]: [] }))}
                                 className="text-[8px] text-blue-600 hover:underline font-bold font-sans"
                               >
                                 Limpiar
@@ -4931,35 +4844,184 @@ export default function PrintPage() {
                           <input
                             type="text"
                             placeholder="Buscar..."
-                            value={ownerFilterSearch}
-                            onChange={(e) => setOwnerFilterSearch(e.target.value)}
+                            value={propFilterSearch}
+                            onChange={(e) => setPropFilterSearch(e.target.value)}
                             className="w-full border border-[#a0a0a0] px-1 py-0.5 text-[10px] font-sans mb-1.5 outline-none"
                           />
-                          {availableOwners.filter(name => name.toLowerCase().includes(ownerFilterSearch.toLowerCase())).map(name => {
-                            const isChecked = selectedFilterOwners.includes(name);
+                          {properties.filter(p => (p.name || '').toLowerCase().includes(propFilterSearch.toLowerCase())).map(p => {
+                            const isChecked = currentPropFilters.includes(p.id);
                             return (
-                              <label key={name} className="flex items-center gap-1.5 cursor-pointer select-none text-[10px] text-slate-700 hover:bg-slate-50 p-0.5 font-sans">
+                              <label key={p.id} className="flex items-center gap-1.5 cursor-pointer select-none text-[10px] text-slate-700 hover:bg-slate-50 p-0.5 font-sans">
                                 <input
                                   type="checkbox"
                                   checked={isChecked}
                                   onChange={(e) => {
-                                    if (e.target.checked) {
-                                      setSelectedFilterOwners(prev => [...prev, name]);
-                                    } else {
-                                      setSelectedFilterOwners(prev => prev.filter(x => x !== name));
-                                    }
+                                    setSelectedFilterProperties(prev => {
+                                      const old = prev[selectedTemplate] || [];
+                                      return {
+                                        ...prev,
+                                        [selectedTemplate]: e.target.checked 
+                                          ? [...old, p.id] 
+                                          : old.filter(x => x !== p.id)
+                                      };
+                                    });
                                   }}
                                   className="w-3 h-3"
                                 />
-                                <span>{name}</span>
+                                <span className="uppercase">{p.name}</span>
                               </label>
                             );
                           })}
                         </div>
-                      );
-                    })()}
-                  </div>
-                )}
+                      )}
+                    </div>
+                  );
+                })()}
+
+                {/* 2. Dropdown Alquileres (Referencia) - shown for alquileres */}
+                {selectedTemplate === 'alquileres' && (() => {
+                  const currentRentFilters = selectedFilterRentals[selectedTemplate] || [];
+                  return (
+                    <div className="flex flex-col gap-1 relative" ref={rentFilterDropdownRef}>
+                      <span className="text-[9px] font-bold text-slate-400 uppercase font-sans">Contratos (Referencia)</span>
+                      <div 
+                        onClick={() => setRentFilterDropdownOpen(prev => !prev)}
+                        className="win-input w-full flex justify-between items-center cursor-pointer select-none bg-white border border-[#a0a0a0] px-2 py-1 text-[11px] font-sans rounded min-h-[24px]"
+                      >
+                        <span className="truncate pr-2 text-slate-700 font-sans">
+                          {currentRentFilters.length === 0 ? 'Todos' : currentRentFilters.join(', ')}
+                        </span>
+                        <span className="text-[9px] text-slate-500">▼</span>
+                      </div>
+                      
+                      {rentFilterDropdownOpen && (
+                        <div className="absolute top-[38px] left-0 right-0 bg-white border border-[#808080] shadow-[2px_2px_4px_rgba(0,0,0,0.15)] z-20 max-h-60 overflow-y-auto p-1.5 flex flex-col gap-1">
+                          <div className="flex justify-between items-center pb-1 border-b border-slate-100 mb-1 font-sans">
+                            <span className="text-[8px] text-slate-400 uppercase font-bold font-sans">Buscar referencia</span>
+                            {currentRentFilters.length > 0 && (
+                              <button 
+                                onClick={() => setSelectedFilterRentals(prev => ({ ...prev, [selectedTemplate]: [] }))}
+                                className="text-[8px] text-blue-600 hover:underline font-bold font-sans"
+                              >
+                                Limpiar
+                              </button>
+                            )}
+                          </div>
+                          <input
+                            type="text"
+                            placeholder="Buscar..."
+                            value={rentFilterSearch}
+                            onChange={(e) => setRentFilterSearch(e.target.value)}
+                            className="w-full border border-[#a0a0a0] px-1 py-0.5 text-[10px] font-sans mb-1.5 outline-none"
+                          />
+                          {rentals.filter(r => (r.reference || '').toLowerCase().includes(rentFilterSearch.toLowerCase())).map(r => {
+                            const isChecked = currentRentFilters.includes(r.reference);
+                            return (
+                              <label key={r.id || r.reference} className="flex items-center gap-1.5 cursor-pointer select-none text-[10px] text-slate-700 hover:bg-slate-50 p-0.5 font-sans">
+                                <input
+                                  type="checkbox"
+                                  checked={isChecked}
+                                  onChange={(e) => {
+                                    setSelectedFilterRentals(prev => {
+                                      const old = prev[selectedTemplate] || [];
+                                      return {
+                                        ...prev,
+                                        [selectedTemplate]: e.target.checked 
+                                          ? [...old, r.reference] 
+                                          : old.filter(x => x !== r.reference)
+                                      };
+                                    });
+                                  }}
+                                  className="w-3 h-3"
+                                />
+                                <span>{r.reference}</span>
+                              </label>
+                            );
+                          })}
+                        </div>
+                      )}
+                    </div>
+                  );
+                })()}
+
+                {/* 3. Dropdown Propietarios - shown for extracto_propietarios */}
+                {selectedTemplate === 'extracto_propietarios' && (() => {
+                  const currentOwnerFilters = selectedFilterOwners[selectedTemplate] || [];
+                  return (
+                    <div className="flex flex-col gap-1 relative" ref={ownerFilterDropdownRef}>
+                      <span className="text-[9px] font-bold text-slate-400 uppercase font-sans">Propietarios (Socios)</span>
+                      <div 
+                        onClick={() => setOwnerFilterDropdownOpen(prev => !prev)}
+                        className="win-input w-full flex justify-between items-center cursor-pointer select-none bg-white border border-[#a0a0a0] px-2 py-1 text-[11px] font-sans rounded min-h-[24px]"
+                      >
+                        <span className="truncate pr-2 text-slate-700 font-sans">
+                          {currentOwnerFilters.length === 0 ? 'Todos' : currentOwnerFilters.join(', ')}
+                        </span>
+                        <span className="text-[9px] text-slate-500">▼</span>
+                      </div>
+                      
+                      {ownerFilterDropdownOpen && (() => {
+                        // Extract unique owner names from properties
+                        const availableOwners = [];
+                        properties.forEach(p => {
+                          (p.owners || []).forEach(o => {
+                            if (o.name && !availableOwners.includes(o.name)) {
+                              availableOwners.push(o.name);
+                            }
+                          });
+                        });
+                        availableOwners.sort();
+                        
+                        return (
+                          <div className="absolute top-[38px] left-0 right-0 bg-white border border-[#808080] shadow-[2px_2px_4px_rgba(0,0,0,0.15)] z-20 max-h-60 overflow-y-auto p-1.5 flex flex-col gap-1">
+                            <div className="flex justify-between items-center pb-1 border-b border-slate-100 mb-1 font-sans">
+                              <span className="text-[8px] text-slate-400 uppercase font-bold font-sans">Buscar propietario</span>
+                              {currentOwnerFilters.length > 0 && (
+                                <button 
+                                  onClick={() => setSelectedFilterOwners(prev => ({ ...prev, [selectedTemplate]: [] }))}
+                                  className="text-[8px] text-blue-600 hover:underline font-bold font-sans"
+                                >
+                                  Limpiar
+                                </button>
+                              )}
+                            </div>
+                            <input
+                              type="text"
+                              placeholder="Buscar..."
+                              value={ownerFilterSearch}
+                              onChange={(e) => setOwnerFilterSearch(e.target.value)}
+                              className="w-full border border-[#a0a0a0] px-1 py-0.5 text-[10px] font-sans mb-1.5 outline-none"
+                            />
+                            {availableOwners.filter(name => name.toLowerCase().includes(ownerFilterSearch.toLowerCase())).map(name => {
+                              const isChecked = currentOwnerFilters.includes(name);
+                              return (
+                                <label key={name} className="flex items-center gap-1.5 cursor-pointer select-none text-[10px] text-slate-700 hover:bg-slate-50 p-0.5 font-sans">
+                                  <input
+                                    type="checkbox"
+                                    checked={isChecked}
+                                    onChange={(e) => {
+                                      setSelectedFilterOwners(prev => {
+                                        const old = prev[selectedTemplate] || [];
+                                        return {
+                                          ...prev,
+                                          [selectedTemplate]: e.target.checked 
+                                            ? [...old, name] 
+                                            : old.filter(x => x !== name)
+                                        };
+                                      });
+                                    }}
+                                    className="w-3 h-3"
+                                  />
+                                  <span>{name}</span>
+                                </label>
+                              );
+                            })}
+                          </div>
+                        );
+                      })()}
+                    </div>
+                  );
+                })()}
               </div>
             </div>
           )}
