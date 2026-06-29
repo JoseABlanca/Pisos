@@ -22,7 +22,8 @@ import {
   LayoutGrid,
   Sliders,
   RotateCcw,
-  ChevronDown
+  ChevronDown,
+  ArrowUpDown
 } from 'lucide-react';
 
 const SpanishAccountingNames = {
@@ -226,6 +227,97 @@ const paginateBlocks = (blocks, baseLimit = 28, maxFlex = 6) => {
   }
   return pages;
 };
+
+const getSortValue = (item, type, templateId, rentalsList, propertiesList) => {
+  if (type === 'date') {
+    if (templateId === 'activos') {
+      return item.financials?.acquisitionDate || item.acquisitionDate || '';
+    }
+    if (templateId === 'alquileres') {
+      const getRentalStartDateInternal = (r) => {
+        if (r.rentalType === 'alquiler por habitaciones' && Array.isArray(r.rooms) && r.rooms.length > 0) {
+          const dates = r.rooms.map(room => room.startDate).filter(d => !!d);
+          if (dates.length > 0) { dates.sort(); return dates[0]; }
+        }
+        return r.startDate || '';
+      };
+      return getRentalStartDateInternal(item);
+    }
+    if (templateId === 'clientes') {
+      const rent = rentalsList.find(r => 
+        (r.id && item.rentalReference && r.id === item.rentalReference) || 
+        (r.reference && item.rentalReference && r.reference === item.rentalReference) ||
+        r.tenantId === item.id || 
+        (r.tenants && r.tenants.some(t => t.id === item.id))
+      );
+      if (rent) {
+        const getRentalStartDateInternal = (r) => {
+          if (r.rentalType === 'alquiler por habitaciones' && Array.isArray(r.rooms) && r.rooms.length > 0) {
+            const dates = r.rooms.map(room => room.startDate).filter(d => !!d);
+            if (dates.length > 0) { dates.sort(); return dates[0]; }
+          }
+          return r.startDate || '';
+        };
+        return getRentalStartDateInternal(rent);
+      }
+      return '';
+    }
+    if (templateId === 'extracto_propietarios') {
+      const p = propertiesList.find(x => x.id === item.propertyId);
+      return p ? (p.financials?.acquisitionDate || p.acquisitionDate || '') : '';
+    }
+  }
+  if (type === 'name') {
+    if (templateId === 'activos') {
+      return item.name || '';
+    }
+    if (templateId === 'alquileres') {
+      const prop = propertiesList.find(p => p.id === item.propertyId);
+      return prop ? (prop.name || '') : (item.propertyId || '');
+    }
+    if (templateId === 'clientes') {
+      return `${item.name || ''} ${item.lastName || ''}`.trim();
+    }
+    if (templateId === 'extracto_propietarios') {
+      return item.partnerName || '';
+    }
+  }
+  return '';
+};
+
+const multiLevelSort = (list, templateId, rentalsList, propertiesList, sortLevel1, sortLevel2) => {
+  const sorted = [...list];
+  
+  const compareValues = (a, b, criterion) => {
+    if (!criterion || criterion === 'none') return 0;
+    const isDesc = criterion.endsWith('_desc');
+    const type = criterion.startsWith('date') ? 'date' : 'name';
+    
+    const valA = getSortValue(a, type, templateId, rentalsList, propertiesList);
+    const valB = getSortValue(b, type, templateId, rentalsList, propertiesList);
+    
+    if (!valA && !valB) return 0;
+    if (!valA) return 1;
+    if (!valB) return -1;
+    
+    let result = 0;
+    if (type === 'date') {
+      result = valA.localeCompare(valB);
+    } else {
+      result = valA.localeCompare(valB, 'es', { sensitivity: 'base' });
+    }
+    return isDesc ? -result : result;
+  };
+  
+  sorted.sort((a, b) => {
+    const res1 = compareValues(a, b, sortLevel1);
+    if (res1 !== 0) return res1;
+    return compareValues(a, b, sortLevel2);
+  });
+  
+  return sorted;
+};
+
 
 
 
@@ -433,6 +525,13 @@ export default function PrintPage() {
     return { extracto_propietarios: [] };
   });
 
+  const [sortLevel1, setSortLevel1] = useState(() => {
+    return localStorage.getItem('print_sortLevel1') || 'none';
+  });
+  const [sortLevel2, setSortLevel2] = useState(() => {
+    return localStorage.getItem('print_sortLevel2') || 'none';
+  });
+
   const [accountsDropdownOpen, setAccountsDropdownOpen] = useState(false);
   const [cebeDropdownOpen, setCebeDropdownOpen] = useState(false);
   const [cecoDropdownOpen, setCecoDropdownOpen] = useState(false);
@@ -507,20 +606,21 @@ export default function PrintPage() {
       { id: 'rentalRef', label: 'Referencia Alquiler' },
     ],
     extracto_propietarios: [
-      { id: 'name', label: 'Nombre Propietario' },
+      { id: 'name', label: 'Propietario' },
       { id: 'nif', label: 'NIF/CIF' },
       { id: 'property', label: 'Inmueble' },
       { id: 'percentage', label: '% Propiedad' },
-      { id: 'purchasePrice', label: 'Precio Compra' },
-      { id: 'currentValue', label: 'Valor Actual' },
-      { id: 'invested', label: 'Capital Invertido' },
+      { id: 'currentValue', label: 'V. Actual' },
+      { id: 'invested', label: 'Cap. Aportado' },
+      { id: 'gain', label: 'Ganancia' },
+      { id: 'gainPlusInvested', label: 'Ganancia + Cap. Aportado' },
     ],
   };
   const defaultVisibleColumns = {
     activos: new Set(['id','name','address','cebe_ceco','accountingAccount','ingresos','gastos','servicios','netYield']),
     alquileres: new Set(['reference','property','tenants','startDate','endDate','rentAmount','expenses','netYield','status']),
     clientes: new Set(['id','name','dni','phone','email','status','propertyName','rentalRef']),
-    extracto_propietarios: new Set(['name','nif','property','percentage','purchasePrice','currentValue']),
+    extracto_propietarios: new Set(['name','property','percentage','currentValue','invested','gain','gainPlusInvested']),
   };
   const [visibleColumns, setVisibleColumns] = useState(defaultVisibleColumns);
 
@@ -625,12 +725,14 @@ export default function PrintPage() {
     localStorage.setItem('print_selectedFilterProperties', JSON.stringify(selectedFilterProperties));
     localStorage.setItem('print_selectedFilterRentals', JSON.stringify(selectedFilterRentals));
     localStorage.setItem('print_selectedFilterOwners', JSON.stringify(selectedFilterOwners));
+    localStorage.setItem('print_sortLevel1', sortLevel1);
+    localStorage.setItem('print_sortLevel2', sortLevel2);
   }, [
     rentPeriod, statusFilterAlquileres, statusFilterClientes, paperSize, pageOrientation,
     selectedYear, selectedYears, selectedMonths, selectedQuarters, selectedAccounts,
     selectedCebes, selectedCecos, selectedDocuments, hideZeroBalances, showVerticalPercentage,
     displayMode, selectedComparisonYears, selectedFilterProperties, selectedFilterRentals,
-    selectedFilterOwners
+    selectedFilterOwners, sortLevel1, sortLevel2
   ]);
 
   
@@ -2593,7 +2695,9 @@ export default function PrintPage() {
         return true;
       });
 
-      const listPages = chunkFlatList(filteredProperties, 34);
+      const sortedProperties = multiLevelSort(filteredProperties, 'activos', rentals, properties, sortLevel1, sortLevel2);
+
+      const listPages = chunkFlatList(sortedProperties, 34);
       const totalPages = listPages.length || 1;
 
       if (filteredProperties.length === 0) {
@@ -2684,7 +2788,9 @@ export default function PrintPage() {
         return true;
       });
 
-      const listPages = chunkFlatList(filteredRentals, 32);
+      const sortedRentals = multiLevelSort(filteredRentals, 'alquileres', rentals, properties, sortLevel1, sortLevel2);
+
+      const listPages = chunkFlatList(sortedRentals, 32);
       const totalPages = listPages.length || 1;
 
       if (listPages.length === 0) {
@@ -2808,7 +2914,9 @@ export default function PrintPage() {
         return true;
       });
 
-      const listPages = chunkFlatList(filteredCustomers, 34);
+      const sortedCustomers = multiLevelSort(filteredCustomers, 'clientes', rentals, properties, sortLevel1, sortLevel2);
+
+      const listPages = chunkFlatList(sortedCustomers, 34);
       const totalPages = listPages.length || 1;
 
       if (listPages.length === 0) {
@@ -2893,21 +3001,46 @@ export default function PrintPage() {
       properties.forEach(p => {
         const ownersArr = Array.isArray(p.owners) ? p.owners : [];
         const purchasePrice = parseFloat(p.financials?.purchasePrice || p.purchasePrice || 0);
-        const currentValue = parseFloat(p.financials?.currentValue || p.currentValue || 0);
+        const agentFees = parseFloat(p.financials?.agentFees || 0);
+        
+        const totalAcquisitionExp = (p.financials?.acquisitionExpenses || []).reduce(
+          (acc, exp) => acc + (parseFloat(exp.amount) || 0), 
+          0
+        );
+        
+        const totalReforms = (p.reforms || []).reduce((acc, ref) => {
+          const invoiced = (ref.invoices || []).reduce((sum, inv) => sum + (parseFloat(inv.amount) || 0), 0);
+          const refAmount = ref.amount !== undefined && ref.amount !== null && ref.amount !== '' ? parseFloat(ref.amount) : invoiced;
+          return acc + (isNaN(refAmount) ? 0 : refAmount);
+        }, 0);
+        
+        const totalInvestment = purchasePrice + totalAcquisitionExp + agentFees + totalReforms;
+        const mortgage = parseFloat(p.loanAmount) || 0;
+        const equity = totalInvestment - mortgage;
+        const propCurrentValue = parseFloat(p.financials?.currentValue || p.currentValue || 0);
+        const netProfit = propCurrentValue - equity;
+
         ownersArr.forEach(o => {
           const pct = parseFloat(o.percentage) || 0;
+          const perc = pct / 100;
+          const currentVal = propCurrentValue * perc;
+          const capitalAportado = equity * perc;
+          const ganancia = netProfit * perc;
+          const totalGananciaMasAportacion = currentVal;
+          
           ownerRows.push({
             partnerName: o.name || '---',
             partnerNif: o.nif || '---',
             propertyName: p.name || p.id,
             propertyId: p.id,
             percentage: pct,
-            purchasePrice,
-            currentValue,
-            invested: purchasePrice * (pct / 100),
-            latentPnl: (currentValue - purchasePrice) * (pct / 100),
+            currentValue: currentVal,
+            invested: capitalAportado,
+            gain: ganancia,
+            gainPlusInvested: totalGananciaMasAportacion
           });
         });
+        
         if (ownersArr.length === 0) {
           ownerRows.push({
             partnerName: '(Sin propietario asignado)',
@@ -2915,10 +3048,10 @@ export default function PrintPage() {
             propertyName: p.name || p.id,
             propertyId: p.id,
             percentage: 100,
-            purchasePrice,
-            currentValue,
-            invested: purchasePrice,
-            latentPnl: currentValue - purchasePrice,
+            currentValue: propCurrentValue,
+            invested: equity,
+            gain: netProfit,
+            gainPlusInvested: propCurrentValue
           });
         }
       });
@@ -2933,17 +3066,29 @@ export default function PrintPage() {
         return true;
       });
 
+      const sortedOwnerRows = multiLevelSort(filteredOwnerRows, 'extracto_propietarios', rentals, properties, sortLevel1, sortLevel2);
+
       // Group by partner name for summary
       const partnerGroups = {};
-      filteredOwnerRows.forEach(r => {
+      sortedOwnerRows.forEach(r => {
         if (!partnerGroups[r.partnerName]) partnerGroups[r.partnerName] = [];
         partnerGroups[r.partnerName].push(r);
       });
 
-      const listPages = chunkFlatList(filteredOwnerRows, 30);
+      // Calculate totals for summation row
+      const totals = sortedOwnerRows.reduce((acc, r) => {
+        acc.percentage += r.percentage;
+        acc.currentValue += r.currentValue;
+        acc.invested += r.invested;
+        acc.gain += r.gain;
+        acc.gainPlusInvested += r.gainPlusInvested;
+        return acc;
+      }, { percentage: 0, currentValue: 0, invested: 0, gain: 0, gainPlusInvested: 0 });
+
+      const listPages = chunkFlatList(sortedOwnerRows, 28);
       const totalPages = listPages.length || 1;
 
-      if (filteredOwnerRows.length === 0) {
+      if (sortedOwnerRows.length === 0) {
         pageViews.push(
           <div key="empty-prop" className="page-sheet relative">
             {renderPageHeader('Extracto de Propietarios')}
@@ -2953,6 +3098,7 @@ export default function PrintPage() {
         );
       } else {
         listPages.forEach((pageItems, pageIdx) => {
+          const isLastPage = pageIdx === listPages.length - 1;
           pageViews.push(
             <div key={`eprop-${pageIdx}`} className="page-sheet relative">
               <div>
@@ -2964,9 +3110,10 @@ export default function PrintPage() {
                       {cv('nif') && <th className="py-1.5 px-2 text-left w-24 font-semibold">NIF/CIF</th>}
                       {cv('property') && <th className="py-1.5 px-2 text-left font-semibold">Inmueble</th>}
                       {cv('percentage') && <th className="py-1.5 px-2 text-right w-16 font-semibold">% Prop.</th>}
-                      {cv('purchasePrice') && <th className="py-1.5 px-2 text-right w-24 font-semibold">P. Compra</th>}
-                      {cv('currentValue') && <th className="py-1.5 px-2 text-right w-24 font-semibold">Val. Actual</th>}
-                      {cv('invested') && <th className="py-1.5 px-2 text-right w-24 font-semibold">Capital Invest.</th>}
+                      {cv('currentValue') && <th className="py-1.5 px-2 text-right w-24 font-semibold">V. Actual</th>}
+                      {cv('invested') && <th className="py-1.5 px-2 text-right w-24 font-semibold">Cap. Aportado</th>}
+                      {cv('gain') && <th className="py-1.5 px-2 text-right w-24 font-semibold">Ganancia</th>}
+                      {cv('gainPlusInvested') && <th className="py-1.5 px-2 text-right w-28 font-semibold">Ganancia + Cap. Aportado</th>}
                     </tr>
                   </thead>
                   <tbody>
@@ -2976,16 +3123,31 @@ export default function PrintPage() {
                         {cv('nif') && <td className="py-1.5 px-2">{row.partnerNif}</td>}
                         {cv('property') && <td className="py-1.5 px-2 uppercase">{row.propertyName}</td>}
                         {cv('percentage') && <td className="py-1.5 px-2 text-right tabular-nums">{row.percentage.toFixed(2)}%</td>}
-                        {cv('purchasePrice') && <td className="py-1.5 px-2 text-right tabular-nums">{row.purchasePrice > 0 ? formatCurrency(row.purchasePrice) : '---'}</td>}
                         {cv('currentValue') && <td className="py-1.5 px-2 text-right tabular-nums">{row.currentValue > 0 ? formatCurrency(row.currentValue) : '---'}</td>}
                         {cv('invested') && <td className="py-1.5 px-2 text-right tabular-nums">{row.invested > 0 ? formatCurrency(row.invested) : '---'}</td>}
+                        {cv('gain') && <td className="py-1.5 px-2 text-right tabular-nums">{row.gain !== 0 ? formatCurrency(row.gain) : '---'}</td>}
+                        {cv('gainPlusInvested') && <td className="py-1.5 px-2 text-right tabular-nums">{row.gainPlusInvested > 0 ? formatCurrency(row.gainPlusInvested) : '---'}</td>}
                       </tr>
                     ))}
+                    
+                    {/* Summation TOTAL row at the end of the last page */}
+                    {isLastPage && (
+                      <tr className="bg-slate-150 font-bold border-t-2 border-slate-400 text-[9px] text-slate-800">
+                        {cv('name') && <td className="py-1.5 px-2 font-bold">TOTAL</td>}
+                        {cv('nif') && <td className="py-1.5 px-2"></td>}
+                        {cv('property') && <td className="py-1.5 px-2"></td>}
+                        {cv('percentage') && <td className="py-1.5 px-2 text-right tabular-nums">{totals.percentage.toFixed(1)}%</td>}
+                        {cv('currentValue') && <td className="py-1.5 px-2 text-right tabular-nums">{formatCurrency(totals.currentValue)}</td>}
+                        {cv('invested') && <td className="py-1.5 px-2 text-right tabular-nums">{formatCurrency(totals.invested)}</td>}
+                        {cv('gain') && <td className="py-1.5 px-2 text-right tabular-nums">{formatCurrency(totals.gain)}</td>}
+                        {cv('gainPlusInvested') && <td className="py-1.5 px-2 text-right tabular-nums">{formatCurrency(totals.gainPlusInvested)}</td>}
+                      </tr>
+                    )}
                   </tbody>
                 </table>
 
                 {/* Summary by partner (last page only) */}
-                {pageIdx === listPages.length - 1 && Object.keys(partnerGroups).length > 0 && (
+                {isLastPage && Object.keys(partnerGroups).length > 0 && (
                   <div className="mt-6">
                     <div className="text-[9px] font-semibold text-slate-700 uppercase border-b border-slate-300 pb-1 mb-2">Resumen por Propietario</div>
                     <table className="w-full text-[9px] border-collapse">
@@ -2993,23 +3155,26 @@ export default function PrintPage() {
                         <tr className="border-b border-slate-400 bg-slate-100 text-[8px] uppercase">
                           <th className="py-1 px-2 text-left font-semibold">Propietario</th>
                           <th className="py-1 px-2 text-right w-16 font-semibold">Nº Activos</th>
-                          <th className="py-1 px-2 text-right w-28 font-semibold">Capital Total Invest.</th>
-                          <th className="py-1 px-2 text-right w-28 font-semibold">Valor Actual Total</th>
-                          <th className="py-1 px-2 text-right w-24 font-semibold">PnL Latente</th>
+                          <th className="py-1 px-2 text-right w-24 font-semibold">V. Actual</th>
+                          <th className="py-1 px-2 text-right w-24 font-semibold">Cap. Aportado</th>
+                          <th className="py-1 px-2 text-right w-24 font-semibold">Ganancia</th>
+                          <th className="py-1 px-2 text-right w-28 font-semibold">Ganancia + Cap. Aportado</th>
                         </tr>
                       </thead>
                       <tbody>
                         {Object.entries(partnerGroups).map(([pName, rows]) => {
+                          const totalCurrentVal = rows.reduce((s, r) => s + r.currentValue, 0);
                           const totalInvested = rows.reduce((s, r) => s + r.invested, 0);
-                          const totalCurrentVal = rows.reduce((s, r) => s + r.currentValue * (r.percentage / 100), 0);
-                          const totalPnl = totalCurrentVal - totalInvested;
+                          const totalGain = rows.reduce((s, r) => s + r.gain, 0);
+                          const totalGainPlusInvested = rows.reduce((s, r) => s + r.gainPlusInvested, 0);
                           return (
                             <tr key={pName} className="border-b border-slate-200 text-slate-800">
                               <td className="py-1 px-2 uppercase">{pName}</td>
                               <td className="py-1 px-2 text-right">{rows.length}</td>
-                              <td className="py-1 px-2 text-right tabular-nums">{totalInvested > 0 ? formatCurrency(totalInvested) : '---'}</td>
                               <td className="py-1 px-2 text-right tabular-nums">{totalCurrentVal > 0 ? formatCurrency(totalCurrentVal) : '---'}</td>
-                              <td className="py-1 px-2 text-right tabular-nums">{totalPnl !== 0 ? formatCurrency(totalPnl) : '---'}</td>
+                              <td className="py-1 px-2 text-right tabular-nums">{totalInvested > 0 ? formatCurrency(totalInvested) : '---'}</td>
+                              <td className="py-1 px-2 text-right tabular-nums">{totalGain !== 0 ? formatCurrency(totalGain) : '---'}</td>
+                              <td className="py-1 px-2 text-right tabular-nums">{totalGainPlusInvested > 0 ? formatCurrency(totalGainPlusInvested) : '---'}</td>
                             </tr>
                           );
                         })}
@@ -5031,6 +5196,48 @@ export default function PrintPage() {
                     </div>
                   );
                 })()}
+              </div>
+            </div>
+          )}
+
+          {/* Ordenación del Informe */}
+          {['activos', 'alquileres', 'clientes', 'extracto_propietarios'].includes(selectedTemplate) && (
+            <div className="bg-white border border-[#a0a0a0] p-3 flex flex-col gap-3">
+              <div className="text-[10px] font-bold text-slate-500 uppercase flex items-center gap-1 select-none">
+                <ArrowUpDown className="w-3.5 h-3.5 text-slate-400" />
+                <span>Ordenación del Informe</span>
+              </div>
+              <div className="flex flex-col gap-2.5">
+                {/* 1º Nivel */}
+                <div className="flex flex-col gap-1">
+                  <span className="text-[9px] font-bold text-slate-400 uppercase font-sans">1º Nivel (Principal)</span>
+                  <select 
+                    value={sortLevel1} 
+                    onChange={(e) => setSortLevel1(e.target.value)}
+                    className="win-input w-full text-[11px] font-sans rounded"
+                  >
+                    <option value="none">Sin ordenar</option>
+                    <option value="date_asc">Fecha (Más antigua primero)</option>
+                    <option value="date_desc">Fecha (Más reciente primero)</option>
+                    <option value="name_asc">Nombre (A - Z)</option>
+                    <option value="name_desc">Nombre (Z - A)</option>
+                  </select>
+                </div>
+                {/* 2º Nivel */}
+                <div className="flex flex-col gap-1 border-t border-slate-100 pt-2">
+                  <span className="text-[9px] font-bold text-slate-400 uppercase font-sans">2º Nivel (Secundario)</span>
+                  <select 
+                    value={sortLevel2} 
+                    onChange={(e) => setSortLevel2(e.target.value)}
+                    className="win-input w-full text-[11px] font-sans rounded"
+                  >
+                    <option value="none">Sin ordenar</option>
+                    <option value="date_asc">Fecha (Más antigua primero)</option>
+                    <option value="date_desc">Fecha (Más reciente primero)</option>
+                    <option value="name_asc">Nombre (A - Z)</option>
+                    <option value="name_desc">Nombre (Z - A)</option>
+                  </select>
+                </div>
               </div>
             </div>
           )}
