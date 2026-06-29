@@ -2749,89 +2749,88 @@ export default function PrintPage() {
           <div>
             {renderPageHeader('Balance de Situación')}
             
-            <div className="grid grid-cols-2 gap-6 mt-4 text-[10px]">
-              {/* Left Column: Activo */}
-              <div className="flex flex-col">
-                <div className="bg-slate-800 text-white font-bold px-2 py-1 flex justify-between uppercase mb-2">
-                  <span>ACTIVO</span>
-                  <span>Importe (€)</span>
+            <div className="flex flex-col mt-4 text-[10px]">
+              {/* ACTIVO */}
+              <div className="bg-slate-800 text-white font-bold px-2 py-1 flex justify-between uppercase mb-2">
+                <span>ACTIVO</span>
+                <span className="font-mono tabular-nums">{formatCurrency(data.total_activo)}</span>
+              </div>
+              
+              <div className="flex justify-between font-bold text-slate-700 bg-slate-100 px-2 py-1 uppercase mb-1 border-b border-slate-200">
+                <span>A) ACTIVO NO CORRIENTE</span>
+                <span className="font-mono tabular-nums">{formatCurrency(data.total_activo_no_corriente)}</span>
+              </div>
+              {data.activo_no_corriente_items.map((item, idx) => (
+                <div key={idx} className="flex justify-between pl-3 py-1 border-b border-slate-100">
+                  <span>{item.label}</span>
+                  <span className="font-mono tabular-nums">{formatCurrency(item.value)}</span>
                 </div>
-                
-                <div className="font-bold text-slate-700 uppercase mb-1">A) ACTIVO NO CORRIENTE</div>
-                {data.activo_no_corriente_items.map((item, idx) => (
-                  <div key={idx} className="flex justify-between pl-3 py-1 border-b border-slate-100">
-                    <span>{item.label}</span>
-                    <span className="font-mono tabular-nums">{formatCurrency(item.value)}</span>
-                  </div>
-                ))}
-                <div className="flex justify-between pl-3 py-1.5 font-bold text-slate-700 bg-slate-50 border-b-2 border-slate-350 mb-4">
-                  <span>Total Activo No Corriente</span>
-                  <span className="font-mono tabular-nums">{formatCurrency(data.total_activo_no_corriente)}</span>
-                </div>
+              ))}
 
-                <div className="font-bold text-slate-700 uppercase mb-1">B) ACTIVO CORRIENTE</div>
-                {data.activo_corriente_items.map((item, idx) => (
-                  <div key={idx} className="flex justify-between pl-3 py-1 border-b border-slate-100">
-                    <span>{item.label}</span>
-                    <span className="font-mono tabular-nums">{formatCurrency(item.value)}</span>
-                  </div>
-                ))}
-                <div className="flex justify-between pl-3 py-1.5 font-bold text-slate-700 bg-slate-50 border-b-2 border-slate-300">
-                  <span>Total Activo Corriente</span>
-                  <span className="font-mono tabular-nums">{formatCurrency(data.total_activo_corriente)}</span>
+              <div className="flex justify-between font-bold text-slate-700 bg-slate-100 px-2 py-1 uppercase mt-3 mb-1 border-b border-slate-200">
+                <span>B) ACTIVO CORRIENTE</span>
+                <span className="font-mono tabular-nums">{formatCurrency(data.total_activo_corriente)}</span>
+              </div>
+              {data.activo_corriente_items.map((item, idx) => (
+                <div key={idx} className="flex justify-between pl-3 py-1 border-b border-slate-100">
+                  <span>{item.label}</span>
+                  <span className="font-mono tabular-nums">{formatCurrency(item.value)}</span>
                 </div>
+              ))}
 
-                <div className="flex justify-between py-2 font-black text-slate-900 bg-slate-200 px-2 mt-4 text-[10.5px] border border-slate-400">
-                  <span>TOTAL ACTIVO (A + B)</span>
+              {/* PASIVO */}
+              <div className="bg-slate-800 text-white font-bold px-2 py-1 flex justify-between uppercase mb-2 mt-4">
+                <span>PASIVO</span>
+                <span className="font-mono tabular-nums">{formatCurrency(data.total_pasivo)}</span>
+              </div>
+              
+              <div className="flex justify-between font-bold text-slate-700 bg-slate-100 px-2 py-1 uppercase mb-1 border-b border-slate-200">
+                <span>A) PASIVO NO CORRIENTE</span>
+                <span className="font-mono tabular-nums">{formatCurrency(data.total_pasivo_no_corriente)}</span>
+              </div>
+              {data.pasivo_no_corriente_items.map((item, idx) => (
+                <div key={idx} className="flex justify-between pl-3 py-1 border-b border-slate-100">
+                  <span>{item.label}</span>
+                  <span className="font-mono tabular-nums">{formatCurrency(item.value)}</span>
+                </div>
+              ))}
+
+              <div className="flex justify-between font-bold text-slate-700 bg-slate-100 px-2 py-1 uppercase mt-3 mb-1 border-b border-slate-200">
+                <span>B) PASIVO CORRIENTE</span>
+                <span className="font-mono tabular-nums">{formatCurrency(data.total_pasivo_corriente)}</span>
+              </div>
+              {data.pasivo_corriente_items.map((item, idx) => (
+                <div key={idx} className="flex justify-between pl-3 py-1 border-b border-slate-100">
+                  <span>{item.label}</span>
+                  <span className="font-mono tabular-nums">{formatCurrency(item.value)}</span>
+                </div>
+              ))}
+
+              {/* PATRIMONIO NETO */}
+              <div className="bg-slate-800 text-white font-bold px-2 py-1 flex justify-between uppercase mb-2 mt-4">
+                <span>PATRIMONIO NETO</span>
+                <span className="font-mono tabular-nums">{formatCurrency(data.total_patrimonio)}</span>
+              </div>
+              
+              <div className="flex justify-between font-bold text-slate-700 bg-slate-100 px-2 py-1 uppercase mb-1 border-b border-slate-200">
+                <span>A) PATRIMONIO NETO</span>
+                <span className="font-mono tabular-nums">{formatCurrency(data.total_patrimonio)}</span>
+              </div>
+              {data.patrimonio_items.map((item, idx) => (
+                <div key={idx} className="flex justify-between pl-3 py-1 border-b border-slate-100">
+                  <span>{item.label}</span>
+                  <span className="font-mono tabular-nums">{formatCurrency(item.value)}</span>
+                </div>
+              ))}
+
+              {/* TOTALES GENERALES */}
+              <div className="grid grid-cols-2 gap-6 mt-6 pt-2 border-t border-slate-350">
+                <div className="flex justify-between py-2 font-black text-slate-900 bg-slate-200 px-2 text-[10.5px] border border-slate-400">
+                  <span>TOTAL ACTIVO</span>
                   <span className="font-mono tabular-nums">{formatCurrency(data.total_activo)}</span>
                 </div>
-              </div>
-
-              {/* Right Column: Patrimonio Neto y Pasivo */}
-              <div className="flex flex-col">
-                <div className="bg-slate-800 text-white font-bold px-2 py-1 flex justify-between uppercase mb-2">
-                  <span>PATRIMONIO NETO Y PASIVO</span>
-                  <span>Importe (€)</span>
-                </div>
-
-                <div className="font-bold text-slate-700 uppercase mb-1">A) PATRIMONIO NETO</div>
-                {data.patrimonio_items.map((item, idx) => (
-                  <div key={idx} className="flex justify-between pl-3 py-1 border-b border-slate-100">
-                    <span>{item.label}</span>
-                    <span className="font-mono tabular-nums">{formatCurrency(item.value)}</span>
-                  </div>
-                ))}
-                <div className="flex justify-between pl-3 py-1.5 font-bold text-slate-700 bg-slate-50 border-b-2 border-slate-350 mb-4">
-                  <span>Total Patrimonio Neto</span>
-                  <span className="font-mono tabular-nums">{formatCurrency(data.total_patrimonio)}</span>
-                </div>
-
-                <div className="font-bold text-slate-700 uppercase mb-1">B) PASIVO NO CORRIENTE</div>
-                {data.pasivo_no_corriente_items.map((item, idx) => (
-                  <div key={idx} className="flex justify-between pl-3 py-1 border-b border-slate-100">
-                    <span>{item.label}</span>
-                    <span className="font-mono tabular-nums">{formatCurrency(item.value)}</span>
-                  </div>
-                ))}
-                <div className="flex justify-between pl-3 py-1.5 font-bold text-slate-700 bg-slate-50 border-b-2 border-slate-300 mb-4">
-                  <span>Total Pasivo No Corriente</span>
-                  <span className="font-mono tabular-nums">{formatCurrency(data.total_pasivo_no_corriente)}</span>
-                </div>
-
-                <div className="font-bold text-slate-700 uppercase mb-1">C) PASIVO CORRIENTE</div>
-                {data.pasivo_corriente_items.map((item, idx) => (
-                  <div key={idx} className="flex justify-between pl-3 py-1 border-b border-slate-100">
-                    <span>{item.label}</span>
-                    <span className="font-mono tabular-nums">{formatCurrency(item.value)}</span>
-                  </div>
-                ))}
-                <div className="flex justify-between pl-3 py-1.5 font-bold text-slate-700 bg-slate-50 border-b-2 border-slate-300">
-                  <span>Total Pasivo Corriente</span>
-                  <span className="font-mono tabular-nums">{formatCurrency(data.total_pasivo_corriente)}</span>
-                </div>
-
-                <div className="flex justify-between py-2 font-black text-slate-900 bg-slate-200 px-2 mt-4 text-[10.5px] border border-slate-400">
-                  <span>TOTAL PATRIMONIO Y PASIVO (A + B + C)</span>
+                <div className="flex justify-between py-2 font-black text-slate-900 bg-slate-200 px-2 text-[10.5px] border border-slate-400">
+                  <span>TOTAL PATRIMONIO Y PASIVO</span>
                   <span className="font-mono tabular-nums">{formatCurrency(data.total_pasivo_patrimonio)}</span>
                 </div>
               </div>
