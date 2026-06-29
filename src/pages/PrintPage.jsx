@@ -181,6 +181,8 @@ export default function PrintPage() {
   const [filterImpuesto, setFilterImpuesto] = useState(false);
   const [maxDigits, setMaxDigits] = useState(10);
   const [isDatesCollapsed, setIsDatesCollapsed] = useState(true);
+  const [hideZeroBalances, setHideZeroBalances] = useState(false);
+  const [showVerticalPercentage, setShowVerticalPercentage] = useState(false);
   const [accountsDropdownOpen, setAccountsDropdownOpen] = useState(false);
   const [cebeDropdownOpen, setCebeDropdownOpen] = useState(false);
   const [cecoDropdownOpen, setCecoDropdownOpen] = useState(false);
@@ -1067,6 +1069,42 @@ export default function PrintPage() {
       return groupAccounts.reduce((sum, a) => sum + (directMap[a.id] || 0), 0);
     };
 
+    const getAccountsForCategoryItem = (item, categoryKey) => {
+      if (item.isProfitLoss) {
+        return [];
+      }
+      const prefixes = item.prefixes || (item.prefix ? [item.prefix] : []);
+      const excludes = item.exclude || [];
+
+      const matched = accounts.filter(acc => {
+        const code = acc.code || '';
+        
+        if (categoryKey === 'activo') {
+          if (acc.type !== 'Activo') return false;
+        }
+        if (categoryKey === 'pasivo') {
+          const isLiability = acc.type === 'Pasivo' && !(code.startsWith('10') || code.startsWith('11') || code.startsWith('12') || code.startsWith('13'));
+          if (!isLiability) return false;
+        }
+        if (categoryKey === 'patrimonio') {
+          const isEquity = acc.type === 'Patrimonio' || (acc.type === 'Pasivo' && (code.startsWith('10') || code.startsWith('11') || code.startsWith('12') || code.startsWith('13')));
+          if (!isEquity) return false;
+        }
+
+        const matchesPrefix = prefixes.some(p => code.startsWith(p));
+        const matchesExclude = excludes.some(e => code.startsWith(e));
+        return matchesPrefix && !matchesExclude;
+      });
+
+      const levelAccounts = matched.filter(acc => acc.code && acc.code.length <= maxDigits);
+      
+      return levelAccounts.map(acc => ({
+        code: acc.code,
+        name: acc.name,
+        balance: aggregatedMap[acc.id] || 0
+      })).sort((a, b) => a.code.localeCompare(b.code));
+    };
+
     const balanceSheet = {
       activo: {
         no_corriente: [
@@ -1110,11 +1148,31 @@ export default function PrintPage() {
     };
 
     const sheetData = {
-      activo_no_corriente_items: balanceSheet.activo.no_corriente.map(g => ({ ...g, value: getGroupValue(g, 'activo') })),
-      activo_corriente_items: balanceSheet.activo.corriente.map(g => ({ ...g, value: getGroupValue(g, 'activo') })),
-      pasivo_no_corriente_items: balanceSheet.pasivo.no_corriente.map(g => ({ ...g, value: getGroupValue(g, 'pasivo') })),
-      pasivo_corriente_items: balanceSheet.pasivo.corriente.map(g => ({ ...g, value: getGroupValue(g, 'pasivo') })),
-      patrimonio_items: balanceSheet.patrimonio.fondos_propios.map(g => ({ ...g, value: getGroupValue(g, 'patrimonio') }))
+      activo_no_corriente_items: balanceSheet.activo.no_corriente.map(g => ({ 
+        ...g, 
+        value: getGroupValue(g, 'activo'),
+        accounts: getAccountsForCategoryItem(g, 'activo')
+      })),
+      activo_corriente_items: balanceSheet.activo.corriente.map(g => ({ 
+        ...g, 
+        value: getGroupValue(g, 'activo'),
+        accounts: getAccountsForCategoryItem(g, 'activo')
+      })),
+      pasivo_no_corriente_items: balanceSheet.pasivo.no_corriente.map(g => ({ 
+        ...g, 
+        value: getGroupValue(g, 'pasivo'),
+        accounts: getAccountsForCategoryItem(g, 'pasivo')
+      })),
+      pasivo_corriente_items: balanceSheet.pasivo.corriente.map(g => ({ 
+        ...g, 
+        value: getGroupValue(g, 'pasivo'),
+        accounts: getAccountsForCategoryItem(g, 'pasivo')
+      })),
+      patrimonio_items: balanceSheet.patrimonio.fondos_propios.map(g => ({ 
+        ...g, 
+        value: getGroupValue(g, 'patrimonio'),
+        accounts: getAccountsForCategoryItem(g, 'patrimonio')
+      }))
     };
 
     sheetData.total_activo_no_corriente = sheetData.activo_no_corriente_items.reduce((s, i) => s + i.value, 0);
@@ -1229,7 +1287,7 @@ export default function PrintPage() {
       income: incomeData,
       cashflow: cashFlowData
     };
-  }, [accounts, journalEntries, selectedYear, selectedMonths, selectedQuarters]);
+  }, [accounts, journalEntries, selectedYear, selectedMonths, selectedQuarters, maxDigits]);
 
   // Combined timeline and dropdown filters for print entries
   const filteredEntriesForPrint = useMemo(() => {
@@ -2796,102 +2854,206 @@ export default function PrintPage() {
     if (selectedTemplate === 'balance_situacion') {
       const data = computedAnnualAccounts.sheet;
       
-      // Page 1: Activo
-      pageViews.push(
-        <div key="balance-situacion-p1" className="page-sheet relative">
-          <div>
-            {renderPageHeader('Balance de Situación')}
-            
-            <div className="flex flex-col mt-4 text-[10px]">
-              {/* ACTIVO */}
-              <div className="text-slate-900 font-bold flex justify-between uppercase mb-2 border-b-2 border-slate-900 pb-1 text-[10.5px] px-1">
-                <span>ACTIVO</span>
-                <span className="font-mono tabular-nums">{formatCurrency(data.total_activo)}</span>
-              </div>
-              
-              <div className="flex justify-between font-bold text-slate-700 bg-slate-100 px-2 py-1 uppercase mb-1 border-b border-slate-200">
-                <span>A) ACTIVO NO CORRIENTE</span>
-                <span className="font-mono tabular-nums">{formatCurrency(data.total_activo_no_corriente)}</span>
-              </div>
-              {data.activo_no_corriente_items.map((item, idx) => (
-                <div key={idx} className="flex justify-between pl-3 py-1 border-b border-slate-100">
-                  <span>{item.label}</span>
-                  <span className="font-mono tabular-nums">{formatCurrency(item.value)}</span>
-                </div>
-              ))}
+      const activoRows = [];
+      // ACTIVO Header
+      activoRows.push({ type: 'main-header', label: 'ACTIVO', value: data.total_activo, divisor: data.total_activo });
+      
+      // A) ACTIVO NO CORRIENTE Subheader
+      activoRows.push({ type: 'subheader', label: 'A) ACTIVO NO CORRIENTE', value: data.total_activo_no_corriente, divisor: data.total_activo });
+      
+      data.activo_no_corriente_items.forEach(item => {
+        const itemAccounts = item.accounts || [];
+        const filteredAccounts = hideZeroBalances 
+          ? itemAccounts.filter(a => Math.abs(a.balance) > 0.005)
+          : itemAccounts;
+          
+        activoRows.push({ type: 'item', label: item.label, value: item.value, divisor: data.total_activo });
+        filteredAccounts.forEach(acc => {
+          activoRows.push({ type: 'account', code: acc.code, name: acc.name, value: acc.balance, divisor: data.total_activo });
+        });
+      });
+      
+      // B) ACTIVO CORRIENTE Subheader
+      activoRows.push({ type: 'subheader', label: 'B) ACTIVO CORRIENTE', value: data.total_activo_corriente, divisor: data.total_activo });
+      
+      data.activo_corriente_items.forEach(item => {
+        const itemAccounts = item.accounts || [];
+        const filteredAccounts = hideZeroBalances 
+          ? itemAccounts.filter(a => Math.abs(a.balance) > 0.005)
+          : itemAccounts;
+          
+        activoRows.push({ type: 'item', label: item.label, value: item.value, divisor: data.total_activo });
+        filteredAccounts.forEach(acc => {
+          activoRows.push({ type: 'account', code: acc.code, name: acc.name, value: acc.balance, divisor: data.total_activo });
+        });
+      });
 
-              <div className="flex justify-between font-bold text-slate-700 bg-slate-100 px-2 py-1 uppercase mt-3 mb-1 border-b border-slate-200">
-                <span>B) ACTIVO CORRIENTE</span>
-                <span className="font-mono tabular-nums">{formatCurrency(data.total_activo_corriente)}</span>
+      const pasivoPatrimonioRows = [];
+      // PASIVO Header
+      pasivoPatrimonioRows.push({ type: 'main-header', label: 'PASIVO', value: data.total_pasivo, divisor: data.total_pasivo_patrimonio });
+      
+      // A) PASIVO NO CORRIENTE Subheader
+      pasivoPatrimonioRows.push({ type: 'subheader', label: 'A) PASIVO NO CORRIENTE', value: data.total_pasivo_no_corriente, divisor: data.total_pasivo_patrimonio });
+      
+      data.pasivo_no_corriente_items.forEach(item => {
+        const itemAccounts = item.accounts || [];
+        const filteredAccounts = hideZeroBalances 
+          ? itemAccounts.filter(a => Math.abs(a.balance) > 0.005)
+          : itemAccounts;
+          
+        pasivoPatrimonioRows.push({ type: 'item', label: item.label, value: item.value, divisor: data.total_pasivo_patrimonio });
+        filteredAccounts.forEach(acc => {
+          pasivoPatrimonioRows.push({ type: 'account', code: acc.code, name: acc.name, value: acc.balance, divisor: data.total_pasivo_patrimonio });
+        });
+      });
+      
+      // B) PASIVO CORRIENTE Subheader
+      pasivoPatrimonioRows.push({ type: 'subheader', label: 'B) PASIVO CORRIENTE', value: data.total_pasivo_corriente, divisor: data.total_pasivo_patrimonio });
+      
+      data.pasivo_corriente_items.forEach(item => {
+        const itemAccounts = item.accounts || [];
+        const filteredAccounts = hideZeroBalances 
+          ? itemAccounts.filter(a => Math.abs(a.balance) > 0.005)
+          : itemAccounts;
+          
+        pasivoPatrimonioRows.push({ type: 'item', label: item.label, value: item.value, divisor: data.total_pasivo_patrimonio });
+        filteredAccounts.forEach(acc => {
+          pasivoPatrimonioRows.push({ type: 'account', code: acc.code, name: acc.name, value: acc.balance, divisor: data.total_pasivo_patrimonio });
+        });
+      });
+      
+      // PATRIMONIO NETO Header
+      pasivoPatrimonioRows.push({ type: 'main-header', label: 'PATRIMONIO NETO', value: data.total_patrimonio, divisor: data.total_pasivo_patrimonio });
+      
+      // A) PATRIMONIO NETO Subheader
+      pasivoPatrimonioRows.push({ type: 'subheader', label: 'A) PATRIMONIO NETO', value: data.total_patrimonio, divisor: data.total_pasivo_patrimonio });
+      
+      data.patrimonio_items.forEach(item => {
+        const itemAccounts = item.accounts || [];
+        const filteredAccounts = hideZeroBalances 
+          ? itemAccounts.filter(a => Math.abs(a.balance) > 0.005)
+          : itemAccounts;
+          
+        pasivoPatrimonioRows.push({ type: 'item', label: item.label, value: item.value, divisor: data.total_pasivo_patrimonio });
+        filteredAccounts.forEach(acc => {
+          pasivoPatrimonioRows.push({ type: 'account', code: acc.code, name: acc.name, value: acc.balance, divisor: data.total_pasivo_patrimonio });
+        });
+      });
+
+      // Split into pages dynamically
+      const chunkedActivoPages = chunkFlatList(activoRows, 28);
+      const chunkedPasivoPages = chunkFlatList(pasivoPatrimonioRows, 28);
+      
+      const totalPages = chunkedActivoPages.length + chunkedPasivoPages.length;
+      
+      let pageIndex = 1;
+
+      const renderRowsPage = (pageRows, currentPage, totalPagesCount, sideTitle) => {
+        return (
+          <div key={`${sideTitle}-${currentPage}`} className="page-sheet relative flex flex-col justify-between">
+            <div className="flex-1">
+              {renderPageHeader('Balance de Situación')}
+              
+              <div className="flex flex-col mt-4 text-[10px]">
+                {showVerticalPercentage && (
+                  <div className="flex justify-end text-[8px] font-bold text-slate-400 uppercase border-b border-slate-200 pb-0.5 mb-1 px-1">
+                    <span className="w-24 text-right pr-2">Importe</span>
+                    <span className="w-16 text-right">% Vert.</span>
+                  </div>
+                )}
+                {pageRows.map((row, idx) => {
+                  if (row.type === 'main-header') {
+                    return (
+                      <div key={idx} className="text-slate-900 font-bold flex justify-between uppercase mb-2 border-b-2 border-slate-900 pb-1 text-[10.5px] px-1 mt-4">
+                        <span className="flex-1">{row.label}</span>
+                        <span className="font-mono tabular-nums w-24 text-right">{formatCurrency(row.value)}</span>
+                        {showVerticalPercentage && (
+                          <span className="font-mono tabular-nums w-16 text-right text-slate-500">
+                            {row.divisor ? `${((row.value / row.divisor) * 100).toFixed(1)}%` : '0.0%'}
+                          </span>
+                        )}
+                      </div>
+                    );
+                  }
+                  if (row.type === 'subheader') {
+                    return (
+                      <div key={idx} className="flex justify-between font-bold text-slate-700 bg-slate-100 px-2 py-1 uppercase mb-1 border-b border-slate-200 mt-2">
+                        <span className="flex-1">{row.label}</span>
+                        <span className="font-mono tabular-nums w-24 text-right">{formatCurrency(row.value)}</span>
+                        {showVerticalPercentage && (
+                          <span className="font-mono tabular-nums w-16 text-right text-slate-500">
+                            {row.divisor ? `${((row.value / row.divisor) * 100).toFixed(1)}%` : '0.0%'}
+                          </span>
+                        )}
+                      </div>
+                    );
+                  }
+                  if (row.type === 'item') {
+                    return (
+                      <div key={idx} className="flex justify-between pl-3 py-1 font-semibold text-slate-700 bg-slate-50/50 border-b border-slate-100">
+                        <span className="flex-1">{row.label}</span>
+                        <span className="font-mono tabular-nums w-24 text-right">{formatCurrency(row.value)}</span>
+                        {showVerticalPercentage && (
+                          <span className="font-mono tabular-nums w-16 text-right text-slate-500">
+                            {row.divisor ? `${((row.value / row.divisor) * 100).toFixed(1)}%` : '0.0%'}
+                          </span>
+                        )}
+                      </div>
+                    );
+                  }
+                  if (row.type === 'account') {
+                    return (
+                      <div key={idx} className="flex justify-between pl-8 py-0.5 text-[9px] text-slate-600 border-b border-dashed border-slate-100/50">
+                        <span className="flex-1">{row.code} - {row.name}</span>
+                        <span className="font-mono tabular-nums w-24 text-right">{formatCurrency(row.value)}</span>
+                        {showVerticalPercentage && (
+                          <span className="font-mono tabular-nums w-16 text-right text-slate-400">
+                            {row.divisor ? `${((row.value / row.divisor) * 100).toFixed(1)}%` : '0.0%'}
+                          </span>
+                        )}
+                      </div>
+                    );
+                  }
+                  return null;
+                })}
               </div>
-              {data.activo_corriente_items.map((item, idx) => (
-                <div key={idx} className="flex justify-between pl-3 py-1 border-b border-slate-100">
-                  <span>{item.label}</span>
-                  <span className="font-mono tabular-nums">{formatCurrency(item.value)}</span>
-                </div>
-              ))}
             </div>
+            {renderPageFooter(currentPage, totalPagesCount, auditNumber)}
           </div>
-          {renderPageFooter(1, 2, auditNumber)}
-        </div>
-      );
+        );
+      };
 
-      // Page 2: Pasivo y Patrimonio Neto
-      pageViews.push(
-        <div key="balance-situacion-p2" className="page-sheet relative">
-          <div>
-            {renderPageHeader('Balance de Situación')}
-            
-            <div className="flex flex-col mt-4 text-[10px]">
-              {/* PASIVO */}
-              <div className="text-slate-900 font-bold flex justify-between uppercase mb-2 border-b-2 border-slate-900 pb-1 text-[10.5px] px-1">
-                <span>PASIVO</span>
-                <span className="font-mono tabular-nums">{formatCurrency(data.total_pasivo)}</span>
-              </div>
-              
-              <div className="flex justify-between font-bold text-slate-700 bg-slate-100 px-2 py-1 uppercase mb-1 border-b border-slate-200">
-                <span>A) PASIVO NO CORRIENTE</span>
-                <span className="font-mono tabular-nums">{formatCurrency(data.total_pasivo_no_corriente)}</span>
-              </div>
-              {data.pasivo_no_corriente_items.map((item, idx) => (
-                <div key={idx} className="flex justify-between pl-3 py-1 border-b border-slate-100">
-                  <span>{item.label}</span>
-                  <span className="font-mono tabular-nums">{formatCurrency(item.value)}</span>
-                </div>
-              ))}
-
-              <div className="flex justify-between font-bold text-slate-700 bg-slate-100 px-2 py-1 uppercase mt-3 mb-1 border-b border-slate-200">
-                <span>B) PASIVO CORRIENTE</span>
-                <span className="font-mono tabular-nums">{formatCurrency(data.total_pasivo_corriente)}</span>
-              </div>
-              {data.pasivo_corriente_items.map((item, idx) => (
-                <div key={idx} className="flex justify-between pl-3 py-1 border-b border-slate-100">
-                  <span>{item.label}</span>
-                  <span className="font-mono tabular-nums">{formatCurrency(item.value)}</span>
-                </div>
-              ))}
-
-              {/* PATRIMONIO NETO */}
-              <div className="text-slate-900 font-bold flex justify-between uppercase mb-2 mt-6 border-b-2 border-slate-900 pb-1 text-[10.5px] px-1">
-                <span>PATRIMONIO NETO</span>
-                <span className="font-mono tabular-nums">{formatCurrency(data.total_patrimonio)}</span>
-              </div>
-              
-              <div className="flex justify-between font-bold text-slate-700 bg-slate-100 px-2 py-1 uppercase mb-1 border-b border-slate-200">
-                <span>A) PATRIMONIO NETO</span>
-                <span className="font-mono tabular-nums">{formatCurrency(data.total_patrimonio)}</span>
-              </div>
-              {data.patrimonio_items.map((item, idx) => (
-                <div key={idx} className="flex justify-between pl-3 py-1 border-b border-slate-100">
-                  <span>{item.label}</span>
-                  <span className="font-mono tabular-nums">{formatCurrency(item.value)}</span>
-                </div>
-              ))}
+      if (chunkedActivoPages.length === 0) {
+        pageViews.push(
+          <div key="activo-empty" className="page-sheet relative flex flex-col justify-between">
+            <div>
+              {renderPageHeader('Balance de Situación')}
+              <p className="text-center py-12 text-slate-400 italic text-[10px]">No hay activos que mostrar.</p>
             </div>
+            {renderPageFooter(pageIndex++, totalPages || 1, auditNumber)}
           </div>
-          {renderPageFooter(2, 2, auditNumber)}
-        </div>
-      );
+        );
+      } else {
+        chunkedActivoPages.forEach((pageRows) => {
+          pageViews.push(renderRowsPage(pageRows, pageIndex++, totalPages, 'activo'));
+        });
+      }
+
+      if (chunkedPasivoPages.length === 0) {
+        pageViews.push(
+          <div key="pasivo-empty" className="page-sheet relative flex flex-col justify-between">
+            <div>
+              {renderPageHeader('Balance de Situación')}
+              <p className="text-center py-12 text-slate-400 italic text-[10px]">No hay pasivos o patrimonio que mostrar.</p>
+            </div>
+            {renderPageFooter(pageIndex++, totalPages || 1, auditNumber)}
+          </div>
+        );
+      } else {
+        chunkedPasivoPages.forEach((pageRows) => {
+          pageViews.push(renderRowsPage(pageRows, pageIndex++, totalPages, 'pasivo-patrimonio'));
+        });
+      }
     }
 
     // 16. CUENTA DE RESULTADOS
@@ -3278,230 +3440,263 @@ export default function PrintPage() {
             </div>
           )}
 
-          {/* Cuentas a Mostrar Filter */}
-          <div className="bg-white border border-[#a0a0a0] p-3 flex flex-col gap-2 relative" ref={accountsDropdownRef}>
-            <div className="text-[10px] font-bold text-slate-500 uppercase flex items-center gap-1 select-none">
-              <span>Cuentas a Mostrar</span>
-            </div>
-            <div 
-              onClick={() => setAccountsDropdownOpen(prev => { if (prev) setAccountsSearch(''); return !prev; })}
-              className="win-input w-full flex justify-between items-center cursor-pointer select-none bg-white border border-[#a0a0a0] px-2 py-1 text-[11px] font-sans rounded min-h-[24px]"
-            >
-              <span className="truncate pr-2 text-slate-700">
-                {selectedAccounts.length === 0 ? 'Todos' : selectedAccounts.join(', ')}
-              </span>
-              <span className="text-[9px] text-slate-500">▼</span>
-            </div>
-            {accountsDropdownOpen && (
-              <div className="absolute left-3 right-3 top-[calc(100%-8px)] z-50 bg-white border border-[#a0a0a0] shadow-lg max-h-[200px] overflow-y-auto p-1.5 flex flex-col gap-1 rounded win-bevel">
-                <input 
-                  type="text" 
-                  value={accountsSearch} 
-                  onChange={(e) => setAccountsSearch(e.target.value)} 
-                  placeholder="Buscar cuenta..." 
-                  className="w-full text-[10px] px-1.5 py-0.5 border border-slate-300 rounded mb-1 outline-none focus:border-blue-400 font-sans normal-case" 
-                  onClick={(e) => e.stopPropagation()} 
-                />
-                <label className="flex items-center gap-1.5 text-[10px] cursor-pointer hover:bg-slate-50 py-0.5 rounded select-none font-bold text-blue-900 border-b border-slate-100 pb-1">
-                  <input type="checkbox" checked={selectedAccounts.length === 0} onChange={() => setSelectedAccounts([])} className="mt-0.5" />
-                  <span>Todos</span>
-                </label>
-                {filteredSelectableAccountsList.map(acc => {
-                  const indentClass = acc.code.length === 1 ? '' : acc.code.length === 2 ? 'pl-2' : acc.code.length === 3 ? 'pl-4' : 'pl-6';
-                  const isSelected = selectedAccounts.includes(acc.code);
-                  return (
-                    <label key={acc.code} className={`flex items-start gap-1.5 text-[10px] cursor-pointer hover:bg-slate-50 py-0.5 rounded select-none ${indentClass}`}>
-                      <input 
-                        type="checkbox" 
-                        checked={isSelected}
-                        onChange={() => {
-                          if (isSelected) {
-                            setSelectedAccounts(prev => prev.filter(x => x !== acc.code));
-                          } else {
-                            setSelectedAccounts(prev => [...prev, acc.code]);
-                          }
-                        }}
-                        className="mt-0.5"
-                      />
-                      <span className={`${!acc.isDetail ? 'font-bold text-slate-700' : 'text-slate-650'}`}>
-                        {acc.code} - {acc.name}
-                      </span>
-                    </label>
-                  );
-                })}
+          {/* Options specific to Balance de Situación */}
+          {selectedTemplate === 'balance_situacion' && (
+            <div className="bg-white border border-[#a0a0a0] p-3 flex flex-col gap-2">
+              <div className="text-[10px] font-bold text-slate-500 uppercase flex items-center gap-1 select-none">
+                <Sliders className="w-3.5 h-3.5 text-slate-400" />
+                <span>Opciones del Balance</span>
               </div>
-            )}
-          </div>
-
-          {/* CEBE Filter */}
-          <div className="bg-white border border-[#a0a0a0] p-3 flex flex-col gap-2 relative" ref={cebeDropdownRef}>
-            <div className="text-[10px] font-bold text-slate-500 uppercase flex items-center gap-1 select-none">
-              <span>CEBE</span>
-            </div>
-            <div
-              onClick={() => setCebeDropdownOpen(prev => { if (prev) setCebeSearch(''); return !prev; })}
-              className="win-input w-full flex justify-between items-center cursor-pointer select-none bg-white border border-[#a0a0a0] px-2 py-1 text-[11px] font-sans rounded min-h-[24px]"
-            >
-              <span className="truncate pr-2 text-slate-700">
-                {selectedCebes.length === 0 ? 'Todos' : selectedCebes.join(', ')}
-              </span>
-              <span className="text-[9px] text-slate-555">▼</span>
-            </div>
-            {cebeDropdownOpen && (
-              <div className="absolute left-3 right-3 top-[calc(100%-8px)] z-50 bg-white border border-[#a0a0a0] shadow-lg max-h-[180px] overflow-y-auto p-1.5 flex flex-col gap-1 rounded win-bevel">
-                <input 
-                  type="text" 
-                  value={cebeSearch} 
-                  onChange={(e) => setCebeSearch(e.target.value)} 
-                  placeholder="Buscar CEBE..." 
-                  className="w-full text-[10px] px-1.5 py-0.5 border border-slate-300 rounded mb-1 outline-none focus:border-blue-400 font-sans normal-case" 
-                  onClick={(e) => e.stopPropagation()} 
-                />
-                <label className="flex items-center gap-1.5 text-[10px] cursor-pointer hover:bg-slate-50 py-0.5 rounded select-none font-bold text-blue-900 border-b border-slate-100 pb-1">
-                  <input type="checkbox" checked={selectedCebes.length === 0} onChange={() => setSelectedCebes([])} className="mt-0.5" />
-                  <span>Todos</span>
+              <div className="flex flex-col gap-2 mt-1">
+                <label className="flex items-center gap-2 cursor-pointer select-none text-[10px] font-bold text-slate-600">
+                  <input 
+                    type="checkbox" 
+                    checked={hideZeroBalances} 
+                    onChange={(e) => setHideZeroBalances(e.target.checked)} 
+                    className="w-3 h-3 text-blue-600" 
+                  />
+                  <span>Ocultar Cuentas a 0</span>
                 </label>
-                {filteredSelectableCebes.length === 0 && (
-                  <span className="text-[10px] text-slate-400 italic px-1">Sin opciones disponibles</span>
-                )}
-                {filteredSelectableCebes.map(c => {
-                  const cebeObj = cebes.find(x => x.code === c);
-                  const label = cebeObj ? `${c} - ${cebeObj.name}` : c;
-                  return (
-                    <label key={c} className="flex items-start gap-1.5 text-[10px] cursor-pointer hover:bg-slate-50 py-0.5 rounded select-none">
-                      <input
-                        type="checkbox"
-                        checked={selectedCebes.includes(c)}
-                        onChange={() => setSelectedCebes(prev => prev.includes(c) ? prev.filter(x => x !== c) : [...prev, c])}
-                        className="mt-0.5"
-                      />
-                      <span className="text-slate-700">{label}</span>
-                    </label>
-                  );
-                })}
-              </div>
-            )}
-          </div>
-
-          {/* CECO Filter */}
-          <div className="bg-white border border-[#a0a0a0] p-3 flex flex-col gap-2 relative" ref={cecoDropdownRef}>
-            <div className="text-[10px] font-bold text-slate-500 uppercase flex items-center gap-1 select-none">
-              <span>CECO</span>
-            </div>
-            <div
-              onClick={() => setCecoDropdownOpen(prev => { if (prev) setCecoSearch(''); return !prev; })}
-              className="win-input w-full flex justify-between items-center cursor-pointer select-none bg-white border border-[#a0a0a0] px-2 py-1 text-[11px] font-sans rounded min-h-[24px]"
-            >
-              <span className="truncate pr-2 text-slate-700">
-                {selectedCecos.length === 0 ? 'Todos' : selectedCecos.join(', ')}
-              </span>
-              <span className="text-[9px] text-slate-555">▼</span>
-            </div>
-            {cecoDropdownOpen && (
-              <div className="absolute left-3 right-3 top-[calc(100%-8px)] z-50 bg-white border border-[#a0a0a0] shadow-lg max-h-[180px] overflow-y-auto p-1.5 flex flex-col gap-1 rounded win-bevel">
-                <input 
-                  type="text" 
-                  value={cecoSearch} 
-                  onChange={(e) => setCecoSearch(e.target.value)} 
-                  placeholder="Buscar CECO..." 
-                  className="w-full text-[10px] px-1.5 py-0.5 border border-slate-300 rounded mb-1 outline-none focus:border-blue-400 font-sans normal-case" 
-                  onClick={(e) => e.stopPropagation()} 
-                />
-                <label className="flex items-center gap-1.5 text-[10px] cursor-pointer hover:bg-slate-50 py-0.5 rounded select-none font-bold text-blue-900 border-b border-slate-100 pb-1">
-                  <input type="checkbox" checked={selectedCecos.length === 0} onChange={() => setSelectedCecos([])} className="mt-0.5" />
-                  <span>Todos</span>
+                <label className="flex items-center gap-2 cursor-pointer select-none text-[10px] font-bold text-slate-600">
+                  <input 
+                    type="checkbox" 
+                    checked={showVerticalPercentage} 
+                    onChange={(e) => setShowVerticalPercentage(e.target.checked)} 
+                    className="w-3 h-3 text-blue-600" 
+                  />
+                  <span>Mostrar Porcentaje Vertical</span>
                 </label>
-                {filteredSelectableCecos.length === 0 && (
-                  <span className="text-[10px] text-slate-400 italic px-1">Sin opciones disponibles</span>
-                )}
-                {filteredSelectableCecos.map(c => {
-                  const cecoObj = cecos.find(x => x.code === c);
-                  const label = cecoObj ? `${c} - ${cecoObj.name}` : c;
-                  return (
-                    <label key={c} className="flex items-start gap-1.5 text-[10px] cursor-pointer hover:bg-slate-50 py-0.5 rounded select-none">
-                      <input
-                        type="checkbox"
-                        checked={selectedCecos.includes(c)}
-                        onChange={() => setSelectedCecos(prev => prev.includes(c) ? prev.filter(x => x !== c) : [...prev, c])}
-                        className="mt-0.5"
-                      />
-                      <span className="text-slate-700">{label}</span>
-                    </label>
-                  );
-                })}
               </div>
-            )}
-          </div>
+            </div>
+          )}
 
-          {/* Filtro Fiscal (Impuesto) */}
-          <div className="bg-white border border-[#a0a0a0] p-3 flex flex-col gap-2">
-            <div className="text-[10px] font-bold text-slate-500 uppercase flex items-center gap-1 select-none">
-              <span>Filtro Fiscal</span>
-            </div>
-            <label className="flex items-center gap-2 cursor-pointer select-none">
-              <div
-                onClick={() => setFilterImpuesto(prev => !prev)}
-                className={`relative w-9 h-5 rounded-full transition-colors duration-200 shrink-0 ${
-                  filterImpuesto ? 'bg-amber-500' : 'bg-slate-300'
-                }`}
-              >
-                <div className={`absolute top-0.5 left-0.5 w-4 h-4 bg-white rounded-full shadow transition-transform duration-200 ${
-                  filterImpuesto ? 'translate-x-4' : 'translate-x-0'
-                }`} />
-              </div>
-              <span className={`text-[10px] font-semibold ${
-                filterImpuesto ? 'text-amber-700' : 'text-slate-500'
-              }`}>
-                {filterImpuesto ? 'Solo con impuesto' : 'Todos los asientos'}
-              </span>
-            </label>
-          </div>
-
-          {/* Documento Filter */}
-          <div className="bg-white border border-[#a0a0a0] p-3 flex flex-col gap-2 relative" ref={docDropdownRef}>
-            <div className="text-[10px] font-bold text-slate-500 uppercase flex items-center gap-1 select-none">
-              <span>Documento</span>
-            </div>
-            <div
-              onClick={() => setDocDropdownOpen(prev => { if (prev) setDocSearch(''); return !prev; })}
-              className="win-input w-full flex justify-between items-center cursor-pointer select-pointer select-none bg-white border border-[#a0a0a0] px-2 py-1 text-[11px] font-sans rounded min-h-[24px]"
-            >
-              <span className="truncate pr-2 text-slate-700">
-                {selectedDocuments.length === 0 ? 'Todos' : selectedDocuments.join(', ')}
-              </span>
-              <span className="text-[9px] text-slate-555">▼</span>
-            </div>
-            {docDropdownOpen && (
-              <div className="absolute left-3 right-3 top-[calc(100%-8px)] z-50 bg-white border border-[#a0a0a0] shadow-lg max-h-[180px] overflow-y-auto p-1.5 flex flex-col gap-1 rounded win-bevel">
-                <input 
-                  type="text" 
-                  value={docSearch} 
-                  onChange={(e) => setDocSearch(e.target.value)} 
-                  placeholder="Buscar documento..." 
-                  className="w-full text-[10px] px-1.5 py-0.5 border border-slate-300 rounded mb-1 outline-none focus:border-blue-400 font-sans normal-case" 
-                  onClick={(e) => e.stopPropagation()} 
-                />
-                <label className="flex items-center gap-1.5 text-[10px] cursor-pointer hover:bg-slate-50 py-0.5 rounded select-none font-bold text-blue-900 border-b border-slate-100 pb-1">
-                  <input type="checkbox" checked={selectedDocuments.length === 0} onChange={() => setSelectedDocuments([])} className="mt-0.5" />
-                  <span>Todos</span>
-                </label>
-                {filteredSelectableDocuments.length === 0 && (
-                  <span className="text-[10px] text-slate-400 italic px-1">Sin opciones disponibles</span>
-                )}
-                {filteredSelectableDocuments.map(d => (
-                  <label key={d} className="flex items-start gap-1.5 text-[10px] cursor-pointer hover:bg-slate-50 py-0.5 rounded select-none">
-                    <input
-                      type="checkbox"
-                      checked={selectedDocuments.includes(d)}
-                      onChange={() => setSelectedDocuments(prev => prev.includes(d) ? prev.filter(x => x !== d) : [...prev, d])}
-                      className="mt-0.5"
+          {/* Transaction Filters (Hidden for financial statements) */}
+          {!['balance_situacion', 'cuenta_resultados', 'flujo_caja'].includes(selectedTemplate) && (
+            <>
+              {/* Cuentas a Mostrar Filter */}
+              <div className="bg-white border border-[#a0a0a0] p-3 flex flex-col gap-2 relative" ref={accountsDropdownRef}>
+                <div className="text-[10px] font-bold text-slate-500 uppercase flex items-center gap-1 select-none">
+                  <span>Cuentas a Mostrar</span>
+                </div>
+                <div 
+                  onClick={() => setAccountsDropdownOpen(prev => { if (prev) setAccountsSearch(''); return !prev; })}
+                  className="win-input w-full flex justify-between items-center cursor-pointer select-none bg-white border border-[#a0a0a0] px-2 py-1 text-[11px] font-sans rounded min-h-[24px]"
+                >
+                  <span className="truncate pr-2 text-slate-700">
+                    {selectedAccounts.length === 0 ? 'Todos' : selectedAccounts.join(', ')}
+                  </span>
+                  <span className="text-[9px] text-slate-500">▼</span>
+                </div>
+                {accountsDropdownOpen && (
+                  <div className="absolute left-3 right-3 top-[calc(100%-8px)] z-50 bg-white border border-[#a0a0a0] shadow-lg max-h-[200px] overflow-y-auto p-1.5 flex flex-col gap-1 rounded win-bevel">
+                    <input 
+                      type="text" 
+                      value={accountsSearch} 
+                      onChange={(e) => setAccountsSearch(e.target.value)} 
+                      placeholder="Buscar cuenta..." 
+                      className="w-full text-[10px] px-1.5 py-0.5 border border-slate-300 rounded mb-1 outline-none focus:border-blue-400 font-sans normal-case" 
+                      onClick={(e) => e.stopPropagation()} 
                     />
-                    <span className="text-slate-700">{d}</span>
-                  </label>
-                ))}
+                    <label className="flex items-center gap-1.5 text-[10px] cursor-pointer hover:bg-slate-50 py-0.5 rounded select-none font-bold text-blue-900 border-b border-slate-100 pb-1">
+                      <input type="checkbox" checked={selectedAccounts.length === 0} onChange={() => setSelectedAccounts([])} className="mt-0.5" />
+                      <span>Todos</span>
+                    </label>
+                    {filteredSelectableAccountsList.map(acc => {
+                      const isSelected = selectedAccounts.includes(acc.code);
+                      const indentClass = acc.code.length > 2 ? 'pl-4' : '';
+                      return (
+                        <label key={acc.code} className={`flex items-start gap-1.5 text-[10px] cursor-pointer hover:bg-slate-50 py-0.5 rounded select-none ${indentClass}`}>
+                          <input
+                            type="checkbox"
+                            checked={isSelected}
+                            onChange={() => {
+                              if (isSelected) {
+                                setSelectedAccounts(prev => prev.filter(x => x !== acc.code));
+                              } else {
+                                setSelectedAccounts(prev => [...prev, acc.code]);
+                              }
+                            }}
+                            className="mt-0.5"
+                          />
+                          <span className="text-slate-700">{acc.code} - {acc.name}</span>
+                        </label>
+                      );
+                    })}
+                  </div>
+                )}
               </div>
-            )}
-          </div>
+
+              {/* CEBE Filter */}
+              <div className="bg-white border border-[#a0a0a0] p-3 flex flex-col gap-2 relative" ref={cebeDropdownRef}>
+                <div className="text-[10px] font-bold text-slate-500 uppercase flex items-center gap-1 select-none">
+                  <span>CEBE</span>
+                </div>
+                <div
+                  onClick={() => setCebeDropdownOpen(prev => { if (prev) setCebeSearch(''); return !prev; })}
+                  className="win-input w-full flex justify-between items-center cursor-pointer select-none bg-white border border-[#a0a0a0] px-2 py-1 text-[11px] font-sans rounded min-h-[24px]"
+                >
+                  <span className="truncate pr-2 text-slate-700">
+                    {selectedCebes.length === 0 ? 'Todos' : selectedCebes.join(', ')}
+                  </span>
+                  <span className="text-[9px] text-slate-555">▼</span>
+                </div>
+                {cebeDropdownOpen && (
+                  <div className="absolute left-3 right-3 top-[calc(100%-8px)] z-50 bg-white border border-[#a0a0a0] shadow-lg max-h-[180px] overflow-y-auto p-1.5 flex flex-col gap-1 rounded win-bevel">
+                    <input 
+                      type="text" 
+                      value={cebeSearch} 
+                      onChange={(e) => setCebeSearch(e.target.value)} 
+                      placeholder="Buscar CEBE..." 
+                      className="w-full text-[10px] px-1.5 py-0.5 border border-slate-300 rounded mb-1 outline-none focus:border-blue-400 font-sans normal-case" 
+                      onClick={(e) => e.stopPropagation()} 
+                    />
+                    <label className="flex items-center gap-1.5 text-[10px] cursor-pointer hover:bg-slate-50 py-0.5 rounded select-none font-bold text-blue-900 border-b border-slate-100 pb-1">
+                      <input type="checkbox" checked={selectedCebes.length === 0} onChange={() => setSelectedCebes([])} className="mt-0.5" />
+                      <span>Todos</span>
+                    </label>
+                    {filteredSelectableCebes.length === 0 && (
+                      <span className="text-[10px] text-slate-400 italic px-1">Sin opciones disponibles</span>
+                    )}
+                    {filteredSelectableCebes.map(c => {
+                      const cebeObj = cebes.find(x => x.code === c);
+                      const label = cebeObj ? `${c} - ${cebeObj.name}` : c;
+                      return (
+                        <label key={c} className="flex items-start gap-1.5 text-[10px] cursor-pointer hover:bg-slate-50 py-0.5 rounded select-none">
+                          <input
+                            type="checkbox"
+                            checked={selectedCebes.includes(c)}
+                            onChange={() => setSelectedCebes(prev => prev.includes(c) ? prev.filter(x => x !== c) : [...prev, c])}
+                            className="mt-0.5"
+                          />
+                          <span className="text-slate-700">{label}</span>
+                        </label>
+                      );
+                    })}
+                  </div>
+                )}
+              </div>
+
+              {/* CECO Filter */}
+              <div className="bg-white border border-[#a0a0a0] p-3 flex flex-col gap-2 relative" ref={cecoDropdownRef}>
+                <div className="text-[10px] font-bold text-slate-500 uppercase flex items-center gap-1 select-none">
+                  <span>CECO</span>
+                </div>
+                <div
+                  onClick={() => setCecoDropdownOpen(prev => { if (prev) setCecoSearch(''); return !prev; })}
+                  className="win-input w-full flex justify-between items-center cursor-pointer select-none bg-white border border-[#a0a0a0] px-2 py-1 text-[11px] font-sans rounded min-h-[24px]"
+                >
+                  <span className="truncate pr-2 text-slate-700">
+                    {selectedCecos.length === 0 ? 'Todos' : selectedCecos.join(', ')}
+                  </span>
+                  <span className="text-[9px] text-slate-555">▼</span>
+                </div>
+                {cecoDropdownOpen && (
+                  <div className="absolute left-3 right-3 top-[calc(100%-8px)] z-50 bg-white border border-[#a0a0a0] shadow-lg max-h-[180px] overflow-y-auto p-1.5 flex flex-col gap-1 rounded win-bevel">
+                    <input 
+                      type="text" 
+                      value={cecoSearch} 
+                      onChange={(e) => setCecoSearch(e.target.value)} 
+                      placeholder="Buscar CECO..." 
+                      className="w-full text-[10px] px-1.5 py-0.5 border border-slate-300 rounded mb-1 outline-none focus:border-blue-400 font-sans normal-case" 
+                      onClick={(e) => e.stopPropagation()} 
+                    />
+                    <label className="flex items-center gap-1.5 text-[10px] cursor-pointer hover:bg-slate-50 py-0.5 rounded select-none font-bold text-blue-900 border-b border-slate-100 pb-1">
+                      <input type="checkbox" checked={selectedCecos.length === 0} onChange={() => setSelectedCecos([])} className="mt-0.5" />
+                      <span>Todos</span>
+                    </label>
+                    {filteredSelectableCecos.length === 0 && (
+                      <span className="text-[10px] text-slate-400 italic px-1">Sin opciones disponibles</span>
+                    )}
+                    {filteredSelectableCecos.map(c => {
+                      const cecoObj = cecos.find(x => x.code === c);
+                      const label = cecoObj ? `${c} - ${cecoObj.name}` : c;
+                      return (
+                        <label key={c} className="flex items-start gap-1.5 text-[10px] cursor-pointer hover:bg-slate-50 py-0.5 rounded select-none">
+                          <input
+                            type="checkbox"
+                            checked={selectedCecos.includes(c)}
+                            onChange={() => setSelectedCecos(prev => prev.includes(c) ? prev.filter(x => x !== c) : [...prev, c])}
+                            className="mt-0.5"
+                          />
+                          <span className="text-slate-700">{label}</span>
+                        </label>
+                      );
+                    })}
+                  </div>
+                )}
+              </div>
+
+              {/* Filtro Fiscal (Impuesto) */}
+              <div className="bg-white border border-[#a0a0a0] p-3 flex flex-col gap-2">
+                <div className="text-[10px] font-bold text-slate-500 uppercase flex items-center gap-1 select-none">
+                  <span>Filtro Fiscal</span>
+                </div>
+                <label className="flex items-center gap-2 cursor-pointer select-none">
+                  <div
+                    onClick={() => setFilterImpuesto(prev => !prev)}
+                    className={`relative w-9 h-5 rounded-full transition-colors duration-200 shrink-0 ${
+                      filterImpuesto ? 'bg-amber-500' : 'bg-slate-300'
+                    }`}
+                  >
+                    <div className={`absolute top-0.5 left-0.5 w-4 h-4 bg-white rounded-full shadow transition-transform duration-200 ${
+                      filterImpuesto ? 'translate-x-4' : 'translate-x-0'
+                    }`} />
+                  </div>
+                  <span className={`text-[10px] font-semibold ${
+                    filterImpuesto ? 'text-amber-700' : 'text-slate-500'
+                  }`}>
+                    {filterImpuesto ? 'Solo con impuesto' : 'Todos los asientos'}
+                  </span>
+                </label>
+              </div>
+
+              {/* Documento Filter */}
+              <div className="bg-white border border-[#a0a0a0] p-3 flex flex-col gap-2 relative" ref={docDropdownRef}>
+                <div className="text-[10px] font-bold text-slate-500 uppercase flex items-center gap-1 select-none">
+                  <span>Documento</span>
+                </div>
+                <div
+                  onClick={() => setDocDropdownOpen(prev => { if (prev) setDocSearch(''); return !prev; })}
+                  className="win-input w-full flex justify-between items-center cursor-pointer select-pointer select-none bg-white border border-[#a0a0a0] px-2 py-1 text-[11px] font-sans rounded min-h-[24px]"
+                >
+                  <span className="truncate pr-2 text-slate-700">
+                    {selectedDocuments.length === 0 ? 'Todos' : selectedDocuments.join(', ')}
+                  </span>
+                  <span className="text-[9px] text-slate-555">▼</span>
+                </div>
+                {docDropdownOpen && (
+                  <div className="absolute left-3 right-3 top-[calc(100%-8px)] z-50 bg-white border border-[#a0a0a0] shadow-lg max-h-[180px] overflow-y-auto p-1.5 flex flex-col gap-1 rounded win-bevel">
+                    <input 
+                      type="text" 
+                      value={docSearch} 
+                      onChange={(e) => setDocSearch(e.target.value)} 
+                      placeholder="Buscar documento..." 
+                      className="w-full text-[10px] px-1.5 py-0.5 border border-slate-300 rounded mb-1 outline-none focus:border-blue-400 font-sans normal-case" 
+                      onClick={(e) => e.stopPropagation()} 
+                    />
+                    <label className="flex items-center gap-1.5 text-[10px] cursor-pointer hover:bg-slate-50 py-0.5 rounded select-none font-bold text-blue-900 border-b border-slate-100 pb-1">
+                      <input type="checkbox" checked={selectedDocuments.length === 0} onChange={() => setSelectedDocuments([])} className="mt-0.5" />
+                      <span>Todos</span>
+                    </label>
+                    {filteredSelectableDocuments.length === 0 && (
+                      <span className="text-[10px] text-slate-400 italic px-1">Sin opciones disponibles</span>
+                    )}
+                    {filteredSelectableDocuments.map(d => (
+                      <label key={d} className="flex items-start gap-1.5 text-[10px] cursor-pointer hover:bg-slate-50 py-0.5 rounded select-none">
+                        <input
+                          type="checkbox"
+                          checked={selectedDocuments.includes(d)}
+                          onChange={() => setSelectedDocuments(prev => prev.includes(d) ? prev.filter(x => x !== d) : [...prev, d])}
+                          className="mt-0.5"
+                        />
+                        <span className="text-slate-700">{d}</span>
+                      </label>
+                    ))}
+                  </div>
+                )}
+              </div>
+            </>
+          )}
 
           {/* Instruction Note */}
           <div className="p-3 bg-blue-50 border border-blue-200 text-[10px] text-blue-800 leading-normal flex flex-col gap-1.5 mt-auto">
