@@ -86,6 +86,26 @@ export default function Ledger({ initialMode }) {
     setShowAccountsOverlay(false);
   };
 
+  const handlePrevAccount = () => {
+    if (accounts.length === 0) return;
+    const currentIndex = accounts.findIndex(a => a.id === selectedAccountId);
+    if (currentIndex > 0) {
+      setSelectedAccountId(accounts[currentIndex - 1].id);
+    } else {
+      setSelectedAccountId(accounts[accounts.length - 1].id);
+    }
+  };
+
+  const handleNextAccount = () => {
+    if (accounts.length === 0) return;
+    const currentIndex = accounts.findIndex(a => a.id === selectedAccountId);
+    if (currentIndex >= 0 && currentIndex < accounts.length - 1) {
+      setSelectedAccountId(accounts[currentIndex + 1].id);
+    } else {
+      setSelectedAccountId(accounts[0].id);
+    }
+  };
+
   // 3. Build Hierarchical Tree and Calculate Totals
   const buildTree = (allAccounts) => {
     // Dictionary of nodes
@@ -346,9 +366,10 @@ export default function Ledger({ initialMode }) {
                   <div className="px-2 space-y-2">
                     <div className="flex space-x-2">
                       <button 
+                        onClick={() => setShowAccountsOverlay(true)}
                         onDoubleClick={() => setShowAccountsOverlay(true)}
                         className="border border-gray-300 bg-gray-100 hover:bg-gray-200 px-2 py-0.5 rounded shadow-sm cursor-pointer"
-                        title="Doble clic para elegir cuenta"
+                        title="Haz clic para elegir cuenta"
                       >
                         CUENTA
                       </button>
@@ -369,8 +390,18 @@ export default function Ledger({ initialMode }) {
                       <span>MOSTRAR CUENTAS SIN SALDO</span>
                     </label>
                     <div className="flex justify-between pt-1">
-                      <button className="border border-gray-300 bg-gray-100 hover:bg-gray-200 px-3 py-0.5 rounded shadow-sm w-20">ANTERIOR</button>
-                      <button className="border border-gray-300 bg-gray-100 hover:bg-gray-200 px-3 py-0.5 rounded shadow-sm w-20">SIGUIENTE</button>
+                      <button 
+                        onClick={handlePrevAccount}
+                        className="border border-gray-300 bg-gray-100 hover:bg-gray-200 px-3 py-0.5 rounded shadow-sm w-20 cursor-pointer"
+                      >
+                        ANTERIOR
+                      </button>
+                      <button 
+                        onClick={handleNextAccount}
+                        className="border border-gray-300 bg-gray-100 hover:bg-gray-200 px-3 py-0.5 rounded shadow-sm w-20 cursor-pointer"
+                      >
+                        SIGUIENTE
+                      </button>
                     </div>
                   </div>
                 </div>
