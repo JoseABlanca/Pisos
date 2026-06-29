@@ -91,6 +91,67 @@ const isAccountMatched = (accountCodeOrId, selectedAccounts, accountsList) => {
   });
 };
 
+const getPropertyMetrics = (p, entriesList) => {
+  const propertyCebe = String(p.cebe || '').trim();
+  const normalizedPropCebe = propertyCebe ? propertyCebe.replace(/^(CEBE|CECO)/i, '').trim().toLowerCase() : '';
+  
+  let ingresos = 0;
+  let gastos = 0;
+  let servicios = 0;
+  
+  if (!normalizedPropCebe) {
+    return { ingresos: 0, gastos: 0, servicios: 0, neto: 0 };
+  }
+  
+  entriesList.forEach(entry => {
+    const entryCebe = String(entry.cebe || '').trim().replace(/^(CEBE|CECO)/i, '').trim().toLowerCase();
+    const entryCebeMatches = entryCebe && entryCebe.startsWith(normalizedPropCebe);
+    
+    if (entry.lines && entry.lines.length > 0) {
+      entry.lines.forEach(l => {
+        const lineCebe = String(l.cebe || '').trim().replace(/^(CEBE|CECO)/i, '').trim().toLowerCase();
+        const lineCebeMatches = lineCebe ? lineCebe.startsWith(normalizedPropCebe) : entryCebeMatches;
+        
+        if (lineCebeMatches) {
+          const acc = String(l.accountCode || '');
+          const val = (parseFloat(l.debit) || 0) + (parseFloat(l.credit) || 0);
+          
+          if (acc.startsWith('7')) {
+            ingresos += val;
+          } else if (acc.startsWith('6')) {
+            gastos += val;
+            if (acc.startsWith('62')) {
+              servicios += val;
+            }
+          }
+        }
+      });
+    } else {
+      if (entryCebeMatches) {
+        const total = parseFloat(entry.total) || 0;
+        const entryAcc = String(entry.accountCode || entry.accountId || '');
+        if (entryAcc.startsWith('7')) {
+          ingresos += total;
+        } else {
+          gastos += total;
+          if (entryAcc.startsWith('62')) {
+            servicios += total;
+          }
+        }
+      }
+    }
+  });
+  
+  return {
+    ingresos,
+    gastos,
+    servicios,
+    neto: ingresos - gastos
+  };
+};
+
+
+
 // Spanish capital-gains tax brackets (IRPF savings base 2024)
 const TAX_BRACKETS = [
   { up: 6000,    rate: 0.19 },
@@ -222,6 +283,10 @@ export default function PrintPage() {
       { id: 'acquisitionDate', label: 'Fecha Adquisición' },
       { id: 'purchasePrice', label: 'Precio Compra' },
       { id: 'currentValue', label: 'Valor Actual' },
+      { id: 'ingresos', label: 'Ingresos' },
+      { id: 'gastos', label: 'Gastos' },
+      { id: 'servicios', label: 'Servicios (Cta. 62)' },
+      { id: 'netYield', label: 'Rend. Neto' },
       { id: 'owners', label: 'Propietarios' },
     ],
     alquileres: [
@@ -258,7 +323,7 @@ export default function PrintPage() {
     ],
   };
   const defaultVisibleColumns = {
-    activos: new Set(['id','name','address','cebe_ceco','accountingAccount','mortgagePending']),
+    activos: new Set(['id','name','address','cebe_ceco','accountingAccount','ingresos','gastos','servicios','netYield']),
     alquileres: new Set(['reference','property','tenants','startDate','endDate','rentAmount','expenses','netYield','status']),
     clientes: new Set(['id','name','dni','phone','email','status','propertyRental']),
     extracto_propietarios: new Set(['name','nif','property','percentage','purchasePrice','currentValue']),
@@ -269,6 +334,19 @@ export default function PrintPage() {
   const [statusFilterAlquileres, setStatusFilterAlquileres] = useState('todos'); // 'todos','activo','inactivo'
   const [statusFilterClientes, setStatusFilterClientes] = useState('todos'); // 'todos','activo','inactivo'
 
+  const getSelectedMonthsCount = () => {
+    const yearsCount = selectedYears.length > 0 ? selectedYears.length : 1;
+    if (selectedMonths.length > 0) {
+      return selectedMonths.length * yearsCount;
+    }
+    if (selectedQuarters.length > 0) {
+      return selectedQuarters.length * 3 * yearsCount;
+    }
+    if (selectedYears.length > 0) {
+      return 12 * selectedYears.length;
+    }
+    return rentPeriod === 'anual' ? 12 : 1;
+  };
 
   const toggleColumn = (templateId, colId) => {
     setVisibleColumns(prev => {
@@ -2300,29 +2378,40 @@ export default function PrintPage() {
                       {cv('purchasePrice') && <th className="py-1.5 px-2 text-right w-24 font-semibold">Precio Compra</th>}
                       {cv('currentValue') && <th className="py-1.5 px-2 text-right w-24 font-semibold">Valor Actual</th>}
                       {cv('mortgagePending') && <th className="py-1.5 px-2 text-right w-24 font-semibold">Hip. Pendiente</th>}
+                      {cv('ingresos') && <th className="py-1.5 px-2 text-right w-24 font-semibold">Ingresos</th>}
+                      {cv('gastos') && <th className="py-1.5 px-2 text-right w-24 font-semibold">Gastos</th>}
+                      {cv('servicios') && <th className="py-1.5 px-2 text-right w-24 font-semibold">Servicios</th>}
+                      {cv('netYield') && <th className="py-1.5 px-2 text-right w-24 font-semibold">Rend. Neto</th>}
                       {cv('owners') && <th className="py-1.5 px-2 text-left w-28 font-semibold">Propietarios</th>}
                     </tr>
                   </thead>
                   <tbody>
-                    {pageItems.map((p, ri) => (
-                      <tr key={p.id} className="border-b border-slate-200 text-[9px] text-slate-800">
-                        {cv('id') && <td className="py-1.5 px-2">{p.id}</td>}
-                        {cv('name') && <td className="py-1.5 px-2 uppercase">{p.name}</td>}
-                        {cv('address') && <td className="py-1.5 px-2 uppercase">{p.address}{p.city ? `, ${p.city}` : ''}</td>}
-                        {cv('cebe_ceco') && <td className="py-1.5 px-2 text-[8px]">
-                          <div>BE: {p.cebe || '---'}</div>
-                          <div>CO: {p.ceco || '---'}</div>
-                        </td>}
-                        {cv('accountingAccount') && <td className="py-1.5 px-2 text-center">{p.accountingAccount || '---'}</td>}
-                        {cv('acquisitionDate') && <td className="py-1.5 px-2 text-center">{p.financials?.acquisitionDate ? formatDate(p.financials.acquisitionDate) : (p.acquisitionDate ? formatDate(p.acquisitionDate) : '---')}</td>}
-                        {cv('purchasePrice') && <td className="py-1.5 px-2 text-right tabular-nums">{p.financials?.purchasePrice > 0 ? formatCurrency(p.financials.purchasePrice) : (p.purchasePrice > 0 ? formatCurrency(p.purchasePrice) : '---')}</td>}
-                        {cv('currentValue') && <td className="py-1.5 px-2 text-right tabular-nums">{p.financials?.currentValue > 0 ? formatCurrency(p.financials.currentValue) : (p.currentValue > 0 ? formatCurrency(p.currentValue) : '---')}</td>}
-                        {cv('mortgagePending') && <td className="py-1.5 px-2 text-right tabular-nums">{p.mortgagePending > 0 ? formatCurrency(p.mortgagePending) : '0,00'}</td>}
-                        {cv('owners') && <td className="py-1.5 px-2 text-[8px]">
-                          {(p.owners || []).length > 0 ? p.owners.map(o => `${o.name} (${o.percentage}%)`).join(', ') : '---'}
-                        </td>}
-                      </tr>
-                    ))}
+                    {pageItems.map((p, ri) => {
+                      const metrics = getPropertyMetrics(p, filteredEntriesForPrint);
+                      return (
+                        <tr key={p.id} className="border-b border-slate-200 text-[9px] text-slate-800">
+                          {cv('id') && <td className="py-1.5 px-2">{p.id}</td>}
+                          {cv('name') && <td className="py-1.5 px-2 uppercase">{p.name}</td>}
+                          {cv('address') && <td className="py-1.5 px-2 uppercase">{p.address}{p.city ? `, ${p.city}` : ''}</td>}
+                          {cv('cebe_ceco') && <td className="py-1.5 px-2 text-[8px]">
+                            <div>BE: {p.cebe || '---'}</div>
+                            <div>CO: {p.ceco || '---'}</div>
+                          </td>}
+                          {cv('accountingAccount') && <td className="py-1.5 px-2 text-center">{p.accountingAccount || '---'}</td>}
+                          {cv('acquisitionDate') && <td className="py-1.5 px-2 text-center">{p.financials?.acquisitionDate ? formatDate(p.financials.acquisitionDate) : (p.acquisitionDate ? formatDate(p.acquisitionDate) : '---')}</td>}
+                          {cv('purchasePrice') && <td className="py-1.5 px-2 text-right tabular-nums">{p.financials?.purchasePrice > 0 ? formatCurrency(p.financials.purchasePrice) : (p.purchasePrice > 0 ? formatCurrency(p.purchasePrice) : '---')}</td>}
+                          {cv('currentValue') && <td className="py-1.5 px-2 text-right tabular-nums">{p.financials?.currentValue > 0 ? formatCurrency(p.financials.currentValue) : (p.currentValue > 0 ? formatCurrency(p.currentValue) : '---')}</td>}
+                          {cv('mortgagePending') && <td className="py-1.5 px-2 text-right tabular-nums">{p.mortgagePending > 0 ? formatCurrency(p.mortgagePending) : '0,00'}</td>}
+                          {cv('ingresos') && <td className="py-1.5 px-2 text-right tabular-nums">{formatCurrency(metrics.ingresos)}</td>}
+                          {cv('gastos') && <td className="py-1.5 px-2 text-right tabular-nums">{formatCurrency(metrics.gastos)}</td>}
+                          {cv('servicios') && <td className="py-1.5 px-2 text-right tabular-nums">{formatCurrency(metrics.servicios)}</td>}
+                          {cv('netYield') && <td className="py-1.5 px-2 text-right tabular-nums">{formatCurrency(metrics.neto)}</td>}
+                          {cv('owners') && <td className="py-1.5 px-2 text-[8px]">
+                            {(p.owners || []).length > 0 ? p.owners.map(o => `${o.name} (${o.percentage}%)`).join(', ') : '---'}
+                          </td>}
+                        </tr>
+                      );
+                    })}
                   </tbody>
                 </table>
               </div>
@@ -2389,9 +2478,9 @@ export default function PrintPage() {
                       {cv('startDate') && <th className="py-1.5 px-2 text-center w-22 font-semibold">Fecha Inicio</th>}
                       {cv('endDate') && <th className="py-1.5 px-2 text-center w-22 font-semibold">Fecha Fin</th>}
                       {cv('depositAmount') && <th className="py-1.5 px-2 text-right w-20 font-semibold">Fianza</th>}
-                      {cv('rentAmount') && <th className="py-1.5 px-2 text-right w-22 font-semibold">{rentPeriod === 'anual' ? 'Renta/Año' : 'Renta/Mes'}</th>}
-                      {cv('expenses') && <th className="py-1.5 px-2 text-right w-22 font-semibold">{rentPeriod === 'anual' ? 'Gastos/Año' : 'Gastos/Mes'}</th>}
-                      {cv('netYield') && <th className="py-1.5 px-2 text-right w-22 font-semibold">{rentPeriod === 'anual' ? 'Rend. Neto/Año' : 'Rend. Neto/Mes'}</th>}
+                      {cv('rentAmount') && <th className="py-1.5 px-2 text-right w-22 font-semibold">Renta</th>}
+                      {cv('expenses') && <th className="py-1.5 px-2 text-right w-22 font-semibold">Gastos</th>}
+                      {cv('netYield') && <th className="py-1.5 px-2 text-right w-22 font-semibold">Rend. Neto</th>}
                       {cv('status') && <th className="py-1.5 px-2 text-center w-16 font-semibold">Estado</th>}
                     </tr>
                   </thead>
@@ -2406,8 +2495,9 @@ export default function PrintPage() {
                       const baseRent = getMonthlyRent(r);
                       const baseExpenses = getMonthlyExpenses(r);
 
-                      const rentVal = rentPeriod === 'anual' ? baseRent * 12 : baseRent;
-                      const expensesVal = rentPeriod === 'anual' ? baseExpenses * 12 : baseExpenses;
+                      const monthsMultiplier = getSelectedMonthsCount();
+                      const rentVal = baseRent * monthsMultiplier;
+                      const expensesVal = baseExpenses * monthsMultiplier;
                       const netYieldVal = rentVal - expensesVal;
                       
                       return (
@@ -4350,7 +4440,7 @@ export default function PrintPage() {
           </div>
 
           {/* Timeline Period Selection inside Right Panel */}
-          {['diario', 'mayor', 'sumas_saldos', 'rv_transactions', 'cf_transactions', 'taxes_total', 'taxes_real_estate', 'taxes_rv', 'taxes_cf', 'balance_situacion', 'cuenta_resultados', 'flujo_caja'].includes(selectedTemplate) && (
+          {['diario', 'mayor', 'sumas_saldos', 'rv_transactions', 'cf_transactions', 'taxes_total', 'taxes_real_estate', 'taxes_rv', 'taxes_cf', 'balance_situacion', 'cuenta_resultados', 'flujo_caja', 'activos', 'alquileres', 'extracto_propietarios'].includes(selectedTemplate) && (
             <div className="bg-white border border-[#a0a0a0] p-3 flex flex-col gap-2">
               <div 
                 className="text-[10px] font-bold text-slate-500 uppercase flex items-center justify-between cursor-pointer select-none hover:text-slate-800"
