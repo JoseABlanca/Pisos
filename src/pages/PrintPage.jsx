@@ -2395,7 +2395,15 @@ export default function PrintPage() {
     // 6. FICHERO DE CLIENTES / INQUILINOS
     if (selectedTemplate === 'clientes') {
       const cv = (colId) => isColVisible('clientes', colId);
-      const listPages = chunkFlatList(customers, 34);
+
+      // Filter customers based on state
+      const filteredCustomers = customers.filter(c => {
+        const status = c.status || 'activo';
+        if (statusFilterClientes !== 'todos' && status !== statusFilterClientes) return false;
+        return true;
+      });
+
+      const listPages = chunkFlatList(filteredCustomers, 34);
       const totalPages = listPages.length || 1;
 
       if (listPages.length === 0) {
@@ -2422,22 +2430,33 @@ export default function PrintPage() {
                       {cv('email') && <th className="py-1.5 px-2 text-left font-semibold">Email</th>}
                       {cv('address') && <th className="py-1.5 px-2 text-left w-36 font-semibold">Dirección</th>}
                       {cv('nationality') && <th className="py-1.5 px-2 text-left w-20 font-semibold">Nac.</th>}
+                      {cv('propertyRental') && <th className="py-1.5 px-2 text-left font-semibold">Inmueble / Alquiler</th>}
                       {cv('status') && <th className="py-1.5 px-2 text-center w-16 font-semibold">Estado</th>}
                     </tr>
                   </thead>
                   <tbody>
-                    {pageItems.map((c, ri) => (
-                      <tr key={c.id} className={`border-b border-slate-200 text-[9px] text-slate-800 ${ri % 2 === 1 ? 'bg-slate-50' : ''}`}>
-                        {cv('id') && <td className="py-1.5 px-2">{c.id?.substring(0, 6)}</td>}
-                        {cv('name') && <td className="py-1.5 px-2 uppercase">{c.name} {c.lastName || ''}</td>}
-                        {cv('dni') && <td className="py-1.5 px-2 uppercase">{c.dni || '---'}</td>}
-                        {cv('phone') && <td className="py-1.5 px-2">{c.phone || '---'}</td>}
-                        {cv('email') && <td className="py-1.5 px-2 lowercase truncate max-w-[140px]" title={c.email}>{c.email || '---'}</td>}
-                        {cv('address') && <td className="py-1.5 px-2 uppercase">{c.address || '---'}</td>}
-                        {cv('nationality') && <td className="py-1.5 px-2">{c.nationality || '---'}</td>}
-                        {cv('status') && <td className="py-1.5 px-2 text-center uppercase text-[8px]">{c.status || 'activo'}</td>}
-                      </tr>
-                    ))}
+                    {pageItems.map((c, ri) => {
+                      // Find if this customer belongs to any rental
+                      const rent = rentals.find(r => r.tenantId === c.id || (r.tenants && r.tenants.some(t => t.id === c.id)));
+                      const prop = rent ? properties.find(p => p.id === rent.propertyId) : null;
+                      const propertyRentalDisplay = rent 
+                        ? `${prop ? prop.name : rent.propertyId} (${rent.reference || 'Ref: ---'})` 
+                        : '---';
+
+                      return (
+                        <tr key={c.id} className="border-b border-slate-200 text-[9px] text-slate-800">
+                          {cv('id') && <td className="py-1.5 px-2">{c.id?.substring(0, 6)}</td>}
+                          {cv('name') && <td className="py-1.5 px-2 uppercase">{c.name} {c.lastName || ''}</td>}
+                          {cv('dni') && <td className="py-1.5 px-2 uppercase">{c.dni || '---'}</td>}
+                          {cv('phone') && <td className="py-1.5 px-2">{c.phone || '---'}</td>}
+                          {cv('email') && <td className="py-1.5 px-2 lowercase truncate max-w-[140px]" title={c.email}>{c.email || '---'}</td>}
+                          {cv('address') && <td className="py-1.5 px-2 uppercase">{c.address || '---'}</td>}
+                          {cv('nationality') && <td className="py-1.5 px-2">{c.nationality || '---'}</td>}
+                          {cv('propertyRental') && <td className="py-1.5 px-2 uppercase">{propertyRentalDisplay}</td>}
+                          {cv('status') && <td className="py-1.5 px-2 text-center uppercase text-[8px]">{c.status || 'activo'}</td>}
+                        </tr>
+                      );
+                    })}
                   </tbody>
                 </table>
               </div>
@@ -2524,7 +2543,7 @@ export default function PrintPage() {
                   </thead>
                   <tbody>
                     {pageItems.map((row, ri) => (
-                      <tr key={`${row.partnerName}-${row.propertyId}-${ri}`} className={`border-b border-slate-200 text-[9px] text-slate-800 ${ri % 2 === 1 ? 'bg-slate-50' : ''}`}>
+                      <tr key={`${row.partnerName}-${row.propertyId}-${ri}`} className="border-b border-slate-200 text-[9px] text-slate-800">
                         {cv('name') && <td className="py-1.5 px-2 uppercase">{row.partnerName}</td>}
                         {cv('nif') && <td className="py-1.5 px-2">{row.partnerNif}</td>}
                         {cv('property') && <td className="py-1.5 px-2 uppercase">{row.propertyName}</td>}
