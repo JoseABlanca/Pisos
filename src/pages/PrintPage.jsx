@@ -3431,8 +3431,6 @@ export default function PrintPage() {
           if (hideZeroBalances && !hasVal) return;
           rows.push({ type: 'item', label: item.label, value: item.value, compValues: item.compValues, divisor: data.total_ingresos, compDivisors: data.total_ingresos_comp });
         });
-
-        rows.push({ type: 'total-row', label: 'Total Ingresos de Explotación', value: data.total_ingresos, compValues: data.total_ingresos_comp, divisor: data.total_ingresos, compDivisors: data.total_ingresos_comp });
       }
 
       // II. GASTOS DE EXPLOTACIÓN
@@ -3445,8 +3443,6 @@ export default function PrintPage() {
           if (hideZeroBalances && !hasVal) return;
           rows.push({ type: 'item', label: item.label, value: item.value, compValues: item.compValues, divisor: data.total_ingresos, compDivisors: data.total_ingresos_comp });
         });
-
-        rows.push({ type: 'total-row', label: 'Total Gastos de Explotación', value: data.total_gastos, compValues: data.total_gastos_comp, divisor: data.total_ingresos, compDivisors: data.total_ingresos_comp });
       }
 
       // III. RESULTADO DEL EJERCICIO (I - II)
@@ -3637,8 +3633,6 @@ export default function PrintPage() {
           if (hideZeroBalances && !hasVal) return;
           rows.push({ type: 'item', label: item.label, value: item.value, compValues: item.compValues, divisor: data.total_explotacion, compDivisors: data.total_explotacion_comp });
         });
-
-        rows.push({ type: 'total-row', label: 'Flujo de efectivo de actividades de explotación', value: data.total_explotacion, compValues: data.total_explotacion_comp, divisor: data.total_explotacion, compDivisors: data.total_explotacion_comp });
       }
 
       // 2. ACTIVIDADES DE INVERSIÓN
@@ -3651,8 +3645,6 @@ export default function PrintPage() {
           if (hideZeroBalances && !hasVal) return;
           rows.push({ type: 'item', label: item.label, value: item.value, compValues: item.compValues, divisor: data.total_explotacion, compDivisors: data.total_explotacion_comp });
         });
-
-        rows.push({ type: 'total-row', label: 'Flujo de efectivo de actividades de inversión', value: data.total_inversion, compValues: data.total_inversion_comp, divisor: data.total_explotacion, compDivisors: data.total_explotacion_comp });
       }
 
       // 3. ACTIVIDADES DE FINANCIACIÓN
@@ -3665,8 +3657,6 @@ export default function PrintPage() {
           if (hideZeroBalances && !hasVal) return;
           rows.push({ type: 'item', label: item.label, value: item.value, compValues: item.compValues, divisor: data.total_explotacion, compDivisors: data.total_explotacion_comp });
         });
-
-        rows.push({ type: 'total-row', label: 'Flujo de efectivo de actividades de financiación', value: data.total_financiacion, compValues: data.total_financiacion_comp, divisor: data.total_explotacion, compDivisors: data.total_explotacion_comp });
       }
 
       // AUMENTO/DISMINUCIÓN NETO DEL EFECTIVO
