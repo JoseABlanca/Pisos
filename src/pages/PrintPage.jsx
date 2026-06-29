@@ -2282,35 +2282,35 @@ export default function PrintPage() {
                 {renderPageHeader('Inventario de Activos Inmobiliarios')}
                 <table className="w-full text-[10px] border-collapse">
                   <thead>
-                    <tr className="border-b-2 border-slate-700 bg-slate-100 font-bold text-slate-700 text-[9px] uppercase tracking-wide">
-                      {cv('id') && <th className="py-2 px-1 text-left w-14">ID</th>}
-                      {cv('name') && <th className="py-2 px-1 text-left w-32">Finca</th>}
-                      {cv('address') && <th className="py-2 px-1 text-left">Dirección</th>}
-                      {cv('cebe_ceco') && <th className="py-2 px-1 text-left w-20">CEBE/CECO</th>}
-                      {cv('accountingAccount') && <th className="py-2 px-1 text-center w-24">Cta. Contable</th>}
-                      {cv('acquisitionDate') && <th className="py-2 px-1 text-center w-20">F. Adquisición</th>}
-                      {cv('purchasePrice') && <th className="py-2 px-1 text-right w-22">Precio Compra</th>}
-                      {cv('currentValue') && <th className="py-2 px-1 text-right w-22">Valor Actual</th>}
-                      {cv('mortgagePending') && <th className="py-2 px-1 text-right w-22">Hip. Pendiente</th>}
-                      {cv('owners') && <th className="py-2 px-1 text-left w-28">Propietarios</th>}
+                    <tr className="border-b border-slate-400 bg-slate-100 text-[9px] uppercase">
+                      {cv('id') && <th className="py-1.5 px-2 text-left w-14 font-semibold">ID</th>}
+                      {cv('name') && <th className="py-1.5 px-2 text-left w-32 font-semibold">Finca</th>}
+                      {cv('address') && <th className="py-1.5 px-2 text-left font-semibold">Dirección</th>}
+                      {cv('cebe_ceco') && <th className="py-1.5 px-2 text-left w-20 font-semibold">CEBE/CECO</th>}
+                      {cv('accountingAccount') && <th className="py-1.5 px-2 text-center w-24 font-semibold">Cta. Contable</th>}
+                      {cv('acquisitionDate') && <th className="py-1.5 px-2 text-center w-20 font-semibold">F. Adquisición</th>}
+                      {cv('purchasePrice') && <th className="py-1.5 px-2 text-right w-24 font-semibold">Precio Compra</th>}
+                      {cv('currentValue') && <th className="py-1.5 px-2 text-right w-24 font-semibold">Valor Actual</th>}
+                      {cv('mortgagePending') && <th className="py-1.5 px-2 text-right w-24 font-semibold">Hip. Pendiente</th>}
+                      {cv('owners') && <th className="py-1.5 px-2 text-left w-28 font-semibold">Propietarios</th>}
                     </tr>
                   </thead>
                   <tbody>
                     {pageItems.map((p, ri) => (
-                      <tr key={p.id} className={`border-b border-slate-100 text-[9px] ${ri % 2 === 1 ? 'bg-slate-50/50' : ''}`}>
-                        {cv('id') && <td className="py-1.5 px-1 font-mono font-bold text-slate-600">{p.id}</td>}
-                        {cv('name') && <td className="py-1.5 px-1 font-bold text-slate-800 uppercase">{p.name}</td>}
-                        {cv('address') && <td className="py-1.5 px-1 uppercase text-slate-700">{p.address}{p.city ? `, ${p.city}` : ''}</td>}
-                        {cv('cebe_ceco') && <td className="py-1.5 px-1 font-mono text-[8px] text-slate-500">
+                      <tr key={p.id} className={`border-b border-slate-200 text-[9px] text-slate-800 ${ri % 2 === 1 ? 'bg-slate-50' : ''}`}>
+                        {cv('id') && <td className="py-1.5 px-2">{p.id}</td>}
+                        {cv('name') && <td className="py-1.5 px-2 uppercase">{p.name}</td>}
+                        {cv('address') && <td className="py-1.5 px-2 uppercase">{p.address}{p.city ? `, ${p.city}` : ''}</td>}
+                        {cv('cebe_ceco') && <td className="py-1.5 px-2 text-[8px]">
                           <div>BE: {p.cebe || '---'}</div>
                           <div>CO: {p.ceco || '---'}</div>
                         </td>}
-                        {cv('accountingAccount') && <td className="py-1.5 px-1 text-center font-mono">{p.accountingAccount || '---'}</td>}
-                        {cv('acquisitionDate') && <td className="py-1.5 px-1 text-center font-mono">{p.financials?.acquisitionDate ? formatDate(p.financials.acquisitionDate) : (p.acquisitionDate ? formatDate(p.acquisitionDate) : '---')}</td>}
-                        {cv('purchasePrice') && <td className="py-1.5 px-1 text-right font-sans tabular-nums">{p.financials?.purchasePrice > 0 ? formatCurrency(p.financials.purchasePrice) : (p.purchasePrice > 0 ? formatCurrency(p.purchasePrice) : '---')}</td>}
-                        {cv('currentValue') && <td className="py-1.5 px-1 text-right font-sans tabular-nums text-blue-700 font-semibold">{p.financials?.currentValue > 0 ? formatCurrency(p.financials.currentValue) : (p.currentValue > 0 ? formatCurrency(p.currentValue) : '---')}</td>}
-                        {cv('mortgagePending') && <td className="py-1.5 px-1 text-right font-sans tabular-nums font-semibold text-red-600">{p.mortgagePending > 0 ? formatCurrency(p.mortgagePending) : '0,00'}</td>}
-                        {cv('owners') && <td className="py-1.5 px-1 text-[8px] text-slate-600">
+                        {cv('accountingAccount') && <td className="py-1.5 px-2 text-center">{p.accountingAccount || '---'}</td>}
+                        {cv('acquisitionDate') && <td className="py-1.5 px-2 text-center">{p.financials?.acquisitionDate ? formatDate(p.financials.acquisitionDate) : (p.acquisitionDate ? formatDate(p.acquisitionDate) : '---')}</td>}
+                        {cv('purchasePrice') && <td className="py-1.5 px-2 text-right tabular-nums">{p.financials?.purchasePrice > 0 ? formatCurrency(p.financials.purchasePrice) : (p.purchasePrice > 0 ? formatCurrency(p.purchasePrice) : '---')}</td>}
+                        {cv('currentValue') && <td className="py-1.5 px-2 text-right tabular-nums">{p.financials?.currentValue > 0 ? formatCurrency(p.financials.currentValue) : (p.currentValue > 0 ? formatCurrency(p.currentValue) : '---')}</td>}
+                        {cv('mortgagePending') && <td className="py-1.5 px-2 text-right tabular-nums">{p.mortgagePending > 0 ? formatCurrency(p.mortgagePending) : '0,00'}</td>}
+                        {cv('owners') && <td className="py-1.5 px-2 text-[8px]">
                           {(p.owners || []).length > 0 ? p.owners.map(o => `${o.name} (${o.percentage}%)`).join(', ') : '---'}
                         </td>}
                       </tr>
@@ -2347,15 +2347,15 @@ export default function PrintPage() {
                 {renderPageHeader('Listado de Contratos de Alquiler')}
                 <table className="w-full text-[10px] border-collapse">
                   <thead>
-                    <tr className="border-b-2 border-slate-700 bg-slate-100 font-bold text-slate-700 text-[9px] uppercase tracking-wide">
-                      {cv('reference') && <th className="py-2 px-1 text-left w-16">Referencia</th>}
-                      {cv('property') && <th className="py-2 px-1 text-left w-36">Inmueble</th>}
-                      {cv('tenants') && <th className="py-2 px-1 text-left">Inquilinos</th>}
-                      {cv('period') && <th className="py-2 px-1 text-center w-24">Período</th>}
-                      {cv('depositAmount') && <th className="py-2 px-1 text-right w-20">Fianza</th>}
-                      {cv('rentAmount') && <th className="py-2 px-1 text-right w-20">Renta/mes</th>}
-                      {cv('nextReview') && <th className="py-2 px-1 text-center w-20">Próx. Revisión</th>}
-                      {cv('status') && <th className="py-2 px-1 text-center w-16">Estado</th>}
+                    <tr className="border-b border-slate-400 bg-slate-100 text-[9px] uppercase">
+                      {cv('reference') && <th className="py-1.5 px-2 text-left w-16 font-semibold">Referencia</th>}
+                      {cv('property') && <th className="py-1.5 px-2 text-left w-36 font-semibold">Inmueble</th>}
+                      {cv('tenants') && <th className="py-1.5 px-2 text-left font-semibold">Inquilinos</th>}
+                      {cv('period') && <th className="py-1.5 px-2 text-center w-24 font-semibold">Período</th>}
+                      {cv('depositAmount') && <th className="py-1.5 px-2 text-right w-20 font-semibold">Fianza</th>}
+                      {cv('rentAmount') && <th className="py-1.5 px-2 text-right w-20 font-semibold">Renta/mes</th>}
+                      {cv('nextReview') && <th className="py-1.5 px-2 text-center w-20 font-semibold">Próx. Revisión</th>}
+                      {cv('status') && <th className="py-1.5 px-2 text-center w-16 font-semibold">Estado</th>}
                     </tr>
                   </thead>
                   <tbody>
@@ -2367,22 +2367,18 @@ export default function PrintPage() {
                         : (cust ? cust.name : 'Ninguno');
                       
                       return (
-                        <tr key={r.id || r.reference} className={`border-b border-slate-100 text-[9px] ${ri % 2 === 1 ? 'bg-slate-50/50' : ''}`}>
-                          {cv('reference') && <td className="py-1.5 px-1 font-mono font-bold text-slate-600">{r.reference || '---'}</td>}
-                          {cv('property') && <td className="py-1.5 px-1 uppercase font-bold text-slate-800">{prop ? prop.name : r.propertyId}</td>}
-                          {cv('tenants') && <td className="py-1.5 px-1 uppercase text-slate-700">{tenantDisplay}</td>}
-                          {cv('period') && <td className="py-1.5 px-1 text-center font-mono text-[8px]">
+                        <tr key={r.id || r.reference} className={`border-b border-slate-200 text-[9px] text-slate-800 ${ri % 2 === 1 ? 'bg-slate-50' : ''}`}>
+                          {cv('reference') && <td className="py-1.5 px-2">{r.reference || '---'}</td>}
+                          {cv('property') && <td className="py-1.5 px-2 uppercase">{prop ? prop.name : r.propertyId}</td>}
+                          {cv('tenants') && <td className="py-1.5 px-2 uppercase">{tenantDisplay}</td>}
+                          {cv('period') && <td className="py-1.5 px-2 text-center text-[8px]">
                             {r.startDate ? formatDate(r.startDate) : '---'} al <br/>
                             {r.endDate ? formatDate(r.endDate) : 'INDET.'}
                           </td>}
-                          {cv('depositAmount') && <td className="py-1.5 px-1 text-right font-sans tabular-nums">{r.depositAmount > 0 ? formatCurrency(r.depositAmount) : '---'}</td>}
-                          {cv('rentAmount') && <td className="py-1.5 px-1 text-right font-sans tabular-nums font-bold text-green-700">{formatCurrency(r.rentAmount)}</td>}
-                          {cv('nextReview') && <td className="py-1.5 px-1 text-center font-mono text-[8px]">{r.nextReviewDate ? formatDate(r.nextReviewDate) : '---'}</td>}
-                          {cv('status') && <td className="py-1.5 px-1 text-center uppercase font-bold text-[8px]">
-                            <span className={`px-1 py-0.5 rounded ${r.status === 'activo' ? 'bg-green-100 text-green-800' : 'bg-slate-100 text-slate-600'}`}>
-                              {r.status || 'activo'}
-                            </span>
-                          </td>}
+                          {cv('depositAmount') && <td className="py-1.5 px-2 text-right tabular-nums">{r.depositAmount > 0 ? formatCurrency(r.depositAmount) : '---'}</td>}
+                          {cv('rentAmount') && <td className="py-1.5 px-2 text-right tabular-nums">{formatCurrency(r.rentAmount)}</td>}
+                          {cv('nextReview') && <td className="py-1.5 px-2 text-center text-[8px]">{r.nextReviewDate ? formatDate(r.nextReviewDate) : '---'}</td>}
+                          {cv('status') && <td className="py-1.5 px-2 text-center uppercase text-[8px]">{r.status || 'activo'}</td>}
                         </tr>
                       );
                     })}
@@ -2418,32 +2414,28 @@ export default function PrintPage() {
                 {renderPageHeader('Fichero General de Clientes / Arrendatarios')}
                 <table className="w-full text-[10px] border-collapse">
                   <thead>
-                    <tr className="border-b-2 border-slate-700 bg-slate-100 font-bold text-slate-700 text-[9px] uppercase tracking-wide">
-                      {cv('id') && <th className="py-2 px-1 text-left w-16">ID</th>}
-                      {cv('name') && <th className="py-2 px-1 text-left w-36">Nombre Completo</th>}
-                      {cv('dni') && <th className="py-2 px-1 text-left w-24">NIF/DNI</th>}
-                      {cv('phone') && <th className="py-2 px-1 text-left w-24">Teléfono</th>}
-                      {cv('email') && <th className="py-2 px-1 text-left">Email</th>}
-                      {cv('address') && <th className="py-2 px-1 text-left w-36">Dirección</th>}
-                      {cv('nationality') && <th className="py-2 px-1 text-left w-20">Nac.</th>}
-                      {cv('status') && <th className="py-2 px-1 text-center w-16">Estado</th>}
+                    <tr className="border-b border-slate-400 bg-slate-100 text-[9px] uppercase">
+                      {cv('id') && <th className="py-1.5 px-2 text-left w-16 font-semibold">ID</th>}
+                      {cv('name') && <th className="py-1.5 px-2 text-left w-36 font-semibold">Nombre Completo</th>}
+                      {cv('dni') && <th className="py-1.5 px-2 text-left w-24 font-semibold">NIF/DNI</th>}
+                      {cv('phone') && <th className="py-1.5 px-2 text-left w-24 font-semibold">Teléfono</th>}
+                      {cv('email') && <th className="py-1.5 px-2 text-left font-semibold">Email</th>}
+                      {cv('address') && <th className="py-1.5 px-2 text-left w-36 font-semibold">Dirección</th>}
+                      {cv('nationality') && <th className="py-1.5 px-2 text-left w-20 font-semibold">Nac.</th>}
+                      {cv('status') && <th className="py-1.5 px-2 text-center w-16 font-semibold">Estado</th>}
                     </tr>
                   </thead>
                   <tbody>
                     {pageItems.map((c, ri) => (
-                      <tr key={c.id} className={`border-b border-slate-100 text-[9px] ${ri % 2 === 1 ? 'bg-slate-50/50' : ''}`}>
-                        {cv('id') && <td className="py-1.5 px-1 font-mono text-slate-600">{c.id?.substring(0, 6)}</td>}
-                        {cv('name') && <td className="py-1.5 px-1 font-bold text-slate-800 uppercase">{c.name} {c.lastName || ''}</td>}
-                        {cv('dni') && <td className="py-1.5 px-1 font-mono uppercase">{c.dni || '---'}</td>}
-                        {cv('phone') && <td className="py-1.5 px-1 font-mono">{c.phone || '---'}</td>}
-                        {cv('email') && <td className="py-1.5 px-1 lowercase truncate max-w-[140px] text-slate-600" title={c.email}>{c.email || '---'}</td>}
-                        {cv('address') && <td className="py-1.5 px-1 text-slate-600 uppercase">{c.address || '---'}</td>}
-                        {cv('nationality') && <td className="py-1.5 px-1 text-slate-600">{c.nationality || '---'}</td>}
-                        {cv('status') && <td className="py-1.5 px-1 text-center uppercase font-bold text-[8px]">
-                          <span className={`px-1.5 py-0.5 rounded ${c.status === 'activo' ? 'bg-blue-100 text-blue-800' : 'bg-slate-100 text-slate-600'}`}>
-                            {c.status || 'activo'}
-                          </span>
-                        </td>}
+                      <tr key={c.id} className={`border-b border-slate-200 text-[9px] text-slate-800 ${ri % 2 === 1 ? 'bg-slate-50' : ''}`}>
+                        {cv('id') && <td className="py-1.5 px-2">{c.id?.substring(0, 6)}</td>}
+                        {cv('name') && <td className="py-1.5 px-2 uppercase">{c.name} {c.lastName || ''}</td>}
+                        {cv('dni') && <td className="py-1.5 px-2 uppercase">{c.dni || '---'}</td>}
+                        {cv('phone') && <td className="py-1.5 px-2">{c.phone || '---'}</td>}
+                        {cv('email') && <td className="py-1.5 px-2 lowercase truncate max-w-[140px]" title={c.email}>{c.email || '---'}</td>}
+                        {cv('address') && <td className="py-1.5 px-2 uppercase">{c.address || '---'}</td>}
+                        {cv('nationality') && <td className="py-1.5 px-2">{c.nationality || '---'}</td>}
+                        {cv('status') && <td className="py-1.5 px-2 text-center uppercase text-[8px]">{c.status || 'activo'}</td>}
                       </tr>
                     ))}
                   </tbody>
@@ -2520,26 +2512,26 @@ export default function PrintPage() {
                 {renderPageHeader('Extracto de Propietarios')}
                 <table className="w-full text-[10px] border-collapse">
                   <thead>
-                    <tr className="border-b-2 border-slate-700 bg-slate-100 font-bold text-slate-700 text-[9px] uppercase tracking-wide">
-                      {cv('name') && <th className="py-2 px-1 text-left w-36">Propietario</th>}
-                      {cv('nif') && <th className="py-2 px-1 text-left w-24">NIF/CIF</th>}
-                      {cv('property') && <th className="py-2 px-1 text-left">Inmueble</th>}
-                      {cv('percentage') && <th className="py-2 px-1 text-right w-16">% Prop.</th>}
-                      {cv('purchasePrice') && <th className="py-2 px-1 text-right w-24">P. Compra</th>}
-                      {cv('currentValue') && <th className="py-2 px-1 text-right w-24">Val. Actual</th>}
-                      {cv('invested') && <th className="py-2 px-1 text-right w-24">Capital Invest.</th>}
+                    <tr className="border-b border-slate-400 bg-slate-100 text-[9px] uppercase">
+                      {cv('name') && <th className="py-1.5 px-2 text-left w-36 font-semibold">Propietario</th>}
+                      {cv('nif') && <th className="py-1.5 px-2 text-left w-24 font-semibold">NIF/CIF</th>}
+                      {cv('property') && <th className="py-1.5 px-2 text-left font-semibold">Inmueble</th>}
+                      {cv('percentage') && <th className="py-1.5 px-2 text-right w-16 font-semibold">% Prop.</th>}
+                      {cv('purchasePrice') && <th className="py-1.5 px-2 text-right w-24 font-semibold">P. Compra</th>}
+                      {cv('currentValue') && <th className="py-1.5 px-2 text-right w-24 font-semibold">Val. Actual</th>}
+                      {cv('invested') && <th className="py-1.5 px-2 text-right w-24 font-semibold">Capital Invest.</th>}
                     </tr>
                   </thead>
                   <tbody>
                     {pageItems.map((row, ri) => (
-                      <tr key={`${row.partnerName}-${row.propertyId}-${ri}`} className={`border-b border-slate-100 text-[9px] ${ri % 2 === 1 ? 'bg-slate-50/50' : ''}`}>
-                        {cv('name') && <td className="py-1.5 px-1 font-bold text-slate-800 uppercase">{row.partnerName}</td>}
-                        {cv('nif') && <td className="py-1.5 px-1 font-mono text-slate-600">{row.partnerNif}</td>}
-                        {cv('property') && <td className="py-1.5 px-1 uppercase text-slate-700">{row.propertyName}</td>}
-                        {cv('percentage') && <td className="py-1.5 px-1 text-right font-bold text-blue-700">{row.percentage.toFixed(2)}%</td>}
-                        {cv('purchasePrice') && <td className="py-1.5 px-1 text-right font-sans tabular-nums">{row.purchasePrice > 0 ? formatCurrency(row.purchasePrice) : '---'}</td>}
-                        {cv('currentValue') && <td className="py-1.5 px-1 text-right font-sans tabular-nums font-semibold text-blue-700">{row.currentValue > 0 ? formatCurrency(row.currentValue) : '---'}</td>}
-                        {cv('invested') && <td className="py-1.5 px-1 text-right font-sans tabular-nums font-bold text-slate-800">{row.invested > 0 ? formatCurrency(row.invested) : '---'}</td>}
+                      <tr key={`${row.partnerName}-${row.propertyId}-${ri}`} className={`border-b border-slate-200 text-[9px] text-slate-800 ${ri % 2 === 1 ? 'bg-slate-50' : ''}`}>
+                        {cv('name') && <td className="py-1.5 px-2 uppercase">{row.partnerName}</td>}
+                        {cv('nif') && <td className="py-1.5 px-2">{row.partnerNif}</td>}
+                        {cv('property') && <td className="py-1.5 px-2 uppercase">{row.propertyName}</td>}
+                        {cv('percentage') && <td className="py-1.5 px-2 text-right tabular-nums">{row.percentage.toFixed(2)}%</td>}
+                        {cv('purchasePrice') && <td className="py-1.5 px-2 text-right tabular-nums">{row.purchasePrice > 0 ? formatCurrency(row.purchasePrice) : '---'}</td>}
+                        {cv('currentValue') && <td className="py-1.5 px-2 text-right tabular-nums">{row.currentValue > 0 ? formatCurrency(row.currentValue) : '---'}</td>}
+                        {cv('invested') && <td className="py-1.5 px-2 text-right tabular-nums">{row.invested > 0 ? formatCurrency(row.invested) : '---'}</td>}
                       </tr>
                     ))}
                   </tbody>
@@ -2548,15 +2540,15 @@ export default function PrintPage() {
                 {/* Summary by partner (last page only) */}
                 {pageIdx === listPages.length - 1 && Object.keys(partnerGroups).length > 0 && (
                   <div className="mt-6">
-                    <div className="text-[9px] font-bold text-slate-500 uppercase border-b border-slate-300 pb-1 mb-2">Resumen por Propietario</div>
+                    <div className="text-[9px] font-semibold text-slate-700 uppercase border-b border-slate-300 pb-1 mb-2">Resumen por Propietario</div>
                     <table className="w-full text-[9px] border-collapse">
                       <thead>
-                        <tr className="border-b border-slate-300 bg-slate-50 font-bold text-slate-600 text-[8px] uppercase">
-                          <th className="py-1 px-1 text-left">Propietario</th>
-                          <th className="py-1 px-1 text-right w-16">Nº Activos</th>
-                          <th className="py-1 px-1 text-right w-28">Capital Total Invest.</th>
-                          <th className="py-1 px-1 text-right w-28">Valor Actual Total</th>
-                          <th className="py-1 px-1 text-right w-24">PnL Latente</th>
+                        <tr className="border-b border-slate-400 bg-slate-100 text-[8px] uppercase">
+                          <th className="py-1 px-2 text-left font-semibold">Propietario</th>
+                          <th className="py-1 px-2 text-right w-16 font-semibold">Nº Activos</th>
+                          <th className="py-1 px-2 text-right w-28 font-semibold">Capital Total Invest.</th>
+                          <th className="py-1 px-2 text-right w-28 font-semibold">Valor Actual Total</th>
+                          <th className="py-1 px-2 text-right w-24 font-semibold">PnL Latente</th>
                         </tr>
                       </thead>
                       <tbody>
@@ -2565,12 +2557,12 @@ export default function PrintPage() {
                           const totalCurrentVal = rows.reduce((s, r) => s + r.currentValue * (r.percentage / 100), 0);
                           const totalPnl = totalCurrentVal - totalInvested;
                           return (
-                            <tr key={pName} className="border-b border-slate-100">
-                              <td className="py-1 px-1 font-bold text-slate-800 uppercase">{pName}</td>
-                              <td className="py-1 px-1 text-right">{rows.length}</td>
-                              <td className="py-1 px-1 text-right font-sans tabular-nums">{totalInvested > 0 ? formatCurrency(totalInvested) : '---'}</td>
-                              <td className="py-1 px-1 text-right font-sans tabular-nums text-blue-700 font-semibold">{totalCurrentVal > 0 ? formatCurrency(totalCurrentVal) : '---'}</td>
-                              <td className={`py-1 px-1 text-right font-sans tabular-nums font-bold ${totalPnl >= 0 ? 'text-green-700' : 'text-red-600'}`}>{totalPnl !== 0 ? formatCurrency(totalPnl) : '---'}</td>
+                            <tr key={pName} className="border-b border-slate-200 text-slate-800">
+                              <td className="py-1 px-2 uppercase">{pName}</td>
+                              <td className="py-1 px-2 text-right">{rows.length}</td>
+                              <td className="py-1 px-2 text-right tabular-nums">{totalInvested > 0 ? formatCurrency(totalInvested) : '---'}</td>
+                              <td className="py-1 px-2 text-right tabular-nums">{totalCurrentVal > 0 ? formatCurrency(totalCurrentVal) : '---'}</td>
+                              <td className="py-1 px-2 text-right tabular-nums">{totalPnl !== 0 ? formatCurrency(totalPnl) : '---'}</td>
                             </tr>
                           );
                         })}
