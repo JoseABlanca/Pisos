@@ -201,6 +201,15 @@ const getLogicalBlocks = (rows) => {
   }
   return blocks;
 };
+const getHorizontalPercentage = (valSelected, valComp) => {
+  const vSel = parseFloat(valSelected) || 0;
+  const vComp = parseFloat(valComp) || 0;
+  if (Math.abs(vComp) < 0.005) return '---';
+  const pct = ((vSel - vComp) / Math.abs(vComp)) * 100;
+  return `${pct >= 0 ? '+' : ''}${pct.toFixed(1)}%`;
+};
+
+
 
 const paginateBlocks = (blocks, baseLimit = 28, maxFlex = 6) => {
   const pages = [];
@@ -459,11 +468,22 @@ export default function PrintPage() {
     return saved ? parseInt(saved, 10) : 10;
   });
   const [isDatesCollapsed, setIsDatesCollapsed] = useState(true);
+  const [isFiltersInmobCollapsed, setIsFiltersInmobCollapsed] = useState(false);
+  const [isSortCollapsed, setIsSortCollapsed] = useState(false);
+  const [isColsCollapsed, setIsColsCollapsed] = useState(false);
+  const [isOptsAlquilerCollapsed, setIsOptsAlquilerCollapsed] = useState(false);
+  const [isOptsClientesCollapsed, setIsOptsClientesCollapsed] = useState(false);
+  const [isOptsPropietariosCollapsed, setIsOptsPropietariosCollapsed] = useState(false);
+  const [isOptsContabilidadCollapsed, setIsOptsContabilidadCollapsed] = useState(false);
+  const [isProfundidadCollapsed, setIsProfundidadCollapsed] = useState(false);
   const [hideZeroBalances, setHideZeroBalances] = useState(() => {
     return localStorage.getItem('print_hideZeroBalances') === 'true';
   });
   const [showVerticalPercentage, setShowVerticalPercentage] = useState(() => {
     return localStorage.getItem('print_showVerticalPercentage') === 'true';
+  });
+  const [showHorizontalPercentage, setShowHorizontalPercentage] = useState(() => {
+    return localStorage.getItem('print_showHorizontalPercentage') === 'true';
   });
   const [displayMode, setDisplayMode] = useState(() => {
     return localStorage.getItem('print_displayMode') || 'euros';
@@ -570,10 +590,31 @@ export default function PrintPage() {
   const propFilterDropdownRef = useRef(null);
   const rentFilterDropdownRef = useRef(null);
   const ownerFilterDropdownRef = useRef(null);
+  const previewAreaRef = useRef(null);
+  const [pageScale, setPageScale] = useState(1);
 
   // Paper / layout configuration
   const [paperSize, setPaperSize] = useState(() => localStorage.getItem('print_paperSize') || 'A4');
   const [pageOrientation, setPageOrientation] = useState(() => localStorage.getItem('print_pageOrientation') || 'portrait');
+
+  // Compute page scale factor when paper size / orientation / panels change
+  useEffect(() => {
+    const computeScale = () => {
+      if (!previewAreaRef.current) return;
+      const paperDims = { 'A4': { w: 210, h: 297 }, 'A5': { w: 148, h: 210 }, 'Letter': { w: 216, h: 279 } };
+      const dims = paperDims[paperSize] || paperDims['A4'];
+      const sheetWmm = pageOrientation === 'landscape' ? dims.h : dims.w;
+      // Convert mm to px (96 dpi => 1 mm = 3.7795 px)
+      const sheetWpx = sheetWmm * 3.7795;
+      const containerW = previewAreaRef.current.clientWidth - 64; // subtract padding
+      const scale = containerW < sheetWpx ? Math.max(0.4, containerW / sheetWpx) : 1;
+      setPageScale(scale);
+    };
+    computeScale();
+    const observer = new ResizeObserver(computeScale);
+    if (previewAreaRef.current) observer.observe(previewAreaRef.current);
+    return () => observer.disconnect();
+  }, [paperSize, pageOrientation, showLeftPanel, showRightPanel]);
 
 
   // Visible columns per template (keys = templateId, value = Set of visible column ids)
@@ -623,17 +664,18 @@ export default function PrintPage() {
       { id: 'nif', label: 'NIF/CIF' },
       { id: 'property', label: 'Inmueble' },
       { id: 'percentage', label: '% Propiedad' },
+      { id: 'acquisitionPrice', label: 'Precio Adquisición' },
+      { id: 'capitalAportadoGastos', label: 'Capital Aportado + Gastos' },
+      { id: 'capitalReforma', label: 'Capital + Reforma Capitalizable' },
       { id: 'currentValue', label: 'V. Actual' },
-      { id: 'invested', label: 'Cap. Aportado' },
       { id: 'gain', label: 'Ganancia' },
-      { id: 'gainPlusInvested', label: 'Ganancia + Cap. Aportado' },
     ],
   };
   const defaultVisibleColumns = {
     activos: new Set(['id','name','address','cebe_ceco','accountingAccount','ingresos','gastos','servicios','netYield']),
     alquileres: new Set(['reference','property','tenants','startDate','endDate','rentAmount','expenses','netYield','status']),
     clientes: new Set(['id','name','dni','phone','email','status','propertyName','rentalRef']),
-    extracto_propietarios: new Set(['name','property','percentage','currentValue','invested','gain','gainPlusInvested']),
+    extracto_propietarios: new Set(['name','property','percentage','acquisitionPrice','capitalAportadoGastos','capitalReforma','currentValue','gain']),
   };
   const [visibleColumns, setVisibleColumns] = useState(defaultVisibleColumns);
 
@@ -733,6 +775,7 @@ export default function PrintPage() {
     localStorage.setItem('print_selectedDocuments', JSON.stringify(selectedDocuments));
     localStorage.setItem('print_hideZeroBalances', hideZeroBalances.toString());
     localStorage.setItem('print_showVerticalPercentage', showVerticalPercentage.toString());
+    localStorage.setItem('print_showHorizontalPercentage', showHorizontalPercentage.toString());
     localStorage.setItem('print_displayMode', displayMode);
     localStorage.setItem('print_selectedComparisonYears', JSON.stringify(selectedComparisonYears));
     localStorage.setItem('print_selectedFilterProperties', JSON.stringify(selectedFilterProperties));
@@ -747,7 +790,7 @@ export default function PrintPage() {
   }, [
     rentPeriod, statusFilterAlquileres, statusFilterClientes, paperSize, pageOrientation,
     selectedYear, selectedYears, selectedMonths, selectedQuarters, selectedAccounts,
-    selectedCebes, selectedCecos, selectedDocuments, hideZeroBalances, showVerticalPercentage,
+    selectedCebes, selectedCecos, selectedDocuments, hideZeroBalances, showVerticalPercentage, showHorizontalPercentage,
     displayMode, selectedComparisonYears, selectedFilterProperties, selectedFilterRentals,
     selectedFilterOwners, sortCol1, sortDir1, sortCol2, sortDir2, showSecondSortLevel, groupByOwner
   ]);
@@ -3017,33 +3060,39 @@ export default function PrintPage() {
       const ownerRows = [];
       properties.forEach(p => {
         const ownersArr = Array.isArray(p.owners) ? p.owners : [];
-        const purchasePrice = parseFloat(p.financials?.purchasePrice || p.purchasePrice || 0);
-        const agentFees = parseFloat(p.financials?.agentFees || 0);
         
-        const totalAcquisitionExp = (p.financials?.acquisitionExpenses || []).reduce(
-          (acc, exp) => acc + (parseFloat(exp.amount) || 0), 
+        // --- Financial values from Finanzas form fields ---
+        // Precio de Adquisición (from financials form)
+        const propAcquisitionPrice = parseFloat(p.acquisitionPrice || p.financials?.purchasePrice || 0);
+        
+        // Capital Aportado (direct field from Finanzas form)
+        const propInvestedCapital = parseFloat(p.investedCapital || 0);
+        
+        // Gastos de Adquisición (sum of adquisitionExpenses table)
+        const propAdquisitionExpenses = (p.adquisitionExpenses || p.financials?.acquisitionExpenses || []).reduce(
+          (acc, exp) => acc + (parseFloat(exp.amount) || 0),
           0
         );
         
-        const totalReforms = (p.reforms || []).reduce((acc, ref) => {
-          const invoiced = (ref.invoices || []).reduce((sum, inv) => sum + (parseFloat(inv.amount) || 0), 0);
-          const refAmount = ref.amount !== undefined && ref.amount !== null && ref.amount !== '' ? parseFloat(ref.amount) : invoiced;
-          return acc + (isNaN(refAmount) ? 0 : refAmount);
+        // Total reformas capitalizables (reforms with capitalize=true)
+        const propCapitalizedReforms = (p.reforms || []).reduce((acc, ref) => {
+          const capSum = (ref.expenses || []).reduce((s, exp) => s + (exp.capitalize ? (parseFloat(exp.amount) || 0) : 0), 0);
+          return acc + capSum;
         }, 0);
         
-        const totalInvestment = purchasePrice + totalAcquisitionExp + agentFees + totalReforms;
-        const mortgage = parseFloat(p.loanAmount) || 0;
-        const equity = totalInvestment - mortgage;
-        const propCurrentValue = parseFloat(p.financials?.currentValue || p.currentValue || 0);
-        const netProfit = propCurrentValue - equity;
+        // Valor Actual (from Finanzas form)
+        const propCurrentValue = parseFloat(p.currentValue || p.financials?.currentValue || 0);
+        
+        // Computed composite columns (property total, before applying % owner)
+        const propCapAportadoGastos = propInvestedCapital + propAdquisitionExpenses;
+        const propCapReforma = propCapAportadoGastos + propCapitalizedReforms; // = Total Inversión
+        
+        // Ganancia = Valor Actual - (Capital + Reforma Capitalizable)
+        const propGanancia = propCurrentValue - propCapReforma;
 
         ownersArr.forEach(o => {
           const pct = parseFloat(o.percentage) || 0;
           const perc = pct / 100;
-          const currentVal = propCurrentValue * perc;
-          const capitalAportado = equity * perc;
-          const ganancia = netProfit * perc;
-          const totalGananciaMasAportacion = currentVal;
           
           ownerRows.push({
             partnerName: o.name || '---',
@@ -3051,10 +3100,11 @@ export default function PrintPage() {
             propertyName: p.name || p.id,
             propertyId: p.id,
             percentage: pct,
-            currentValue: currentVal,
-            invested: capitalAportado,
-            gain: ganancia,
-            gainPlusInvested: totalGananciaMasAportacion
+            acquisitionPrice: propAcquisitionPrice * perc,
+            capitalAportadoGastos: propCapAportadoGastos * perc,
+            capitalReforma: propCapReforma * perc,
+            currentValue: propCurrentValue * perc,
+            gain: propGanancia * perc,
           });
         });
         
@@ -3065,10 +3115,11 @@ export default function PrintPage() {
             propertyName: p.name || p.id,
             propertyId: p.id,
             percentage: 100,
+            acquisitionPrice: propAcquisitionPrice,
+            capitalAportadoGastos: propCapAportadoGastos,
+            capitalReforma: propCapReforma,
             currentValue: propCurrentValue,
-            invested: equity,
-            gain: netProfit,
-            gainPlusInvested: propCurrentValue
+            gain: propGanancia,
           });
         }
       });
@@ -3094,12 +3145,13 @@ export default function PrintPage() {
 
       // Calculate totals for summation row (only relevant for flat mode)
       const totals = sortedOwnerRows.reduce((acc, r) => {
-        acc.currentValue += r.currentValue;
-        acc.invested += r.invested;
-        acc.gain += r.gain;
-        acc.gainPlusInvested += r.gainPlusInvested;
+        acc.acquisitionPrice += r.acquisitionPrice || 0;
+        acc.capitalAportadoGastos += r.capitalAportadoGastos || 0;
+        acc.capitalReforma += r.capitalReforma || 0;
+        acc.currentValue += r.currentValue || 0;
+        acc.gain += r.gain || 0;
         return acc;
-      }, { currentValue: 0, invested: 0, gain: 0, gainPlusInvested: 0 });
+      }, { acquisitionPrice: 0, capitalAportadoGastos: 0, capitalReforma: 0, currentValue: 0, gain: 0 });
 
       let listPages = [];
       let totalPages = 1;
@@ -3107,15 +3159,16 @@ export default function PrintPage() {
       if (groupByOwner) {
         // Build blocks: each owner is a block containing owner header, owner rows, and owner subtotal
         const ownerBlocks = Object.entries(partnerGroups).map(([pName, rows]) => {
-          const valSum = rows.reduce((s, r) => s + r.currentValue, 0);
-          const invSum = rows.reduce((s, r) => s + r.invested, 0);
-          const gainSum = rows.reduce((s, r) => s + r.gain, 0);
-          const sumSum = rows.reduce((s, r) => s + r.gainPlusInvested, 0);
+          const acqSum = rows.reduce((s, r) => s + (r.acquisitionPrice || 0), 0);
+          const capGastosSum = rows.reduce((s, r) => s + (r.capitalAportadoGastos || 0), 0);
+          const capRefSum = rows.reduce((s, r) => s + (r.capitalReforma || 0), 0);
+          const valSum = rows.reduce((s, r) => s + (r.currentValue || 0), 0);
+          const gainSum = rows.reduce((s, r) => s + (r.gain || 0), 0);
           
           return [
             { type: 'group-header', label: pName },
             ...rows.map(r => ({ ...r, type: 'group-item' })),
-            { type: 'group-total', label: pName, currentValue: valSum, invested: invSum, gain: gainSum, gainPlusInvested: sumSum }
+            { type: 'group-total', label: pName, acquisitionPrice: acqSum, capitalAportadoGastos: capGastosSum, capitalReforma: capRefSum, currentValue: valSum, gain: gainSum }
           ];
         }).filter(b => b.length > 0);
         
@@ -3147,11 +3200,12 @@ export default function PrintPage() {
                       {cv('name') && <th className="py-1.5 px-2 text-left w-36 font-semibold">Propietario</th>}
                       {cv('nif') && <th className="py-1.5 px-2 text-left w-24 font-semibold">NIF/CIF</th>}
                       {cv('property') && <th className="py-1.5 px-2 text-left font-semibold">Inmueble</th>}
-                      {cv('percentage') && <th className="py-1.5 px-2 text-right w-16 font-semibold">% Prop.</th>}
+                      {cv('percentage') && <th className="py-1.5 px-2 text-right w-14 font-semibold">% Prop.</th>}
+                      {cv('acquisitionPrice') && <th className="py-1.5 px-2 text-right w-24 font-semibold">P. Adquisición</th>}
+                      {cv('capitalAportadoGastos') && <th className="py-1.5 px-2 text-right w-28 font-semibold">Cap. Aportado + Gastos</th>}
+                      {cv('capitalReforma') && <th className="py-1.5 px-2 text-right w-28 font-semibold">Cap. + Reforma Cap.</th>}
                       {cv('currentValue') && <th className="py-1.5 px-2 text-right w-24 font-semibold">V. Actual</th>}
-                      {cv('invested') && <th className="py-1.5 px-2 text-right w-24 font-semibold">Cap. Aportado</th>}
                       {cv('gain') && <th className="py-1.5 px-2 text-right w-24 font-semibold">Ganancia</th>}
-                      {cv('gainPlusInvested') && <th className="py-1.5 px-2 text-right w-28 font-semibold">Ganancia + Cap. Aportado</th>}
                     </tr>
                   </thead>
                   <tbody>
@@ -3172,10 +3226,11 @@ export default function PrintPage() {
                             {cv('nif') && <td className="py-1.5 px-2"></td>}
                             {cv('property') && <td className="py-1.5 px-2"></td>}
                             {cv('percentage') && <td className="py-1.5 px-2"></td>}
-                            {cv('currentValue') && <td className="py-1.5 px-2 text-right tabular-nums">{formatCurrency(row.currentValue)}</td>}
-                            {cv('invested') && <td className="py-1.5 px-2 text-right tabular-nums">{formatCurrency(row.invested)}</td>}
-                            {cv('gain') && <td className="py-1.5 px-2 text-right tabular-nums">{formatCurrency(row.gain)}</td>}
-                            {cv('gainPlusInvested') && <td className="py-1.5 px-2 text-right tabular-nums">{formatCurrency(row.gainPlusInvested)}</td>}
+                            {cv('acquisitionPrice') && <td className="py-1.5 px-2 text-right tabular-nums">{formatCurrency(row.acquisitionPrice || 0)}</td>}
+                            {cv('capitalAportadoGastos') && <td className="py-1.5 px-2 text-right tabular-nums">{formatCurrency(row.capitalAportadoGastos || 0)}</td>}
+                            {cv('capitalReforma') && <td className="py-1.5 px-2 text-right tabular-nums">{formatCurrency(row.capitalReforma || 0)}</td>}
+                            {cv('currentValue') && <td className="py-1.5 px-2 text-right tabular-nums">{formatCurrency(row.currentValue || 0)}</td>}
+                            {cv('gain') && <td className="py-1.5 px-2 text-right tabular-nums">{formatCurrency(row.gain || 0)}</td>}
                           </tr>
                         );
                       }
@@ -3186,10 +3241,11 @@ export default function PrintPage() {
                           {cv('nif') && <td className="py-1.5 px-2">{row.type === 'group-item' ? '' : row.partnerNif}</td>}
                           {cv('property') && <td className="py-1.5 px-2 uppercase">{row.propertyName}</td>}
                           {cv('percentage') && <td className="py-1.5 px-2 text-right tabular-nums">{row.percentage.toFixed(2)}%</td>}
-                          {cv('currentValue') && <td className="py-1.5 px-2 text-right tabular-nums">{row.currentValue > 0 ? formatCurrency(row.currentValue) : '---'}</td>}
-                          {cv('invested') && <td className="py-1.5 px-2 text-right tabular-nums">{row.invested > 0 ? formatCurrency(row.invested) : '---'}</td>}
-                          {cv('gain') && <td className="py-1.5 px-2 text-right tabular-nums">{row.gain !== 0 ? formatCurrency(row.gain) : '---'}</td>}
-                          {cv('gainPlusInvested') && <td className="py-1.5 px-2 text-right tabular-nums">{row.gainPlusInvested > 0 ? formatCurrency(row.gainPlusInvested) : '---'}</td>}
+                          {cv('acquisitionPrice') && <td className="py-1.5 px-2 text-right tabular-nums">{(row.acquisitionPrice || 0) > 0 ? formatCurrency(row.acquisitionPrice) : '---'}</td>}
+                          {cv('capitalAportadoGastos') && <td className="py-1.5 px-2 text-right tabular-nums">{(row.capitalAportadoGastos || 0) > 0 ? formatCurrency(row.capitalAportadoGastos) : '---'}</td>}
+                          {cv('capitalReforma') && <td className="py-1.5 px-2 text-right tabular-nums">{(row.capitalReforma || 0) > 0 ? formatCurrency(row.capitalReforma) : '---'}</td>}
+                          {cv('currentValue') && <td className="py-1.5 px-2 text-right tabular-nums">{(row.currentValue || 0) > 0 ? formatCurrency(row.currentValue) : '---'}</td>}
+                          {cv('gain') && <td className="py-1.5 px-2 text-right tabular-nums"><span className={(row.gain || 0) >= 0 ? 'text-green-700' : 'text-red-700'}>{formatCurrency(row.gain || 0)}</span></td>}
                         </tr>
                       );
                     })}
@@ -3201,10 +3257,11 @@ export default function PrintPage() {
                         {cv('nif') && <td className="py-1.5 px-2"></td>}
                         {cv('property') && <td className="py-1.5 px-2"></td>}
                         {cv('percentage') && <td className="py-1.5 px-2 text-right"></td>}
+                        {cv('acquisitionPrice') && <td className="py-1.5 px-2 text-right tabular-nums">{formatCurrency(totals.acquisitionPrice)}</td>}
+                        {cv('capitalAportadoGastos') && <td className="py-1.5 px-2 text-right tabular-nums">{formatCurrency(totals.capitalAportadoGastos)}</td>}
+                        {cv('capitalReforma') && <td className="py-1.5 px-2 text-right tabular-nums">{formatCurrency(totals.capitalReforma)}</td>}
                         {cv('currentValue') && <td className="py-1.5 px-2 text-right tabular-nums">{formatCurrency(totals.currentValue)}</td>}
-                        {cv('invested') && <td className="py-1.5 px-2 text-right tabular-nums">{formatCurrency(totals.invested)}</td>}
-                        {cv('gain') && <td className="py-1.5 px-2 text-right tabular-nums">{formatCurrency(totals.gain)}</td>}
-                        {cv('gainPlusInvested') && <td className="py-1.5 px-2 text-right tabular-nums">{formatCurrency(totals.gainPlusInvested)}</td>}
+                        {cv('gain') && <td className="py-1.5 px-2 text-right tabular-nums"><span className={totals.gain >= 0 ? 'text-green-700' : 'text-red-700'}>{formatCurrency(totals.gain)}</span></td>}
                       </tr>
                     )}
                   </tbody>
@@ -4885,10 +4942,11 @@ export default function PrintPage() {
         </div>
 
         {/* Paper Sheet Preview Area */}
-        <div className="flex-1 overflow-auto p-4 flex justify-center bg-slate-400/30">
+        <div className="flex-1 overflow-auto p-4 flex justify-center bg-slate-400/30" ref={previewAreaRef}>
           <div 
             id="print-area" 
             className="flex flex-col gap-6 items-center animate-fadeIn"
+            style={pageScale < 1 ? { transform: `scale(${pageScale})`, transformOrigin: 'top center', marginBottom: `${(pageScale - 1) * 100}%` } : {}}
           >
             {renderPages()}
           </div>
@@ -4982,33 +5040,47 @@ export default function PrintPage() {
           {/* Depth Level Filter (Profundidad) */}
           {['balance_situacion', 'sumas_saldos'].includes(selectedTemplate) && (
             <div className="bg-white border border-[#a0a0a0] p-3 flex flex-col gap-2">
-              <div className="text-[10px] font-bold text-slate-500 uppercase flex items-center gap-1 select-none">
-                <Sliders className="w-3.5 h-3.5 text-slate-400" />
-                <span>Profundidad</span>
+              <div
+                className="text-[10px] font-bold text-slate-500 uppercase flex items-center justify-between cursor-pointer select-none hover:text-slate-800"
+                onClick={() => setIsProfundidadCollapsed(p => !p)}
+              >
+                <div className="flex items-center gap-1">
+                  <Sliders className="w-3.5 h-3.5 text-slate-400" />
+                  <span>Profundidad</span>
+                </div>
+                <span className="text-[9px]">{isProfundidadCollapsed ? '▶' : '▼'}</span>
               </div>
-              <div className="mt-1">
-                <select 
-                  value={maxDigits} 
-                  onChange={(e) => setMaxDigits(parseInt(e.target.value))}
-                  className="w-full border border-gray-300 px-1 py-1 outline-none cursor-pointer text-[11px] font-sans"
-                >
-                  <option value={10}>TODOS (MAX)</option>
-                  {[1,2,3,4,5,6,7,8,9,10].map(d => (
-                    <option key={d} value={d}>{d} {d === 1 ? 'dígito' : 'dígitos'}</option>
-                  ))}
-                </select>
-              </div>
+              {!isProfundidadCollapsed && (
+                <div className="mt-1 border-t border-slate-100 pt-2">
+                  <select 
+                    value={maxDigits} 
+                    onChange={(e) => setMaxDigits(parseInt(e.target.value))}
+                    className="w-full border border-gray-300 px-1 py-1 outline-none cursor-pointer text-[11px] font-sans"
+                  >
+                    <option value={10}>TODOS (MAX)</option>
+                    {[1,2,3,4,5,6,7,8,9,10].map(d => (
+                      <option key={d} value={d}>{d} {d === 1 ? 'dígito' : 'dígitos'}</option>
+                    ))}
+                  </select>
+                </div>
+              )}
             </div>
           )}
 
           {/* Filtros Inmobiliarios (Multiselección) */}
           {['activos', 'alquileres', 'clientes', 'extracto_propietarios'].includes(selectedTemplate) && (
             <div className="bg-white border border-[#a0a0a0] p-3 flex flex-col gap-3">
-              <div className="text-[10px] font-bold text-slate-500 uppercase flex items-center gap-1 select-none">
-                <Sliders className="w-3.5 h-3.5 text-slate-400" />
-                <span>Filtros Inmobiliarios</span>
+              <div
+                className="text-[10px] font-bold text-slate-500 uppercase flex items-center justify-between cursor-pointer select-none hover:text-slate-800"
+                onClick={() => setIsFiltersInmobCollapsed(p => !p)}
+              >
+                <div className="flex items-center gap-1">
+                  <Sliders className="w-3.5 h-3.5 text-slate-400" />
+                  <span>Filtros Inmobiliarios</span>
+                </div>
+                <span className="text-[9px]">{isFiltersInmobCollapsed ? '▶' : '▼'}</span>
               </div>
-              <div className="flex flex-col gap-3">
+              {!isFiltersInmobCollapsed && <div className="flex flex-col gap-3 border-t border-slate-100 pt-2">
                 {/* 1. Dropdown Fincas (Activos) - shown for activos, alquileres, clientes, propietarios */}
                 {['activos', 'alquileres', 'clientes', 'extracto_propietarios'].includes(selectedTemplate) && (() => {
                   const currentPropFilters = selectedFilterProperties[selectedTemplate] || [];
@@ -5225,18 +5297,24 @@ export default function PrintPage() {
                     </div>
                   );
                 })()}
-              </div>
+              </div>}
             </div>
           )}
 
           {/* Ordenación del Informe */}
           {['activos', 'alquileres', 'clientes', 'extracto_propietarios'].includes(selectedTemplate) && (
             <div className="bg-white border border-[#a0a0a0] p-3 flex flex-col gap-3">
-              <div className="text-[10px] font-bold text-slate-500 uppercase flex items-center gap-1 select-none">
-                <ArrowUpDown className="w-3.5 h-3.5 text-slate-400" />
-                <span>Ordenación del Informe</span>
+              <div
+                className="text-[10px] font-bold text-slate-500 uppercase flex items-center justify-between cursor-pointer select-none hover:text-slate-800"
+                onClick={() => setIsSortCollapsed(p => !p)}
+              >
+                <div className="flex items-center gap-1">
+                  <ArrowUpDown className="w-3.5 h-3.5 text-slate-400" />
+                  <span>Ordenación del Informe</span>
+                </div>
+                <span className="text-[9px]">{isSortCollapsed ? '▶' : '▼'}</span>
               </div>
-              <div className="flex flex-col gap-3.5">
+              {!isSortCollapsed && <div className="flex flex-col gap-3.5 border-t border-slate-100 pt-2">
                 {/* 1º Nivel */}
                 <div className="flex flex-col gap-1.5">
                   <span className="text-[9px] font-bold text-slate-400 uppercase font-sans">1º Nivel (Principal)</span>
@@ -5311,7 +5389,7 @@ export default function PrintPage() {
                     )}
                   </div>
                 )}
-              </div>
+              </div>}
             </div>
           )}
 
@@ -5320,15 +5398,15 @@ export default function PrintPage() {
             <div className="bg-white border border-[#a0a0a0] p-3 flex flex-col gap-2" ref={colDropdownRef}>
               <div
                 className="text-[10px] font-bold text-slate-500 uppercase flex items-center justify-between cursor-pointer select-none hover:text-slate-800"
-                onClick={() => setColDropdownOpen(prev => !prev)}
+                onClick={() => setIsColsCollapsed(p => !p)}
               >
                 <div className="flex items-center gap-1">
                   <Columns className="w-3.5 h-3.5 text-slate-400" />
                   <span>Columnas Visibles</span>
                 </div>
-                <span className="text-[9px]">{colDropdownOpen ? '▼' : '▶'}</span>
+                <span className="text-[9px]">{isColsCollapsed ? '▶' : '▼'}</span>
               </div>
-              {colDropdownOpen && (
+              {!isColsCollapsed && (
                 <div className="flex flex-col gap-1.5 pt-2 border-t border-slate-100 mt-1">
                   <div className="flex justify-between items-center mb-1">
                     <span className="text-[8px] text-slate-400 uppercase font-bold">Seleccionar columnas</span>
@@ -5364,11 +5442,17 @@ export default function PrintPage() {
           {/* Options specific to Contratos de Alquiler */}
           {selectedTemplate === 'alquileres' && (
             <div className="bg-white border border-[#a0a0a0] p-3 flex flex-col gap-3">
-              <div className="text-[10px] font-bold text-slate-500 uppercase flex items-center gap-1 select-none">
-                <Sliders className="w-3.5 h-3.5 text-slate-400" />
-                <span>Opciones de Alquileres</span>
+              <div
+                className="text-[10px] font-bold text-slate-500 uppercase flex items-center justify-between cursor-pointer select-none hover:text-slate-800"
+                onClick={() => setIsOptsAlquilerCollapsed(p => !p)}
+              >
+                <div className="flex items-center gap-1">
+                  <Sliders className="w-3.5 h-3.5 text-slate-400" />
+                  <span>Opciones de Alquileres</span>
+                </div>
+                <span className="text-[9px]">{isOptsAlquilerCollapsed ? '▶' : '▼'}</span>
               </div>
-              <div className="flex flex-col gap-2.5">
+              {!isOptsAlquilerCollapsed && <div className="flex flex-col gap-2.5 border-t border-slate-100 pt-2">
                 {/* Período de Cálculos */}
                 <div className="flex flex-col gap-1">
                   <span className="text-[9px] font-bold text-slate-400 uppercase">Cálculos de Renta</span>
@@ -5409,18 +5493,24 @@ export default function PrintPage() {
                     <option value="inactivo">Solo Inactivos</option>
                   </select>
                 </div>
-              </div>
+              </div>}
             </div>
           )}
 
           {/* Options specific to Fichero de Clientes */}
           {selectedTemplate === 'clientes' && (
             <div className="bg-white border border-[#a0a0a0] p-3 flex flex-col gap-3">
-              <div className="text-[10px] font-bold text-slate-500 uppercase flex items-center gap-1 select-none">
-                <Sliders className="w-3.5 h-3.5 text-slate-400" />
-                <span>Opciones de Clientes</span>
+              <div
+                className="text-[10px] font-bold text-slate-500 uppercase flex items-center justify-between cursor-pointer select-none hover:text-slate-800"
+                onClick={() => setIsOptsClientesCollapsed(p => !p)}
+              >
+                <div className="flex items-center gap-1">
+                  <Sliders className="w-3.5 h-3.5 text-slate-400" />
+                  <span>Opciones de Clientes</span>
+                </div>
+                <span className="text-[9px]">{isOptsClientesCollapsed ? '▶' : '▼'}</span>
               </div>
-              <div className="flex flex-col gap-2.5">
+              {!isOptsClientesCollapsed && <div className="flex flex-col gap-2.5 border-t border-slate-100 pt-2">
                 {/* Filtro Estado */}
                 <div className="flex flex-col gap-1">
                   <span className="text-[9px] font-bold text-slate-400 uppercase">Filtrar por Estado</span>
@@ -5434,39 +5524,53 @@ export default function PrintPage() {
                     <option value="inactivo">Solo Inactivos</option>
                   </select>
                 </div>
-              </div>
+              </div>}
             </div>
           )}
 
           {/* Options specific to Extracto de Propietarios */}
           {selectedTemplate === 'extracto_propietarios' && (
             <div className="bg-white border border-[#a0a0a0] p-3 flex flex-col gap-3">
-              <div className="text-[10px] font-bold text-slate-500 uppercase flex items-center gap-1 select-none">
-                <Sliders className="w-3.5 h-3.5 text-slate-400" />
-                <span>Opciones de Propietarios</span>
+              <div
+                className="text-[10px] font-bold text-slate-500 uppercase flex items-center justify-between cursor-pointer select-none hover:text-slate-800"
+                onClick={() => setIsOptsPropietariosCollapsed(p => !p)}
+              >
+                <div className="flex items-center gap-1">
+                  <Sliders className="w-3.5 h-3.5 text-slate-400" />
+                  <span>Opciones de Propietarios</span>
+                </div>
+                <span className="text-[9px]">{isOptsPropietariosCollapsed ? '▶' : '▼'}</span>
               </div>
-              <div className="flex flex-col gap-2.5">
-                <label className="flex items-center gap-2 cursor-pointer select-none text-[10px] font-semibold text-slate-600 font-sans">
-                  <input 
-                    type="checkbox"
-                    checked={groupByOwner}
-                    onChange={(e) => setGroupByOwner(e.target.checked)}
-                    className="w-3 h-3"
-                  />
-                  <span>Agrupar por Propietario</span>
-                </label>
-              </div>
+              {!isOptsPropietariosCollapsed && (
+                <div className="flex flex-col gap-2.5 border-t border-slate-100 pt-2">
+                  <label className="flex items-center gap-2 cursor-pointer select-none text-[10px] font-semibold text-slate-600 font-sans">
+                    <input 
+                      type="checkbox"
+                      checked={groupByOwner}
+                      onChange={(e) => setGroupByOwner(e.target.checked)}
+                      className="w-3 h-3"
+                    />
+                    <span>Agrupar por Propietario</span>
+                  </label>
+                </div>
+              )}
             </div>
           )}
 
           {/* Options specific to Balance de Situación */}
           {['balance_situacion', 'cuenta_resultados', 'flujo_caja'].includes(selectedTemplate) && (
             <div className="bg-white border border-[#a0a0a0] p-3 flex flex-col gap-3">
-              <div className="text-[10px] font-bold text-slate-500 uppercase flex items-center gap-1 select-none">
-                <Sliders className="w-3.5 h-3.5 text-slate-400" />
-                <span>Opciones del Informe</span>
+              <div
+                className="text-[10px] font-bold text-slate-500 uppercase flex items-center justify-between cursor-pointer select-none hover:text-slate-800"
+                onClick={() => setIsOptsContabilidadCollapsed(p => !p)}
+              >
+                <div className="flex items-center gap-1">
+                  <Sliders className="w-3.5 h-3.5 text-slate-400" />
+                  <span>Opciones del Informe</span>
+                </div>
+                <span className="text-[9px]">{isOptsContabilidadCollapsed ? '▶' : '▼'}</span>
               </div>
-              <div className="flex flex-col gap-2.5">
+              {!isOptsContabilidadCollapsed && <div className="flex flex-col gap-2.5 border-t border-slate-100 pt-2">
                 <label className="flex items-center gap-2 cursor-pointer select-none text-[10px] font-bold text-slate-600">
                   <input 
                     type="checkbox" 
@@ -5484,6 +5588,15 @@ export default function PrintPage() {
                     className="w-3 h-3 text-blue-600" 
                   />
                   <span>Mostrar Porcentaje Vertical</span>
+                </label>
+                <label className="flex items-center gap-2 cursor-pointer select-none text-[10px] font-bold text-slate-600">
+                  <input 
+                    type="checkbox" 
+                    checked={showHorizontalPercentage} 
+                    onChange={(e) => setShowHorizontalPercentage(e.target.checked)} 
+                    className="w-3 h-3 text-blue-600" 
+                  />
+                  <span>Mostrar Porcentaje Horizontal (Comparativo)</span>
                 </label>
 
                 {/* Display mode selector */}
@@ -5539,7 +5652,7 @@ export default function PrintPage() {
                     })}
                   </div>
                 </div>
-              </div>
+              </div>}
             </div>
           )}
 
