@@ -326,7 +326,9 @@ export default function PrintPage() {
   const [showRightPanel, setShowRightPanel] = useState(true);
 
   // States for selected report template and filter
-  const [selectedTemplate, setSelectedTemplate] = useState('diario');
+  const [selectedTemplate, setSelectedTemplate] = useState(() => {
+    return localStorage.getItem('print_selectedTemplate') || 'diario';
+  });
   const [selectedYear, setSelectedYear] = useState(() => {
     const saved = localStorage.getItem('print_selectedYear');
     return saved ? parseInt(saved, 10) : new Date().getFullYear();
@@ -414,48 +416,33 @@ export default function PrintPage() {
       const saved = localStorage.getItem('print_selectedFilterProperties');
       if (saved) {
         const parsed = JSON.parse(saved);
-        if (Array.isArray(parsed)) {
-          return { activos: [], alquileres: [], clientes: [], extracto_propietarios: [] };
-        }
-        return {
-          activos: parsed.activos || [],
-          alquileres: parsed.alquileres || [],
-          clientes: parsed.clientes || [],
-          extracto_propietarios: parsed.extracto_propietarios || []
-        };
+        if (Array.isArray(parsed)) return {};
+        return parsed || {};
       }
     } catch(e) {}
-    return { activos: [], alquileres: [], clientes: [], extracto_propietarios: [] };
+    return {};
   });
   const [selectedFilterRentals, setSelectedFilterRentals] = useState(() => {
     try {
       const saved = localStorage.getItem('print_selectedFilterRentals');
       if (saved) {
         const parsed = JSON.parse(saved);
-        if (Array.isArray(parsed)) {
-          return { alquileres: [] };
-        }
-        return {
-          alquileres: parsed.alquileres || []
-        };
+        if (Array.isArray(parsed)) return {};
+        return parsed || {};
       }
     } catch(e) {}
-    return { alquileres: [] };
+    return {};
   });
   const [selectedFilterOwners, setSelectedFilterOwners] = useState(() => {
     try {
       const saved = localStorage.getItem('print_selectedFilterOwners');
       if (saved) {
         const parsed = JSON.parse(saved);
-        if (Array.isArray(parsed)) {
-          return { extracto_propietarios: [] };
-        }
-        return {
-          extracto_propietarios: parsed.extracto_propietarios || []
-        };
+        if (Array.isArray(parsed)) return {};
+        return parsed || {};
       }
     } catch(e) {}
-    return { extracto_propietarios: [] };
+    return {};
   });
 
   const [sortCol1, setSortCol1] = useState(() => {
@@ -476,6 +463,9 @@ export default function PrintPage() {
   });
   const [groupByOwner, setGroupByOwner] = useState(() => {
     return localStorage.getItem('print_groupByOwner') === 'true';
+  });
+  const [groupAccessoryAssets, setGroupAccessoryAssets] = useState(() => {
+    return localStorage.getItem('print_groupAccessoryAssets') === 'true';
   });
 
   const [accountsDropdownOpen, setAccountsDropdownOpen] = useState(false);
@@ -535,6 +525,24 @@ export default function PrintPage() {
 
 
   // Visible columns per template (keys = templateId, value = Set of visible column ids)
+  const COLUMN_TOOLTIPS = {
+    name: 'Nombre del propietario',
+    percentage: 'Porcentaje de participación',
+    acquisitionPrice: 'Precio original de adquisición',
+    investedCapital: 'Capital aportado, excluyendo gastos',
+    adquisitionExpenses: 'Gastos asociados a la adquisición',
+    acqPlusExpenses: 'Precio de adquisición + Gastos',
+    capitalReforma: 'Capital aportado + Reforma capitalizable',
+    currentValue: 'Valor actual estimado del inmueble',
+    ingresosExtracto: 'Ingresos generados por el inmueble',
+    gastosExtracto: 'Gastos incurridos',
+    rendimientoNetoExtracto: 'Ingresos menos gastos',
+    mortgagePending: 'Saldo pendiente de la hipoteca',
+    gain: 'Valor actual - (Capital aportado + Reforma cap.)',
+    netGain: 'Ganancia bruta - Hipoteca pendiente',
+    realReturn: 'Ganancia neta + Rendimiento neto'
+  };
+
   const ALL_COLUMNS = {
     activos: [
       { id: 'id', label: 'ID' },
@@ -566,8 +574,13 @@ export default function PrintPage() {
       { id: 'endDate', label: 'Fecha Fin' },
       { id: 'depositAmount', label: 'Fianza' },
       { id: 'rentAmount', label: 'Renta' },
-      { id: 'expenses', label: 'Gastos' },
+      { id: 'expenses', label: 'Gastos Asociados' },
       { id: 'netYield', label: 'Rend. Neto' },
+      { id: 'pctAlquiler', label: '% Alquiler' },
+      { id: 'ingresosExtracto', label: 'Ingresos' },
+      { id: 'gastosExtracto', label: 'Gastos' },
+      { id: 'rentaNetaExtracto', label: 'Renta Neta' },
+      { id: 'pctIngresos', label: '% Ingresos' },
       { id: 'status', label: 'Estado' },
     ],
     clientes: [
@@ -585,24 +598,44 @@ export default function PrintPage() {
       { id: 'property', label: 'Propiedad' },
       { id: 'percentage', label: 'Participación (%)' },
       { id: 'acquisitionPrice', label: 'Precio Adquisición' },
-      { id: 'capitalAportadoGastos', label: 'Cap. Aportado + Gastos' },
-      { id: 'capitalReforma', label: 'Capital + Reforma Cap.' },
-      { id: 'currentValue', label: 'Valor Actual' },
-      { id: 'gain', label: 'Ganancia / Pérdida' },
+      { id: 'investedCapital', label: 'Cap. Aportado' },
+      { id: 'adquisitionExpenses', label: 'Gastos Adquisición' },
+      { id: 'acqPlusExpenses', label: 'Precio + Gastos' },
+      { id: 'capitalReforma', label: 'Cap. + Reforma Cap.' },
+      { id: 'currentValue', label: 'V. Actual' },
+      { id: 'ingresosExtracto', label: 'Ingresos' },
+      { id: 'gastosExtracto', label: 'Gastos' },
+      { id: 'rendimientoNetoExtracto', label: 'Rend. Neto' },
+      { id: 'mortgagePending', label: 'Hipoteca Pendiente' },
+      { id: 'gain', label: 'Ganancia Bruta' },
+      { id: 'netGain', label: 'Ganancia Neta' },
+      { id: 'realReturn', label: 'Ganancia Real + Rend. Neto' },
     ],
   };
-  const defaultVisibleColumns = {
+
+  const DEFAULT_VISIBLE_COLUMNS = {
     activos: new Set([
       'id', 'name', 'address', 'cebe_ceco', 'accountingAccount', 
       'ingresos', 'gastos', 'netYield', 'catastral', 'cp', 'accountNumber',
       'activeTenant', 'capitalReformas', 'capitalAportado', 'totalInversion',
       'theoreticalSalePrice', 'gastosCompraVenta'
     ]),
-    alquileres: new Set(['reference','property','tenants','startDate','endDate','rentAmount','expenses','netYield','status']),
+    alquileres: new Set(['reference','property','tenants','startDate','endDate','rentAmount','expenses','netYield','pctAlquiler','ingresosExtracto','gastosExtracto','rentaNetaExtracto','pctIngresos','status']),
     clientes: new Set(['id','name','dni','phone','email','status','propertyName','rentalRef']),
-    extracto_propietarios: new Set(['name','property','percentage','acquisitionPrice','capitalAportadoGastos','capitalReforma','currentValue','gain']),
+    extracto_propietarios: new Set(['name','property','percentage','acquisitionPrice','investedCapital','adquisitionExpenses','acqPlusExpenses','capitalReforma','currentValue','ingresosExtracto','gastosExtracto','rendimientoNetoExtracto','mortgagePending','gain','netGain','realReturn']),
   };
-  const [visibleColumns, setVisibleColumns] = useState(defaultVisibleColumns);
+  const [visibleColumns, setVisibleColumns] = useState(() => {
+    try {
+      const saved = localStorage.getItem('print_visibleColumns');
+      if (saved) {
+        const parsed = JSON.parse(saved);
+        return Object.fromEntries(
+          Object.entries(parsed).map(([k, arr]) => [k, new Set(arr)])
+        );
+      }
+    } catch (e) {}
+    return defaultVisibleColumns;
+  });
 
   const [rentPeriod, setRentPeriod] = useState('mes'); // 'mes' or 'anual'
   const [statusFilterAlquileres, setStatusFilterAlquileres] = useState('todos'); // 'todos','activo','inactivo'
@@ -647,16 +680,216 @@ export default function PrintPage() {
     return uniqueNames.join(', ') || '---';
   };
 
+  const getActiveClientDisplayConsolidated = (p) => {
+    const mainTenants = getActiveClientDisplay(p);
+    if (!groupAccessoryAssets) return mainTenants;
+    const acc = p.accessoryPropertyId ? properties.find(prop => prop.id === p.accessoryPropertyId || prop.name === p.accessoryPropertyId) : null;
+    if (!acc) return mainTenants;
+    const accTenants = getActiveClientDisplay(acc);
+    if (accTenants === '---' || !accTenants) return mainTenants;
+    if (mainTenants === '---' || !mainTenants) return accTenants;
+    const combined = [...new Set([...mainTenants.split(', '), ...accTenants.split(', ')])];
+    return combined.join(', ') || '---';
+  };
+
+  const getRentalExtractMetrics = (r, entriesList) => {
+    let ingresos = 0;
+    let gastos = 0;
+
+    const currentCebe = r.incomeCebeId || '';
+    const normValueCebe = String(currentCebe).trim().replace(/^(CEBE|CECO)/i, '').toLowerCase();
+    const currentRef = String(r.reference || '').trim().toUpperCase();
+
+    if (!currentRef) return { ingresos: 0, gastos: 0, neto: 0 };
+
+    entriesList.forEach(entry => {
+      let isMatch = false;
+      let matchedLines = [];
+
+      // Check line levels
+      if (entry.lines) {
+        entry.lines.forEach(l => {
+          let lineMatchCebe = false;
+          let lineMatchRef = false;
+          
+          if (l.cebe) {
+            const normField = String(l.cebe).trim().replace(/^(CEBE|CECO)/i, '').toLowerCase();
+            if (normValueCebe && normField.startsWith(normValueCebe)) lineMatchCebe = true;
+          } else if (normValueCebe && entry.cebe) {
+            const normField = String(entry.cebe).trim().replace(/^(CEBE|CECO)/i, '').toLowerCase();
+            if (normField.startsWith(normValueCebe)) lineMatchCebe = true;
+          }
+
+          if (l.document) {
+            if (String(l.document).trim().toUpperCase() === currentRef) lineMatchRef = true;
+          } else if (entry.document || entry.documentName) {
+            const docVal = String(entry.document || entry.documentName || '').trim().toUpperCase();
+            if (docVal === currentRef) lineMatchRef = true;
+          }
+
+          if (lineMatchCebe && lineMatchRef) {
+            isMatch = true;
+            matchedLines.push(l);
+          }
+        });
+      }
+
+      // Fallback check on global header level if no line matched but header matches
+      if (!isMatch) {
+        let matchCebe = false;
+        let matchRef = false;
+
+        if (entry.cebe) {
+          const normField = String(entry.cebe).trim().replace(/^(CEBE|CECO)/i, '').toLowerCase();
+          if (normValueCebe && normField.startsWith(normValueCebe)) matchCebe = true;
+        }
+        if (entry.document || entry.documentName) {
+          const docVal = String(entry.document || entry.documentName || '').trim().toUpperCase();
+          if (docVal === currentRef) matchRef = true;
+        }
+
+        if (matchCebe && matchRef) {
+          isMatch = true;
+        }
+      }
+
+      if (isMatch) {
+        if (matchedLines.length > 0) {
+          matchedLines.forEach(l => {
+            const d = parseFloat(l.debit) || 0;
+            const c = parseFloat(l.credit) || 0;
+            const accCode = String(l.accountCode || l.accountId || '');
+            if (accCode.startsWith('7')) {
+              ingresos += c;
+              gastos += d;
+            } else if (accCode.startsWith('6')) {
+              gastos += d;
+              ingresos += c;
+            } else {
+              if (c > 0) ingresos += c;
+              if (d > 0) gastos += d;
+            }
+          });
+        } else {
+          const totalAmt = entry.total || 0;
+          const desc = String(entry.description || '').toLowerCase();
+          const isExpense = totalAmt < 0 || desc.includes('comunidad') || desc.includes('gasto') || desc.includes('reforma');
+          if (isExpense) {
+            gastos += Math.abs(totalAmt);
+          } else {
+            ingresos += totalAmt;
+          }
+        }
+      }
+    });
+
+    return {
+      ingresos,
+      gastos,
+      neto: ingresos - gastos
+    };
+  };
+
+  const getPropertyExtractMetrics = (p, rentalsList, entriesList) => {
+    let ingresos = 0;
+    let gastos = 0;
+
+    const propRentals = rentalsList.filter(r => r.propertyId === p.id);
+    propRentals.forEach(r => {
+      const m = getRentalExtractMetrics(r, entriesList);
+      ingresos += m.ingresos;
+      gastos += m.gastos;
+    });
+
+    return {
+      ingresos,
+      gastos,
+      neto: ingresos - gastos
+    };
+  };
+
+  const getConsolidatedProperty = (p, propertiesList, rentalsList, entriesList) => {
+    if (!groupAccessoryAssets) {
+      const propInvestedCapital = parseFloat(p.investedCapital || 0);
+      const propAdquisitionExpenses = (p.adquisitionExpenses || p.financials?.acquisitionExpenses || []).reduce((acc, exp) => acc + (parseFloat(exp.amount) || 0), 0);
+      const propCapitalizedReforms = (p.reforms || []).reduce((acc, ref) => acc + (ref.expenses || []).reduce((s, exp) => s + (exp.capitalize ? (parseFloat(exp.amount) || 0) : 0), 0), 0);
+      const propAcquisitionPrice = parseFloat(p.acquisitionPrice || p.financials?.purchasePrice || 0);
+      const propCurrentValue = parseFloat(p.currentValue || p.financials?.currentValue || 0);
+      const propMortgagePending = parseFloat(p.mortgagePending || p.financials?.mortgagePending || 0);
+      const propTheoreticalSalePrice = parseFloat(p.theoreticalSalePrice || p.financials?.theoreticalSalePrice || 0);
+      const propExtract = getPropertyExtractMetrics(p, rentalsList, entriesList);
+
+      return {
+        ...p,
+        acquisitionPrice: propAcquisitionPrice,
+        investedCapital: propInvestedCapital,
+        adquisitionExpenses: propAdquisitionExpenses,
+        capitalizedReforms: propCapitalizedReforms,
+        currentValue: propCurrentValue,
+        mortgagePending: propMortgagePending,
+        theoreticalSalePrice: propTheoreticalSalePrice,
+        ingresosExtracto: propExtract.ingresos,
+        gastosExtracto: propExtract.gastos,
+        rendimientoNetoExtracto: propExtract.neto
+      };
+    }
+
+    const acc = p.accessoryPropertyId ? propertiesList.find(prop => prop.id === p.accessoryPropertyId || prop.name === p.accessoryPropertyId) : null;
+
+    const propInvestedCapital = parseFloat(p.investedCapital || 0) + (acc ? parseFloat(acc.investedCapital || 0) : 0);
+    
+    const pAdqExp = (p.adquisitionExpenses || p.financials?.acquisitionExpenses || []).reduce((acc, exp) => acc + (parseFloat(exp.amount) || 0), 0);
+    const accAdqExp = acc ? (acc.adquisitionExpenses || acc.financials?.acquisitionExpenses || []).reduce((acc, exp) => acc + (parseFloat(exp.amount) || 0), 0) : 0;
+    const propAdquisitionExpenses = pAdqExp + accAdqExp;
+
+    const pCapRef = (p.reforms || []).reduce((acc, ref) => acc + (ref.expenses || []).reduce((s, exp) => s + (exp.capitalize ? (parseFloat(exp.amount) || 0) : 0), 0), 0);
+    const accCapRef = acc ? (acc.reforms || []).reduce((acc, ref) => acc + (ref.expenses || []).reduce((s, exp) => s + (exp.capitalize ? (parseFloat(exp.amount) || 0) : 0), 0), 0) : 0;
+    const propCapitalizedReforms = pCapRef + accCapRef;
+
+    const propAcquisitionPrice = parseFloat(p.acquisitionPrice || p.financials?.purchasePrice || 0) + (acc ? parseFloat(acc.acquisitionPrice || acc.financials?.purchasePrice || 0) : 0);
+    
+    const propCurrentValue = parseFloat(p.currentValue || p.financials?.currentValue || 0) + (acc ? parseFloat(acc.currentValue || acc.financials?.currentValue || 0) : 0);
+    
+    const propMortgagePending = parseFloat(p.mortgagePending || p.financials?.mortgagePending || 0) + (acc ? parseFloat(acc.mortgagePending || acc.financials?.mortgagePending || 0) : 0);
+    
+    const propTheoreticalSalePrice = parseFloat(p.theoreticalSalePrice || p.financials?.theoreticalSalePrice || 0) + (acc ? parseFloat(acc.theoreticalSalePrice || acc.financials?.theoreticalSalePrice || 0) : 0);
+
+    const pExtract = getPropertyExtractMetrics(p, rentalsList, entriesList);
+    const accExtract = acc ? getPropertyExtractMetrics(acc, rentalsList, entriesList) : { ingresos: 0, gastos: 0, neto: 0 };
+    
+    return {
+      ...p,
+      acquisitionPrice: propAcquisitionPrice,
+      investedCapital: propInvestedCapital,
+      adquisitionExpenses: propAdquisitionExpenses,
+      capitalizedReforms: propCapitalizedReforms,
+      currentValue: propCurrentValue,
+      mortgagePending: propMortgagePending,
+      theoreticalSalePrice: propTheoreticalSalePrice,
+      ingresosExtracto: pExtract.ingresos + accExtract.ingresos,
+      gastosExtracto: pExtract.gastos + accExtract.gastos,
+      rendimientoNetoExtracto: pExtract.neto + accExtract.neto
+    };
+  };
+
   const getSortValue = (item, colId, templateId) => {
     if (!colId || colId === 'none') return '';
     
     if (templateId === 'extracto_propietarios') {
       if (colId === 'name') return item.partnerName || '';
       if (colId === 'property') return item.propertyName || '';
+      if ([
+        'acquisitionPrice', 'capitalAportadoGastos', 'capitalReforma', 'currentValue',
+        'gain', 'netGain', 'mortgagePending', 'ingresosExtracto', 'gastosExtracto',
+        'rendimientoNetoExtracto', 'realReturn'
+      ].includes(colId)) {
+        return parseFloat(item[colId]) || 0;
+      }
       return item[colId] ?? '';
     }
 
     if (templateId === 'activos') {
+      const consolidated = getConsolidatedProperty(item, properties, rentals, filteredEntriesForPrint);
       if (colId === 'id') return item.id || '';
       if (colId === 'name') return item.name || '';
       if (colId === 'address') return item.address || '';
@@ -665,30 +898,37 @@ export default function PrintPage() {
         const hasValidAcc = accounts.some(a => a.code === item.accountingAccount);
         return hasValidAcc ? item.accountingAccount : '';
       }
-      if (colId === 'mortgagePending') return parseFloat(item.mortgagePending) || 0;
+      if (colId === 'mortgagePending') return consolidated.mortgagePending;
       if (colId === 'acquisitionDate') return item.purchaseDate || item.financials?.acquisitionDate || '';
-      if (colId === 'purchasePrice') return parseFloat(item.acquisitionPrice || item.financials?.purchasePrice) || 0;
-      if (colId === 'currentValue') return parseFloat(item.currentValue || item.financials?.currentValue) || 0;
-      if (colId === 'ingresos') return getPropertyMetrics(item, filteredEntriesForPrint).ingresos;
-      if (colId === 'gastos') return getPropertyMetrics(item, filteredEntriesForPrint).gastos;
-      if (colId === 'netYield') return getPropertyMetrics(item, filteredEntriesForPrint).neto;
+      if (colId === 'purchasePrice') return consolidated.acquisitionPrice;
+      if (colId === 'currentValue') return consolidated.currentValue;
+      if (colId === 'ingresos') {
+        const mainMetrics = getPropertyMetrics(item, filteredEntriesForPrint);
+        const acc = item.accessoryPropertyId ? properties.find(prop => prop.id === item.accessoryPropertyId || prop.name === item.accessoryPropertyId) : null;
+        const accMetrics = acc ? getPropertyMetrics(acc, filteredEntriesForPrint) : { ingresos: 0, gastos: 0, neto: 0 };
+        return mainMetrics.ingresos + accMetrics.ingresos;
+      }
+      if (colId === 'gastos') {
+        const mainMetrics = getPropertyMetrics(item, filteredEntriesForPrint);
+        const acc = item.accessoryPropertyId ? properties.find(prop => prop.id === item.accessoryPropertyId || prop.name === item.accessoryPropertyId) : null;
+        const accMetrics = acc ? getPropertyMetrics(acc, filteredEntriesForPrint) : { ingresos: 0, gastos: 0, neto: 0 };
+        return mainMetrics.gastos + accMetrics.gastos;
+      }
+      if (colId === 'netYield') {
+        const mainMetrics = getPropertyMetrics(item, filteredEntriesForPrint);
+        const acc = item.accessoryPropertyId ? properties.find(prop => prop.id === item.accessoryPropertyId || prop.name === item.accessoryPropertyId) : null;
+        const accMetrics = acc ? getPropertyMetrics(acc, filteredEntriesForPrint) : { ingresos: 0, gastos: 0, neto: 0 };
+        return (mainMetrics.ingresos + accMetrics.ingresos) - (mainMetrics.gastos + accMetrics.gastos);
+      }
       if (colId === 'catastral') return item.catastral || '';
       if (colId === 'cp') return item.cp || '';
       if (colId === 'accountNumber') return item.accountNumber || '';
-      if (colId === 'activeTenant') return getActiveClientDisplay(item);
-      if (colId === 'capitalReformas') {
-        return (item.reforms || []).reduce((acc, ref) => acc + (ref.expenses || []).reduce((s, exp) => s + (exp.capitalize ? (parseFloat(exp.amount) || 0) : 0), 0), 0);
-      }
-      if (colId === 'capitalAportado') return parseFloat(item.investedCapital) || 0;
-      if (colId === 'totalInversion') {
-        const cAportado = parseFloat(item.investedCapital) || 0;
-        const cReforms = (item.reforms || []).reduce((acc, ref) => acc + (ref.expenses || []).reduce((s, exp) => s + (exp.capitalize ? (parseFloat(exp.amount) || 0) : 0), 0), 0);
-        return cAportado + cReforms;
-      }
-      if (colId === 'theoreticalSalePrice') return parseFloat(item.theoreticalSalePrice || item.financials?.theoreticalSalePrice || 0);
-      if (colId === 'gastosCompraVenta') {
-        return (item.adquisitionExpenses || item.financials?.acquisitionExpenses || []).reduce((acc, exp) => acc + (parseFloat(exp.amount) || 0), 0);
-      }
+      if (colId === 'activeTenant') return getActiveClientDisplayConsolidated(item);
+      if (colId === 'capitalReformas') return consolidated.capitalizedReforms;
+      if (colId === 'capitalAportado') return consolidated.investedCapital;
+      if (colId === 'totalInversion') return consolidated.investedCapital + consolidated.capitalizedReforms;
+      if (colId === 'theoreticalSalePrice') return consolidated.theoreticalSalePrice;
+      if (colId === 'gastosCompraVenta') return consolidated.adquisitionExpenses;
     }
 
     if (templateId === 'alquileres') {
@@ -714,18 +954,18 @@ export default function PrintPage() {
       if (colId === 'depositAmount') return parseFloat(item.depositAmount) || 0;
       if (colId === 'rentAmount') {
         const amt = parseFloat(item.rentAmount) || 0;
-        if (item.paymentPeriod === 'anual') return amt / 12;
-        if (item.paymentPeriod === 'trimestral') return amt / 3;
-        return amt;
+        const base = item.paymentPeriod === 'anual' ? amt / 12 : (item.paymentPeriod === 'trimestral' ? amt / 3 : amt);
+        return base * (rentPeriod === 'anual' ? 12 : 1);
       }
       if (colId === 'expenses') {
-        return (item.expenses || []).reduce((sum, exp) => {
+        const base = (item.expenses || []).reduce((sum, exp) => {
           if (exp.includeInSum === false) return sum;
           let amt = parseFloat(exp.amount) || 0;
           if (exp.period === 'anual') return sum + amt / 12;
           if (exp.period === 'trimestral') return sum + amt / 3;
           return sum + amt;
         }, 0);
+        return base * (rentPeriod === 'anual' ? 12 : 1);
       }
       if (colId === 'netYield') {
         const amt = parseFloat(item.rentAmount) || 0;
@@ -737,7 +977,33 @@ export default function PrintPage() {
           if (exp.period === 'trimestral') return sum + a / 3;
           return sum + a;
         }, 0);
-        return rent - expenses;
+        return (rent - expenses) * (rentPeriod === 'anual' ? 12 : 1);
+      }
+      if (colId === 'pctAlquiler') {
+        const amt = parseFloat(item.rentAmount) || 0;
+        const rent = item.paymentPeriod === 'anual' ? amt / 12 : (item.paymentPeriod === 'trimestral' ? amt / 3 : amt);
+        const expenses = (item.expenses || []).reduce((sum, exp) => {
+          if (exp.includeInSum === false) return sum;
+          let a = parseFloat(exp.amount) || 0;
+          if (exp.period === 'anual') return sum + a / 12;
+          if (exp.period === 'trimestral') return sum + a / 3;
+          return sum + a;
+        }, 0);
+        const netYield = rent - expenses;
+        return rent > 0 ? netYield / rent : 0;
+      }
+      if (colId === 'ingresosExtracto') {
+        return getRentalExtractMetrics(item, filteredEntriesForPrint).ingresos;
+      }
+      if (colId === 'gastosExtracto') {
+        return getRentalExtractMetrics(item, filteredEntriesForPrint).gastos;
+      }
+      if (colId === 'rentaNetaExtracto') {
+        return getRentalExtractMetrics(item, filteredEntriesForPrint).neto;
+      }
+      if (colId === 'pctIngresos') {
+        const metrics = getRentalExtractMetrics(item, filteredEntriesForPrint);
+        return metrics.ingresos > 0 ? metrics.neto / metrics.ingresos : 0;
       }
       if (colId === 'status') return item.status || 'activo';
     }
@@ -854,6 +1120,7 @@ export default function PrintPage() {
 
   // Sync print settings/filters to localStorage
   useEffect(() => {
+    localStorage.setItem('print_selectedTemplate', selectedTemplate);
     localStorage.setItem('print_rentPeriod', rentPeriod);
     localStorage.setItem('print_statusFilterAlquileres', statusFilterAlquileres);
     localStorage.setItem('print_statusFilterClientes', statusFilterClientes);
@@ -881,12 +1148,22 @@ export default function PrintPage() {
     localStorage.setItem('print_sortDir2', sortDir2);
     localStorage.setItem('print_showSecondSortLevel', showSecondSortLevel.toString());
     localStorage.setItem('print_groupByOwner', groupByOwner.toString());
+    localStorage.setItem('print_filterImpuesto', filterImpuesto.toString());
+    localStorage.setItem('print_maxDigits', maxDigits.toString());
+    localStorage.setItem('print_groupAccessoryAssets', groupAccessoryAssets.toString());
+    
+    // Serialize visibleColumns Sets to Arrays
+    const serializedCols = Object.fromEntries(
+      Object.entries(visibleColumns).map(([k, set]) => [k, Array.from(set || [])])
+    );
+    localStorage.setItem('print_visibleColumns', JSON.stringify(serializedCols));
   }, [
-    rentPeriod, statusFilterAlquileres, statusFilterClientes, paperSize, pageOrientation,
+    selectedTemplate, rentPeriod, statusFilterAlquileres, statusFilterClientes, paperSize, pageOrientation,
     selectedYear, selectedYears, selectedMonths, selectedQuarters, selectedAccounts,
     selectedCebes, selectedCecos, selectedDocuments, hideZeroBalances, showVerticalPercentage, showHorizontalPercentage,
     displayMode, selectedComparisonYears, selectedFilterProperties, selectedFilterRentals,
-    selectedFilterOwners, sortCol1, sortDir1, sortCol2, sortDir2, showSecondSortLevel, groupByOwner
+    selectedFilterOwners, sortCol1, sortDir1, sortCol2, sortDir2, showSecondSortLevel, groupByOwner,
+    filterImpuesto, maxDigits, groupAccessoryAssets, visibleColumns
   ]);
 
   
@@ -2327,7 +2604,7 @@ export default function PrintPage() {
   const formatCurrency = (amount) => {
     const num = Number(amount) || 0;
     const formatted = Math.abs(num).toLocaleString('es-ES', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
-    return num < 0 ? `${formatted}-` : `${formatted}\u00a0`;
+    return num < 0 ? `(${formatted})` : `${formatted}\u00a0`;
   };
 
   const formatValue = (val, divisor) => {
@@ -2447,6 +2724,30 @@ export default function PrintPage() {
     for (let i = 0; i < list.length; i += itemsPerPage) {
       pages.push(list.slice(i, i + itemsPerPage));
     }
+    return pages;
+  };
+
+  const chunkFlatListDynamic = (list, maxWeight = 28, getRowWeight = () => 1) => {
+    const pages = [];
+    let currentPage = [];
+    let currentWeight = 0;
+
+    list.forEach(item => {
+      const w = getRowWeight(item);
+      if (currentWeight + w > maxWeight && currentPage.length > 0) {
+        pages.push(currentPage);
+        currentPage = [item];
+        currentWeight = w;
+      } else {
+        currentPage.push(item);
+        currentWeight += w;
+      }
+    });
+
+    if (currentPage.length > 0) {
+      pages.push(currentPage);
+    }
+
     return pages;
   };
 
@@ -2853,15 +3154,33 @@ export default function PrintPage() {
     if (selectedTemplate === 'activos') {
       const cv = (colId) => isColVisible('activos', colId);
       
+      const accessoryIds = new Set(
+        properties
+          .map(p => {
+            if (!p.accessoryPropertyId) return null;
+            const acc = properties.find(prop => prop.id === p.accessoryPropertyId || prop.name === p.accessoryPropertyId);
+            return acc ? acc.id : null;
+          })
+          .filter(Boolean)
+      );
+
       const filteredProperties = properties.filter(p => {
         const activePropFilters = selectedFilterProperties.activos || [];
         if (activePropFilters.length > 0 && !activePropFilters.includes(p.id)) return false;
+        if (groupAccessoryAssets && accessoryIds.has(p.id)) return false;
         return true;
       });
 
       const sortedProperties = multiLevelSort(filteredProperties, 'activos', rentals, properties, sortCol1, sortDir1, sortCol2, sortDir2, filteredEntriesForPrint);
 
-      const listPages = chunkFlatList(sortedProperties, getLimit(34));
+      const getRowWeight = (p) => {
+        const tenantsStr = getActiveClientDisplayConsolidated(p);
+        if (tenantsStr === '---' || !tenantsStr) return 1.0;
+        const count = tenantsStr.split(', ').length;
+        return 1.0 + (count - 1) * 0.45;
+      };
+
+      const listPages = chunkFlatListDynamic(sortedProperties, getLimit(24), getRowWeight);
       const totalPages = listPages.length || 1;
 
       if (filteredProperties.length === 0) {
@@ -2906,23 +3225,29 @@ export default function PrintPage() {
                   </thead>
                   <tbody>
                     {pageItems.map((p, ri) => {
-                      const metrics = getPropertyMetrics(p, filteredEntriesForPrint);
-                      const propInvestedCapital = parseFloat(p.investedCapital || 0);
-                      const propAdquisitionExpenses = (p.adquisitionExpenses || p.financials?.acquisitionExpenses || []).reduce(
-                        (acc, exp) => acc + (parseFloat(exp.amount) || 0),
-                        0
-                      );
-                      const propCapitalizedReforms = (p.reforms || []).reduce((acc, ref) => {
-                        const capSum = (ref.expenses || []).reduce((s, exp) => s + (exp.capitalize ? (parseFloat(exp.amount) || 0) : 0), 0);
-                        return acc + capSum;
-                      }, 0);
-                      const propTotalInversion = propInvestedCapital + propCapitalizedReforms;
-                      const propTheoreticalSalePrice = parseFloat(p.theoreticalSalePrice || p.financials?.theoreticalSalePrice || 0);
+                      const consolidated = getConsolidatedProperty(p, properties, rentals, filteredEntriesForPrint);
+                      
+                      const mainMetrics = getPropertyMetrics(p, filteredEntriesForPrint);
+                      const acc = p.accessoryPropertyId ? properties.find(prop => prop.id === p.accessoryPropertyId || prop.name === p.accessoryPropertyId) : null;
+                      const accMetrics = acc ? getPropertyMetrics(acc, filteredEntriesForPrint) : { ingresos: 0, gastos: 0, neto: 0 };
+                      const metrics = {
+                        ingresos: mainMetrics.ingresos + accMetrics.ingresos,
+                        gastos: mainMetrics.gastos + accMetrics.gastos,
+                        neto: mainMetrics.neto + accMetrics.neto
+                      };
 
+                      const propInvestedCapital = consolidated.investedCapital;
+                      const propAdquisitionExpenses = consolidated.adquisitionExpenses;
+                      const propCapitalizedReforms = consolidated.capitalizedReforms;
+                      const propTotalInversion = propInvestedCapital + propCapitalizedReforms;
+                      const propTheoreticalSalePrice = consolidated.theoreticalSalePrice;
+                      const displayPurchasePrice = consolidated.acquisitionPrice;
+                      const displayCurrentValue = consolidated.currentValue;
+                      const displayMortgagePending = consolidated.mortgagePending;
+                      
                       const hasValidAccount = p.accountingAccount && accounts.some(a => a.code === p.accountingAccount);
                       const displayAcqDate = p.purchaseDate || p.financials?.acquisitionDate || '';
-                      const displayPurchasePrice = parseFloat(p.acquisitionPrice || p.financials?.purchasePrice || 0);
-
+                      
                       return (
                         <tr key={p.id} className="border-b border-slate-200 text-[9px] text-slate-800">
                           {cv('id') && <td className="py-1.5 px-2">{p.id}</td>}
@@ -2932,14 +3257,15 @@ export default function PrintPage() {
                           {cv('accountingAccount') && <td className="py-1.5 px-2 text-center">{hasValidAccount ? p.accountingAccount : '---'}</td>}
                           {cv('acquisitionDate') && <td className="py-1.5 px-2 text-center">{displayAcqDate ? formatDate(displayAcqDate) : '---'}</td>}
                           {cv('purchasePrice') && <td className="py-1.5 px-2 text-right tabular-nums">{displayPurchasePrice > 0 ? formatCurrency(displayPurchasePrice) : '---'}</td>}
-                          {cv('mortgagePending') && <td className="py-1.5 px-2 text-right tabular-nums">{p.mortgagePending > 0 ? formatCurrency(p.mortgagePending) : '0,00'}</td>}
+                          {cv('currentValue') && <td className="py-1.5 px-2 text-right tabular-nums">{displayCurrentValue > 0 ? formatCurrency(displayCurrentValue) : '---'}</td>}
+                          {cv('mortgagePending') && <td className="py-1.5 px-2 text-right tabular-nums">{displayMortgagePending > 0 ? formatCurrency(displayMortgagePending) : '0,00'}</td>}
                           {cv('ingresos') && <td className="py-1.5 px-2 text-right tabular-nums">{formatCurrency(metrics.ingresos)}</td>}
                           {cv('gastos') && <td className="py-1.5 px-2 text-right tabular-nums">{formatCurrency(metrics.gastos)}</td>}
                           {cv('netYield') && <td className="py-1.5 px-2 text-right tabular-nums">{formatCurrency(metrics.neto)}</td>}
                           {cv('catastral') && <td className="py-1.5 px-2 font-mono uppercase">{p.catastral || '---'}</td>}
                           {cv('cp') && <td className="py-1.5 px-2 text-center">{p.cp || '---'}</td>}
                           {cv('accountNumber') && <td className="py-1.5 px-2 font-mono">{p.accountNumber || '---'}</td>}
-                          {cv('activeTenant') && <td className="py-1.5 px-2 uppercase">{getActiveClientDisplay(p)}</td>}
+                          {cv('activeTenant') && <td className="py-1.5 px-2 uppercase">{getActiveClientDisplayConsolidated(p)}</td>}
                           {cv('capitalReformas') && <td className="py-1.5 px-2 text-right tabular-nums">{propCapitalizedReforms > 0 ? formatCurrency(propCapitalizedReforms) : '---'}</td>}
                           {cv('capitalAportado') && <td className="py-1.5 px-2 text-right tabular-nums">{propInvestedCapital > 0 ? formatCurrency(propInvestedCapital) : '---'}</td>}
                           {cv('totalInversion') && <td className="py-1.5 px-2 text-right tabular-nums">{propTotalInversion > 0 ? formatCurrency(propTotalInversion) : '---'}</td>}
@@ -3037,8 +3363,13 @@ export default function PrintPage() {
                       {cv('endDate') && <th className="py-1.5 px-2 text-center w-22 font-semibold">Fecha Fin</th>}
                       {cv('depositAmount') && <th className="py-1.5 px-2 text-right w-20 font-semibold">Fianza</th>}
                       {cv('rentAmount') && <th className="py-1.5 px-2 text-right w-22 font-semibold">Renta</th>}
-                      {cv('expenses') && <th className="py-1.5 px-2 text-right w-22 font-semibold">Gastos</th>}
+                      {cv('expenses') && <th className="py-1.5 px-2 text-right w-22 font-semibold">Gastos Asociados</th>}
                       {cv('netYield') && <th className="py-1.5 px-2 text-right w-22 font-semibold">Rend. Neto</th>}
+                      {cv('pctAlquiler') && <th className="py-1.5 px-2 text-right w-22 font-semibold">% Alquiler</th>}
+                      {cv('ingresosExtracto') && <th className="py-1.5 px-2 text-right w-22 font-semibold">Ingresos</th>}
+                      {cv('gastosExtracto') && <th className="py-1.5 px-2 text-right w-22 font-semibold">Gastos</th>}
+                      {cv('rentaNetaExtracto') && <th className="py-1.5 px-2 text-right w-22 font-semibold">Renta Neta</th>}
+                      {cv('pctIngresos') && <th className="py-1.5 px-2 text-right w-22 font-semibold">% Ingresos</th>}
                       {cv('status') && <th className="py-1.5 px-2 text-center w-16 font-semibold">Estado</th>}
                     </tr>
                   </thead>
@@ -3046,9 +3377,22 @@ export default function PrintPage() {
                     {pageItems.map((r, ri) => {
                       const prop = properties.find(p => p.id === r.propertyId);
                       const cust = customers.find(c => c.id === r.tenantId);
-                      const tenantDisplay = r.tenants?.length > 0 
-                        ? r.tenants.map(t => t.name).join(', ') 
-                        : (cust ? cust.name : 'Ninguno');
+                      
+                      let tenantDisplay = 'Ninguno';
+                      if (r.rentalType === 'alquiler por habitaciones' && Array.isArray(r.rooms)) {
+                        const activeTenantNames = r.rooms
+                          .filter(room => room.isActive !== false && room.tenantId)
+                          .map(room => {
+                            const c = customers.find(cust => cust.id === room.tenantId);
+                            return c ? `${c.name || ''} ${c.lastName || ''}`.trim() : '';
+                          })
+                          .filter(name => !!name);
+                        tenantDisplay = activeTenantNames.length > 0 ? activeTenantNames.join(', ') : 'Ninguno';
+                      } else {
+                        tenantDisplay = r.tenants?.length > 0 
+                          ? r.tenants.map(t => t.name).join(', ') 
+                          : (cust ? `${cust.name || ''} ${cust.lastName || ''}`.trim() : 'Ninguno');
+                      }
 
                       const baseRent = getMonthlyRent(r);
                       const baseExpenses = getMonthlyExpenses(r);
@@ -3059,18 +3403,27 @@ export default function PrintPage() {
                       const netYieldVal = rentVal - expensesVal;
                       
                       const startDateVal = getRentalStartDate(r);
+                      const extractMetrics = getRentalExtractMetrics(r, filteredEntriesForPrint);
                       
+                      const pctAlquilerVal = rentVal > 0 ? `${((netYieldVal / rentVal) * 100).toFixed(2)} %` : '---';
+                      const pctIngresosVal = extractMetrics.ingresos > 0 ? `${((extractMetrics.neto / extractMetrics.ingresos) * 100).toFixed(2)} %` : '---';
+
                       return (
                         <tr key={r.id || r.reference} className="border-b border-slate-200 text-[9px] text-slate-800">
                           {cv('reference') && <td className="py-1.5 px-2">{r.reference || '---'}</td>}
                           {cv('property') && <td className="py-1.5 px-2 uppercase">{prop ? prop.name : r.propertyId}</td>}
                           {cv('tenants') && <td className="py-1.5 px-2 uppercase">{tenantDisplay}</td>}
                           {cv('startDate') && <td className="py-1.5 px-2 text-center">{startDateVal ? formatDate(startDateVal) : '---'}</td>}
-                          {cv('endDate') && <td className="py-1.5 px-2 text-center">{r.endDate ? formatDate(r.endDate) : 'INDET.'}</td>}
+                          {cv('endDate') && <td className="py-1.5 px-2 text-center">{r.endDate ? formatDate(r.endDate) : '--'}</td>}
                           {cv('depositAmount') && <td className="py-1.5 px-2 text-right tabular-nums">{r.depositAmount > 0 ? formatCurrency(r.depositAmount) : '---'}</td>}
                           {cv('rentAmount') && <td className="py-1.5 px-2 text-right tabular-nums">{formatCurrency(rentVal)}</td>}
                           {cv('expenses') && <td className="py-1.5 px-2 text-right tabular-nums">{formatCurrency(expensesVal)}</td>}
                           {cv('netYield') && <td className="py-1.5 px-2 text-right tabular-nums">{formatCurrency(netYieldVal)}</td>}
+                          {cv('pctAlquiler') && <td className="py-1.5 px-2 text-right tabular-nums">{pctAlquilerVal}</td>}
+                          {cv('ingresosExtracto') && <td className="py-1.5 px-2 text-right tabular-nums">{formatCurrency(extractMetrics.ingresos)}</td>}
+                          {cv('gastosExtracto') && <td className="py-1.5 px-2 text-right tabular-nums">{formatCurrency(extractMetrics.gastos)}</td>}
+                          {cv('rentaNetaExtracto') && <td className="py-1.5 px-2 text-right tabular-nums">{formatCurrency(extractMetrics.neto)}</td>}
+                          {cv('pctIngresos') && <td className="py-1.5 px-2 text-right tabular-nums">{pctIngresosVal}</td>}
                           {cv('status') && <td className="py-1.5 px-2 text-center uppercase text-[8px]">{r.status || 'activo'}</td>}
                         </tr>
                       );
@@ -3199,54 +3552,87 @@ export default function PrintPage() {
     if (selectedTemplate === 'extracto_propietarios') {
       const cv = (colId) => isColVisible('extracto_propietarios', colId);
       // Build rows: for each property → for each owner → one row
+      const accessoryIds = new Set(
+        properties
+          .map(p => {
+            if (!p.accessoryPropertyId) return null;
+            const acc = properties.find(prop => prop.id === p.accessoryPropertyId || prop.name === p.accessoryPropertyId);
+            return acc ? acc.id : null;
+          })
+          .filter(Boolean)
+      );
+
       const ownerRows = [];
       properties.forEach(p => {
+        if (groupAccessoryAssets && accessoryIds.has(p.id)) return;
+        
         const ownersArr = Array.isArray(p.owners) ? p.owners : [];
-        
-        // --- Financial values from Finanzas form fields ---
-        // Precio de Adquisición (from financials form)
-        const propAcquisitionPrice = parseFloat(p.acquisitionPrice || p.financials?.purchasePrice || 0);
-        
-        // Capital Aportado (direct field from Finanzas form)
-        const propInvestedCapital = parseFloat(p.investedCapital || 0);
-        
-        // Gastos de Adquisición (sum of adquisitionExpenses table)
-        const propAdquisitionExpenses = (p.adquisitionExpenses || p.financials?.acquisitionExpenses || []).reduce(
-          (acc, exp) => acc + (parseFloat(exp.amount) || 0),
-          0
-        );
-        
-        // Total reformas capitalizables (reforms with capitalize=true)
-        const propCapitalizedReforms = (p.reforms || []).reduce((acc, ref) => {
-          const capSum = (ref.expenses || []).reduce((s, exp) => s + (exp.capitalize ? (parseFloat(exp.amount) || 0) : 0), 0);
-          return acc + capSum;
-        }, 0);
-        
-        // Valor Actual (from Finanzas form)
-        const propCurrentValue = parseFloat(p.currentValue || p.financials?.currentValue || 0);
+        const cp = getConsolidatedProperty(p, properties, rentals, filteredEntriesForPrint);
+        const propAcquisitionPrice = cp.acquisitionPrice;
+        const propInvestedCapital = cp.investedCapital;
+        const propAdquisitionExpenses = cp.adquisitionExpenses;
+        const propCapitalizedReforms = cp.capitalizedReforms;
+        const propCurrentValue = cp.currentValue;
         
         // Computed composite columns (property total, before applying % owner)
-        const propCapAportadoGastos = propInvestedCapital + propAdquisitionExpenses;
-        const propCapReforma = propCapAportadoGastos + propCapitalizedReforms; // = Total Inversión
+        const propAcqPlusExpenses = propAcquisitionPrice + propAdquisitionExpenses;
+        const propCapReforma = propInvestedCapital + propCapitalizedReforms;
         
-        // Ganancia = Valor Actual - (Capital + Reforma Capitalizable)
+        // Ganancia bruta = valor actual - (capital aportado + reforma capitalizable)
         const propGanancia = propCurrentValue - propCapReforma;
+        const propMortgagePending = cp.mortgagePending;
+        // Ganancia neta = valor actual - hipoteca pendiente - (capital aportado + reforma capitalizable)
+        const propGananciaNeta = propGanancia - propMortgagePending;
+        // Ganancia real + Rend.neto = Ganancia neta + ingresos netos
+        const propRealReturn = propGananciaNeta + cp.rendimientoNetoExtracto;
 
         ownersArr.forEach(o => {
-          const pct = parseFloat(o.percentage) || 0;
-          const perc = pct / 100;
-          
+          const perc = (o.percentage || 0) / 100;
+          if (perc > 0) {
+            ownerRows.push({
+              type: 'group-item',
+              partnerName: o.name || '---',
+              partnerNif: o.nif || '---',
+              propertyName: p.name || p.id,
+              propertyId: p.id,
+              percentage: o.percentage,
+              acquisitionPrice: propAcquisitionPrice * perc,
+              investedCapital: propInvestedCapital * perc,
+              adquisitionExpenses: propAdquisitionExpenses * perc,
+              acqPlusExpenses: propAcqPlusExpenses * perc,
+              capitalReforma: propCapReforma * perc,
+              currentValue: propCurrentValue * perc,
+              ingresosExtracto: cp.ingresosExtracto * perc,
+              gastosExtracto: cp.gastosExtracto * perc,
+              rendimientoNetoExtracto: cp.rendimientoNetoExtracto * perc,
+              mortgagePending: propMortgagePending * perc,
+              gain: propGanancia * perc,
+              netGain: propGananciaNeta * perc,
+              realReturn: propRealReturn * perc
+            });
+          }
+        });
+        
+        // Add residual to main owner if total < 100%
+        const totalPct = ownersArr.reduce((sum, o) => sum + (o.percentage || 0), 0);
+        if (totalPct < 100) {
+          const perc = (100 - totalPct) / 100;
           ownerRows.push({
-            partnerName: o.name || '---',
-            partnerNif: o.nif || '---',
+            type: 'group-item',
+            partnerName: 'PROPIETARIO PRINCIPAL',
+            partnerNif: '---',
             propertyName: p.name || p.id,
             propertyId: p.id,
-            percentage: pct,
+            percentage: 100 - totalPct,
             acquisitionPrice: propAcquisitionPrice * perc,
-            capitalAportadoGastos: propCapAportadoGastos * perc,
+            investedCapital: propInvestedCapital * perc,
+            adquisitionExpenses: propAdquisitionExpenses * perc,
+            acqPlusExpenses: propAcqPlusExpenses * perc,
             capitalReforma: propCapReforma * perc,
             currentValue: propCurrentValue * perc,
-            gain: propGanancia * perc,
+            ingresosExtracto: cp.ingresosExtracto * perc,
+            gastosExtracto: cp.gastosExtracto * perc,
+            rendimientoNetoExtracto: cp.rendimientoNetoExtracto * perc,
           });
         });
         
@@ -3262,6 +3648,12 @@ export default function PrintPage() {
             capitalReforma: propCapReforma,
             currentValue: propCurrentValue,
             gain: propGanancia,
+            mortgagePending: propMortgagePending,
+            netGain: propGananciaNeta,
+            ingresosExtracto: propExtract.ingresos,
+            gastosExtracto: propExtract.gastos,
+            rendimientoNetoExtracto: propExtract.neto,
+            realReturn: propRealReturn,
           });
         }
       });
@@ -3288,36 +3680,83 @@ export default function PrintPage() {
       // Calculate totals for summation row (only relevant for flat mode)
       const totals = sortedOwnerRows.reduce((acc, r) => {
         acc.acquisitionPrice += r.acquisitionPrice || 0;
-        acc.capitalAportadoGastos += r.capitalAportadoGastos || 0;
+        acc.investedCapital += r.investedCapital || 0;
+        acc.adquisitionExpenses += r.adquisitionExpenses || 0;
+        acc.acqPlusExpenses += r.acqPlusExpenses || 0;
         acc.capitalReforma += r.capitalReforma || 0;
         acc.currentValue += r.currentValue || 0;
         acc.gain += r.gain || 0;
+        acc.mortgagePending += r.mortgagePending || 0;
+        acc.netGain += r.netGain || 0;
+        acc.ingresosExtracto += r.ingresosExtracto || 0;
+        acc.gastosExtracto += r.gastosExtracto || 0;
+        acc.rendimientoNetoExtracto += r.rendimientoNetoExtracto || 0;
+        acc.realReturn += r.realReturn || 0;
         return acc;
-      }, { acquisitionPrice: 0, capitalAportadoGastos: 0, capitalReforma: 0, currentValue: 0, gain: 0 });
+      }, { 
+        acquisitionPrice: 0, 
+        investedCapital: 0, 
+        adquisitionExpenses: 0,
+        acqPlusExpenses: 0,
+        capitalReforma: 0, 
+        currentValue: 0, 
+        gain: 0,
+        mortgagePending: 0,
+        netGain: 0,
+        ingresosExtracto: 0,
+        gastosExtracto: 0,
+        rendimientoNetoExtracto: 0,
+        realReturn: 0
+      });
 
       let listPages = [];
       let totalPages = 1;
+      let ownerBlocks = [];
 
       if (groupByOwner) {
         // Build blocks: each owner is a block containing owner header, owner rows, and owner subtotal
-        const ownerBlocks = Object.entries(partnerGroups).map(([pName, rows]) => {
+        ownerBlocks = Object.entries(partnerGroups).map(([pName, rows]) => {
           const acqSum = rows.reduce((s, r) => s + (r.acquisitionPrice || 0), 0);
-          const capGastosSum = rows.reduce((s, r) => s + (r.capitalAportadoGastos || 0), 0);
+          const invSum = rows.reduce((s, r) => s + (r.investedCapital || 0), 0);
+          const adqSum = rows.reduce((s, r) => s + (r.adquisitionExpenses || 0), 0);
+          const acqPlusSum = rows.reduce((s, r) => s + (r.acqPlusExpenses || 0), 0);
           const capRefSum = rows.reduce((s, r) => s + (r.capitalReforma || 0), 0);
           const valSum = rows.reduce((s, r) => s + (r.currentValue || 0), 0);
           const gainSum = rows.reduce((s, r) => s + (r.gain || 0), 0);
+          const mortgageSum = rows.reduce((s, r) => s + (r.mortgagePending || 0), 0);
+          const netGainSum = rows.reduce((s, r) => s + (r.netGain || 0), 0);
+          const ingresosSum = rows.reduce((s, r) => s + (r.ingresosExtracto || 0), 0);
+          const gastosSum = rows.reduce((s, r) => s + (r.gastosExtracto || 0), 0);
+          const rendNetoSum = rows.reduce((s, r) => s + (r.rendimientoNetoExtracto || 0), 0);
+          const realReturnSum = rows.reduce((s, r) => s + (r.realReturn || 0), 0);
           
           return [
             { type: 'group-header', label: pName },
             ...rows.map(r => ({ ...r, type: 'group-item' })),
-            { type: 'group-total', label: pName, acquisitionPrice: acqSum, capitalAportadoGastos: capGastosSum, capitalReforma: capRefSum, currentValue: valSum, gain: gainSum }
+            { 
+              type: 'group-total', 
+              label: pName, 
+              acquisitionPrice: acqSum, 
+              investedCapital: invSum,
+              adquisitionExpenses: adqSum,
+              acqPlusExpenses: acqPlusSum,
+              capitalReforma: capRefSum, 
+              currentValue: valSum, 
+              gain: gainSum,
+              mortgagePending: mortgageSum,
+              netGain: netGainSum,
+              ingresosExtracto: ingresosSum,
+              gastosExtracto: gastosSum,
+              rendimientoNetoExtracto: rendNetoSum,
+              realReturn: realReturnSum
+            }
           ];
         }).filter(b => b.length > 0);
         
-        listPages = paginateBlocks(ownerBlocks, getLimit(28), Math.max(2, Math.floor(6 * heightRatio)));
+        listPages = paginateBlocks(ownerBlocks, getLimit(22), Math.max(2, Math.floor(6 * heightRatio)));
         totalPages = listPages.length || 1;
       } else {
-        listPages = chunkFlatList(sortedOwnerRows, getLimit(28));
+        listPages = chunkFlatList(sortedOwnerRows, getLimit(22));
         totalPages = listPages.length || 1;
       }
 
@@ -3344,18 +3783,28 @@ export default function PrintPage() {
                       {cv('property') && <th className="py-1.5 px-2 text-left font-semibold">Inmueble</th>}
                       {cv('percentage') && <th className="py-1.5 px-2 text-right w-14 font-semibold">% Prop.</th>}
                       {cv('acquisitionPrice') && <th className="py-1.5 px-2 text-right w-24 font-semibold">P. Adquisición</th>}
-                      {cv('capitalAportadoGastos') && <th className="py-1.5 px-2 text-right w-28 font-semibold">Cap. Aportado + Gastos</th>}
+                      {cv('investedCapital') && <th className="py-1.5 px-2 text-right w-24 font-semibold">Cap. Aportado</th>}
+                      {cv('adquisitionExpenses') && <th className="py-1.5 px-2 text-right w-24 font-semibold">Gastos Adquisición</th>}
+                      {cv('acqPlusExpenses') && <th className="py-1.5 px-2 text-right w-28 font-semibold">Precio + Gastos</th>}
                       {cv('capitalReforma') && <th className="py-1.5 px-2 text-right w-28 font-semibold">Cap. + Reforma Cap.</th>}
                       {cv('currentValue') && <th className="py-1.5 px-2 text-right w-24 font-semibold">V. Actual</th>}
-                      {cv('gain') && <th className="py-1.5 px-2 text-right w-24 font-semibold">Ganancia</th>}
+                      {cv('ingresosExtracto') && <th className="py-1.5 px-2 text-right w-24 font-semibold">Ingresos</th>}
+                      {cv('gastosExtracto') && <th className="py-1.5 px-2 text-right w-24 font-semibold">Gastos</th>}
+                      {cv('rendimientoNetoExtracto') && <th className="py-1.5 px-2 text-right w-24 font-semibold">Rend. Neto</th>}
+                      {cv('mortgagePending') && <th className="py-1.5 px-2 text-right w-24 font-semibold">Hipoteca Pendiente</th>}
+                      {cv('gain') && <th className="py-1.5 px-2 text-right w-24 font-semibold">Ganancia Bruta</th>}
+                      {cv('netGain') && <th className="py-1.5 px-2 text-right w-24 font-semibold">Ganancia Neta</th>}
+                      {cv('realReturn') && <th className="py-1.5 px-2 text-right w-32 font-semibold">Ganancia Real + Rend. Neto</th>}
                     </tr>
                   </thead>
                   <tbody>
                     {pageItems.map((row, ri) => {
+                      const visibleCount = ['name', 'nif', 'property', 'percentage', 'acquisitionPrice', 'investedCapital', 'adquisitionExpenses', 'acqPlusExpenses', 'capitalReforma', 'currentValue', 'ingresosExtracto', 'gastosExtracto', 'rendimientoNetoExtracto', 'mortgagePending', 'gain', 'netGain', 'realReturn'].filter(cv).length;
+
                       if (row.type === 'group-header') {
                         return (
                           <tr key={`ghead-${row.label}-${ri}`} className="bg-slate-100/50 font-bold border-t border-slate-350">
-                            <td colSpan={8} className="py-2 px-2 text-[10px] text-slate-800 font-sans tracking-wide uppercase">
+                            <td colSpan={visibleCount} className="py-2 px-2 text-[10px] text-slate-800 font-sans tracking-wide uppercase">
                               PROPIETARIO: {row.label}
                             </td>
                           </tr>
@@ -3369,10 +3818,18 @@ export default function PrintPage() {
                             {cv('property') && <td className="py-1.5 px-2"></td>}
                             {cv('percentage') && <td className="py-1.5 px-2"></td>}
                             {cv('acquisitionPrice') && <td className="py-1.5 px-2 text-right tabular-nums">{formatCurrency(row.acquisitionPrice || 0)}</td>}
-                            {cv('capitalAportadoGastos') && <td className="py-1.5 px-2 text-right tabular-nums">{formatCurrency(row.capitalAportadoGastos || 0)}</td>}
+                            {cv('investedCapital') && <td className="py-1.5 px-2 text-right tabular-nums">{formatCurrency(row.investedCapital || 0)}</td>}
+                            {cv('adquisitionExpenses') && <td className="py-1.5 px-2 text-right tabular-nums">{formatCurrency(row.adquisitionExpenses || 0)}</td>}
+                            {cv('acqPlusExpenses') && <td className="py-1.5 px-2 text-right tabular-nums">{formatCurrency(row.acqPlusExpenses || 0)}</td>}
                             {cv('capitalReforma') && <td className="py-1.5 px-2 text-right tabular-nums">{formatCurrency(row.capitalReforma || 0)}</td>}
                             {cv('currentValue') && <td className="py-1.5 px-2 text-right tabular-nums">{formatCurrency(row.currentValue || 0)}</td>}
-                            {cv('gain') && <td className="py-1.5 px-2 text-right tabular-nums">{formatCurrency(row.gain || 0)}</td>}
+                            {cv('ingresosExtracto') && <td className="py-1.5 px-2 text-right tabular-nums">{formatCurrency(row.ingresosExtracto || 0)}</td>}
+                            {cv('gastosExtracto') && <td className="py-1.5 px-2 text-right tabular-nums">{formatCurrency(-(row.gastosExtracto || 0))}</td>}
+                            {cv('rendimientoNetoExtracto') && <td className="py-1.5 px-2 text-right tabular-nums"><span>{formatCurrency(row.rendimientoNetoExtracto || 0)}</span></td>}
+                            {cv('mortgagePending') && <td className="py-1.5 px-2 text-right tabular-nums">{formatCurrency(row.mortgagePending || 0)}</td>}
+                            {cv('gain') && <td className="py-1.5 px-2 text-right tabular-nums"><span>{formatCurrency(row.gain || 0)}</span></td>}
+                            {cv('netGain') && <td className="py-1.5 px-2 text-right tabular-nums"><span>{formatCurrency(row.netGain || 0)}</span></td>}
+                            {cv('realReturn') && <td className="py-1.5 px-2 text-right tabular-nums"><span>{formatCurrency(row.realReturn || 0)}</span></td>}
                           </tr>
                         );
                       }
@@ -3384,10 +3841,18 @@ export default function PrintPage() {
                           {cv('property') && <td className="py-1.5 px-2 uppercase">{row.propertyName}</td>}
                           {cv('percentage') && <td className="py-1.5 px-2 text-right tabular-nums">{row.percentage.toFixed(2)}%</td>}
                           {cv('acquisitionPrice') && <td className="py-1.5 px-2 text-right tabular-nums">{(row.acquisitionPrice || 0) > 0 ? formatCurrency(row.acquisitionPrice) : '---'}</td>}
-                          {cv('capitalAportadoGastos') && <td className="py-1.5 px-2 text-right tabular-nums">{(row.capitalAportadoGastos || 0) > 0 ? formatCurrency(row.capitalAportadoGastos) : '---'}</td>}
+                          {cv('investedCapital') && <td className="py-1.5 px-2 text-right tabular-nums">{(row.investedCapital || 0) > 0 ? formatCurrency(row.investedCapital) : '---'}</td>}
+                          {cv('adquisitionExpenses') && <td className="py-1.5 px-2 text-right tabular-nums">{(row.adquisitionExpenses || 0) > 0 ? formatCurrency(row.adquisitionExpenses) : '---'}</td>}
+                          {cv('acqPlusExpenses') && <td className="py-1.5 px-2 text-right tabular-nums">{(row.acqPlusExpenses || 0) > 0 ? formatCurrency(row.acqPlusExpenses) : '---'}</td>}
                           {cv('capitalReforma') && <td className="py-1.5 px-2 text-right tabular-nums">{(row.capitalReforma || 0) > 0 ? formatCurrency(row.capitalReforma) : '---'}</td>}
                           {cv('currentValue') && <td className="py-1.5 px-2 text-right tabular-nums">{(row.currentValue || 0) > 0 ? formatCurrency(row.currentValue) : '---'}</td>}
-                          {cv('gain') && <td className="py-1.5 px-2 text-right tabular-nums"><span className={(row.gain || 0) >= 0 ? 'text-green-700' : 'text-red-700'}>{formatCurrency(row.gain || 0)}</span></td>}
+                          {cv('ingresosExtracto') && <td className="py-1.5 px-2 text-right tabular-nums">{(row.ingresosExtracto || 0) > 0 ? formatCurrency(row.ingresosExtracto) : '---'}</td>}
+                          {cv('gastosExtracto') && <td className="py-1.5 px-2 text-right tabular-nums">{(row.gastosExtracto || 0) > 0 ? formatCurrency(-row.gastosExtracto) : '---'}</td>}
+                          {cv('rendimientoNetoExtracto') && <td className="py-1.5 px-2 text-right tabular-nums"><span>{formatCurrency(row.rendimientoNetoExtracto || 0)}</span></td>}
+                          {cv('mortgagePending') && <td className="py-1.5 px-2 text-right tabular-nums">{(row.mortgagePending || 0) > 0 ? formatCurrency(row.mortgagePending) : '---'}</td>}
+                          {cv('gain') && <td className="py-1.5 px-2 text-right tabular-nums"><span>{formatCurrency(row.gain || 0)}</span></td>}
+                          {cv('netGain') && <td className="py-1.5 px-2 text-right tabular-nums"><span>{formatCurrency(row.netGain || 0)}</span></td>}
+                          {cv('realReturn') && <td className="py-1.5 px-2 text-right tabular-nums"><span>{formatCurrency(row.realReturn || 0)}</span></td>}
                         </tr>
                       );
                     })}
@@ -3400,10 +3865,18 @@ export default function PrintPage() {
                         {cv('property') && <td className="py-1.5 px-2"></td>}
                         {cv('percentage') && <td className="py-1.5 px-2 text-right"></td>}
                         {cv('acquisitionPrice') && <td className="py-1.5 px-2 text-right tabular-nums">{formatCurrency(totals.acquisitionPrice)}</td>}
-                        {cv('capitalAportadoGastos') && <td className="py-1.5 px-2 text-right tabular-nums">{formatCurrency(totals.capitalAportadoGastos)}</td>}
+                        {cv('investedCapital') && <td className="py-1.5 px-2 text-right tabular-nums">{formatCurrency(totals.investedCapital || 0)}</td>}
+                        {cv('adquisitionExpenses') && <td className="py-1.5 px-2 text-right tabular-nums">{formatCurrency(totals.adquisitionExpenses || 0)}</td>}
+                        {cv('acqPlusExpenses') && <td className="py-1.5 px-2 text-right tabular-nums">{formatCurrency(totals.acqPlusExpenses || 0)}</td>}
                         {cv('capitalReforma') && <td className="py-1.5 px-2 text-right tabular-nums">{formatCurrency(totals.capitalReforma)}</td>}
                         {cv('currentValue') && <td className="py-1.5 px-2 text-right tabular-nums">{formatCurrency(totals.currentValue)}</td>}
-                        {cv('gain') && <td className="py-1.5 px-2 text-right tabular-nums"><span className={totals.gain >= 0 ? 'text-green-700' : 'text-red-700'}>{formatCurrency(totals.gain)}</span></td>}
+                        {cv('ingresosExtracto') && <td className="py-1.5 px-2 text-right tabular-nums">{formatCurrency(totals.ingresosExtracto)}</td>}
+                        {cv('gastosExtracto') && <td className="py-1.5 px-2 text-right tabular-nums">{formatCurrency(-totals.gastosExtracto)}</td>}
+                        {cv('rendimientoNetoExtracto') && <td className="py-1.5 px-2 text-right tabular-nums"><span>{formatCurrency(totals.rendimientoNetoExtracto)}</span></td>}
+                        {cv('mortgagePending') && <td className="py-1.5 px-2 text-right tabular-nums">{formatCurrency(totals.mortgagePending)}</td>}
+                        {cv('gain') && <td className="py-1.5 px-2 text-right tabular-nums"><span>{formatCurrency(totals.gain)}</span></td>}
+                        {cv('netGain') && <td className="py-1.5 px-2 text-right tabular-nums"><span>{formatCurrency(totals.netGain)}</span></td>}
+                        {cv('realReturn') && <td className="py-1.5 px-2 text-right tabular-nums"><span>{formatCurrency(totals.realReturn)}</span></td>}
                       </tr>
                     )}
                   </tbody>
@@ -5609,7 +6082,7 @@ export default function PrintPage() {
                   {ALL_COLUMNS[selectedTemplate].map(col => {
                     const isVisible = isColVisible(selectedTemplate, col.id);
                     return (
-                      <label key={col.id} className="flex items-center gap-2 cursor-pointer select-none text-[10px] font-semibold text-slate-600">
+                      <label key={col.id} className="group relative flex items-center gap-2 cursor-pointer select-none text-[10px] font-semibold text-slate-600">
                         <input
                           type="checkbox"
                           checked={isVisible}
@@ -5617,6 +6090,11 @@ export default function PrintPage() {
                           className="w-3 h-3 text-blue-600"
                         />
                         <span>{col.label}</span>
+                        {COLUMN_TOOLTIPS[col.id] && (
+                          <div className="absolute left-full ml-2 top-1/2 -translate-y-1/2 hidden group-hover:block z-50 bg-slate-800 text-white text-[10px] px-2 py-1 rounded w-max opacity-0 group-hover:opacity-100 transition-opacity duration-[30ms] delay-[30ms]">
+                            {COLUMN_TOOLTIPS[col.id]}
+                          </div>
+                        )}
                       </label>
                     );
                   })}
@@ -5725,7 +6203,7 @@ export default function PrintPage() {
           )}
 
           {/* Options specific to Extracto de Propietarios */}
-          {selectedTemplate === 'extracto_propietarios' && (
+          {['extracto_propietarios', 'inventario_activos'].includes(selectedTemplate) && (
             <div className="bg-white border border-[#a0a0a0] p-3 flex flex-col gap-3">
               <div
                 className="text-[10px] font-bold text-slate-500 uppercase flex items-center justify-between cursor-pointer select-none hover:text-slate-800"
@@ -5733,10 +6211,10 @@ export default function PrintPage() {
               >
                 <div className="flex items-center gap-1">
                   <Sliders className="w-3.5 h-3.5 text-slate-400" />
-                  <span>Opciones de Propietarios</span>
+                  <span>Opciones de Listado</span>
                 </div>
                 <div className="flex items-center gap-1">
-                  {isOptsPropietariosCollapsed && groupByOwner && (
+                  {isOptsPropietariosCollapsed && (groupByOwner || groupAccessoryAssets) && (
                     <Filter className="w-3 h-3 text-blue-600 animate-pulse" />
                   )}
                   <span className="text-[9px]">{isOptsPropietariosCollapsed ? '▶' : '▼'}</span>
@@ -5744,14 +6222,25 @@ export default function PrintPage() {
               </div>
               {!isOptsPropietariosCollapsed && (
                 <div className="flex flex-col gap-2.5 border-t border-slate-100 pt-2">
+                  {selectedTemplate === 'extracto_propietarios' && (
+                    <label className="flex items-center gap-2 cursor-pointer select-none text-[10px] font-semibold text-slate-600 font-sans">
+                      <input 
+                        type="checkbox"
+                        checked={groupByOwner}
+                        onChange={(e) => setGroupByOwner(e.target.checked)}
+                        className="w-3 h-3"
+                      />
+                      <span>Agrupar por Propietario</span>
+                    </label>
+                  )}
                   <label className="flex items-center gap-2 cursor-pointer select-none text-[10px] font-semibold text-slate-600 font-sans">
                     <input 
                       type="checkbox"
-                      checked={groupByOwner}
-                      onChange={(e) => setGroupByOwner(e.target.checked)}
+                      checked={groupAccessoryAssets}
+                      onChange={(e) => setGroupAccessoryAssets(e.target.checked)}
                       className="w-3 h-3"
                     />
-                    <span>Agrupar por Propietario</span>
+                    <span>Sumar activo accesorio al activo principal</span>
                   </label>
                 </div>
               )}

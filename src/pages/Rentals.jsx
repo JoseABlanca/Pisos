@@ -555,7 +555,16 @@ export default function Rentals() {
                   {visibleColumns.includes('id') && <TableHeaderWithFilter label="ID" columnKey="id" data={rentals.map(r => ({ ...r, id: r._originalId || r.id || '' }))} tableId="rentals" className="w-24" />}
                   {visibleColumns.includes('reference') && <TableHeaderWithFilter label="Referencia" columnKey="reference" data={rentals} tableId="rentals" className="w-32" />}
                   {visibleColumns.includes('propertyDisplay') && <TableHeaderWithFilter label="Propiedad" columnKey="propertyDisplay" data={rentals.map(r => { const p = properties.find(p => p.id === r.propertyId); return { ...r, propertyDisplay: p ? p.name : r.propertyName || r.propertyId || 'Desconocido' }; })} tableId="rentals" className="w-48" />}
-                  {visibleColumns.includes('tenantDisplay') && <TableHeaderWithFilter label="Inquilino" columnKey="tenantDisplay" data={rentals.map(r => { const c = customers.find(c => c.id === r.tenantId); return { ...r, tenantDisplay: r.tenants?.length > 0 ? r.tenants.map(t => t.name).join(', ') : (c ? c.name : 'Ninguno') }; })} tableId="rentals" className="w-48" />}
+                  {visibleColumns.includes('tenantDisplay') && <TableHeaderWithFilter label="Inquilino" columnKey="tenantDisplay" data={rentals.map(r => { 
+                    const cust = customers.find(c => c.id === r.tenantId); 
+                    const display = r.rentalType === 'alquiler por habitaciones' && r.rooms?.length > 0 
+                      ? r.rooms.filter(rm => rm.status === 'ocupada').map(rm => {
+                          const c = customers.find(c => c.id === rm.tenantId);
+                          return c ? c.name : null;
+                        }).filter(Boolean).join(', ') || 'Ninguno'
+                      : (r.tenants?.length > 0 ? r.tenants.map(t => t.name).join(', ') : (cust ? cust.name : 'Ninguno'));
+                    return { ...r, tenantDisplay: display }; 
+                  })} tableId="rentals" className="w-48" />}
                   {visibleColumns.includes('rentalType') && <TableHeaderWithFilter label="Tipo Alquiler" columnKey="rentalType" data={rentals} tableId="rentals" className="w-32" />}
                   {visibleColumns.includes('duration') && <TableHeaderWithFilter label="Duración" columnKey="duration" data={rentals} tableId="rentals" className="w-24 text-center" />}
                   {visibleColumns.includes('startDate') && <TableHeaderWithFilter label="Inicio" columnKey="startDate" data={rentals} tableId="rentals" className="w-32 text-center" />}
@@ -587,7 +596,12 @@ export default function Rentals() {
                     ...rental,
                     id: rental._originalId || rental.id || '',
                     propertyDisplay: prop ? prop.name : rental.propertyName || rental.propertyId || 'Desconocido',
-                    tenantDisplay: rental.tenants?.length > 0 ? rental.tenants.map(t => t.name).join(', ') : (cust ? cust.name : 'Ninguno'),
+                    tenantDisplay: rental.rentalType === 'alquiler por habitaciones' && rental.rooms?.length > 0 
+                      ? rental.rooms.filter(rm => rm.status === 'ocupada').map(rm => {
+                          const c = customers.find(c => c.id === rm.tenantId);
+                          return c ? c.name : null;
+                        }).filter(Boolean).join(', ') || 'Ninguno'
+                      : (rental.tenants?.length > 0 ? rental.tenants.map(t => t.name).join(', ') : (cust ? cust.name : 'Ninguno')),
                     deposit: Number(rental.depositAmount || 0).toLocaleString('es-ES', { minimumFractionDigits: 2 }),
                     rent: Number(rental.rentAmount || 0).toLocaleString('es-ES', { minimumFractionDigits: 2 })
                   };
@@ -638,7 +652,9 @@ export default function Rentals() {
                       type="date" 
                       value={rental.endDate} 
                       onSave={(val) => handleSaveField(rental, 'endDate', val)} 
-                    />
+                    >
+                      {rental.endDate || '--'}
+                    </EditableCell>
                   )}
                   {visibleColumns.includes('status') && (
                     <EditableCell 
