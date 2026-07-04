@@ -3633,8 +3633,12 @@ export default function PrintPage() {
             ingresosExtracto: cp.ingresosExtracto * perc,
             gastosExtracto: cp.gastosExtracto * perc,
             rendimientoNetoExtracto: cp.rendimientoNetoExtracto * perc,
+            mortgagePending: propMortgagePending * perc,
+            gain: propGanancia * perc,
+            netGain: propGananciaNeta * perc,
+            realReturn: propRealReturn * perc
           });
-        });
+        }
         
         if (ownersArr.length === 0) {
           ownerRows.push({
