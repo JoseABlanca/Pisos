@@ -691,7 +691,7 @@ export default function Layout() {
   const moduleTabs = {
     'Contabilidad': ['Cuentas contables', 'Diario', 'Mayor', 'Sumas y saldos'],
     'Inversiones inmobiliarias': ['Activos', 'Propietarios', 'Clientes', 'Alquileres'],
-    'Renta variable': ['Portfolio', 'Broker', 'Activos RV', 'Transacciones', 'Métricas RV'],
+    'Renta variable': ['Portfolio', 'Broker', 'Activos RV', 'Transacciones', 'Histórico RV'],
     'Crowdfunding': ['CF Portfolio', 'Plataforma', 'CF Activos', 'Transacciones CF'],
     'Informes': ['Dashboard', 'Impresion'],
     'Impuestos': ['Total', 'Inversiones inmobiliarias', 'Renta variable', 'Crowdfunding'],
@@ -712,7 +712,7 @@ export default function Layout() {
     'Broker': '/broker',
     'Activos RV': '/rv-assets',
     'Transacciones': '/rv-transactions',
-    'Métricas RV': '/rv-metrics',
+    'Histórico RV': '/rv-metrics',
     'CF Portfolio': '/cf-portfolio',
     'Plataforma': '/cf-empresas',
     'CF Activos': '/cf-activos',
@@ -975,9 +975,9 @@ export default function Layout() {
         ]
       }
     ],
-    'Métricas RV': [
+    'Histórico RV': [
       {
-        group: 'Métricas',
+        group: 'Histórico',
         items: [
           { name: 'Calcular\nmétricas', action: 'rv-metrics:calculate', icon: BarChart3 },
           { name: 'Exportar', action: 'rv-metrics:export', customIcon: 'Exportar' }
@@ -1210,7 +1210,7 @@ export default function Layout() {
                 }}
                 className={`px-3 py-1.5 text-[12px] transition-colors border-t border-l border-r border-b-0 ${activeTab === tab ? 'bg-[#f3f4f6] text-black border-transparent relative top-[1px]' : 'bg-transparent text-white border-transparent hover:bg-white/10'}`}
               >
-                {tab === 'Activos RV' ? 'Activos' : tab === 'Métricas RV' ? 'Métricas' : tab}
+                {tab === 'Activos RV' ? 'Activos' : tab === 'Histórico RV' ? 'Histórico' : tab}
               </button>
             ))}
           </nav>
