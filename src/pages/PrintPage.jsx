@@ -3959,6 +3959,187 @@ export default function PrintPage() {
 
     // 7. CARTERA DE RENTA VARIABLE
 
+    if (selectedTemplate === 'metricas_inversion') {
+      const cv = (colId) => isColVisible('metricas_inversion', colId);
+      
+      const accessoryIds = new Set(
+        properties
+          .map(p => {
+            if (!p.accessoryPropertyId) return null;
+            const acc = properties.find(prop => prop.id === p.accessoryPropertyId || prop.name === p.accessoryPropertyId);
+            return acc ? acc.id : null;
+          })
+          .filter(Boolean)
+      );
+
+      const filteredProperties = properties.filter(p => {
+        const activePropFilters = selectedFilterProperties.metricas_inversion || [];
+        if (activePropFilters.length > 0 && !activePropFilters.includes(p.id)) return false;
+        if (groupAccessoryAssets && accessoryIds.has(p.id)) return false;
+        return true;
+      });
+
+      const listPages = chunkFlatList(filteredProperties, getLimit(6));
+
+      if (filteredProperties.length === 0) {
+        pageViews.push(
+          <div key="empty" className="page-sheet relative">
+            {renderPageHeader('Métricas de Inversión')}
+            <p className="text-center py-12 text-slate-450 italic text-[10px]">No hay inmuebles registrados.</p>
+            {renderPageFooter(1, 1, auditNumber)}
+          </div>
+        );
+      } else {
+        listPages.forEach((pageItems, pageIdx) => {
+          pageViews.push(
+            <div key={pageIdx} className="page-sheet relative">
+              <div className="flex flex-col gap-4">
+                {renderPageHeader('Métricas de Inversión')}
+                {pageItems.map((p, idx) => {
+                  const consolidated = getConsolidatedProperty(p, properties, rentals, filteredEntriesForPrint);
+                  const mainMetrics = getPropertyMetrics(p, filteredEntriesForPrint);
+                  const acc = p.accessoryPropertyId ? properties.find(prop => prop.id === p.accessoryPropertyId || prop.name === p.accessoryPropertyId) : null;
+                  const accMetrics = acc ? getPropertyMetrics(acc, filteredEntriesForPrint) : { ingresos: 0, gastos: 0, neto: 0 };
+                  
+                  const ingresosAnuales = mainMetrics.ingresos + accMetrics.ingresos;
+                  const gastosAnuales = mainMetrics.gastos + accMetrics.gastos;
+                  const beneficioNeto = mainMetrics.neto + accMetrics.neto;
+                  
+                  const propInvestedCapital = consolidated.investedCapital;
+                  const propAcquisitionPrice = consolidated.acquisitionPrice;
+                  
+                  const roi = propInvestedCapital > 0 ? (beneficioNeto / propInvestedCapital) * 100 : 0;
+                  const roe = propInvestedCapital > 0 ? (beneficioNeto / propInvestedCapital) * 100 : 0;
+                  const cashOnCash = propInvestedCapital > 0 ? (beneficioNeto / propInvestedCapital) * 100 : 0;
+                  const grossYield = propAcquisitionPrice > 0 ? (ingresosAnuales / propAcquisitionPrice) * 100 : 0;
+                  const netYield = propAcquisitionPrice > 0 ? (beneficioNeto / propAcquisitionPrice) * 100 : 0;
+
+                  return (
+                    <div key={idx} className="mb-2 break-inside-avoid">
+                      <div className="bg-slate-100 p-1 border border-slate-300 font-bold text-slate-800 flex justify-between text-[9px] mb-1.5 uppercase">
+                        <span>Finca: {p.name}</span>
+                      </div>
+                      <table className="w-full text-[8.5px] border-collapse">
+                        <thead>
+                          <tr className="border-b border-slate-300 font-semibold text-slate-600 bg-slate-50">
+                            {cv('property') && <th className="py-0.5 px-1 text-left">Inmueble</th>}
+                            {cv('acquisitionPrice') && <th className="py-0.5 px-1 text-right">Precio Adq.</th>}
+                            {cv('investedCapital') && <th className="py-0.5 px-1 text-right">Inv. Inicial</th>}
+                            {cv('ingresosAnuales') && <th className="py-0.5 px-1 text-right">Ingresos</th>}
+                            {cv('gastosAnuales') && <th className="py-0.5 px-1 text-right">Gastos</th>}
+                            {cv('beneficioNeto') && <th className="py-0.5 px-1 text-right">Bº Neto</th>}
+                            {cv('roi') && <th className="py-0.5 px-1 text-right">ROI</th>}
+                            {cv('roe') && <th className="py-0.5 px-1 text-right">ROE</th>}
+                            {cv('cashOnCash') && <th className="py-0.5 px-1 text-right">Cash on Cash</th>}
+                            {cv('grossYield') && <th className="py-0.5 px-1 text-right">R. Bruta</th>}
+                            {cv('netYield') && <th className="py-0.5 px-1 text-right">R. Neta</th>}
+                          </tr>
+                        </thead>
+                        <tbody>
+                          <tr className="border-b border-slate-100">
+                            {cv('property') && <td className="py-0.5 px-1 text-left">{p.name}</td>}
+                            {cv('acquisitionPrice') && <td className="py-0.5 px-1 text-right">{formatCurrency(propAcquisitionPrice)}</td>}
+                            {cv('investedCapital') && <td className="py-0.5 px-1 text-right">{formatCurrency(propInvestedCapital)}</td>}
+                            {cv('ingresosAnuales') && <td className="py-0.5 px-1 text-right">{formatCurrency(ingresosAnuales)}</td>}
+                            {cv('gastosAnuales') && <td className="py-0.5 px-1 text-right">{formatCurrency(gastosAnuales)}</td>}
+                            {cv('beneficioNeto') && <td className="py-0.5 px-1 text-right">{formatCurrency(beneficioNeto)}</td>}
+                            {cv('roi') && <td className="py-0.5 px-1 text-right">{roi.toFixed(2)}%</td>}
+                            {cv('roe') && <td className="py-0.5 px-1 text-right">{roe.toFixed(2)}%</td>}
+                            {cv('cashOnCash') && <td className="py-0.5 px-1 text-right">{cashOnCash.toFixed(2)}%</td>}
+                            {cv('grossYield') && <td className="py-0.5 px-1 text-right">{grossYield.toFixed(2)}%</td>}
+                            {cv('netYield') && <td className="py-0.5 px-1 text-right">{netYield.toFixed(2)}%</td>}
+                          </tr>
+                        </tbody>
+                      </table>
+                    </div>
+                  );
+                })}
+              </div>
+              {renderPageFooter(pageIdx + 1, listPages.length, auditNumber)}
+            </div>
+          );
+        });
+      }
+    }
+
+    if (selectedTemplate === 'plan_contable') {
+      const cv = (colId) => isColVisible('plan_contable', colId);
+      
+      const grouped = {};
+      accounts.forEach(acc => {
+        const group = acc.code.charAt(0);
+        if (!grouped[group]) grouped[group] = [];
+        grouped[group].push(acc);
+      });
+      const sortedGroups = Object.keys(grouped).sort();
+      sortedGroups.forEach(g => {
+        grouped[g].sort((a, b) => a.code.localeCompare(b.code));
+      });
+
+      const chunks = [];
+      let currentChunk = [];
+      let currentLines = 0;
+      const MAX_LINES = getLimit(35);
+
+      sortedGroups.forEach(g => {
+        if (currentLines + grouped[g].length + 2 > MAX_LINES && currentChunk.length > 0) {
+          chunks.push(currentChunk);
+          currentChunk = [];
+          currentLines = 0;
+        }
+        currentChunk.push({ group: g, items: grouped[g] });
+        currentLines += grouped[g].length + 2;
+      });
+      if (currentChunk.length > 0) chunks.push(currentChunk);
+
+      if (chunks.length === 0) {
+        pageViews.push(
+          <div key="empty" className="page-sheet relative">
+            {renderPageHeader('Plan Contable')}
+            <p className="text-center py-12 text-slate-450 italic text-[10px]">No hay cuentas registradas.</p>
+            {renderPageFooter(1, 1, auditNumber)}
+          </div>
+        );
+      } else {
+        chunks.forEach((pageItems, pageIdx) => {
+          pageViews.push(
+            <div key={pageIdx} className="page-sheet relative">
+              <div className="flex flex-col gap-4">
+                {renderPageHeader('Plan Contable')}
+                {pageItems.map((block, bIdx) => (
+                  <div key={bIdx} className="mb-2 break-inside-avoid">
+                    <div className="bg-slate-100 p-1 border border-slate-300 font-bold text-slate-800 flex justify-between text-[9px] mb-1.5 uppercase">
+                      <span>Grupo {block.group}</span>
+                    </div>
+                    <table className="w-full text-[8.5px] border-collapse">
+                      <thead>
+                        <tr className="border-b border-slate-300 font-semibold text-slate-600 bg-slate-50">
+                          {cv('code') && <th className="py-0.5 px-1 text-left w-32">Código</th>}
+                          {cv('description') && <th className="py-0.5 px-1 text-left">Descripción</th>}
+                        </tr>
+                      </thead>
+                      <tbody>
+                        {block.items.map((acc, aIdx) => {
+                          const padded = acc.code.padEnd(maxDigits, '0');
+                          return (
+                            <tr key={aIdx} className="border-b border-slate-100">
+                              {cv('code') && <td className="py-0.5 px-1 text-left font-mono">{padded}</td>}
+                              {cv('description') && <td className="py-0.5 px-1 text-left uppercase">{acc.name}</td>}
+                            </tr>
+                          );
+                        })}
+                      </tbody>
+                    </table>
+                  </div>
+                ))}
+              </div>
+              {renderPageFooter(pageIdx + 1, chunks.length, auditNumber)}
+            </div>
+          );
+        });
+      }
+    }
+
     // 7. CARTERA DE RENTA VARIABLE
 
     if (selectedTemplate === 'rv_portfolio') {
@@ -5528,6 +5709,20 @@ export default function PrintPage() {
               </button>
             ))}
           </div>
+
+          {selectedTemplate === 'metricas_inversion' && (
+            <div className="bg-blue-50 border border-blue-200 p-2 rounded text-[9.5px] text-slate-700 leading-snug">
+              <div className="font-bold mb-1 text-blue-900 uppercase">Aclaraciones de Métricas</div>
+              <ul className="list-disc pl-3 space-y-1">
+                <li><strong>Bº Neto:</strong> Ingresos Anuales - Gastos Anuales</li>
+                <li><strong>ROI:</strong> (Beneficio Neto / Inversión Inicial) × 100</li>
+                <li><strong>ROE:</strong> (Beneficio Neto / Capital Propio) × 100. En este caso se calcula sobre la inversión inicial aportada.</li>
+                <li><strong>Cash on Cash:</strong> (Flujo de Caja / Efectivo Invertido) × 100.</li>
+                <li><strong>R. Bruta:</strong> (Ingresos Anuales / Precio Adquisición) × 100</li>
+                <li><strong>R. Neta:</strong> (Beneficio Neto / Precio Adquisición) × 100</li>
+              </ul>
+            </div>
+          )}
 
           {/* Global View Configuration Panel */}
           <div className="bg-white border border-[#a0a0a0] p-3 flex flex-col gap-3">
