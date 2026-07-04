@@ -15,10 +15,18 @@ export default function RvMetrics() {
   const [loading, setLoading] = useState(true);
   const [isRefreshing, setIsRefreshing] = useState(false);
 
-  // Filters
+  // Layout
+  const [isSidebarOpen, setIsSidebarOpen] = useState(true);
+
+  // Sidebar Filters
   const [selectedTickers, setSelectedTickers] = useState(['ALL']);
-  const [timeFilter, setTimeFilter] = useState('ALL'); // 'ALL', 'YTD', '1Y', '5Y'
-  const [barPeriod, setBarPeriod] = useState('MONTH'); // 'MONTH', 'YEAR'
+  const [selectedBrokers, setSelectedBrokers] = useState(['ALL']);
+  const [selectedAccounts, setSelectedAccounts] = useState(['ALL']);
+  const [startDate, setStartDate] = useState('');
+  const [endDate, setEndDate] = useState('');
+  const [barPeriod, setBarPeriod] = useState('MONTH'); // 'DAY', 'MONTH', 'YEAR'
+
+  // Topbar Filters
   const [unit, setUnit] = useState('EUR'); // 'EUR', 'PERCENT'
   const [primaryMetric, setPrimaryMetric] = useState('VALOR'); // 'VALOR', 'PLUSVALIA'
 
@@ -51,11 +59,13 @@ export default function RvMetrics() {
         });
       });
     });
-
     return () => unsubTx();
   }, [user]);
 
+  // Derived unique lists for filters
   const tickers = useMemo(() => Array.from(new Set(transactions.map(tx => tx.assetId))).sort(), [transactions]);
+  const brokers = useMemo(() => Array.from(new Set(transactions.map(tx => tx.broker).filter(Boolean))).sort(), [transactions]);
+  const accounts = useMemo(() => Array.from(new Set(transactions.map(tx => tx.brokerAccount).filter(Boolean))).sort(), [transactions]);
 
   const handleRefreshData = async () => {
     if (isRefreshing) return;
@@ -77,13 +87,10 @@ export default function RvMetrics() {
       }
       
       const period2 = Math.floor(Date.now() / 1000);
-      if (period1 >= period2 - 43200) { // Si ya tenemos datos de hace menos de 12 horas, saltamos
-        continue;
-      }
+      if (period1 >= period2 - 43200) continue;
       
       try {
         const yahooUrl = `https://query1.finance.yahoo.com/v8/finance/chart/${asset.ticker}?period1=${period1}&period2=${period2}&interval=1d&events=history&includeAdjustedClose=true`;
-        
         const proxies = [
           { url: `https://corsproxy.io/?url=${encodeURIComponent(yahooUrl)}`, mode: 'direct' },
           { url: `https://api.allorigins.win/raw?url=${encodeURIComponent(yahooUrl)}`, mode: 'direct' },
@@ -123,51 +130,44 @@ export default function RvMetrics() {
                 const recId = `${asset.id}_${ds}`;
                 const ref = doc(db, 'rv_asset_history', recId);
                 batch.set(ref, {
-                   id: recId,
-                   assetId: asset.id,
-                   date: ds,
-                   close: closes[i],
-                   userId: user.uid
+                   id: recId, assetId: asset.id, date: ds, close: closes[i], userId: user.uid
                 });
                 count++;
              }
           }
-          if (count > 0) {
-             await batch.commit();
-          }
+          if (count > 0) await batch.commit();
         }
       } catch(e) {
         console.error('Error fetching data for', asset.ticker, e);
       }
-      // Pequeña pausa para no saturar CORS proxies
       await new Promise(r => setTimeout(r, 600));
     }
     setIsRefreshing(false);
   };
 
-  const toggleTicker = (t) => {
-    if (t === 'ALL') {
-      setSelectedTickers(['ALL']);
+  const toggleMultiSelect = (item, selectedList, setFn) => {
+    if (item === 'ALL') {
+      setFn(['ALL']);
       return;
     }
-    let newSel = selectedTickers.filter(x => x !== 'ALL');
-    if (newSel.includes(t)) {
-      newSel = newSel.filter(x => x !== t);
+    let newSel = selectedList.filter(x => x !== 'ALL');
+    if (newSel.includes(item)) {
+      newSel = newSel.filter(x => x !== item);
       if (newSel.length === 0) newSel = ['ALL'];
     } else {
-      newSel.push(t);
+      newSel.push(item);
     }
-    setSelectedTickers(newSel);
+    setFn(newSel);
   };
 
-  // Process data chronologically day by day
   const { lineData, barData, summary } = useMemo(() => {
     if (!transactions.length) return { lineData: [], barData: [], summary: {} };
 
+    // Initial filter by active/broker/account (These affect the actual invested capital calculations)
     let txs = [...transactions].sort((a, b) => new Date(a.date) - new Date(b.date));
-    if (!selectedTickers.includes('ALL')) {
-      txs = txs.filter(t => selectedTickers.includes(t.assetId));
-    }
+    if (!selectedTickers.includes('ALL')) txs = txs.filter(t => selectedTickers.includes(t.assetId));
+    if (!selectedBrokers.includes('ALL')) txs = txs.filter(t => selectedBrokers.includes(t.broker));
+    if (!selectedAccounts.includes('ALL')) txs = txs.filter(t => selectedAccounts.includes(t.brokerAccount));
     
     if (!txs.length) return { lineData: [], barData: [], summary: {} };
 
@@ -250,7 +250,10 @@ export default function RvMetrics() {
     
     let previousBeneficioTotal = 0;
     lineChartData.forEach(day => {
-      const periodKey = barPeriod === 'MONTH' ? day.date.substring(0, 7) : day.date.substring(0, 4);
+      let periodKey = day.date; // DAY
+      if (barPeriod === 'MONTH') periodKey = day.date.substring(0, 7);
+      if (barPeriod === 'YEAR') periodKey = day.date.substring(0, 4);
+
       if (!periodMap[periodKey]) {
         periodMap[periodKey] = {
           period: periodKey,
@@ -277,19 +280,14 @@ export default function RvMetrics() {
       };
     });
 
-    if (timeFilter !== 'ALL' && lineChartData.length > 0) {
-      const now = new Date();
-      let cutoff = new Date('1970-01-01');
-      if (timeFilter === 'YTD') cutoff = new Date(now.getFullYear(), 0, 1);
-      if (timeFilter === '1Y') cutoff = new Date(now.getFullYear() - 1, now.getMonth(), now.getDate());
-      if (timeFilter === '5Y') cutoff = new Date(now.getFullYear() - 5, now.getMonth(), now.getDate());
-      
-      const cutoffStr = cutoff.toISOString().split('T')[0];
-      lineChartData = lineChartData.filter(d => d.date >= cutoffStr);
-      barChartData = barChartData.filter(d => {
-        if (barPeriod === 'MONTH') return d.period >= cutoffStr.substring(0,7);
-        return d.period >= cutoffStr.substring(0,4);
-      });
+    // Date Filter (Display only)
+    if (startDate) {
+      lineChartData = lineChartData.filter(d => d.date >= startDate);
+      barChartData = barChartData.filter(d => d.period >= startDate.substring(0, barPeriod === 'YEAR' ? 4 : (barPeriod === 'MONTH' ? 7 : 10)));
+    }
+    if (endDate) {
+      lineChartData = lineChartData.filter(d => d.date <= endDate);
+      barChartData = barChartData.filter(d => d.period <= endDate.substring(0, barPeriod === 'YEAR' ? 4 : (barPeriod === 'MONTH' ? 7 : 10)));
     }
 
     if (lineChartData.length > 200) {
@@ -309,7 +307,7 @@ export default function RvMetrics() {
         roiPct: lastDay.rentabilidadPct || 0
       } 
     };
-  }, [transactions, history, selectedTickers, timeFilter, barPeriod]);
+  }, [transactions, history, selectedTickers, selectedBrokers, selectedAccounts, startDate, endDate, barPeriod]);
 
   if (loading) {
     return <div className="p-6 flex justify-center items-center h-full text-slate-500">Cargando histórico de mercado...</div>;
@@ -326,18 +324,119 @@ export default function RvMetrics() {
     return [`${Number(value).toLocaleString('es-ES', { style: 'currency', currency: 'EUR' })}`, name];
   };
 
-  const handleLegendClick = (e) => {
-    setHiddenLines(prev => ({ ...prev, [e.dataKey]: !prev[e.dataKey] }));
-  };
+  const handleLegendClick = (e) => setHiddenLines(prev => ({ ...prev, [e.dataKey]: !prev[e.dataKey] }));
+
+  // Render Checkbox item
+  const FilterCheckbox = ({ label, isSelected, onClick }) => (
+    <div 
+      className="flex items-center gap-2 mb-2 cursor-pointer group"
+      onClick={onClick}
+    >
+      <div className={`w-4 h-4 rounded border flex items-center justify-center ${isSelected ? 'bg-indigo-600 border-indigo-600' : 'bg-white border-slate-300 group-hover:border-indigo-400'}`}>
+        {isSelected && <svg className="w-3 h-3 text-white" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={3}><path strokeLinecap="round" strokeLinejoin="round" d="M5 13l4 4L19 7" /></svg>}
+      </div>
+      <span className="text-sm text-slate-700">{label}</span>
+    </div>
+  );
 
   return (
-    <div className="w-full h-full bg-[#f8f9fa] flex flex-col overflow-y-auto">
-      {/* Header & Controls */}
-      <div className="bg-white border-b border-slate-200 p-4 sticky top-0 z-10 shadow-sm flex flex-col gap-4">
-        <div className="flex flex-col md:flex-row justify-between md:items-center gap-4">
-          <div>
-            <h1 className="text-xl font-bold text-slate-800">Histórico de Inversiones</h1>
-            <p className="text-xs text-slate-500">Evolución de valor de mercado y rentabilidad</p>
+    <div className="w-full h-full bg-[#f8f9fa] flex overflow-hidden">
+      
+      {/* Sidebar */}
+      {isSidebarOpen && (
+        <div className="w-64 bg-slate-50 border-r border-slate-200 flex-shrink-0 flex flex-col h-full overflow-y-auto">
+          <div className="p-4 border-b border-slate-200 bg-slate-100/50 sticky top-0">
+            <h2 className="font-bold text-slate-700">Filtros</h2>
+          </div>
+          <div className="p-4 flex flex-col gap-6">
+            
+            {/* Fechas */}
+            <div>
+              <h3 className="text-xs font-bold text-slate-500 uppercase tracking-wider mb-3">Rango de Fechas</h3>
+              <div className="flex flex-col gap-2">
+                <div>
+                  <label className="text-xs text-slate-500 mb-1 block">Desde:</label>
+                  <input type="date" value={startDate} onChange={e => setStartDate(e.target.value)} className="w-full text-sm rounded border-slate-300 shadow-sm" />
+                </div>
+                <div>
+                  <label className="text-xs text-slate-500 mb-1 block">Hasta:</label>
+                  <input type="date" value={endDate} onChange={e => setEndDate(e.target.value)} className="w-full text-sm rounded border-slate-300 shadow-sm" />
+                </div>
+              </div>
+            </div>
+
+            {/* Activos */}
+            <div>
+              <h3 className="text-xs font-bold text-slate-500 uppercase tracking-wider mb-3">Activos</h3>
+              <FilterCheckbox label="Todos" isSelected={selectedTickers.includes('ALL')} onClick={() => toggleMultiSelect('ALL', selectedTickers, setSelectedTickers)} />
+              {tickers.map(t => (
+                <FilterCheckbox key={t} label={t} isSelected={selectedTickers.includes(t)} onClick={() => toggleMultiSelect(t, selectedTickers, setSelectedTickers)} />
+              ))}
+            </div>
+
+            {/* Brokers */}
+            {brokers.length > 0 && (
+              <div>
+                <h3 className="text-xs font-bold text-slate-500 uppercase tracking-wider mb-3">Brokers</h3>
+                <FilterCheckbox label="Todos" isSelected={selectedBrokers.includes('ALL')} onClick={() => toggleMultiSelect('ALL', selectedBrokers, setSelectedBrokers)} />
+                {brokers.map(b => (
+                  <FilterCheckbox key={b} label={b} isSelected={selectedBrokers.includes(b)} onClick={() => toggleMultiSelect(b, selectedBrokers, setSelectedBrokers)} />
+                ))}
+              </div>
+            )}
+
+            {/* Cuentas */}
+            {accounts.length > 0 && (
+              <div>
+                <h3 className="text-xs font-bold text-slate-500 uppercase tracking-wider mb-3">Cuentas Broker</h3>
+                <FilterCheckbox label="Todas" isSelected={selectedAccounts.includes('ALL')} onClick={() => toggleMultiSelect('ALL', selectedAccounts, setSelectedAccounts)} />
+                {accounts.map(a => (
+                  <FilterCheckbox key={a} label={a} isSelected={selectedAccounts.includes(a)} onClick={() => toggleMultiSelect(a, selectedAccounts, setSelectedAccounts)} />
+                ))}
+              </div>
+            )}
+
+            {/* Temporalidad Barras */}
+            <div>
+              <h3 className="text-xs font-bold text-slate-500 uppercase tracking-wider mb-3">Temporalidad (Barras)</h3>
+              <div className="flex flex-col gap-2">
+                <label className="flex items-center gap-2 cursor-pointer">
+                  <input type="radio" name="barPeriod" value="DAY" checked={barPeriod === 'DAY'} onChange={() => setBarPeriod('DAY')} className="text-indigo-600 focus:ring-indigo-500" />
+                  <span className="text-sm text-slate-700">Diaria</span>
+                </label>
+                <label className="flex items-center gap-2 cursor-pointer">
+                  <input type="radio" name="barPeriod" value="MONTH" checked={barPeriod === 'MONTH'} onChange={() => setBarPeriod('MONTH')} className="text-indigo-600 focus:ring-indigo-500" />
+                  <span className="text-sm text-slate-700">Mensual</span>
+                </label>
+                <label className="flex items-center gap-2 cursor-pointer">
+                  <input type="radio" name="barPeriod" value="YEAR" checked={barPeriod === 'YEAR'} onChange={() => setBarPeriod('YEAR')} className="text-indigo-600 focus:ring-indigo-500" />
+                  <span className="text-sm text-slate-700">Anual</span>
+                </label>
+              </div>
+            </div>
+
+          </div>
+        </div>
+      )}
+
+      {/* Main Content */}
+      <div className="flex-1 flex flex-col h-full min-w-0">
+        {/* Header & Controls */}
+        <div className="bg-white border-b border-slate-200 p-4 sticky top-0 z-10 shadow-sm flex flex-col md:flex-row gap-4 justify-between items-center">
+          <div className="flex items-center gap-3">
+            <button 
+              onClick={() => setIsSidebarOpen(!isSidebarOpen)}
+              className="p-1.5 text-slate-500 hover:text-slate-700 hover:bg-slate-100 rounded-md border border-slate-200 bg-slate-50"
+              title="Alternar panel de filtros"
+            >
+              <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+                <path strokeLinecap="round" strokeLinejoin="round" d="M4 6h16M4 12h16M4 18h7" />
+              </svg>
+            </button>
+            <div>
+              <h1 className="text-xl font-bold text-slate-800">Histórico de Inversiones</h1>
+              <p className="text-xs text-slate-500">Evolución de valor de mercado y rentabilidad</p>
+            </div>
           </div>
 
           <div className="flex flex-wrap items-center gap-3">
@@ -362,176 +461,119 @@ export default function RvMetrics() {
             </button>
 
             <div className="flex bg-slate-100 p-1 rounded-md border border-slate-200">
-              <button
-                onClick={() => setPrimaryMetric('VALOR')}
-                className={`px-3 py-1 text-xs font-medium rounded ${primaryMetric === 'VALOR' ? 'bg-white shadow text-blue-700' : 'text-slate-600 hover:text-slate-900'}`}
-              >
+              <button onClick={() => setPrimaryMetric('VALOR')} className={`px-3 py-1 text-xs font-medium rounded ${primaryMetric === 'VALOR' ? 'bg-white shadow text-blue-700' : 'text-slate-600 hover:text-slate-900'}`}>
                 Gráfica Valor
               </button>
-              <button
-                onClick={() => setPrimaryMetric('PLUSVALIA')}
-                className={`px-3 py-1 text-xs font-medium rounded ${primaryMetric === 'PLUSVALIA' ? 'bg-white shadow text-blue-700' : 'text-slate-600 hover:text-slate-900'}`}
-              >
+              <button onClick={() => setPrimaryMetric('PLUSVALIA')} className={`px-3 py-1 text-xs font-medium rounded ${primaryMetric === 'PLUSVALIA' ? 'bg-white shadow text-blue-700' : 'text-slate-600 hover:text-slate-900'}`}>
                 Gráfica Plusvalía
               </button>
             </div>
 
             <div className="flex bg-slate-100 p-1 rounded-md border border-slate-200">
-              {['ALL', '5Y', '1Y', 'YTD'].map(tf => (
-                <button
-                  key={tf}
-                  onClick={() => setTimeFilter(tf)}
-                  className={`px-3 py-1 text-xs font-medium rounded ${timeFilter === tf ? 'bg-white shadow text-blue-700' : 'text-slate-600 hover:text-slate-900'}`}
-                >
-                  {tf === 'ALL' ? 'Máx' : tf}
-                </button>
-              ))}
-            </div>
-
-            <div className="flex bg-slate-100 p-1 rounded-md border border-slate-200">
-              <button
-                onClick={() => setUnit('EUR')}
-                className={`px-3 py-1 text-xs font-medium rounded ${unit === 'EUR' ? 'bg-white shadow text-blue-700' : 'text-slate-600 hover:text-slate-900'}`}
-              >
+              <button onClick={() => setUnit('EUR')} className={`px-3 py-1 text-xs font-medium rounded ${unit === 'EUR' ? 'bg-white shadow text-blue-700' : 'text-slate-600 hover:text-slate-900'}`}>
                 Euros (€)
               </button>
-              <button
-                onClick={() => setUnit('PERCENT')}
-                className={`px-3 py-1 text-xs font-medium rounded ${unit === 'PERCENT' ? 'bg-white shadow text-blue-700' : 'text-slate-600 hover:text-slate-900'}`}
-              >
+              <button onClick={() => setUnit('PERCENT')} className={`px-3 py-1 text-xs font-medium rounded ${unit === 'PERCENT' ? 'bg-white shadow text-blue-700' : 'text-slate-600 hover:text-slate-900'}`}>
                 Porcentaje (%)
               </button>
             </div>
           </div>
         </div>
-        
-        {/* Multiselect Tickers */}
-        <div className="flex flex-wrap gap-2 items-center">
-          <span className="text-xs text-slate-500 mr-2 font-medium">Filtro Activos:</span>
-          <button 
-            onClick={() => toggleTicker('ALL')} 
-            className={`px-2 py-1 text-[10px] font-bold rounded-full transition-colors border ${selectedTickers.includes('ALL') ? 'bg-blue-600 text-white border-blue-600 shadow' : 'bg-white text-slate-600 border-slate-300 hover:bg-slate-100'}`}
-          >
-            TODOS
-          </button>
-          {tickers.map(t => (
-            <button 
-              key={t} 
-              onClick={() => toggleTicker(t)} 
-              className={`px-2 py-1 text-[10px] font-bold rounded-full transition-colors border ${selectedTickers.includes(t) ? 'bg-blue-600 text-white border-blue-600 shadow' : 'bg-white text-slate-600 border-slate-300 hover:bg-slate-100'}`}
-            >
-              {t}
-            </button>
-          ))}
-        </div>
-      </div>
 
-      {/* Main Content */}
-      <div className="p-4 flex-1 flex flex-col gap-6">
-        
-        {/* KPI Row */}
-        <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
-          <div className="bg-white p-4 rounded-xl border border-slate-200 shadow-sm">
-            <p className="text-xs text-slate-500 font-medium mb-1">Capital Invertido Actual</p>
-            <p className="text-xl font-bold text-slate-800">
-              {summary.currentCapital?.toLocaleString('es-ES', { style: 'currency', currency: 'EUR' })}
-            </p>
-          </div>
-          <div className="bg-white p-4 rounded-xl border border-slate-200 shadow-sm">
-            <p className="text-xs text-slate-500 font-medium mb-1">Valor de Mercado Actual</p>
-            <p className="text-xl font-bold text-slate-800">
-              {summary.currentValue?.toLocaleString('es-ES', { style: 'currency', currency: 'EUR' })}
-            </p>
-          </div>
-          <div className="bg-white p-4 rounded-xl border border-slate-200 shadow-sm">
-            <p className="text-xs text-slate-500 font-medium mb-1">Beneficio Total (Latente + Realizado)</p>
-            <p className={`text-xl font-bold ${summary.totalGains >= 0 ? 'text-green-600' : 'text-red-600'}`}>
-              {summary.totalGains?.toLocaleString('es-ES', { style: 'currency', currency: 'EUR', signDisplay: 'always' })}
-            </p>
-          </div>
-          <div className="bg-white p-4 rounded-xl border border-slate-200 shadow-sm">
-            <p className="text-xs text-slate-500 font-medium mb-1">Rentabilidad Total (ROI)</p>
-            <p className={`text-xl font-bold ${summary.roiPct >= 0 ? 'text-green-600' : 'text-red-600'}`}>
-              {summary.roiPct > 0 ? '+' : ''}{summary.roiPct?.toFixed(2)} %
-            </p>
-          </div>
-        </div>
-
-        {/* Line Chart */}
-        <div className="bg-white p-4 rounded-xl border border-slate-200 shadow-sm flex-1 min-h-[350px]">
-          <h2 className="text-sm font-bold text-slate-700 mb-1">
-            {primaryMetric === 'VALOR' ? 'Evolución de Valor de Mercado' : 'Evolución de la Plusvalía Total'}
-          </h2>
-          <p className="text-[10px] text-slate-400 mb-4">(Haz click en los elementos de la leyenda para ocultarlos o mostrarlos)</p>
-          <ResponsiveContainer width="100%" height={300}>
-            <LineChart data={lineData} margin={{ top: 5, right: 20, left: 20, bottom: 5 }}>
-              <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="#e2e8f0" />
-              <XAxis 
-                dataKey="date" 
-                tick={{ fontSize: 10, fill: '#64748b' }} 
-                tickFormatter={(val) => {
-                  const d = new Date(val);
-                  return `${d.getMonth()+1}/${d.getFullYear().toString().slice(2)}`;
-                }}
-              />
-              <YAxis tick={{ fontSize: 10, fill: '#64748b' }} tickFormatter={formatYAxis} />
-              <Tooltip formatter={formatTooltip} labelStyle={{ color: '#0f172a', fontWeight: 'bold' }} />
-              <Legend onClick={handleLegendClick} wrapperStyle={{ fontSize: '11px', cursor: 'pointer' }} />
-              
-              {primaryMetric === 'VALOR' && (
-                <>
-                  <Line type="monotone" name="Capital Invertido" dataKey="capitalInvertido" stroke="#94a3b8" strokeWidth={2} dot={false} hide={hiddenLines['capitalInvertido']} />
-                  <Line type="monotone" name="Valor de Mercado" dataKey="valorMercado" stroke="#3b82f6" strokeWidth={2} dot={false} hide={hiddenLines['valorMercado']} />
-                </>
-              )}
-
-              {primaryMetric === 'PLUSVALIA' && unit === 'EUR' && (
-                <Line type="monotone" name="Beneficio Total (€)" dataKey="beneficioTotal" stroke="#10b981" strokeWidth={2} dot={false} hide={hiddenLines['beneficioTotal']} />
-              )}
-
-              {primaryMetric === 'PLUSVALIA' && unit === 'PERCENT' && (
-                <Line type="monotone" name="Rentabilidad Acumulada (%)" dataKey="rentabilidadPct" stroke="#10b981" strokeWidth={2} dot={false} hide={hiddenLines['rentabilidadPct']} />
-              )}
-            </LineChart>
-          </ResponsiveContainer>
-        </div>
-
-        {/* Bar Chart */}
-        <div className="bg-white p-4 rounded-xl border border-slate-200 shadow-sm flex-1 min-h-[350px]">
-          <div className="flex justify-between items-center mb-4">
-            <h2 className="text-sm font-bold text-slate-700">Rentabilidad (Latente + Realizada) por Período</h2>
-            <div className="flex bg-slate-100 p-1 rounded-md border border-slate-200">
-              <button
-                onClick={() => setBarPeriod('MONTH')}
-                className={`px-3 py-1 text-xs font-medium rounded ${barPeriod === 'MONTH' ? 'bg-white shadow text-blue-700' : 'text-slate-600 hover:text-slate-900'}`}
-              >
-                Mensual
-              </button>
-              <button
-                onClick={() => setBarPeriod('YEAR')}
-                className={`px-3 py-1 text-xs font-medium rounded ${barPeriod === 'YEAR' ? 'bg-white shadow text-blue-700' : 'text-slate-600 hover:text-slate-900'}`}
-              >
-                Anual
-              </button>
+        {/* Scrollable Content */}
+        <div className="p-4 flex-1 flex flex-col gap-6 overflow-y-auto">
+          
+          {/* KPI Row */}
+          <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
+            <div className="bg-white p-4 rounded-xl border border-slate-200 shadow-sm">
+              <p className="text-xs text-slate-500 font-medium mb-1">Capital Invertido Actual</p>
+              <p className="text-xl font-bold text-slate-800">
+                {summary.currentCapital?.toLocaleString('es-ES', { style: 'currency', currency: 'EUR' })}
+              </p>
+            </div>
+            <div className="bg-white p-4 rounded-xl border border-slate-200 shadow-sm">
+              <p className="text-xs text-slate-500 font-medium mb-1">Valor de Mercado Actual</p>
+              <p className="text-xl font-bold text-slate-800">
+                {summary.currentValue?.toLocaleString('es-ES', { style: 'currency', currency: 'EUR' })}
+              </p>
+            </div>
+            <div className="bg-white p-4 rounded-xl border border-slate-200 shadow-sm">
+              <p className="text-xs text-slate-500 font-medium mb-1">Beneficio Total (Latente + Realizado)</p>
+              <p className={`text-xl font-bold ${summary.totalGains >= 0 ? 'text-green-600' : 'text-red-600'}`}>
+                {summary.totalGains?.toLocaleString('es-ES', { style: 'currency', currency: 'EUR', signDisplay: 'always' })}
+              </p>
+            </div>
+            <div className="bg-white p-4 rounded-xl border border-slate-200 shadow-sm">
+              <p className="text-xs text-slate-500 font-medium mb-1">Rentabilidad Total (ROI)</p>
+              <p className={`text-xl font-bold ${summary.roiPct >= 0 ? 'text-green-600' : 'text-red-600'}`}>
+                {summary.roiPct > 0 ? '+' : ''}{summary.roiPct?.toFixed(2)} %
+              </p>
             </div>
           </div>
-          
-          <ResponsiveContainer width="100%" height={300}>
-            <BarChart data={barData} margin={{ top: 5, right: 20, left: 20, bottom: 5 }}>
-              <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="#e2e8f0" />
-              <XAxis dataKey="period" tick={{ fontSize: 10, fill: '#64748b' }} />
-              <YAxis tick={{ fontSize: 10, fill: '#64748b' }} tickFormatter={formatYAxis} />
-              <Tooltip formatter={formatTooltip} cursor={{ fill: '#f1f5f9' }} />
-              <ReferenceLine y={0} stroke="#94a3b8" />
-              {unit === 'EUR' ? (
-                <Bar name="Beneficio Periodo (€)" dataKey="gains" fill="#3b82f6" radius={[4, 4, 0, 0]} />
-              ) : (
-                <Bar name="Rentabilidad Periodo (%)" dataKey="gainsPct" fill="#3b82f6" radius={[4, 4, 0, 0]} />
-              )}
-            </BarChart>
-          </ResponsiveContainer>
-        </div>
 
+          {/* Line Chart */}
+          <div className="bg-white p-4 rounded-xl border border-slate-200 shadow-sm min-h-[350px]">
+            <h2 className="text-sm font-bold text-slate-700 mb-1">
+              {primaryMetric === 'VALOR' ? 'Evolución de Valor de Mercado' : 'Evolución de la Plusvalía Total'}
+            </h2>
+            <p className="text-[10px] text-slate-400 mb-4">(Haz click en los elementos de la leyenda para ocultarlos o mostrarlos)</p>
+            <div className="h-[300px]">
+              <ResponsiveContainer width="100%" height="100%">
+                <LineChart data={lineData} margin={{ top: 5, right: 20, left: 20, bottom: 5 }}>
+                  <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="#e2e8f0" />
+                  <XAxis 
+                    dataKey="date" 
+                    tick={{ fontSize: 10, fill: '#64748b' }} 
+                    tickFormatter={(val) => {
+                      const d = new Date(val);
+                      return `${d.getMonth()+1}/${d.getFullYear().toString().slice(2)}`;
+                    }}
+                  />
+                  <YAxis tick={{ fontSize: 10, fill: '#64748b' }} tickFormatter={formatYAxis} />
+                  <Tooltip formatter={formatTooltip} labelStyle={{ color: '#0f172a', fontWeight: 'bold' }} />
+                  <Legend onClick={handleLegendClick} wrapperStyle={{ fontSize: '11px', cursor: 'pointer' }} />
+                  
+                  {primaryMetric === 'VALOR' && (
+                    <>
+                      <Line type="monotone" name="Capital Invertido" dataKey="capitalInvertido" stroke="#94a3b8" strokeWidth={2} dot={false} hide={hiddenLines['capitalInvertido']} />
+                      <Line type="monotone" name="Valor de Mercado" dataKey="valorMercado" stroke="#3b82f6" strokeWidth={2} dot={false} hide={hiddenLines['valorMercado']} />
+                    </>
+                  )}
+
+                  {primaryMetric === 'PLUSVALIA' && unit === 'EUR' && (
+                    <Line type="monotone" name="Beneficio Total (€)" dataKey="beneficioTotal" stroke="#10b981" strokeWidth={2} dot={false} hide={hiddenLines['beneficioTotal']} />
+                  )}
+
+                  {primaryMetric === 'PLUSVALIA' && unit === 'PERCENT' && (
+                    <Line type="monotone" name="Rentabilidad Acumulada (%)" dataKey="rentabilidadPct" stroke="#10b981" strokeWidth={2} dot={false} hide={hiddenLines['rentabilidadPct']} />
+                  )}
+                </LineChart>
+              </ResponsiveContainer>
+            </div>
+          </div>
+
+          {/* Bar Chart */}
+          <div className="bg-white p-4 rounded-xl border border-slate-200 shadow-sm min-h-[350px]">
+            <h2 className="text-sm font-bold text-slate-700 mb-4">Rentabilidad (Latente + Realizada) por Período</h2>
+            <div className="h-[300px]">
+              <ResponsiveContainer width="100%" height="100%">
+                <BarChart data={barData} margin={{ top: 5, right: 20, left: 20, bottom: 5 }}>
+                  <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="#e2e8f0" />
+                  <XAxis dataKey="period" tick={{ fontSize: 10, fill: '#64748b' }} />
+                  <YAxis tick={{ fontSize: 10, fill: '#64748b' }} tickFormatter={formatYAxis} />
+                  <Tooltip formatter={formatTooltip} cursor={{ fill: '#f1f5f9' }} />
+                  <ReferenceLine y={0} stroke="#94a3b8" />
+                  {unit === 'EUR' ? (
+                    <Bar name="Beneficio Periodo (€)" dataKey="gains" fill="#3b82f6" radius={[4, 4, 0, 0]} />
+                  ) : (
+                    <Bar name="Rentabilidad Periodo (%)" dataKey="gainsPct" fill="#3b82f6" radius={[4, 4, 0, 0]} />
+                  )}
+                </BarChart>
+              </ResponsiveContainer>
+            </div>
+          </div>
+
+        </div>
       </div>
     </div>
   );
