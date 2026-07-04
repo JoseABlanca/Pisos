@@ -14,6 +14,7 @@ export default function RvMetrics() {
   const [history, setHistory] = useState({});
   const [loading, setLoading] = useState(true);
   const [isRefreshing, setIsRefreshing] = useState(false);
+  const [config, setConfig] = useState({ exchangeRates: { USD: 1.08, GBP: 0.85, CHF: 0.95 } });
 
   // Layout
   const [isSidebarOpen, setIsSidebarOpen] = useState(true);
@@ -55,7 +56,11 @@ export default function RvMetrics() {
             hMap[data.assetId][data.date] = data.close;
           });
           setHistory(hMap);
-          setLoading(false);
+          
+          const unsubConfig = onSnapshot(doc(db, 'rv_config', user.uid), (snapConf) => {
+            if (snapConf.exists()) setConfig(snapConf.data());
+            setLoading(false);
+          });
         });
       });
     });
@@ -220,14 +225,40 @@ export default function RvMetrics() {
       let capitalInvertido = 0;
       let valorMercado = 0;
 
+      // Calculate exchange rates for this day
+      const ratesForDay = { EUR: 1.0, USD: 1.08, GBP: 0.85, CHF: 0.95, JPY: 130.0, ...(config?.exchangeRates || {}) };
+      Object.values(assets).forEach(a => {
+         if (a.type && a.type.toLowerCase() === 'divisa') {
+            const h = history[a.id];
+            let price = h && h[dateStr] !== undefined ? h[dateStr] : parseFloat(a.currentPrice) || 0;
+            if (price > 0) {
+              const id = String(a.id).toUpperCase();
+              const name = String(a.name).toUpperCase();
+              if (id === 'USD' || id === 'GBP' || id === 'CHF' || id === 'JPY') ratesForDay[id] = price;
+              else if (id.includes('EURUSD') || name.includes('EUR/USD') || name.includes('EURUSD')) ratesForDay['USD'] = price;
+              else if (id.includes('EURGBP') || name.includes('EUR/GBP') || name.includes('EURGBP')) ratesForDay['GBP'] = price;
+              else if (id.includes('EURCHF') || name.includes('EUR/CHF') || name.includes('EURCHF')) ratesForDay['CHF'] = price;
+              else if (id.includes('EURJPY') || name.includes('EUR/JPY') || name.includes('EURJPY')) ratesForDay['JPY'] = price;
+              else if (id.startsWith('EUR') && id.length >= 6) ratesForDay[id.substring(3, 6)] = price;
+            }
+         }
+      });
+
       Object.keys(holdings).forEach(t => {
         if (holdings[t].shares > 0) {
           capitalInvertido += (holdings[t].shares * holdings[t].avgCost);
           if (history[t] && history[t][dateStr] !== undefined) {
             lastKnownPrices[t] = history[t][dateStr];
           }
-          const price = lastKnownPrices[t] || holdings[t].avgCost;
-          valorMercado += (holdings[t].shares * price);
+          
+          let priceEUR = holdings[t].avgCost; // default to cost if no price
+          if (lastKnownPrices[t] !== undefined) {
+            const curr = assets[t]?.currency || 'EUR';
+            const rate = ratesForDay[curr] || 1.0;
+            priceEUR = lastKnownPrices[t] / rate;
+          }
+          
+          valorMercado += (holdings[t].shares * priceEUR);
         }
       });
 
