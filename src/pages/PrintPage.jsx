@@ -274,7 +274,8 @@ const templatesByCategory = {
   contabilidad_libros: [
     { id: 'diario', name: 'Diario de Movimientos', icon: BookOpen },
     { id: 'mayor', name: 'Libro Mayor', icon: FileText },
-    { id: 'sumas_saldos', name: 'Sumas y Saldos', icon: Columns }
+    { id: 'sumas_saldos', name: 'Sumas y Saldos', icon: Columns },
+    { id: 'plan_contable', name: 'Plan Contable', icon: BookOpen }
   ],
   contabilidad_anuales: [
     { id: 'balance_situacion', name: 'Balance de Situación', icon: FileSpreadsheet },
@@ -285,7 +286,8 @@ const templatesByCategory = {
     { id: 'activos', name: 'Inventario de Activos', icon: Building2 },
     { id: 'alquileres', name: 'Contratos de Alquiler', icon: Key },
     { id: 'clientes', name: 'Fichero de Clientes', icon: Users },
-    { id: 'extracto_propietarios', name: 'Extracto de Propietarios', icon: UserCircle }
+    { id: 'extracto_propietarios', name: 'Extracto de Propietarios', icon: UserCircle },
+    { id: 'metricas_inversion', name: 'Métricas de Inversión', icon: TrendingUp }
   ],
   renta_variable: [
     { id: 'rv_portfolio', name: 'Cartera Consolidada', icon: TrendingUp },
@@ -543,7 +545,7 @@ export default function PrintPage() {
     realReturn: 'Ganancia neta + Rendimiento neto'
   };
 
-  const ALL_COLUMNS = {
+  const DEFAULT_ALL_COLUMNS = {
     activos: [
       { id: 'id', label: 'ID' },
       { id: 'name', label: 'Nombre Finca' },
@@ -611,6 +613,23 @@ export default function PrintPage() {
       { id: 'netGain', label: 'Ganancia Neta' },
       { id: 'realReturn', label: 'Ganancia Real + Rend. Neto' },
     ],
+    metricas_inversion: [
+      { id: 'property', label: 'Inmueble' },
+      { id: 'acquisitionPrice', label: 'Precio Adquisición' },
+      { id: 'investedCapital', label: 'Inversión Inicial' },
+      { id: 'ingresosAnuales', label: 'Ingresos Anuales' },
+      { id: 'gastosAnuales', label: 'Gastos Anuales' },
+      { id: 'beneficioNeto', label: 'Beneficio Neto' },
+      { id: 'roi', label: 'ROI (%)' },
+      { id: 'roe', label: 'ROE (%)' },
+      { id: 'cashOnCash', label: 'Cash on Cash (%)' },
+      { id: 'grossYield', label: 'Rent. Bruta (%)' },
+      { id: 'netYield', label: 'Rent. Neta (%)' }
+    ],
+    plan_contable: [
+      { id: 'code', label: 'Código' },
+      { id: 'description', label: 'Descripción' }
+    ]
   };
 
   const DEFAULT_VISIBLE_COLUMNS = {
@@ -623,6 +642,8 @@ export default function PrintPage() {
     alquileres: new Set(['reference','property','tenants','startDate','endDate','rentAmount','expenses','netYield','pctAlquiler','ingresosExtracto','gastosExtracto','rentaNetaExtracto','pctIngresos','status']),
     clientes: new Set(['id','name','dni','phone','email','status','propertyName','rentalRef']),
     extracto_propietarios: new Set(['name','property','percentage','acquisitionPrice','investedCapital','adquisitionExpenses','acqPlusExpenses','capitalReforma','currentValue','ingresosExtracto','gastosExtracto','rendimientoNetoExtracto','mortgagePending','gain','netGain','realReturn']),
+    metricas_inversion: new Set(['property','acquisitionPrice','investedCapital','ingresosAnuales','gastosAnuales','beneficioNeto','roi','roe','cashOnCash','grossYield','netYield']),
+    plan_contable: new Set(['code','description'])
   };
   const [visibleColumns, setVisibleColumns] = useState(() => {
     try {
@@ -634,8 +655,33 @@ export default function PrintPage() {
         );
       }
     } catch (e) {}
-    return defaultVisibleColumns;
+    return DEFAULT_VISIBLE_COLUMNS;
   });
+
+  const [columnOrder, setColumnOrder] = useState(() => {
+    try {
+      const saved = localStorage.getItem('print_columnOrder');
+      if (saved) return JSON.parse(saved);
+    } catch (e) {}
+    return {};
+  });
+
+  const ALL_COLUMNS = useMemo(() => {
+    const res = {};
+    for (const [tpl, cols] of Object.entries(DEFAULT_ALL_COLUMNS)) {
+      if (columnOrder[tpl]) {
+        const orderMap = new Map(columnOrder[tpl].map((id, i) => [id, i]));
+        res[tpl] = [...cols].sort((a, b) => {
+          const idxA = orderMap.has(a.id) ? orderMap.get(a.id) : 9999;
+          const idxB = orderMap.has(b.id) ? orderMap.get(b.id) : 9999;
+          return idxA - idxB;
+        });
+      } else {
+        res[tpl] = cols;
+      }
+    }
+    return res;
+  }, [columnOrder]);
 
   const [rentPeriod, setRentPeriod] = useState('mes'); // 'mes' or 'anual'
   const [statusFilterAlquileres, setStatusFilterAlquileres] = useState('todos'); // 'todos','activo','inactivo'
@@ -5519,38 +5565,33 @@ export default function PrintPage() {
       {/* Main Preview Container */}
       <div className="flex-1 flex flex-col bg-[#526075]/20 border border-[#808080] win-bevel min-w-0 relative h-full">
         {/* Top Control Bar */}
-        <div className="bg-[#f0f0f0] border-b border-[#808080] p-2 flex justify-between items-center shrink-0 no-print gap-4">
+        <div className="bg-[#f0f0f0] border-b border-[#808080] p-2 flex justify-between items-center shrink-0 no-print gap-4 relative">
           <div className="flex items-center gap-2">
             <button
               onClick={() => setShowLeftPanel(prev => !prev)}
-              className={`btn-classic px-2.5 h-7 flex items-center gap-1.5 text-[11px] ${
+              className={`btn-classic px-2.5 h-7 flex items-center justify-center text-[11px] ${
                 showLeftPanel ? 'bg-slate-200 shadow-inner' : 'bg-slate-50'
               }`}
               title="Mostrar/Ocultar Plantillas"
             >
-              <LayoutGrid className="w-3.5 h-3.5 text-slate-750" />
-              <span className="font-semibold text-slate-800">
-                {showLeftPanel ? 'Ocultar Plantillas' : 'Mostrar Plantillas'}
-              </span>
+              <LayoutGrid className="w-4 h-4 text-slate-750" />
             </button>
-            <div className="text-[11px] font-bold text-slate-700 uppercase flex items-center gap-2">
-              <span>Vista Previa de Impresión</span>
-              {loading && <RefreshCw className="w-3.5 h-3.5 text-slate-500 animate-spin" />}
-            </div>
+          </div>
+
+          <div className="absolute left-1/2 -translate-x-1/2 text-[11px] font-bold text-slate-700 uppercase flex items-center gap-2">
+            <span>Vista Previa de Impresión</span>
+            {loading && <RefreshCw className="w-3.5 h-3.5 text-slate-500 animate-spin" />}
           </div>
 
           <div className="flex items-center gap-2">
             <button
               onClick={() => setShowRightPanel(prev => !prev)}
-              className={`btn-classic px-2.5 h-7 flex items-center gap-1.5 text-[11px] ${
+              className={`btn-classic px-2.5 h-7 flex items-center justify-center text-[11px] ${
                 showRightPanel ? 'bg-slate-200 shadow-inner' : 'bg-slate-50'
               }`}
               title="Mostrar/Ocultar Filtros"
             >
-              <Sliders className="w-3.5 h-3.5 text-slate-750" />
-              <span className="font-semibold text-slate-800">
-                {showRightPanel ? 'Ocultar Filtros' : 'Mostrar Filtros'}
-              </span>
+              <Sliders className="w-4 h-4 text-slate-750" />
             </button>
             <button
               onClick={handlePrint}
@@ -5577,8 +5618,44 @@ export default function PrintPage() {
       {/* Right panel - Filters list */}
       {showRightPanel && (
         <div className="w-64 bg-[#f0f0f0] border border-[#808080] shrink-0 p-2 flex flex-col gap-3 win-bevel no-print overflow-y-auto max-h-full">
-          <div className="bg-[#cbd5e0] font-bold p-1.5 uppercase text-[10px] border-b border-[#a0a0a0] text-slate-700">
-            Filtros Disponibles
+          <div className="bg-[#cbd5e0] font-bold p-1.5 uppercase text-[10px] border-b border-[#a0a0a0] text-slate-700 flex justify-between items-center">
+            <span>Filtros Disponibles</span>
+            <div className="flex items-center gap-1.5">
+              <button 
+                onClick={() => {
+                  setIsDatesCollapsed(false);
+                  setIsFiltersInmobCollapsed(false);
+                  setIsSortCollapsed(false);
+                  setIsColsCollapsed(false);
+                  setIsOptsAlquilerCollapsed(false);
+                  setIsOptsClientesCollapsed(false);
+                  setIsOptsPropietariosCollapsed(false);
+                  setIsOptsContabilidadCollapsed(false);
+                  setIsProfundidadCollapsed(false);
+                }}
+                className="text-blue-700 hover:text-blue-900 lowercase text-[9px] font-normal cursor-pointer"
+                title="Expandir todos los filtros"
+              >
+                [expandir]
+              </button>
+              <button 
+                onClick={() => {
+                  setIsDatesCollapsed(true);
+                  setIsFiltersInmobCollapsed(true);
+                  setIsSortCollapsed(true);
+                  setIsColsCollapsed(true);
+                  setIsOptsAlquilerCollapsed(true);
+                  setIsOptsClientesCollapsed(true);
+                  setIsOptsPropietariosCollapsed(true);
+                  setIsOptsContabilidadCollapsed(true);
+                  setIsProfundidadCollapsed(true);
+                }}
+                className="text-blue-700 hover:text-blue-900 lowercase text-[9px] font-normal cursor-pointer"
+                title="Contraer todos los filtros"
+              >
+                [contraer]
+              </button>
+            </div>
           </div>
 
           {/* Timeline Period Selection inside Right Panel */}
@@ -6095,7 +6172,7 @@ export default function PrintPage() {
                         />
                         <span>{col.label}</span>
                         {COLUMN_TOOLTIPS[col.id] && (
-                          <div className="absolute left-full ml-2 top-1/2 -translate-y-1/2 hidden group-hover:block z-50 bg-slate-800 text-white text-[10px] px-2 py-1 rounded w-max opacity-0 group-hover:opacity-100 transition-opacity duration-[30ms] delay-[30ms]">
+                          <div className="absolute top-full left-0 mt-1 hidden group-hover:block z-[9999] bg-slate-800 text-white text-[10px] px-2 py-1 rounded w-max opacity-0 group-hover:opacity-100 transition-opacity duration-[30ms] delay-[30ms]">
                             {COLUMN_TOOLTIPS[col.id]}
                           </div>
                         )}
