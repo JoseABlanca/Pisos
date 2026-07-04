@@ -501,8 +501,20 @@ export default function PrintPage() {
   // Paper / layout configuration
   const [paperSize, setPaperSize] = useState(() => localStorage.getItem('print_paperSize') || 'A4');
   const [pageOrientation, setPageOrientation] = useState(() => localStorage.getItem('print_pageOrientation') || 'portrait');
+  const [printZoom, setPrintZoom] = useState(() => parseFloat(localStorage.getItem('print_printZoom')) || 1.0);
 
   // Compute page scale factor when paper size / orientation / panels change
+  useEffect(() => {
+    localStorage.setItem('print_paperSize', paperSize);
+  }, [paperSize]);
+  
+  useEffect(() => {
+    localStorage.setItem('print_pageOrientation', pageOrientation);
+  }, [pageOrientation]);
+
+  useEffect(() => {
+    localStorage.setItem('print_printZoom', printZoom);
+  }, [printZoom]);
   useEffect(() => {
     const computeScale = () => {
       const el = previewAreaRef.current;
@@ -5813,7 +5825,17 @@ export default function PrintPage() {
               background-color: white;
               color: black;
               position: relative;
+              --zoom: ${printZoom};
             }
+
+            .page-sheet .text-\\[8px\\] { font-size: calc(8px * var(--zoom)) !important; }
+            .page-sheet .text-\\[8\\.5px\\] { font-size: calc(8.5px * var(--zoom)) !important; }
+            .page-sheet .text-\\[9px\\] { font-size: calc(9px * var(--zoom)) !important; }
+            .page-sheet .text-\\[10px\\] { font-size: calc(10px * var(--zoom)) !important; }
+            .page-sheet .text-\\[11px\\] { font-size: calc(11px * var(--zoom)) !important; }
+            .page-sheet .text-\\[12px\\] { font-size: calc(12px * var(--zoom)) !important; }
+            .page-sheet .text-xs { font-size: calc(12px * var(--zoom)) !important; }
+            .page-sheet .text-sm { font-size: calc(14px * var(--zoom)) !important; }
 
             @media screen {
               .page-sheet {
@@ -5929,19 +5951,36 @@ export default function PrintPage() {
             <div className="flex flex-col gap-1">
               <span className="text-[9px] font-bold text-slate-400 uppercase">Orientación</span>
               <div className="grid grid-cols-2 gap-1">
-                {[{id: 'portrait', label: '▯ Vertical'}, {id: 'landscape', label: '▭ Horizontal'}].map(opt => (
+                {[{id: 'portrait', label: '↕ Vertical'}, {id: 'landscape', label: '↔ Horizontal'}].map(opt => (
                   <button
                     key={opt.id}
                     onClick={() => setPageOrientation(opt.id)}
                     className={`text-[9px] text-center py-1.5 border transition-all rounded font-bold ${
                       pageOrientation === opt.id
-                        ? 'text-blue-700 font-bold bg-[#c0c0c0] border-slate-400 shadow-inner'
+                        ? 'text-blue-700 bg-[#c0c0c0] border-slate-400 shadow-inner'
                         : 'text-slate-800 bg-slate-50 border-slate-200 hover:text-blue-700'
                     }`}
                   >
                     {opt.label}
                   </button>
                 ))}
+              </div>
+            </div>
+
+            {/* Zoom / Font Size */}
+            <div className="flex flex-col gap-1">
+              <span className="text-[9px] font-bold text-slate-400 uppercase">Tamaño de Fuente</span>
+              <div className="flex items-center gap-2">
+                <input 
+                  type="range" 
+                  min="0.6" 
+                  max="1.5" 
+                  step="0.05" 
+                  value={printZoom} 
+                  onChange={(e) => setPrintZoom(parseFloat(e.target.value))}
+                  className="flex-1 accent-blue-600 cursor-pointer h-1.5 bg-slate-200 rounded-lg appearance-none"
+                />
+                <span className="text-[10px] font-bold text-slate-600 w-8 text-right">{Math.round(printZoom * 100)}%</span>
               </div>
             </div>
           </div>
