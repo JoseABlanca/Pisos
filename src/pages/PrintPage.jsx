@@ -3975,6 +3975,19 @@ export default function PrintPage() {
       const filteredProperties = properties.filter(p => {
         const activePropFilters = selectedFilterProperties.metricas_inversion || [];
         if (activePropFilters.length > 0 && !activePropFilters.includes(p.id)) return false;
+        
+        const activeOwnerFilters = selectedFilterOwners.metricas_inversion || [];
+        if (activeOwnerFilters.length > 0) {
+          const pOwners = Array.isArray(p.owners) ? p.owners.map(o => o.name) : [];
+          if (!activeOwnerFilters.some(owner => pOwners.includes(owner))) return false;
+        }
+
+        const activeRentFilters = selectedFilterRentals.metricas_inversion || [];
+        if (activeRentFilters.length > 0) {
+          const pRentals = rentals.filter(r => r.propertyId === p.id).map(r => r.reference);
+          if (!activeRentFilters.some(ref => pRentals.includes(ref))) return false;
+        }
+
         if (groupAccessoryAssets && accessoryIds.has(p.id)) return false;
         return true;
       });
@@ -4014,6 +4027,8 @@ export default function PrintPage() {
                   const grossYield = propAcquisitionPrice > 0 ? (ingresosAnuales / propAcquisitionPrice) * 100 : 0;
                   const netYield = propAcquisitionPrice > 0 ? (beneficioNeto / propAcquisitionPrice) * 100 : 0;
 
+                  const orderedCols = ALL_COLUMNS['metricas_inversion'].filter(c => cv(c.id));
+
                   return (
                     <div key={idx} className="mb-2 break-inside-avoid">
                       <div className="bg-slate-100 p-1 border border-slate-300 font-bold text-slate-800 flex justify-between text-[9px] mb-1.5 uppercase">
@@ -4022,32 +4037,38 @@ export default function PrintPage() {
                       <table className="w-full text-[8.5px] border-collapse">
                         <thead>
                           <tr className="border-b border-slate-300 font-semibold text-slate-600 bg-slate-50">
-                            {cv('property') && <th className="py-0.5 px-1 text-left">Inmueble</th>}
-                            {cv('acquisitionPrice') && <th className="py-0.5 px-1 text-right">Precio Adq.</th>}
-                            {cv('investedCapital') && <th className="py-0.5 px-1 text-right">Inv. Inicial</th>}
-                            {cv('ingresosAnuales') && <th className="py-0.5 px-1 text-right">Ingresos</th>}
-                            {cv('gastosAnuales') && <th className="py-0.5 px-1 text-right">Gastos</th>}
-                            {cv('beneficioNeto') && <th className="py-0.5 px-1 text-right">Bº Neto</th>}
-                            {cv('roi') && <th className="py-0.5 px-1 text-right">ROI</th>}
-                            {cv('roe') && <th className="py-0.5 px-1 text-right">ROE</th>}
-                            {cv('cashOnCash') && <th className="py-0.5 px-1 text-right">Cash on Cash</th>}
-                            {cv('grossYield') && <th className="py-0.5 px-1 text-right">R. Bruta</th>}
-                            {cv('netYield') && <th className="py-0.5 px-1 text-right">R. Neta</th>}
+                            {orderedCols.map(c => {
+                              if (c.id === 'property') return <th key={c.id} className="py-0.5 px-1 text-left">Inmueble</th>;
+                              if (c.id === 'acquisitionPrice') return <th key={c.id} className="py-0.5 px-1 text-right">Precio Adq.</th>;
+                              if (c.id === 'investedCapital') return <th key={c.id} className="py-0.5 px-1 text-right">Inv. Inicial</th>;
+                              if (c.id === 'ingresosAnuales') return <th key={c.id} className="py-0.5 px-1 text-right">Ingresos</th>;
+                              if (c.id === 'gastosAnuales') return <th key={c.id} className="py-0.5 px-1 text-right">Gastos</th>;
+                              if (c.id === 'beneficioNeto') return <th key={c.id} className="py-0.5 px-1 text-right">Bº Neto</th>;
+                              if (c.id === 'roi') return <th key={c.id} className="py-0.5 px-1 text-right">ROI</th>;
+                              if (c.id === 'roe') return <th key={c.id} className="py-0.5 px-1 text-right">ROE</th>;
+                              if (c.id === 'cashOnCash') return <th key={c.id} className="py-0.5 px-1 text-right">Cash on Cash</th>;
+                              if (c.id === 'grossYield') return <th key={c.id} className="py-0.5 px-1 text-right">R. Bruta</th>;
+                              if (c.id === 'netYield') return <th key={c.id} className="py-0.5 px-1 text-right">R. Neta</th>;
+                              return null;
+                            })}
                           </tr>
                         </thead>
                         <tbody>
                           <tr className="border-b border-slate-100">
-                            {cv('property') && <td className="py-0.5 px-1 text-left">{p.name}</td>}
-                            {cv('acquisitionPrice') && <td className="py-0.5 px-1 text-right">{formatCurrency(propAcquisitionPrice)}</td>}
-                            {cv('investedCapital') && <td className="py-0.5 px-1 text-right">{formatCurrency(propInvestedCapital)}</td>}
-                            {cv('ingresosAnuales') && <td className="py-0.5 px-1 text-right">{formatCurrency(ingresosAnuales)}</td>}
-                            {cv('gastosAnuales') && <td className="py-0.5 px-1 text-right">{formatCurrency(gastosAnuales)}</td>}
-                            {cv('beneficioNeto') && <td className="py-0.5 px-1 text-right">{formatCurrency(beneficioNeto)}</td>}
-                            {cv('roi') && <td className="py-0.5 px-1 text-right">{roi.toFixed(2)}%</td>}
-                            {cv('roe') && <td className="py-0.5 px-1 text-right">{roe.toFixed(2)}%</td>}
-                            {cv('cashOnCash') && <td className="py-0.5 px-1 text-right">{cashOnCash.toFixed(2)}%</td>}
-                            {cv('grossYield') && <td className="py-0.5 px-1 text-right">{grossYield.toFixed(2)}%</td>}
-                            {cv('netYield') && <td className="py-0.5 px-1 text-right">{netYield.toFixed(2)}%</td>}
+                            {orderedCols.map(c => {
+                              if (c.id === 'property') return <td key={c.id} className="py-0.5 px-1 text-left">{p.name}</td>;
+                              if (c.id === 'acquisitionPrice') return <td key={c.id} className="py-0.5 px-1 text-right">{formatCurrency(propAcquisitionPrice)}</td>;
+                              if (c.id === 'investedCapital') return <td key={c.id} className="py-0.5 px-1 text-right">{formatCurrency(propInvestedCapital)}</td>;
+                              if (c.id === 'ingresosAnuales') return <td key={c.id} className="py-0.5 px-1 text-right">{formatCurrency(ingresosAnuales)}</td>;
+                              if (c.id === 'gastosAnuales') return <td key={c.id} className="py-0.5 px-1 text-right">{formatCurrency(gastosAnuales)}</td>;
+                              if (c.id === 'beneficioNeto') return <td key={c.id} className="py-0.5 px-1 text-right">{formatCurrency(beneficioNeto)}</td>;
+                              if (c.id === 'roi') return <td key={c.id} className="py-0.5 px-1 text-right">{roi.toFixed(2)}%</td>;
+                              if (c.id === 'roe') return <td key={c.id} className="py-0.5 px-1 text-right">{roe.toFixed(2)}%</td>;
+                              if (c.id === 'cashOnCash') return <td key={c.id} className="py-0.5 px-1 text-right">{cashOnCash.toFixed(2)}%</td>;
+                              if (c.id === 'grossYield') return <td key={c.id} className="py-0.5 px-1 text-right">{grossYield.toFixed(2)}%</td>;
+                              if (c.id === 'netYield') return <td key={c.id} className="py-0.5 px-1 text-right">{netYield.toFixed(2)}%</td>;
+                              return null;
+                            })}
                           </tr>
                         </tbody>
                       </table>
@@ -5710,19 +5731,7 @@ export default function PrintPage() {
             ))}
           </div>
 
-          {selectedTemplate === 'metricas_inversion' && (
-            <div className="bg-blue-50 border border-blue-200 p-2 rounded text-[9.5px] text-slate-700 leading-snug">
-              <div className="font-bold mb-1 text-blue-900 uppercase">Aclaraciones de Métricas</div>
-              <ul className="list-disc pl-3 space-y-1">
-                <li><strong>Bº Neto:</strong> Ingresos Anuales - Gastos Anuales</li>
-                <li><strong>ROI:</strong> (Beneficio Neto / Inversión Inicial) × 100</li>
-                <li><strong>ROE:</strong> (Beneficio Neto / Capital Propio) × 100. En este caso se calcula sobre la inversión inicial aportada.</li>
-                <li><strong>Cash on Cash:</strong> (Flujo de Caja / Efectivo Invertido) × 100.</li>
-                <li><strong>R. Bruta:</strong> (Ingresos Anuales / Precio Adquisición) × 100</li>
-                <li><strong>R. Neta:</strong> (Beneficio Neto / Precio Adquisición) × 100</li>
-              </ul>
-            </div>
-          )}
+
 
           {/* Global View Configuration Panel */}
           <div className="bg-white border border-[#a0a0a0] p-3 flex flex-col gap-3">
@@ -5872,7 +5881,7 @@ export default function PrintPage() {
           </div>
 
           {/* Timeline Period Selection inside Right Panel */}
-          {['diario', 'mayor', 'sumas_saldos', 'rv_transactions', 'cf_transactions', 'taxes_total', 'taxes_real_estate', 'taxes_rv', 'taxes_cf', 'balance_situacion', 'cuenta_resultados', 'flujo_caja', 'activos', 'alquileres', 'extracto_propietarios'].includes(selectedTemplate) && (
+          {['diario', 'mayor', 'sumas_saldos', 'rv_transactions', 'cf_transactions', 'taxes_total', 'taxes_real_estate', 'taxes_rv', 'taxes_cf', 'balance_situacion', 'cuenta_resultados', 'flujo_caja', 'activos', 'alquileres', 'extracto_propietarios', 'metricas_inversion'].includes(selectedTemplate) && (
             <div className="bg-white border border-[#a0a0a0] p-3 flex flex-col gap-2">
               <div 
                 className="text-[10px] font-bold text-slate-500 uppercase flex items-center justify-between cursor-pointer select-none hover:text-slate-800"
@@ -5989,7 +5998,7 @@ export default function PrintPage() {
           )}
 
           {/* Filtros Inmobiliarios (Multiselección) */}
-          {['activos', 'alquileres', 'clientes', 'extracto_propietarios'].includes(selectedTemplate) && (
+          {['activos', 'alquileres', 'clientes', 'extracto_propietarios', 'metricas_inversion'].includes(selectedTemplate) && (
             <div className="bg-white border border-[#a0a0a0] p-3 flex flex-col gap-3">
               <div
                 className="text-[10px] font-bold text-slate-500 uppercase flex items-center justify-between cursor-pointer select-none hover:text-slate-800"
@@ -6012,7 +6021,7 @@ export default function PrintPage() {
               </div>
               {!isFiltersInmobCollapsed && <div className="flex flex-col gap-3 border-t border-slate-100 pt-2">
                 {/* 1. Dropdown Fincas (Activos) - shown for activos, alquileres, clientes, propietarios */}
-                {['activos', 'alquileres', 'clientes', 'extracto_propietarios'].includes(selectedTemplate) && (() => {
+                {['activos', 'alquileres', 'clientes', 'extracto_propietarios', 'metricas_inversion'].includes(selectedTemplate) && (() => {
                   const currentPropFilters = selectedFilterProperties[selectedTemplate] || [];
                   return (
                     <div className="flex flex-col gap-1 relative" ref={propFilterDropdownRef}>
@@ -6084,7 +6093,7 @@ export default function PrintPage() {
                 })()}
 
                 {/* 2. Dropdown Alquileres (Referencia) - shown for alquileres */}
-                {selectedTemplate === 'alquileres' && (() => {
+                {['alquileres', 'metricas_inversion'].includes(selectedTemplate) && (() => {
                   const currentRentFilters = selectedFilterRentals[selectedTemplate] || [];
                   return (
                     <div className="flex flex-col gap-1 relative" ref={rentFilterDropdownRef}>
@@ -6150,7 +6159,7 @@ export default function PrintPage() {
                 })()}
 
                 {/* 3. Dropdown Propietarios - shown for extracto_propietarios */}
-                {selectedTemplate === 'extracto_propietarios' && (() => {
+                {['extracto_propietarios', 'metricas_inversion'].includes(selectedTemplate) && (() => {
                   const currentOwnerFilters = selectedFilterOwners[selectedTemplate] || [];
                   return (
                     <div className="flex flex-col gap-1 relative" ref={ownerFilterDropdownRef}>
@@ -6329,7 +6338,7 @@ export default function PrintPage() {
           )}
 
           {/* Column Visibility Filter (for inmobiliaria reports) */}
-          {['activos', 'alquileres', 'clientes', 'extracto_propietarios'].includes(selectedTemplate) && ALL_COLUMNS[selectedTemplate] && (
+          {['activos', 'alquileres', 'clientes', 'extracto_propietarios', 'metricas_inversion'].includes(selectedTemplate) && ALL_COLUMNS[selectedTemplate] && (
             <div className="bg-white border border-[#a0a0a0] p-3 flex flex-col gap-2" ref={colDropdownRef}>
               <div
                 className="text-[10px] font-bold text-slate-500 uppercase flex items-center justify-between cursor-pointer select-none hover:text-slate-800"
@@ -6671,7 +6680,7 @@ export default function PrintPage() {
           {!['balance_situacion', 'cuenta_resultados', 'flujo_caja',
              'activos', 'alquileres', 'clientes', 'extracto_propietarios',
              'rv_portfolio', 'rv_transactions',
-             'cf_portfolio', 'cf_transactions'].includes(selectedTemplate) && (
+             'cf_portfolio', 'cf_transactions', 'metricas_inversion', 'plan_contable'].includes(selectedTemplate) && (
             <>
               {/* Cuentas a Mostrar Filter */}
               <div className="bg-white border border-[#a0a0a0] p-3 flex flex-col gap-2 relative" ref={accountsDropdownRef}>
@@ -6896,6 +6905,24 @@ export default function PrintPage() {
                 )}
               </div>
             </>
+          )}
+
+          {/* Aclaraciones de Métricas */}
+          {selectedTemplate === 'metricas_inversion' && (
+            <div className="p-3 bg-blue-50 border border-blue-200 text-[10px] text-blue-800 leading-normal flex flex-col gap-1.5 mt-auto mb-2">
+              <div className="font-bold flex items-center gap-1 text-blue-900 uppercase">
+                <CheckCircle className="w-3.5 h-3.5 text-blue-600" />
+                <span>Aclaraciones de Métricas</span>
+              </div>
+              <ul className="list-disc pl-4 space-y-1.5 mt-1 text-blue-800/90">
+                <li><strong>Bº Neto:</strong> Ingresos Anuales - Gastos Anuales</li>
+                <li><strong>ROI:</strong> (Beneficio Neto / Inversión Inicial) × 100</li>
+                <li><strong>ROE:</strong> (Beneficio Neto / Capital Propio) × 100. En este caso se calcula sobre la inversión inicial aportada.</li>
+                <li><strong>Cash on Cash:</strong> (Flujo de Caja / Efectivo Invertido) × 100.</li>
+                <li><strong>R. Bruta:</strong> (Ingresos Anuales / Precio Adquisición) × 100</li>
+                <li><strong>R. Neta:</strong> (Beneficio Neto / Precio Adquisición) × 100</li>
+              </ul>
+            </div>
           )}
 
           {/* Instruction Note */}
