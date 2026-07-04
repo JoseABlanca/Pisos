@@ -23,7 +23,8 @@ import {
   Sliders,
   RotateCcw,
   ChevronDown,
-  ArrowUpDown
+  ArrowUpDown,
+  Filter
 } from 'lucide-react';
 
 const SpanishAccountingNames = {
@@ -600,20 +601,24 @@ export default function PrintPage() {
   // Compute page scale factor when paper size / orientation / panels change
   useEffect(() => {
     const computeScale = () => {
-      if (!previewAreaRef.current) return;
+      const el = previewAreaRef.current;
+      if (!el) return;
       const paperDims = { 'A4': { w: 210, h: 297 }, 'A5': { w: 148, h: 210 }, 'Letter': { w: 216, h: 279 } };
       const dims = paperDims[paperSize] || paperDims['A4'];
       const sheetWmm = pageOrientation === 'landscape' ? dims.h : dims.w;
-      // Convert mm to px (96 dpi => 1 mm = 3.7795 px)
+      // 1mm = 3.7795px at 96dpi screen resolution
       const sheetWpx = sheetWmm * 3.7795;
-      const containerW = previewAreaRef.current.clientWidth - 64; // subtract padding
-      const scale = containerW < sheetWpx ? Math.max(0.4, containerW / sheetWpx) : 1;
-      setPageScale(scale);
+      const containerW = el.clientWidth - 64; // subtract left+right padding (2*32px)
+      const newScale = containerW > 0 && containerW < sheetWpx
+        ? Math.max(0.35, containerW / sheetWpx)
+        : 1;
+      setPageScale(newScale);
     };
-    computeScale();
+    // Use rAF to wait for browser layout after panel open/close
+    const raf = requestAnimationFrame(computeScale);
     const observer = new ResizeObserver(computeScale);
     if (previewAreaRef.current) observer.observe(previewAreaRef.current);
-    return () => observer.disconnect();
+    return () => { cancelAnimationFrame(raf); observer.disconnect(); };
   }, [paperSize, pageOrientation, showLeftPanel, showRightPanel]);
 
 
@@ -2396,6 +2401,16 @@ export default function PrintPage() {
     const pageViews = [];
     const auditNumber = useMemo(() => Math.floor(Math.random() * 900000 + 100000), [selectedTemplate, selectedYear]);
 
+    const paperDims = {
+      'A4':     { w: 210, h: 297 },
+      'A5':     { w: 148, h: 210 },
+      'Letter': { w: 216, h: 279 },
+    };
+    const dims = paperDims[paperSize] || paperDims['A4'];
+    const sheetH = pageOrientation === 'landscape' ? dims.w : dims.h;
+    const heightRatio = Math.max(0.3, (sheetH - 45) / 252);
+    const getLimit = (baseLimit) => Math.max(5, Math.floor(baseLimit * heightRatio));
+
     // 1. DIARIO DE MOVIMIENTOS
     if (selectedTemplate === 'diario') {
       const yearEntries = filteredEntriesForPrint
@@ -2409,7 +2424,7 @@ export default function PrintPage() {
         })
         .filter(entry => entry.lines && entry.lines.length > 0)
         .sort((a, b) => new Date(a.date) - new Date(b.date));
-      const entryPages = chunkDiario(yearEntries, 28);
+      const entryPages = chunkDiario(yearEntries, getLimit(28));
       const totalPages = entryPages.length || 1;
 
       if (entryPages.length === 0) {
@@ -2527,7 +2542,7 @@ export default function PrintPage() {
         .filter(am => am.lines.length > 0 && isAccountMatched(am.account.code, selectedAccounts, accounts))
         .sort((a, b) => (a.account.code || '').localeCompare(b.account.code || ''));
 
-      const mayorPages = chunkMayor(activeAccounts, 32);
+      const mayorPages = chunkMayor(activeAccounts, getLimit(32));
       const totalPages = mayorPages.length || 1;
 
       if (mayorPages.length === 0) {
@@ -2686,7 +2701,7 @@ export default function PrintPage() {
         return t;
       }, { debitSum: 0, creditSum: 0, debitBalSum: 0, creditBalSum: 0 });
 
-      const listPages = chunkFlatList(list, 34);
+      const listPages = chunkFlatList(list, getLimit(34));
       const totalPages = listPages.length || 1;
 
       if (listPages.length === 0) {
@@ -2757,7 +2772,7 @@ export default function PrintPage() {
 
       const sortedProperties = multiLevelSort(filteredProperties, 'activos', rentals, properties, sortCol1, sortDir1, sortCol2, sortDir2, filteredEntriesForPrint);
 
-      const listPages = chunkFlatList(sortedProperties, 34);
+      const listPages = chunkFlatList(sortedProperties, getLimit(34));
       const totalPages = listPages.length || 1;
 
       if (filteredProperties.length === 0) {
@@ -2850,7 +2865,7 @@ export default function PrintPage() {
 
       const sortedRentals = multiLevelSort(filteredRentals, 'alquileres', rentals, properties, sortCol1, sortDir1, sortCol2, sortDir2, filteredEntriesForPrint);
 
-      const listPages = chunkFlatList(sortedRentals, 32);
+      const listPages = chunkFlatList(sortedRentals, getLimit(32));
       const totalPages = listPages.length || 1;
 
       if (listPages.length === 0) {
@@ -2976,7 +2991,7 @@ export default function PrintPage() {
 
       const sortedCustomers = multiLevelSort(filteredCustomers, 'clientes', rentals, properties, sortCol1, sortDir1, sortCol2, sortDir2, filteredEntriesForPrint);
 
-      const listPages = chunkFlatList(sortedCustomers, 34);
+      const listPages = chunkFlatList(sortedCustomers, getLimit(34));
       const totalPages = listPages.length || 1;
 
       if (listPages.length === 0) {
@@ -3172,10 +3187,10 @@ export default function PrintPage() {
           ];
         }).filter(b => b.length > 0);
         
-        listPages = paginateBlocks(ownerBlocks, 28, 6);
+        listPages = paginateBlocks(ownerBlocks, getLimit(28), Math.max(2, Math.floor(6 * heightRatio)));
         totalPages = listPages.length || 1;
       } else {
-        listPages = chunkFlatList(sortedOwnerRows, 28);
+        listPages = chunkFlatList(sortedOwnerRows, getLimit(28));
         totalPages = listPages.length || 1;
       }
 
@@ -3276,8 +3291,10 @@ export default function PrintPage() {
 
     // 7. CARTERA DE RENTA VARIABLE
 
+    // 7. CARTERA DE RENTA VARIABLE
+
     if (selectedTemplate === 'rv_portfolio') {
-      const listPages = chunkFlatList(computedRvHoldings.holdings, 30);
+      const listPages = chunkFlatList(computedRvHoldings.holdings, getLimit(30));
       const totalPages = listPages.length || 1;
       const sum = computedRvHoldings.summary;
 
@@ -3382,7 +3399,7 @@ export default function PrintPage() {
     // 8. TRANSACCIONES DE RENTA VARIABLE
     if (selectedTemplate === 'rv_transactions') {
       const chronTx = [...rvTransactions].sort((a, b) => new Date(b.date) - new Date(a.date));
-      const listPages = chunkFlatList(chronTx, 34);
+      const listPages = chunkFlatList(chronTx, getLimit(34));
       const totalPages = listPages.length || 1;
 
       if (listPages.length === 0) {
@@ -3460,7 +3477,7 @@ export default function PrintPage() {
 
     // 9. CARTERA DE CROWDFUNDING
     if (selectedTemplate === 'cf_portfolio') {
-      const listPages = chunkFlatList(computedCfHoldings.rows, 32);
+      const listPages = chunkFlatList(computedCfHoldings.rows, getLimit(32));
       const totalPages = listPages.length || 1;
       const sum = computedCfHoldings.summary;
 
@@ -3549,7 +3566,7 @@ export default function PrintPage() {
     // 10. TRANSACCIONES DE CROWDFUNDING
     if (selectedTemplate === 'cf_transactions') {
       const chronTx = [...cfTransactions].sort((a, b) => new Date(b.date) - new Date(a.date));
-      const listPages = chunkFlatList(chronTx, 34);
+      const listPages = chunkFlatList(chronTx, getLimit(34));
       const totalPages = listPages.length || 1;
 
       if (listPages.length === 0) {
@@ -3607,7 +3624,7 @@ export default function PrintPage() {
     // 11. IMPUESTOS - RESUMEN GENERAL
     if (selectedTemplate === 'taxes_total') {
       const overview = taxesData.yearlyOverview;
-      const listPages = chunkFlatList(overview, 34);
+      const listPages = chunkFlatList(overview, getLimit(34));
       const totalPages = listPages.length || 1;
 
       if (listPages.length === 0) {
@@ -3662,7 +3679,7 @@ export default function PrintPage() {
 
     // 12. IMPUESTOS - FISCALIDAD INMOBILIARIA
     if (selectedTemplate === 'taxes_real_estate') {
-      const listPages = chunkFlatList(taxesData.reTaxes, 34);
+      const listPages = chunkFlatList(taxesData.reTaxes, getLimit(34));
       const totalPages = listPages.length || 1;
 
       const totals = taxesData.reTaxes.reduce((t, r) => {
@@ -3702,7 +3719,7 @@ export default function PrintPage() {
                   <tbody>
                     {pageItems.map(r => (
                       <tr key={r.id} className="border-b border-slate-100 hover:bg-slate-50">
-                        <td className="py-2 px-1 font-mono text-slate-600">{r.id}</td>
+                        <td className="py-2 px-1 font-mono text-slate-650">{r.id}</td>
                         <td className="py-2 px-1 font-bold text-slate-800 uppercase">{r.name}</td>
                         <td className="py-2 px-1 text-right font-mono tabular-nums text-slate-650">{formatCurrency(r.ingresos)}</td>
                         <td className="py-2 px-1 text-right font-mono tabular-nums text-slate-650">{formatCurrency(r.gastos)}</td>
@@ -3739,9 +3756,9 @@ export default function PrintPage() {
       const totalGrossDiv = dividends.reduce((s, r) => s + r.gross, 0);
       const totalWithholdingDiv = dividends.reduce((s, r) => s + r.withholding, 0);
       const totalDivTax = dividends.reduce((s, r) => s + r.tax, 0);
-
-      const gainPages = chunkFlatList(gains, 30);
-      const divPages = chunkFlatList(dividends, 30);
+ 
+      const gainPages = chunkFlatList(gains, getLimit(30));
+      const divPages = chunkFlatList(dividends, getLimit(30));
       const totalPages = (gainPages.length || 1) + (divPages.length || 1);
       let pageCounter = 1;
 
@@ -3871,8 +3888,8 @@ export default function PrintPage() {
       const totalExpectedGain = acts.reduce((s, r) => s + r.expectedGain, 0);
       const totalExpectedTax = acts.reduce((s, r) => s + r.expectedTax, 0);
 
-      const rendPages = chunkFlatList(rends, 30);
-      const actPages = chunkFlatList(acts, 30);
+      const rendPages = chunkFlatList(rends, getLimit(30));
+      const actPages = chunkFlatList(acts, getLimit(30));
       const totalPages = (rendPages.length || 1) + (actPages.length || 1);
       let pageCounter = 1;
 
@@ -4122,7 +4139,7 @@ export default function PrintPage() {
       // Combine blocks at the Masa Monetaria level
       const allBalanceRows = [...activoRows, ...pasivoRows, ...patrimonioRows];
       const balanceBlocks = [activoRows, pasivoRows, patrimonioRows].filter(b => b.length > 0);
-      const chunkedPages = paginateBlocks(balanceBlocks, 28, 7);
+      const chunkedPages = paginateBlocks(balanceBlocks, getLimit(28), Math.max(2, Math.floor(7 * heightRatio)));
       
       const totalPages = chunkedPages.length || 1;
       
@@ -4946,7 +4963,7 @@ export default function PrintPage() {
           <div 
             id="print-area" 
             className="flex flex-col gap-6 items-center animate-fadeIn"
-            style={pageScale < 1 ? { transform: `scale(${pageScale})`, transformOrigin: 'top center', marginBottom: `${(pageScale - 1) * 100}%` } : {}}
+            style={pageScale < 1 ? { zoom: pageScale, transformOrigin: 'top left' } : {}}
           >
             {renderPages()}
           </div>
@@ -4971,7 +4988,12 @@ export default function PrintPage() {
                   <Calendar className="w-3.5 h-3.5 text-slate-400" />
                   <span>Período Temporal</span>
                 </div>
-                <span className="text-[9px]">{isDatesCollapsed ? '▶' : '▼'}</span>
+                <div className="flex items-center gap-1">
+                  {isDatesCollapsed && (selectedYears.length > 0 || selectedQuarters.length > 0 || selectedMonths.length > 0) && (
+                    <Filter className="w-3 h-3 text-blue-600 animate-pulse" />
+                  )}
+                  <span className="text-[9px]">{isDatesCollapsed ? '▶' : '▼'}</span>
+                </div>
               </div>
               
               {!isDatesCollapsed && (
@@ -5048,7 +5070,12 @@ export default function PrintPage() {
                   <Sliders className="w-3.5 h-3.5 text-slate-400" />
                   <span>Profundidad</span>
                 </div>
-                <span className="text-[9px]">{isProfundidadCollapsed ? '▶' : '▼'}</span>
+                <div className="flex items-center gap-1">
+                  {isProfundidadCollapsed && maxDigits !== 10 && (
+                    <Filter className="w-3 h-3 text-blue-600 animate-pulse" />
+                  )}
+                  <span className="text-[9px]">{isProfundidadCollapsed ? '▶' : '▼'}</span>
+                </div>
               </div>
               {!isProfundidadCollapsed && (
                 <div className="mt-1 border-t border-slate-100 pt-2">
@@ -5078,7 +5105,16 @@ export default function PrintPage() {
                   <Sliders className="w-3.5 h-3.5 text-slate-400" />
                   <span>Filtros Inmobiliarios</span>
                 </div>
-                <span className="text-[9px]">{isFiltersInmobCollapsed ? '▶' : '▼'}</span>
+                <div className="flex items-center gap-1">
+                  {isFiltersInmobCollapsed && (
+                    (selectedFilterProperties[selectedTemplate] || []).length > 0 ||
+                    (selectedFilterRentals[selectedTemplate] || []).length > 0 ||
+                    (selectedFilterOwners[selectedTemplate] || []).length > 0
+                  ) && (
+                    <Filter className="w-3 h-3 text-blue-600 animate-pulse" />
+                  )}
+                  <span className="text-[9px]">{isFiltersInmobCollapsed ? '▶' : '▼'}</span>
+                </div>
               </div>
               {!isFiltersInmobCollapsed && <div className="flex flex-col gap-3 border-t border-slate-100 pt-2">
                 {/* 1. Dropdown Fincas (Activos) - shown for activos, alquileres, clientes, propietarios */}
@@ -5312,7 +5348,12 @@ export default function PrintPage() {
                   <ArrowUpDown className="w-3.5 h-3.5 text-slate-400" />
                   <span>Ordenación del Informe</span>
                 </div>
-                <span className="text-[9px]">{isSortCollapsed ? '▶' : '▼'}</span>
+                <div className="flex items-center gap-1">
+                  {isSortCollapsed && (sortCol1 !== 'none' || sortCol2 !== 'none') && (
+                    <Filter className="w-3 h-3 text-blue-600 animate-pulse" />
+                  )}
+                  <span className="text-[9px]">{isSortCollapsed ? '▶' : '▼'}</span>
+                </div>
               </div>
               {!isSortCollapsed && <div className="flex flex-col gap-3.5 border-t border-slate-100 pt-2">
                 {/* 1º Nivel */}
@@ -5404,7 +5445,13 @@ export default function PrintPage() {
                   <Columns className="w-3.5 h-3.5 text-slate-400" />
                   <span>Columnas Visibles</span>
                 </div>
-                <span className="text-[9px]">{isColsCollapsed ? '▶' : '▼'}</span>
+                <div className="flex items-center gap-1">
+                  {isColsCollapsed && visibleColumns[selectedTemplate] && ALL_COLUMNS[selectedTemplate] &&
+                    visibleColumns[selectedTemplate].size < ALL_COLUMNS[selectedTemplate].length && (
+                      <Filter className="w-3 h-3 text-blue-600 animate-pulse" />
+                    )}
+                  <span className="text-[9px]">{isColsCollapsed ? '▶' : '▼'}</span>
+                </div>
               </div>
               {!isColsCollapsed && (
                 <div className="flex flex-col gap-1.5 pt-2 border-t border-slate-100 mt-1">
@@ -5450,7 +5497,12 @@ export default function PrintPage() {
                   <Sliders className="w-3.5 h-3.5 text-slate-400" />
                   <span>Opciones de Alquileres</span>
                 </div>
-                <span className="text-[9px]">{isOptsAlquilerCollapsed ? '▶' : '▼'}</span>
+                <div className="flex items-center gap-1">
+                  {isOptsAlquilerCollapsed && (rentPeriod !== 'mes' || statusFilterAlquileres !== 'todos') && (
+                    <Filter className="w-3 h-3 text-blue-600 animate-pulse" />
+                  )}
+                  <span className="text-[9px]">{isOptsAlquilerCollapsed ? '▶' : '▼'}</span>
+                </div>
               </div>
               {!isOptsAlquilerCollapsed && <div className="flex flex-col gap-2.5 border-t border-slate-100 pt-2">
                 {/* Período de Cálculos */}
@@ -5508,7 +5560,12 @@ export default function PrintPage() {
                   <Sliders className="w-3.5 h-3.5 text-slate-400" />
                   <span>Opciones de Clientes</span>
                 </div>
-                <span className="text-[9px]">{isOptsClientesCollapsed ? '▶' : '▼'}</span>
+                <div className="flex items-center gap-1">
+                  {isOptsClientesCollapsed && statusFilterClientes !== 'todos' && (
+                    <Filter className="w-3 h-3 text-blue-600 animate-pulse" />
+                  )}
+                  <span className="text-[9px]">{isOptsClientesCollapsed ? '▶' : '▼'}</span>
+                </div>
               </div>
               {!isOptsClientesCollapsed && <div className="flex flex-col gap-2.5 border-t border-slate-100 pt-2">
                 {/* Filtro Estado */}
@@ -5539,7 +5596,12 @@ export default function PrintPage() {
                   <Sliders className="w-3.5 h-3.5 text-slate-400" />
                   <span>Opciones de Propietarios</span>
                 </div>
-                <span className="text-[9px]">{isOptsPropietariosCollapsed ? '▶' : '▼'}</span>
+                <div className="flex items-center gap-1">
+                  {isOptsPropietariosCollapsed && groupByOwner && (
+                    <Filter className="w-3 h-3 text-blue-600 animate-pulse" />
+                  )}
+                  <span className="text-[9px]">{isOptsPropietariosCollapsed ? '▶' : '▼'}</span>
+                </div>
               </div>
               {!isOptsPropietariosCollapsed && (
                 <div className="flex flex-col gap-2.5 border-t border-slate-100 pt-2">
@@ -5568,7 +5630,18 @@ export default function PrintPage() {
                   <Sliders className="w-3.5 h-3.5 text-slate-400" />
                   <span>Opciones del Informe</span>
                 </div>
-                <span className="text-[9px]">{isOptsContabilidadCollapsed ? '▶' : '▼'}</span>
+                <div className="flex items-center gap-1">
+                  {isOptsContabilidadCollapsed && (
+                    hideZeroBalances ||
+                    showVerticalPercentage ||
+                    showHorizontalPercentage ||
+                    displayMode !== 'euros' ||
+                    (selectedComparisonYears || []).length > 0
+                  ) && (
+                    <Filter className="w-3 h-3 text-blue-600 animate-pulse" />
+                  )}
+                  <span className="text-[9px]">{isOptsContabilidadCollapsed ? '▶' : '▼'}</span>
+                </div>
               </div>
               {!isOptsContabilidadCollapsed && <div className="flex flex-col gap-2.5 border-t border-slate-100 pt-2">
                 <label className="flex items-center gap-2 cursor-pointer select-none text-[10px] font-bold text-slate-600">
