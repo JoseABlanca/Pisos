@@ -666,6 +666,23 @@ export default function PrintPage() {
     return {};
   });
 
+  const [draggedCol, setDraggedCol] = useState(null);
+
+  const handleColumnDrop = (templateId, targetColId) => {
+    if (!draggedCol || draggedCol === targetColId) return;
+    setColumnOrder(prev => {
+      const currentOrder = prev[templateId] || DEFAULT_ALL_COLUMNS[templateId].map(c => c.id);
+      const draggedIdx = currentOrder.indexOf(draggedCol);
+      const targetIdx = currentOrder.indexOf(targetColId);
+      if (draggedIdx < 0 || targetIdx < 0) return prev;
+      const newOrder = [...currentOrder];
+      newOrder.splice(draggedIdx, 1);
+      newOrder.splice(targetIdx, 0, draggedCol);
+      return { ...prev, [templateId]: newOrder };
+    });
+    setDraggedCol(null);
+  };
+
   const ALL_COLUMNS = useMemo(() => {
     const res = {};
     for (const [tpl, cols] of Object.entries(DEFAULT_ALL_COLUMNS)) {
@@ -1203,13 +1220,14 @@ export default function PrintPage() {
       Object.entries(visibleColumns).map(([k, set]) => [k, Array.from(set || [])])
     );
     localStorage.setItem('print_visibleColumns', JSON.stringify(serializedCols));
+    localStorage.setItem('print_columnOrder', JSON.stringify(columnOrder));
   }, [
     selectedTemplate, rentPeriod, statusFilterAlquileres, statusFilterClientes, paperSize, pageOrientation,
     selectedYear, selectedYears, selectedMonths, selectedQuarters, selectedAccounts,
     selectedCebes, selectedCecos, selectedDocuments, hideZeroBalances, showVerticalPercentage, showHorizontalPercentage,
     displayMode, selectedComparisonYears, selectedFilterProperties, selectedFilterRentals,
     selectedFilterOwners, sortCol1, sortDir1, sortCol2, sortDir2, showSecondSortLevel, groupByOwner,
-    filterImpuesto, maxDigits, groupAccessoryAssets, visibleColumns
+    filterImpuesto, maxDigits, groupAccessoryAssets, visibleColumns, columnOrder
   ]);
 
   
@@ -6163,7 +6181,23 @@ export default function PrintPage() {
                   {ALL_COLUMNS[selectedTemplate].map(col => {
                     const isVisible = isColVisible(selectedTemplate, col.id);
                     return (
-                      <label key={col.id} className="group relative flex items-center gap-2 cursor-pointer select-none text-[10px] font-semibold text-slate-600">
+                      <label 
+                        key={col.id} 
+                        draggable
+                        onDragStart={(e) => {
+                          e.dataTransfer.effectAllowed = 'move';
+                          setDraggedCol(col.id);
+                        }}
+                        onDragOver={(e) => {
+                          e.preventDefault();
+                          e.dataTransfer.dropEffect = 'move';
+                        }}
+                        onDrop={(e) => {
+                          e.preventDefault();
+                          handleColumnDrop(selectedTemplate, col.id);
+                        }}
+                        className={`group relative flex items-center gap-2 cursor-pointer select-none text-[10px] font-semibold text-slate-600 ${draggedCol === col.id ? 'opacity-50' : ''}`}
+                      >
                         <input
                           type="checkbox"
                           checked={isVisible}
