@@ -11,6 +11,7 @@ export default function RvMetrics() {
   const { user } = useAuth();
   const [transactions, setTransactions] = useState([]);
   const [assets, setAssets] = useState({});
+  const [history, setHistory] = useState({});
   const [loading, setLoading] = useState(true);
 
   // Filters
@@ -22,115 +23,162 @@ export default function RvMetrics() {
   useEffect(() => {
     if (!user) return;
     
-    // Fetch Transactions
     const qTx = query(collection(db, 'rv_transactions'), where('userId', '==', user.uid));
-    const unsubTx = onSnapshot(qTx, (snapshot) => {
-      const txs = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }));
-      setTransactions(txs);
+    const unsubTx = onSnapshot(qTx, (snapTx) => {
+      setTransactions(snapTx.docs.map(doc => ({ id: doc.id, ...doc.data() })));
       
-      // Fetch Assets (for tickers)
       const qAs = query(collection(db, 'rv_assets'), where('userId', '==', user.uid));
       onSnapshot(qAs, (snapAs) => {
         const asMap = {};
-        snapAs.docs.forEach(doc => {
-          asMap[doc.id] = doc.data();
-        });
+        snapAs.docs.forEach(doc => { asMap[doc.id] = doc.data(); });
         setAssets(asMap);
-        setLoading(false);
+        
+        const qHist = query(collection(db, 'rv_asset_history'), where('userId', '==', user.uid));
+        onSnapshot(qHist, (snapHist) => {
+          const hMap = {};
+          snapHist.docs.forEach(doc => {
+            const d = doc.data();
+            if (!hMap[d.assetId]) hMap[d.assetId] = {};
+            hMap[d.assetId][d.date] = d.close;
+          });
+          setHistory(hMap);
+          setLoading(false);
+        });
       });
     });
 
     return () => unsubTx();
   }, [user]);
 
-  const tickers = useMemo(() => {
-    const t = new Set(transactions.map(tx => tx.assetId));
-    return Array.from(t).sort();
-  }, [transactions]);
+  const tickers = useMemo(() => Array.from(new Set(transactions.map(tx => tx.assetId))).sort(), [transactions]);
 
-  // Process data chronologically
+  // Process data chronologically day by day
   const { lineData, barData, summary } = useMemo(() => {
     if (!transactions.length) return { lineData: [], barData: [], summary: {} };
 
-    // Sort chronologically
     let txs = [...transactions].sort((a, b) => new Date(a.date) - new Date(b.date));
-    
     if (selectedTicker !== 'ALL') {
       txs = txs.filter(t => t.assetId === selectedTicker);
     }
+    
+    if (!txs.length) return { lineData: [], barData: [], summary: {} };
 
-    let holdings = {}; // { ticker: { shares, totalCost } }
+    const firstDate = new Date(txs[0].date);
+    const today = new Date();
+    
+    // Group transactions by date
+    const txByDate = {};
+    txs.forEach(tx => {
+      if (!txByDate[tx.date]) txByDate[tx.date] = [];
+      txByDate[tx.date].push(tx);
+    });
+
+    let holdings = {}; // { ticker: { shares, avgCost } }
     let cumulativeRealizedGains = 0;
-    let netCapitalInvested = 0; // Total purchases - Cost of sales
     
     const dailyMap = {};
-    const periodMap = {}; // For Bar Chart
+    const periodMap = {}; 
+    
+    let lastKnownPrices = {}; // { ticker: price }
 
-    txs.forEach(tx => {
-      const date = tx.date;
-      const t = tx.assetId;
-      if (!holdings[t]) holdings[t] = { shares: 0, totalCost: 0 };
+    let currentDate = new Date(firstDate);
+    while (currentDate <= today) {
+      const dateStr = currentDate.toISOString().split('T')[0];
       
-      const qty = Number(tx.quantity || 0);
-      const amtInEur = Number(tx.totalAmount || 0) / Number(tx.exchangeRate || 1); // approximate
-      const feeInEur = Number(tx.fee || 0) / Number(tx.exchangeRate || 1);
+      // 1. Process transactions for this day
+      if (txByDate[dateStr]) {
+        txByDate[dateStr].forEach(tx => {
+          const t = tx.assetId;
+          if (!holdings[t]) holdings[t] = { shares: 0, avgCost: 0 };
+          
+          const qty = Number(tx.quantity || 0);
+          const amtInEur = Number(tx.totalAmount || 0) / Number(tx.exchangeRate || 1);
+          const feeInEur = Number(tx.fee || 0) / Number(tx.exchangeRate || 1);
 
-      let realizedGain = 0;
-
-      if (tx.type === 'Compra') {
-        holdings[t].shares += qty;
-        holdings[t].totalCost += amtInEur;
-        netCapitalInvested += amtInEur;
-      } else if (tx.type === 'Venta') {
-        const avgCost = holdings[t].shares > 0 ? holdings[t].totalCost / holdings[t].shares : 0;
-        const costOfSold = avgCost * qty;
-        
-        realizedGain = amtInEur - costOfSold - feeInEur;
-        cumulativeRealizedGains += realizedGain;
-        
-        holdings[t].shares -= qty;
-        holdings[t].totalCost -= costOfSold;
-        netCapitalInvested -= costOfSold;
-      } else if (tx.type === 'Dividendo') {
-        realizedGain = amtInEur - feeInEur;
-        cumulativeRealizedGains += realizedGain;
+          if (tx.type === 'Compra') {
+            const oldTotalCost = holdings[t].shares * holdings[t].avgCost;
+            holdings[t].shares += qty;
+            if (holdings[t].shares > 0) {
+              holdings[t].avgCost = (oldTotalCost + amtInEur) / holdings[t].shares;
+            }
+          } else if (tx.type === 'Venta') {
+            const costOfSold = holdings[t].avgCost * qty;
+            cumulativeRealizedGains += (amtInEur - costOfSold - feeInEur);
+            holdings[t].shares = Math.max(0, holdings[t].shares - qty);
+            if (holdings[t].shares === 0) holdings[t].avgCost = 0;
+          } else if (tx.type === 'Dividendo') {
+            cumulativeRealizedGains += (amtInEur - feeInEur);
+          }
+        });
       }
 
-      // Record for Line Chart (End of Day snapshot)
-      dailyMap[date] = {
-        date,
-        netCapitalInvested,
-        cumulativeRealizedGains,
-        totalReturnPct: netCapitalInvested > 0 ? (cumulativeRealizedGains / netCapitalInvested) * 100 : 0
+      // 2. Update prices and calculate market value
+      let capitalInvertido = 0;
+      let valorMercado = 0;
+
+      Object.keys(holdings).forEach(t => {
+        if (holdings[t].shares > 0) {
+          capitalInvertido += (holdings[t].shares * holdings[t].avgCost);
+          
+          // Try to get today's price, else use last known price, else fallback to avgCost
+          if (history[t] && history[t][dateStr] !== undefined) {
+            lastKnownPrices[t] = history[t][dateStr];
+          }
+          
+          const price = lastKnownPrices[t] || holdings[t].avgCost;
+          valorMercado += (holdings[t].shares * price);
+        }
+      });
+
+      const beneficioLatente = valorMercado - capitalInvertido;
+      const beneficioTotal = beneficioLatente + cumulativeRealizedGains;
+      const rentabilidadPct = capitalInvertido > 0 ? (beneficioTotal / capitalInvertido) * 100 : 0;
+
+      dailyMap[dateStr] = {
+        date: dateStr,
+        capitalInvertido,
+        valorMercado,
+        beneficioTotal,
+        rentabilidadPct
       };
 
-      // Record for Bar Chart
-      const periodKey = barPeriod === 'MONTH' ? date.substring(0, 7) : date.substring(0, 4);
-      if (!periodMap[periodKey]) {
-        periodMap[periodKey] = {
-          period: periodKey,
-          gains: 0,
-          avgCapital: netCapitalInvested, // simplified
-          count: 0
-        };
-      }
-      periodMap[periodKey].gains += realizedGain;
-      periodMap[periodKey].avgCapital += netCapitalInvested;
-      periodMap[periodKey].count += 1;
-    });
+      currentDate.setDate(currentDate.getDate() + 1);
+    }
 
     let lineChartData = Object.values(dailyMap);
     
+    // Process bar chart by period (change in beneficioTotal during the period)
+    let previousBeneficioTotal = 0;
+    
+    lineChartData.forEach(day => {
+      const periodKey = barPeriod === 'MONTH' ? day.date.substring(0, 7) : day.date.substring(0, 4);
+      if (!periodMap[periodKey]) {
+        periodMap[periodKey] = {
+          period: periodKey,
+          startBeneficio: previousBeneficioTotal,
+          endBeneficio: day.beneficioTotal,
+          avgCapital: day.capitalInvertido,
+          count: 1
+        };
+      } else {
+        periodMap[periodKey].endBeneficio = day.beneficioTotal;
+        periodMap[periodKey].avgCapital += day.capitalInvertido;
+        periodMap[periodKey].count += 1;
+      }
+      previousBeneficioTotal = day.beneficioTotal;
+    });
+
     let barChartData = Object.values(periodMap).map(p => {
+      const gains = p.endBeneficio - p.startBeneficio;
       const avgCap = p.avgCapital / p.count;
       return {
         period: p.period,
-        gains: p.gains,
-        gainsPct: avgCap > 0 ? (p.gains / avgCap) * 100 : 0
+        gains: gains,
+        gainsPct: avgCap > 0 ? (gains / avgCap) * 100 : 0
       };
     });
 
-    // Apply Time Filter
+    // Apply Time Filter (Subsample Line Chart for performance if needed)
     if (timeFilter !== 'ALL' && lineChartData.length > 0) {
       const now = new Date();
       let cutoff = new Date('1970-01-01');
@@ -146,18 +194,28 @@ export default function RvMetrics() {
       });
     }
 
+    // Downsample lineChartData if it's too large to prevent UI lag (> 150 points)
+    if (lineChartData.length > 200) {
+      const step = Math.ceil(lineChartData.length / 150);
+      lineChartData = lineChartData.filter((_, idx) => idx % step === 0 || idx === lineChartData.length - 1);
+    }
+
+    const lastDay = lineChartData[lineChartData.length - 1] || {};
+
     return { 
       lineData: lineChartData, 
       barData: barChartData, 
       summary: { 
-        currentCapital: netCapitalInvested,
-        totalGains: cumulativeRealizedGains
+        currentCapital: lastDay.capitalInvertido || 0,
+        currentValue: lastDay.valorMercado || 0,
+        totalGains: lastDay.beneficioTotal || 0,
+        roiPct: lastDay.rentabilidadPct || 0
       } 
     };
-  }, [transactions, selectedTicker, timeFilter, barPeriod]);
+  }, [transactions, history, selectedTicker, timeFilter, barPeriod]);
 
   if (loading) {
-    return <div className="p-6 flex justify-center items-center h-full text-slate-500">Cargando histórico...</div>;
+    return <div className="p-6 flex justify-center items-center h-full text-slate-500">Cargando histórico de mercado...</div>;
   }
 
   const formatYAxis = (tickItem) => {
@@ -177,11 +235,10 @@ export default function RvMetrics() {
       <div className="bg-white border-b border-slate-200 p-4 sticky top-0 z-10 shadow-sm flex flex-col md:flex-row gap-4 justify-between items-center">
         <div>
           <h1 className="text-xl font-bold text-slate-800">Histórico de Inversiones</h1>
-          <p className="text-xs text-slate-500">Evolución del capital y rentabilidad obtenida</p>
+          <p className="text-xs text-slate-500">Evolución de valor de mercado y rentabilidad</p>
         </div>
 
         <div className="flex flex-wrap items-center gap-3">
-          {/* Ticker Filter */}
           <select 
             value={selectedTicker}
             onChange={(e) => setSelectedTicker(e.target.value)}
@@ -191,7 +248,6 @@ export default function RvMetrics() {
             {tickers.map(t => <option key={t} value={t}>{t}</option>)}
           </select>
 
-          {/* Time Filter */}
           <div className="flex bg-slate-100 p-1 rounded-md border border-slate-200">
             {['ALL', '5Y', '1Y', 'YTD'].map(tf => (
               <button
@@ -204,7 +260,6 @@ export default function RvMetrics() {
             ))}
           </div>
 
-          {/* Unit Filter */}
           <div className="flex bg-slate-100 p-1 rounded-md border border-slate-200">
             <button
               onClick={() => setUnit('EUR')}
@@ -228,28 +283,34 @@ export default function RvMetrics() {
         {/* KPI Row */}
         <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
           <div className="bg-white p-4 rounded-xl border border-slate-200 shadow-sm">
-            <p className="text-xs text-slate-500 font-medium mb-1">Capital Invertido Neto</p>
+            <p className="text-xs text-slate-500 font-medium mb-1">Capital Invertido Actual</p>
             <p className="text-xl font-bold text-slate-800">
               {summary.currentCapital?.toLocaleString('es-ES', { style: 'currency', currency: 'EUR' })}
             </p>
           </div>
           <div className="bg-white p-4 rounded-xl border border-slate-200 shadow-sm">
-            <p className="text-xs text-slate-500 font-medium mb-1">Beneficio Histórico Realizado</p>
+            <p className="text-xs text-slate-500 font-medium mb-1">Valor de Mercado Actual</p>
+            <p className="text-xl font-bold text-slate-800">
+              {summary.currentValue?.toLocaleString('es-ES', { style: 'currency', currency: 'EUR' })}
+            </p>
+          </div>
+          <div className="bg-white p-4 rounded-xl border border-slate-200 shadow-sm">
+            <p className="text-xs text-slate-500 font-medium mb-1">Beneficio Total (Latente + Realizado)</p>
             <p className={`text-xl font-bold ${summary.totalGains >= 0 ? 'text-green-600' : 'text-red-600'}`}>
               {summary.totalGains?.toLocaleString('es-ES', { style: 'currency', currency: 'EUR', signDisplay: 'always' })}
             </p>
           </div>
           <div className="bg-white p-4 rounded-xl border border-slate-200 shadow-sm">
-            <p className="text-xs text-slate-500 font-medium mb-1">Rentabilidad Histórica (ROI)</p>
-            <p className={`text-xl font-bold ${summary.totalGains >= 0 ? 'text-green-600' : 'text-red-600'}`}>
-              {summary.currentCapital > 0 ? ((summary.totalGains / summary.currentCapital) * 100).toFixed(2) : '0.00'} %
+            <p className="text-xs text-slate-500 font-medium mb-1">Rentabilidad Total (ROI)</p>
+            <p className={`text-xl font-bold ${summary.roiPct >= 0 ? 'text-green-600' : 'text-red-600'}`}>
+              {summary.roiPct > 0 ? '+' : ''}{summary.roiPct?.toFixed(2)} %
             </p>
           </div>
         </div>
 
         {/* Line Chart */}
         <div className="bg-white p-4 rounded-xl border border-slate-200 shadow-sm flex-1 min-h-[350px]">
-          <h2 className="text-sm font-bold text-slate-700 mb-4">Evolución de la Inversión</h2>
+          <h2 className="text-sm font-bold text-slate-700 mb-4">Evolución de Valor de Mercado</h2>
           <ResponsiveContainer width="100%" height={300}>
             <LineChart data={lineData} margin={{ top: 5, right: 20, left: 20, bottom: 5 }}>
               <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="#e2e8f0" />
@@ -266,11 +327,11 @@ export default function RvMetrics() {
               <Legend wrapperStyle={{ fontSize: '11px' }} />
               {unit === 'EUR' ? (
                 <>
-                  <Line type="stepAfter" name="Capital Invertido Neto" dataKey="netCapitalInvested" stroke="#3b82f6" strokeWidth={2} dot={false} />
-                  <Line type="stepAfter" name="Beneficio Realizado Acum." dataKey="cumulativeRealizedGains" stroke="#10b981" strokeWidth={2} dot={false} />
+                  <Line type="monotone" name="Capital Invertido" dataKey="capitalInvertido" stroke="#94a3b8" strokeWidth={2} dot={false} />
+                  <Line type="monotone" name="Valor de Mercado" dataKey="valorMercado" stroke="#3b82f6" strokeWidth={2} dot={false} />
                 </>
               ) : (
-                <Line type="stepAfter" name="Rentabilidad Acumulada (%)" dataKey="totalReturnPct" stroke="#10b981" strokeWidth={2} dot={false} />
+                <Line type="monotone" name="Rentabilidad Acumulada (%)" dataKey="rentabilidadPct" stroke="#10b981" strokeWidth={2} dot={false} />
               )}
             </LineChart>
           </ResponsiveContainer>
@@ -279,7 +340,7 @@ export default function RvMetrics() {
         {/* Bar Chart */}
         <div className="bg-white p-4 rounded-xl border border-slate-200 shadow-sm flex-1 min-h-[350px]">
           <div className="flex justify-between items-center mb-4">
-            <h2 className="text-sm font-bold text-slate-700">Rentabilidad Periódica</h2>
+            <h2 className="text-sm font-bold text-slate-700">Rentabilidad (Latente + Realizada) por Período</h2>
             <div className="flex bg-slate-100 p-1 rounded-md border border-slate-200">
               <button
                 onClick={() => setBarPeriod('MONTH')}
