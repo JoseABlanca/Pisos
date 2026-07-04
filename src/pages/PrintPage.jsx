@@ -3437,6 +3437,31 @@ export default function PrintPage() {
           return r.startDate;
         };
 
+        const alquileresTotals = sortedRentals.reduce((acc, r) => {
+          const baseRent = getMonthlyRent(r);
+          const baseExpenses = getMonthlyExpenses(r);
+          const monthsMultiplier = getSelectedMonthsCount();
+          const rentVal = baseRent * monthsMultiplier;
+          const expensesVal = baseExpenses * monthsMultiplier;
+          const netYieldVal = rentVal - expensesVal;
+          const extractMetrics = getRentalExtractMetrics(r, filteredEntriesForPrint);
+          
+          acc.depositAmount += r.depositAmount || 0;
+          acc.rentAmount += rentVal;
+          acc.expenses += expensesVal;
+          acc.netYield += netYieldVal;
+          acc.ingresosExtracto += extractMetrics.ingresos;
+          acc.gastosExtracto += extractMetrics.gastos;
+          acc.rentaNetaExtracto += extractMetrics.neto;
+          return acc;
+        }, {
+          depositAmount: 0, rentAmount: 0, expenses: 0, netYield: 0,
+          ingresosExtracto: 0, gastosExtracto: 0, rentaNetaExtracto: 0
+        });
+        
+        const tPctAlquilerVal = alquileresTotals.rentAmount > 0 ? `${((alquileresTotals.netYield / alquileresTotals.rentAmount) * 100).toFixed(2)} %` : '---';
+        const tPctIngresosVal = alquileresTotals.ingresosExtracto > 0 ? `${((alquileresTotals.rentaNetaExtracto / alquileresTotals.ingresosExtracto) * 100).toFixed(2)} %` : '---';
+
         listPages.forEach((pageItems, pageIdx) => {
           pageViews.push(
             <div key={pageIdx} className="page-sheet relative">
@@ -3517,6 +3542,25 @@ export default function PrintPage() {
                         </tr>
                       );
                     })}
+                    {pageIdx === listPages.length - 1 && (
+                      <tr className="border-t border-slate-400 bg-slate-50 font-bold text-[9px] text-slate-800">
+                        {cv('reference') && <td className="py-1.5 px-2">TOTALES</td>}
+                        {cv('property') && <td className="py-1.5 px-2"></td>}
+                        {cv('tenants') && <td className="py-1.5 px-2"></td>}
+                        {cv('startDate') && <td className="py-1.5 px-2"></td>}
+                        {cv('endDate') && <td className="py-1.5 px-2"></td>}
+                        {cv('depositAmount') && <td className="py-1.5 px-2 text-right tabular-nums">{formatCurrency(alquileresTotals.depositAmount)}</td>}
+                        {cv('rentAmount') && <td className="py-1.5 px-2 text-right tabular-nums">{formatCurrency(alquileresTotals.rentAmount)}</td>}
+                        {cv('expenses') && <td className="py-1.5 px-2 text-right tabular-nums">{formatCurrency(alquileresTotals.expenses)}</td>}
+                        {cv('netYield') && <td className="py-1.5 px-2 text-right tabular-nums">{formatCurrency(alquileresTotals.netYield)}</td>}
+                        {cv('pctAlquiler') && <td className="py-1.5 px-2 text-right tabular-nums">{tPctAlquilerVal}</td>}
+                        {cv('ingresosExtracto') && <td className="py-1.5 px-2 text-right tabular-nums">{formatCurrency(alquileresTotals.ingresosExtracto)}</td>}
+                        {cv('gastosExtracto') && <td className="py-1.5 px-2 text-right tabular-nums">{formatCurrency(alquileresTotals.gastosExtracto)}</td>}
+                        {cv('rentaNetaExtracto') && <td className="py-1.5 px-2 text-right tabular-nums">{formatCurrency(alquileresTotals.rentaNetaExtracto)}</td>}
+                        {cv('pctIngresos') && <td className="py-1.5 px-2 text-right tabular-nums">{tPctIngresosVal}</td>}
+                        {cv('status') && <td className="py-1.5 px-2"></td>}
+                      </tr>
+                    )}
                   </tbody>
                 </table>
               </div>
@@ -4094,6 +4138,21 @@ export default function PrintPage() {
                 {pageItems.map((block, idx) => {
                   const orderedCols = ALL_COLUMNS['metricas_inversion'].filter(c => cv(c.id));
 
+                  const blockTotals = block.rows.reduce((acc, r) => {
+                    acc.acquisitionPrice += r.acquisitionPrice || 0;
+                    acc.investedCapital += r.investedCapital || 0;
+                    acc.ingresosAnuales += r.ingresosAnuales || 0;
+                    acc.gastosAnuales += r.gastosAnuales || 0;
+                    acc.beneficioNeto += r.beneficioNeto || 0;
+                    return acc;
+                  }, { acquisitionPrice: 0, investedCapital: 0, ingresosAnuales: 0, gastosAnuales: 0, beneficioNeto: 0 });
+
+                  const tRoi = blockTotals.investedCapital > 0 ? (blockTotals.beneficioNeto / blockTotals.investedCapital) * 100 : 0;
+                  const tRoe = blockTotals.investedCapital > 0 ? (blockTotals.beneficioNeto / blockTotals.investedCapital) * 100 : 0;
+                  const tCashOnCash = blockTotals.investedCapital > 0 ? (blockTotals.beneficioNeto / blockTotals.investedCapital) * 100 : 0;
+                  const tGrossYield = blockTotals.acquisitionPrice > 0 ? (blockTotals.ingresosAnuales / blockTotals.acquisitionPrice) * 100 : 0;
+                  const tNetYield = blockTotals.acquisitionPrice > 0 ? (blockTotals.beneficioNeto / blockTotals.acquisitionPrice) * 100 : 0;
+
                   return (
                     <div key={idx} className="mb-2 break-inside-avoid">
                       <div className="bg-slate-100 p-1 border border-slate-300 font-bold text-slate-800 flex justify-between text-[9px] mb-1.5 uppercase">
@@ -4151,6 +4210,26 @@ export default function PrintPage() {
                               </tr>
                             );
                           })}
+                          {block.rows.length > 1 && (
+                            <tr className="border-t border-slate-400 bg-slate-50 font-bold text-slate-800">
+                              {orderedCols.map(c => {
+                                if (c.id === 'property') return <td key={c.id} className="py-0.5 px-1 text-left">TOTALES</td>;
+                                if (c.id === 'owner') return <td key={c.id} className="py-0.5 px-1 text-left"></td>;
+                                if (c.id === 'percentage') return <td key={c.id} className="py-0.5 px-1 text-right"></td>;
+                                if (c.id === 'acquisitionPrice') return <td key={c.id} className="py-0.5 px-1 text-right">{formatCurrency(blockTotals.acquisitionPrice)}</td>;
+                                if (c.id === 'investedCapital') return <td key={c.id} className="py-0.5 px-1 text-right">{formatCurrency(blockTotals.investedCapital)}</td>;
+                                if (c.id === 'ingresosAnuales') return <td key={c.id} className="py-0.5 px-1 text-right">{formatCurrency(blockTotals.ingresosAnuales)}</td>;
+                                if (c.id === 'gastosAnuales') return <td key={c.id} className="py-0.5 px-1 text-right">{formatCurrency(blockTotals.gastosAnuales)}</td>;
+                                if (c.id === 'beneficioNeto') return <td key={c.id} className="py-0.5 px-1 text-right">{formatCurrency(blockTotals.beneficioNeto)}</td>;
+                                if (c.id === 'roi') return <td key={c.id} className="py-0.5 px-1 text-right">{tRoi.toFixed(2)}%</td>;
+                                if (c.id === 'roe') return <td key={c.id} className="py-0.5 px-1 text-right">{tRoe.toFixed(2)}%</td>;
+                                if (c.id === 'cashOnCash') return <td key={c.id} className="py-0.5 px-1 text-right">{tCashOnCash.toFixed(2)}%</td>;
+                                if (c.id === 'grossYield') return <td key={c.id} className="py-0.5 px-1 text-right">{tGrossYield.toFixed(2)}%</td>;
+                                if (c.id === 'netYield') return <td key={c.id} className="py-0.5 px-1 text-right">{tNetYield.toFixed(2)}%</td>;
+                                return null;
+                              })}
+                            </tr>
+                          )}
                         </tbody>
                       </table>
                     </div>
