@@ -6574,7 +6574,7 @@ export default function PrintPage() {
           )}
 
           {/* Options specific to Extracto de Propietarios */}
-          {['extracto_propietarios', 'inventario_activos'].includes(selectedTemplate) && (
+          {['extracto_propietarios', 'inventario_activos', 'metricas_inversion'].includes(selectedTemplate) && (
             <div className="bg-white border border-[#a0a0a0] p-3 flex flex-col gap-3">
               <div
                 className="text-[10px] font-bold text-slate-500 uppercase flex items-center justify-between cursor-pointer select-none hover:text-slate-800"
@@ -6593,7 +6593,7 @@ export default function PrintPage() {
               </div>
               {!isOptsPropietariosCollapsed && (
                 <div className="flex flex-col gap-2.5 border-t border-slate-100 pt-2">
-                  {selectedTemplate === 'extracto_propietarios' && (
+                  {['extracto_propietarios', 'metricas_inversion'].includes(selectedTemplate) && (
                     <label className="flex items-center gap-2 cursor-pointer select-none text-[10px] font-semibold text-slate-600 font-sans">
                       <input 
                         type="checkbox"
@@ -6977,17 +6977,7 @@ export default function PrintPage() {
             </div>
           )}
 
-          {/* Instruction Note */}
-          <div className="p-3 bg-blue-50 border border-blue-200 text-[10px] text-blue-800 leading-normal flex flex-col gap-1.5 mt-auto">
-            <div className="font-bold flex items-center gap-1">
-              <CheckCircle className="w-3.5 h-3.5 text-blue-600" />
-              <span>IMPRESIÓN EN NEXO</span>
-            </div>
-            <p>
-              Al pulsar en <strong>Imprimir</strong> se abrirá la ventana de impresión nativa de tu navegador. 
-              Hemos optimizado la hoja para ocultar el panel de Nexo e imprimir únicamente la hoja de reporte seleccionada.
-            </p>
-          </div>
+
         </div>
       )}
     </div>
