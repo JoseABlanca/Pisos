@@ -673,7 +673,15 @@ export default function PrintPage() {
   const handleColumnDrop = (templateId, targetColId) => {
     if (!draggedCol || draggedCol === targetColId) return;
     setColumnOrder(prev => {
-      const currentOrder = prev[templateId] || DEFAULT_ALL_COLUMNS[templateId].map(c => c.id);
+      const currentOrder = prev[templateId] ? [...prev[templateId]] : DEFAULT_ALL_COLUMNS[templateId].map(c => c.id);
+      
+      const defaultIds = DEFAULT_ALL_COLUMNS[templateId].map(c => c.id);
+      defaultIds.forEach(id => {
+        if (!currentOrder.includes(id)) {
+          currentOrder.push(id);
+        }
+      });
+
       const draggedIdx = currentOrder.indexOf(draggedCol);
       const targetIdx = currentOrder.indexOf(targetColId);
       if (draggedIdx < 0 || targetIdx < 0) return prev;
