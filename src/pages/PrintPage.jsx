@@ -725,7 +725,7 @@ export default function PrintPage() {
       return { ...prev, [templateId]: current };
     });
   };
-  const isColVisible = (templateId, colId) => (visibleColumns[templateId] || defaultVisibleColumns[templateId] || new Set()).has(colId);
+  const isColVisible = (templateId, colId) => (visibleColumns[templateId] || DEFAULT_VISIBLE_COLUMNS[templateId] || new Set()).has(colId);
 
   const getActiveClientDisplay = (p) => {
     const activeRentalsForP = rentals.filter(r => r.propertyId === p.id && (r.status || 'activo') === 'activo');
