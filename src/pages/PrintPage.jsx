@@ -238,95 +238,7 @@ const paginateBlocks = (blocks, baseLimit = 28, maxFlex = 6) => {
   return pages;
 };
 
-const getSortValue = (item, type, templateId, rentalsList, propertiesList) => {
-  if (type === 'date') {
-    if (templateId === 'activos') {
-      return item.financials?.acquisitionDate || item.acquisitionDate || '';
-    }
-    if (templateId === 'alquileres') {
-      const getRentalStartDateInternal = (r) => {
-        if (r.rentalType === 'alquiler por habitaciones' && Array.isArray(r.rooms) && r.rooms.length > 0) {
-          const dates = r.rooms.map(room => room.startDate).filter(d => !!d);
-          if (dates.length > 0) { dates.sort(); return dates[0]; }
-        }
-        return r.startDate || '';
-      };
-      return getRentalStartDateInternal(item);
-    }
-    if (templateId === 'clientes') {
-      const rent = rentalsList.find(r => 
-        (r.id && item.rentalReference && r.id === item.rentalReference) || 
-        (r.reference && item.rentalReference && r.reference === item.rentalReference) ||
-        r.tenantId === item.id || 
-        (r.tenants && r.tenants.some(t => t.id === item.id))
-      );
-      if (rent) {
-        const getRentalStartDateInternal = (r) => {
-          if (r.rentalType === 'alquiler por habitaciones' && Array.isArray(r.rooms) && r.rooms.length > 0) {
-            const dates = r.rooms.map(room => room.startDate).filter(d => !!d);
-            if (dates.length > 0) { dates.sort(); return dates[0]; }
-          }
-          return r.startDate || '';
-        };
-        return getRentalStartDateInternal(rent);
-      }
-      return '';
-    }
-    if (templateId === 'extracto_propietarios') {
-      const p = propertiesList.find(x => x.id === item.propertyId);
-      return p ? (p.financials?.acquisitionDate || p.acquisitionDate || '') : '';
-    }
-  }
-  if (type === 'name') {
-    if (templateId === 'activos') {
-      return item.name || '';
-    }
-    if (templateId === 'alquileres') {
-      const prop = propertiesList.find(p => p.id === item.propertyId);
-      return prop ? (prop.name || '') : (item.propertyId || '');
-    }
-    if (templateId === 'clientes') {
-      return `${item.name || ''} ${item.lastName || ''}`.trim();
-    }
-    if (templateId === 'extracto_propietarios') {
-      return item.partnerName || '';
-    }
-  }
-  return '';
-};
-
-const multiLevelSort = (list, templateId, rentalsList, propertiesList, sortLevel1, sortLevel2) => {
-  const sorted = [...list];
-  
-  const compareValues = (a, b, criterion) => {
-    if (!criterion || criterion === 'none') return 0;
-    const isDesc = criterion.endsWith('_desc');
-    const type = criterion.startsWith('date') ? 'date' : 'name';
-    
-    const valA = getSortValue(a, type, templateId, rentalsList, propertiesList);
-    const valB = getSortValue(b, type, templateId, rentalsList, propertiesList);
-    
-    if (!valA && !valB) return 0;
-    if (!valA) return 1;
-    if (!valB) return -1;
-    
-    let result = 0;
-    if (type === 'date') {
-      result = valA.localeCompare(valB);
-    } else {
-      result = valA.localeCompare(valB, 'es', { sensitivity: 'base' });
-    }
-    return isDesc ? -result : result;
-  };
-  
-  sorted.sort((a, b) => {
-    const res1 = compareValues(a, b, sortLevel1);
-    if (res1 !== 0) return res1;
-    return compareValues(a, b, sortLevel2);
-  });
-  
-  return sorted;
-};
+// getSortValue and multiLevelSort are now defined inside the PrintPage component to access state variables directly.
 
 
 
@@ -628,7 +540,7 @@ export default function PrintPage() {
       { id: 'id', label: 'ID' },
       { id: 'name', label: 'Nombre Finca' },
       { id: 'address', label: 'Dirección' },
-      { id: 'cebe_ceco', label: 'CEBE/CECO' },
+      { id: 'cebe_ceco', label: 'CEBE' },
       { id: 'accountingAccount', label: 'Cuenta Contable' },
       { id: 'mortgagePending', label: 'Hip. Pendiente' },
       { id: 'acquisitionDate', label: 'Fecha Adquisición' },
@@ -636,9 +548,16 @@ export default function PrintPage() {
       { id: 'currentValue', label: 'Valor Actual' },
       { id: 'ingresos', label: 'Ingresos' },
       { id: 'gastos', label: 'Gastos' },
-      { id: 'servicios', label: 'Servicios (Cta. 62)' },
       { id: 'netYield', label: 'Rend. Neto' },
-      { id: 'owners', label: 'Propietarios' },
+      { id: 'catastral', label: 'Ref. Catastral' },
+      { id: 'cp', label: 'Código Postal' },
+      { id: 'accountNumber', label: 'Número de Cuenta' },
+      { id: 'activeTenant', label: 'Cliente (Activo)' },
+      { id: 'capitalReformas', label: 'Capital Reformas' },
+      { id: 'capitalAportado', label: 'Capital Aportado' },
+      { id: 'totalInversion', label: 'Total Inversión' },
+      { id: 'theoreticalSalePrice', label: 'Precio de Venta' },
+      { id: 'gastosCompraVenta', label: 'Gastos Compra Venta' },
     ],
     alquileres: [
       { id: 'reference', label: 'Referencia' },
@@ -649,35 +568,37 @@ export default function PrintPage() {
       { id: 'depositAmount', label: 'Fianza' },
       { id: 'rentAmount', label: 'Renta' },
       { id: 'expenses', label: 'Gastos' },
-      { id: 'netYield', label: 'Rendimiento Neto' },
+      { id: 'netYield', label: 'Rend. Neto' },
       { id: 'status', label: 'Estado' },
     ],
     clientes: [
       { id: 'id', label: 'ID' },
       { id: 'name', label: 'Nombre Completo' },
-      { id: 'dni', label: 'NIF/DNI' },
+      { id: 'dni', label: 'DNI / NIF' },
       { id: 'phone', label: 'Teléfono' },
       { id: 'email', label: 'Email' },
       { id: 'status', label: 'Estado' },
-      { id: 'address', label: 'Dirección' },
-      { id: 'nationality', label: 'Nacionalidad' },
-      { id: 'propertyName', label: 'Inmueble (Piso)' },
-      { id: 'rentalRef', label: 'Referencia Alquiler' },
+      { id: 'propertyName', label: 'Propiedad Asociada' },
+      { id: 'rentalRef', label: 'Ref. Contrato' },
     ],
     extracto_propietarios: [
       { id: 'name', label: 'Propietario' },
-      { id: 'nif', label: 'NIF/CIF' },
-      { id: 'property', label: 'Inmueble' },
-      { id: 'percentage', label: '% Propiedad' },
+      { id: 'property', label: 'Propiedad' },
+      { id: 'percentage', label: 'Participación (%)' },
       { id: 'acquisitionPrice', label: 'Precio Adquisición' },
-      { id: 'capitalAportadoGastos', label: 'Capital Aportado + Gastos' },
-      { id: 'capitalReforma', label: 'Capital + Reforma Capitalizable' },
-      { id: 'currentValue', label: 'V. Actual' },
-      { id: 'gain', label: 'Ganancia' },
+      { id: 'capitalAportadoGastos', label: 'Cap. Aportado + Gastos' },
+      { id: 'capitalReforma', label: 'Capital + Reforma Cap.' },
+      { id: 'currentValue', label: 'Valor Actual' },
+      { id: 'gain', label: 'Ganancia / Pérdida' },
     ],
   };
   const defaultVisibleColumns = {
-    activos: new Set(['id','name','address','cebe_ceco','accountingAccount','ingresos','gastos','servicios','netYield']),
+    activos: new Set([
+      'id', 'name', 'address', 'cebe_ceco', 'accountingAccount', 
+      'ingresos', 'gastos', 'netYield', 'catastral', 'cp', 'accountNumber',
+      'activeTenant', 'capitalReformas', 'capitalAportado', 'totalInversion',
+      'theoreticalSalePrice', 'gastosCompraVenta'
+    ]),
     alquileres: new Set(['reference','property','tenants','startDate','endDate','rentAmount','expenses','netYield','status']),
     clientes: new Set(['id','name','dni','phone','email','status','propertyName','rentalRef']),
     extracto_propietarios: new Set(['name','property','percentage','acquisitionPrice','capitalAportadoGastos','capitalReforma','currentValue','gain']),
@@ -710,6 +631,173 @@ export default function PrintPage() {
     });
   };
   const isColVisible = (templateId, colId) => (visibleColumns[templateId] || defaultVisibleColumns[templateId] || new Set()).has(colId);
+
+  const getActiveClientDisplay = (p) => {
+    const activeRentalsForP = rentals.filter(r => r.propertyId === p.id && (r.status || 'activo') === 'activo');
+    const names = [];
+    activeRentalsForP.forEach(r => {
+      if (Array.isArray(r.tenants)) {
+        r.tenants.forEach(t => names.push((t.name || '').trim()));
+      }
+      if (r.tenantId) {
+        const cust = customers.find(c => c.id === r.tenantId);
+        if (cust) names.push(`${cust.name} ${cust.lastName || ''}`.trim());
+      }
+    });
+    const uniqueNames = [...new Set(names)].filter(Boolean);
+    return uniqueNames.join(', ') || '---';
+  };
+
+  const getSortValue = (item, colId, templateId) => {
+    if (!colId || colId === 'none') return '';
+    
+    if (templateId === 'extracto_propietarios') {
+      if (colId === 'name') return item.partnerName || '';
+      if (colId === 'property') return item.propertyName || '';
+      return item[colId] ?? '';
+    }
+
+    if (templateId === 'activos') {
+      if (colId === 'id') return item.id || '';
+      if (colId === 'name') return item.name || '';
+      if (colId === 'address') return item.address || '';
+      if (colId === 'cebe_ceco') return item.cebe || '';
+      if (colId === 'accountingAccount') return item.accountingAccount || '';
+      if (colId === 'mortgagePending') return parseFloat(item.mortgagePending) || 0;
+      if (colId === 'acquisitionDate') return item.financials?.acquisitionDate || item.acquisitionDate || '';
+      if (colId === 'purchasePrice') return parseFloat(item.financials?.purchasePrice || item.purchasePrice) || 0;
+      if (colId === 'currentValue') return parseFloat(item.financials?.currentValue || item.currentValue) || 0;
+      if (colId === 'ingresos') return getPropertyMetrics(item, filteredEntriesForPrint).ingresos;
+      if (colId === 'gastos') return getPropertyMetrics(item, filteredEntriesForPrint).gastos;
+      if (colId === 'netYield') return getPropertyMetrics(item, filteredEntriesForPrint).neto;
+      if (colId === 'catastral') return item.catastral || '';
+      if (colId === 'cp') return item.cp || '';
+      if (colId === 'accountNumber') return item.accountNumber || '';
+      if (colId === 'activeTenant') return getActiveClientDisplay(item);
+      if (colId === 'capitalReformas') {
+        return (item.reforms || []).reduce((acc, ref) => acc + (ref.expenses || []).reduce((s, exp) => s + (exp.capitalize ? (parseFloat(exp.amount) || 0) : 0), 0), 0);
+      }
+      if (colId === 'capitalAportado') return parseFloat(item.investedCapital) || 0;
+      if (colId === 'totalInversion') {
+        const cAportado = parseFloat(item.investedCapital) || 0;
+        const cGastos = (item.adquisitionExpenses || item.financials?.acquisitionExpenses || []).reduce((acc, exp) => acc + (parseFloat(exp.amount) || 0), 0);
+        const cReforms = (item.reforms || []).reduce((acc, ref) => acc + (ref.expenses || []).reduce((s, exp) => s + (exp.capitalize ? (parseFloat(exp.amount) || 0) : 0), 0), 0);
+        return cAportado + cGastos + cReforms;
+      }
+      if (colId === 'theoreticalSalePrice') return parseFloat(item.theoreticalSalePrice || item.financials?.theoreticalSalePrice || 0);
+      if (colId === 'gastosCompraVenta') {
+        return (item.adquisitionExpenses || item.financials?.acquisitionExpenses || []).reduce((acc, exp) => acc + (parseFloat(exp.amount) || 0), 0);
+      }
+    }
+
+    if (templateId === 'alquileres') {
+      if (colId === 'reference') return item.reference || '';
+      if (colId === 'property') {
+        const prop = properties.find(p => p.id === item.propertyId);
+        return prop ? (prop.name || '') : (item.propertyId || '');
+      }
+      if (colId === 'tenants') {
+        const cust = customers.find(c => c.id === item.tenantId);
+        return item.tenants?.length > 0 
+          ? item.tenants.map(t => t.name).join(', ') 
+          : (cust ? cust.name : 'Ninguno');
+      }
+      if (colId === 'startDate') {
+        if (item.rentalType === 'alquiler por habitaciones' && Array.isArray(item.rooms) && item.rooms.length > 0) {
+          const dates = item.rooms.map(room => room.startDate).filter(Boolean);
+          if (dates.length > 0) { dates.sort(); return dates[0]; }
+        }
+        return item.startDate || '';
+      }
+      if (colId === 'endDate') return item.endDate || '';
+      if (colId === 'depositAmount') return parseFloat(item.depositAmount) || 0;
+      if (colId === 'rentAmount') {
+        const amt = parseFloat(item.rentAmount) || 0;
+        if (item.paymentPeriod === 'anual') return amt / 12;
+        if (item.paymentPeriod === 'trimestral') return amt / 3;
+        return amt;
+      }
+      if (colId === 'expenses') {
+        return (item.expenses || []).reduce((sum, exp) => {
+          if (exp.includeInSum === false) return sum;
+          let amt = parseFloat(exp.amount) || 0;
+          if (exp.period === 'anual') return sum + amt / 12;
+          if (exp.period === 'trimestral') return sum + amt / 3;
+          return sum + amt;
+        }, 0);
+      }
+      if (colId === 'netYield') {
+        const amt = parseFloat(item.rentAmount) || 0;
+        const rent = item.paymentPeriod === 'anual' ? amt / 12 : (item.paymentPeriod === 'trimestral' ? amt / 3 : amt);
+        const expenses = (item.expenses || []).reduce((sum, exp) => {
+          if (exp.includeInSum === false) return sum;
+          let a = parseFloat(exp.amount) || 0;
+          if (exp.period === 'anual') return sum + a / 12;
+          if (exp.period === 'trimestral') return sum + a / 3;
+          return sum + a;
+        }, 0);
+        return rent - expenses;
+      }
+      if (colId === 'status') return item.status || 'activo';
+    }
+
+    if (templateId === 'clientes') {
+      if (colId === 'id') return item.id || '';
+      if (colId === 'name') return `${item.name || ''} ${item.lastName || ''}`.trim();
+      if (colId === 'status') return item.status || 'activo';
+      if (colId === 'propertyName') {
+        const rent = rentals.find(r => r.tenantId === item.id || (r.tenants && r.tenants.some(t => t.id === item.id)));
+        if (rent) {
+          const prop = properties.find(p => p.id === rent.propertyId);
+          if (prop) return prop.name || '';
+        }
+        return '';
+      }
+      if (colId === 'rentalRef') {
+        const rent = rentals.find(r => r.tenantId === item.id || (r.tenants && r.tenants.some(t => t.id === item.id)));
+        return rent ? (rent.reference || '') : '';
+      }
+    }
+
+    return item[colId] ?? '';
+  };
+
+  const multiLevelSort = (list, templateId, rentalsList, propertiesList, sortCol1, sortDir1, sortCol2, sortDir2, entriesList) => {
+    const sorted = [...list];
+
+    const compareValues = (a, b, colId, dir) => {
+      if (!colId || colId === 'none') return 0;
+      const isDesc = dir === 'desc';
+
+      const valA = getSortValue(a, colId, templateId);
+      const valB = getSortValue(b, colId, templateId);
+
+      if (valA === undefined || valA === null || valA === '') {
+        if (valB === undefined || valB === null || valB === '') return 0;
+        return 1;
+      }
+      if (valB === undefined || valB === null || valB === '') {
+        return -1;
+      }
+
+      let result = 0;
+      if (typeof valA === 'number' && typeof valB === 'number') {
+        result = valA - valB;
+      } else {
+        result = String(valA).localeCompare(String(valB), 'es', { sensitivity: 'base', numeric: true });
+      }
+
+      return isDesc ? -result : result;
+    };
+
+    sorted.sort((a, b) => {
+      const res1 = compareValues(a, b, sortCol1, sortDir1);
+      if (res1 !== 0) return res1;
+      return compareValues(a, b, sortCol2, sortDir2);
+    });
+
+    return sorted;
+  };
 
   // Sync category parameter
   useEffect(() => {
@@ -2795,7 +2883,7 @@ export default function PrintPage() {
                       {cv('id') && <th className="py-1.5 px-2 text-left w-14 font-semibold">ID</th>}
                       {cv('name') && <th className="py-1.5 px-2 text-left w-32 font-semibold">Finca</th>}
                       {cv('address') && <th className="py-1.5 px-2 text-left font-semibold">Dirección</th>}
-                      {cv('cebe_ceco') && <th className="py-1.5 px-2 text-left w-20 font-semibold">CEBE/CECO</th>}
+                      {cv('cebe_ceco') && <th className="py-1.5 px-2 text-left w-20 font-semibold">CEBE</th>}
                       {cv('accountingAccount') && <th className="py-1.5 px-2 text-center w-24 font-semibold">Cta. Contable</th>}
                       {cv('acquisitionDate') && <th className="py-1.5 px-2 text-center w-20 font-semibold">F. Adquisición</th>}
                       {cv('purchasePrice') && <th className="py-1.5 px-2 text-right w-24 font-semibold">Precio Compra</th>}
@@ -2803,23 +2891,39 @@ export default function PrintPage() {
                       {cv('mortgagePending') && <th className="py-1.5 px-2 text-right w-24 font-semibold">Hip. Pendiente</th>}
                       {cv('ingresos') && <th className="py-1.5 px-2 text-right w-24 font-semibold">Ingresos</th>}
                       {cv('gastos') && <th className="py-1.5 px-2 text-right w-24 font-semibold">Gastos</th>}
-                      {cv('servicios') && <th className="py-1.5 px-2 text-right w-24 font-semibold">Servicios</th>}
                       {cv('netYield') && <th className="py-1.5 px-2 text-right w-24 font-semibold">Rend. Neto</th>}
-                      {cv('owners') && <th className="py-1.5 px-2 text-left w-28 font-semibold">Propietarios</th>}
+                      {cv('catastral') && <th className="py-1.5 px-2 text-left w-24 font-semibold">Ref. Catastral</th>}
+                      {cv('cp') && <th className="py-1.5 px-2 text-center w-16 font-semibold">C.P.</th>}
+                      {cv('accountNumber') && <th className="py-1.5 px-2 text-left w-28 font-semibold">Nº Cuenta</th>}
+                      {cv('activeTenant') && <th className="py-1.5 px-2 text-left w-28 font-semibold">Cliente (Activo)</th>}
+                      {cv('capitalReformas') && <th className="py-1.5 px-2 text-right w-24 font-semibold">Cap. Reformas</th>}
+                      {cv('capitalAportado') && <th className="py-1.5 px-2 text-right w-24 font-semibold">Cap. Aportado</th>}
+                      {cv('totalInversion') && <th className="py-1.5 px-2 text-right w-24 font-semibold">Total Inversión</th>}
+                      {cv('theoreticalSalePrice') && <th className="py-1.5 px-2 text-right w-24 font-semibold">Precio Venta</th>}
+                      {cv('gastosCompraVenta') && <th className="py-1.5 px-2 text-right w-24 font-semibold">Gastos Compraventa</th>}
                     </tr>
                   </thead>
                   <tbody>
                     {pageItems.map((p, ri) => {
                       const metrics = getPropertyMetrics(p, filteredEntriesForPrint);
+                      const propInvestedCapital = parseFloat(p.investedCapital || 0);
+                      const propAdquisitionExpenses = (p.adquisitionExpenses || p.financials?.acquisitionExpenses || []).reduce(
+                        (acc, exp) => acc + (parseFloat(exp.amount) || 0),
+                        0
+                      );
+                      const propCapitalizedReforms = (p.reforms || []).reduce((acc, ref) => {
+                        const capSum = (ref.expenses || []).reduce((s, exp) => s + (exp.capitalize ? (parseFloat(exp.amount) || 0) : 0), 0);
+                        return acc + capSum;
+                      }, 0);
+                      const propTotalInversion = propInvestedCapital + propAdquisitionExpenses + propCapitalizedReforms;
+                      const propTheoreticalSalePrice = parseFloat(p.theoreticalSalePrice || p.financials?.theoreticalSalePrice || 0);
+
                       return (
                         <tr key={p.id} className="border-b border-slate-200 text-[9px] text-slate-800">
                           {cv('id') && <td className="py-1.5 px-2">{p.id}</td>}
                           {cv('name') && <td className="py-1.5 px-2 uppercase">{p.name}</td>}
                           {cv('address') && <td className="py-1.5 px-2 uppercase">{p.address}{p.city ? `, ${p.city}` : ''}</td>}
-                          {cv('cebe_ceco') && <td className="py-1.5 px-2 text-[8px]">
-                            <div>BE: {p.cebe || '---'}</div>
-                            <div>CO: {p.ceco || '---'}</div>
-                          </td>}
+                          {cv('cebe_ceco') && <td className="py-1.5 px-2 uppercase">{p.cebe || '---'}</td>}
                           {cv('accountingAccount') && <td className="py-1.5 px-2 text-center">{p.accountingAccount || '---'}</td>}
                           {cv('acquisitionDate') && <td className="py-1.5 px-2 text-center">{p.financials?.acquisitionDate ? formatDate(p.financials.acquisitionDate) : (p.acquisitionDate ? formatDate(p.acquisitionDate) : '---')}</td>}
                           {cv('purchasePrice') && <td className="py-1.5 px-2 text-right tabular-nums">{p.financials?.purchasePrice > 0 ? formatCurrency(p.financials.purchasePrice) : (p.purchasePrice > 0 ? formatCurrency(p.purchasePrice) : '---')}</td>}
@@ -2827,11 +2931,16 @@ export default function PrintPage() {
                           {cv('mortgagePending') && <td className="py-1.5 px-2 text-right tabular-nums">{p.mortgagePending > 0 ? formatCurrency(p.mortgagePending) : '0,00'}</td>}
                           {cv('ingresos') && <td className="py-1.5 px-2 text-right tabular-nums">{formatCurrency(metrics.ingresos)}</td>}
                           {cv('gastos') && <td className="py-1.5 px-2 text-right tabular-nums">{formatCurrency(metrics.gastos)}</td>}
-                          {cv('servicios') && <td className="py-1.5 px-2 text-right tabular-nums">{formatCurrency(metrics.servicios)}</td>}
                           {cv('netYield') && <td className="py-1.5 px-2 text-right tabular-nums">{formatCurrency(metrics.neto)}</td>}
-                          {cv('owners') && <td className="py-1.5 px-2 text-[8px]">
-                            {(p.owners || []).length > 0 ? p.owners.map(o => `${o.name} (${o.percentage}%)`).join(', ') : '---'}
-                          </td>}
+                          {cv('catastral') && <td className="py-1.5 px-2 font-mono uppercase">{p.catastral || '---'}</td>}
+                          {cv('cp') && <td className="py-1.5 px-2 text-center">{p.cp || '---'}</td>}
+                          {cv('accountNumber') && <td className="py-1.5 px-2 font-mono">{p.accountNumber || '---'}</td>}
+                          {cv('activeTenant') && <td className="py-1.5 px-2 uppercase">{getActiveClientDisplay(p)}</td>}
+                          {cv('capitalReformas') && <td className="py-1.5 px-2 text-right tabular-nums">{propCapitalizedReforms > 0 ? formatCurrency(propCapitalizedReforms) : '---'}</td>}
+                          {cv('capitalAportado') && <td className="py-1.5 px-2 text-right tabular-nums">{propInvestedCapital > 0 ? formatCurrency(propInvestedCapital) : '---'}</td>}
+                          {cv('totalInversion') && <td className="py-1.5 px-2 text-right tabular-nums">{propTotalInversion > 0 ? formatCurrency(propTotalInversion) : '---'}</td>}
+                          {cv('theoreticalSalePrice') && <td className="py-1.5 px-2 text-right tabular-nums">{propTheoreticalSalePrice > 0 ? formatCurrency(propTheoreticalSalePrice) : '---'}</td>}
+                          {cv('gastosCompraVenta') && <td className="py-1.5 px-2 text-right tabular-nums">{propAdquisitionExpenses > 0 ? formatCurrency(propAdquisitionExpenses) : '---'}</td>}
                         </tr>
                       );
                     })}
