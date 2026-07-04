@@ -275,7 +275,7 @@ const templatesByCategory = {
     { id: 'diario', name: 'Diario de Movimientos', icon: BookOpen },
     { id: 'mayor', name: 'Libro Mayor', icon: FileText },
     { id: 'sumas_saldos', name: 'Sumas y Saldos', icon: Columns },
-    { id: 'plan_contable', name: 'Plan Contable', icon: BookOpen }
+    { id: 'plan_contable', name: 'Plan de Cuentas', icon: BookOpen }
   ],
   contabilidad_anuales: [
     { id: 'balance_situacion', name: 'Balance de Situación', icon: FileSpreadsheet },
@@ -615,6 +615,8 @@ export default function PrintPage() {
     ],
     metricas_inversion: [
       { id: 'property', label: 'Inmueble' },
+      { id: 'owner', label: 'Propietario' },
+      { id: 'percentage', label: '% Prop.' },
       { id: 'acquisitionPrice', label: 'Precio Adquisición' },
       { id: 'investedCapital', label: 'Inversión Inicial' },
       { id: 'ingresosAnuales', label: 'Ingresos Anuales' },
@@ -642,7 +644,7 @@ export default function PrintPage() {
     alquileres: new Set(['reference','property','tenants','startDate','endDate','rentAmount','expenses','netYield','pctAlquiler','ingresosExtracto','gastosExtracto','rentaNetaExtracto','pctIngresos','status']),
     clientes: new Set(['id','name','dni','phone','email','status','propertyName','rentalRef']),
     extracto_propietarios: new Set(['name','property','percentage','acquisitionPrice','investedCapital','adquisitionExpenses','acqPlusExpenses','capitalReforma','currentValue','ingresosExtracto','gastosExtracto','rendimientoNetoExtracto','mortgagePending','gain','netGain','realReturn']),
-    metricas_inversion: new Set(['property','acquisitionPrice','investedCapital','ingresosAnuales','gastosAnuales','beneficioNeto','roi','roe','cashOnCash','grossYield','netYield']),
+    metricas_inversion: new Set(['property','owner','percentage','acquisitionPrice','investedCapital','ingresosAnuales','gastosAnuales','beneficioNeto','roi','roe','cashOnCash','grossYield','netYield']),
     plan_contable: new Set(['code','description'])
   };
   const [visibleColumns, setVisibleColumns] = useState(() => {
@@ -948,6 +950,21 @@ export default function PrintPage() {
       ].includes(colId)) {
         return parseFloat(item[colId]) || 0;
       }
+      return item[colId] ?? '';
+    }
+
+    if (templateId === 'metricas_inversion') {
+      if (colId === 'property') return item.pName || '';
+      if (colId === 'owner') return item.ownerName || '';
+      if (colId === 'percentage') return item.percentage || 0;
+      if (['acquisitionPrice', 'investedCapital', 'ingresosAnuales', 'gastosAnuales', 'beneficioNeto'].includes(colId)) {
+        return parseFloat(item[colId]) || 0;
+      }
+      if (colId === 'roi') return item.investedCapital > 0 ? (item.beneficioNeto / item.investedCapital) * 100 : 0;
+      if (colId === 'roe') return item.investedCapital > 0 ? (item.beneficioNeto / item.investedCapital) * 100 : 0;
+      if (colId === 'cashOnCash') return item.investedCapital > 0 ? (item.beneficioNeto / item.investedCapital) * 100 : 0;
+      if (colId === 'grossYield') return item.acquisitionPrice > 0 ? (item.ingresosAnuales / item.acquisitionPrice) * 100 : 0;
+      if (colId === 'netYield') return item.acquisitionPrice > 0 ? (item.beneficioNeto / item.acquisitionPrice) * 100 : 0;
       return item[colId] ?? '';
     }
 
@@ -3972,29 +3989,57 @@ export default function PrintPage() {
           .filter(Boolean)
       );
 
-      const filteredProperties = properties.filter(p => {
+      const ownerRows = [];
+      properties.forEach(p => {
+        if (groupAccessoryAssets && accessoryIds.has(p.id)) return;
+
         const activePropFilters = selectedFilterProperties.metricas_inversion || [];
-        if (activePropFilters.length > 0 && !activePropFilters.includes(p.id)) return false;
-        
-        const activeOwnerFilters = selectedFilterOwners.metricas_inversion || [];
-        if (activeOwnerFilters.length > 0) {
-          const pOwners = Array.isArray(p.owners) ? p.owners.map(o => o.name) : [];
-          if (!activeOwnerFilters.some(owner => pOwners.includes(owner))) return false;
-        }
+        if (activePropFilters.length > 0 && !activePropFilters.includes(p.id)) return;
 
         const activeRentFilters = selectedFilterRentals.metricas_inversion || [];
         if (activeRentFilters.length > 0) {
           const pRentals = rentals.filter(r => r.propertyId === p.id).map(r => r.reference);
-          if (!activeRentFilters.some(ref => pRentals.includes(ref))) return false;
+          if (!activeRentFilters.some(ref => pRentals.includes(ref))) return;
         }
 
-        if (groupAccessoryAssets && accessoryIds.has(p.id)) return false;
-        return true;
+        let ownersArr = Array.isArray(p.owners) && p.owners.length > 0 ? p.owners : [{ name: 'Sin Propietario', percentage: 100 }];
+
+        const consolidated = getConsolidatedProperty(p, properties, rentals, filteredEntriesForPrint);
+        const mainMetrics = getPropertyMetrics(p, filteredEntriesForPrint);
+        const acc = p.accessoryPropertyId ? properties.find(prop => prop.id === p.accessoryPropertyId || prop.name === p.accessoryPropertyId) : null;
+        const accMetrics = acc ? getPropertyMetrics(acc, filteredEntriesForPrint) : { ingresos: 0, gastos: 0, neto: 0 };
+        
+        const baseIngresos = mainMetrics.ingresos + accMetrics.ingresos;
+        const baseGastos = mainMetrics.gastos + accMetrics.gastos;
+        const baseNeto = mainMetrics.neto + accMetrics.neto;
+        const baseInvested = consolidated.investedCapital || 0;
+        const baseAcqPrice = consolidated.acquisitionPrice || 0;
+
+        ownersArr.forEach(o => {
+          const activeOwnerFilters = selectedFilterOwners.metricas_inversion || [];
+          if (activeOwnerFilters.length > 0 && !activeOwnerFilters.includes(o.name)) return;
+          
+          const pct = parseFloat(o.percentage) || 100;
+          const factor = pct / 100;
+
+          ownerRows.push({
+            pId: p.id,
+            pName: p.name,
+            ownerName: o.name || '---',
+            percentage: pct,
+            ingresosAnuales: baseIngresos * factor,
+            gastosAnuales: baseGastos * factor,
+            beneficioNeto: baseNeto * factor,
+            investedCapital: baseInvested * factor,
+            acquisitionPrice: baseAcqPrice * factor,
+          });
+        });
       });
 
-      const listPages = chunkFlatList(filteredProperties, getLimit(6));
+      const sortedOwnerRows = multiLevelSort(ownerRows, 'metricas_inversion', rentals, properties, sortCol1, sortDir1, sortCol2, sortDir2, filteredEntriesForPrint);
+      const listPages = chunkFlatList(sortedOwnerRows, getLimit(6));
 
-      if (filteredProperties.length === 0) {
+      if (sortedOwnerRows.length === 0) {
         pageViews.push(
           <div key="empty" className="page-sheet relative">
             {renderPageHeader('Métricas de Inversión')}
@@ -4008,37 +4053,29 @@ export default function PrintPage() {
             <div key={pageIdx} className="page-sheet relative">
               <div className="flex flex-col gap-4">
                 {renderPageHeader('Métricas de Inversión')}
-                {pageItems.map((p, idx) => {
-                  const consolidated = getConsolidatedProperty(p, properties, rentals, filteredEntriesForPrint);
-                  const mainMetrics = getPropertyMetrics(p, filteredEntriesForPrint);
-                  const acc = p.accessoryPropertyId ? properties.find(prop => prop.id === p.accessoryPropertyId || prop.name === p.accessoryPropertyId) : null;
-                  const accMetrics = acc ? getPropertyMetrics(acc, filteredEntriesForPrint) : { ingresos: 0, gastos: 0, neto: 0 };
+                {pageItems.map((item, idx) => {
+                  const { pName, ownerName, percentage, ingresosAnuales, gastosAnuales, beneficioNeto, investedCapital, acquisitionPrice } = item;
                   
-                  const ingresosAnuales = mainMetrics.ingresos + accMetrics.ingresos;
-                  const gastosAnuales = mainMetrics.gastos + accMetrics.gastos;
-                  const beneficioNeto = mainMetrics.neto + accMetrics.neto;
-                  
-                  const propInvestedCapital = consolidated.investedCapital;
-                  const propAcquisitionPrice = consolidated.acquisitionPrice;
-                  
-                  const roi = propInvestedCapital > 0 ? (beneficioNeto / propInvestedCapital) * 100 : 0;
-                  const roe = propInvestedCapital > 0 ? (beneficioNeto / propInvestedCapital) * 100 : 0;
-                  const cashOnCash = propInvestedCapital > 0 ? (beneficioNeto / propInvestedCapital) * 100 : 0;
-                  const grossYield = propAcquisitionPrice > 0 ? (ingresosAnuales / propAcquisitionPrice) * 100 : 0;
-                  const netYield = propAcquisitionPrice > 0 ? (beneficioNeto / propAcquisitionPrice) * 100 : 0;
+                  const roi = investedCapital > 0 ? (beneficioNeto / investedCapital) * 100 : 0;
+                  const roe = investedCapital > 0 ? (beneficioNeto / investedCapital) * 100 : 0;
+                  const cashOnCash = investedCapital > 0 ? (beneficioNeto / investedCapital) * 100 : 0;
+                  const grossYield = acquisitionPrice > 0 ? (ingresosAnuales / acquisitionPrice) * 100 : 0;
+                  const netYield = acquisitionPrice > 0 ? (beneficioNeto / acquisitionPrice) * 100 : 0;
 
                   const orderedCols = ALL_COLUMNS['metricas_inversion'].filter(c => cv(c.id));
 
                   return (
                     <div key={idx} className="mb-2 break-inside-avoid">
                       <div className="bg-slate-100 p-1 border border-slate-300 font-bold text-slate-800 flex justify-between text-[9px] mb-1.5 uppercase">
-                        <span>Finca: {p.name}</span>
+                        <span>Finca: {pName}</span>
                       </div>
                       <table className="w-full text-[8.5px] border-collapse">
                         <thead>
                           <tr className="border-b border-slate-300 font-semibold text-slate-600 bg-slate-50">
                             {orderedCols.map(c => {
                               if (c.id === 'property') return <th key={c.id} className="py-0.5 px-1 text-left">Inmueble</th>;
+                              if (c.id === 'owner') return <th key={c.id} className="py-0.5 px-1 text-left">Propietario</th>;
+                              if (c.id === 'percentage') return <th key={c.id} className="py-0.5 px-1 text-right">% Prop.</th>;
                               if (c.id === 'acquisitionPrice') return <th key={c.id} className="py-0.5 px-1 text-right">Precio Adq.</th>;
                               if (c.id === 'investedCapital') return <th key={c.id} className="py-0.5 px-1 text-right">Inv. Inicial</th>;
                               if (c.id === 'ingresosAnuales') return <th key={c.id} className="py-0.5 px-1 text-right">Ingresos</th>;
@@ -4056,9 +4093,11 @@ export default function PrintPage() {
                         <tbody>
                           <tr className="border-b border-slate-100">
                             {orderedCols.map(c => {
-                              if (c.id === 'property') return <td key={c.id} className="py-0.5 px-1 text-left">{p.name}</td>;
-                              if (c.id === 'acquisitionPrice') return <td key={c.id} className="py-0.5 px-1 text-right">{formatCurrency(propAcquisitionPrice)}</td>;
-                              if (c.id === 'investedCapital') return <td key={c.id} className="py-0.5 px-1 text-right">{formatCurrency(propInvestedCapital)}</td>;
+                              if (c.id === 'property') return <td key={c.id} className="py-0.5 px-1 text-left">{pName}</td>;
+                              if (c.id === 'owner') return <td key={c.id} className="py-0.5 px-1 text-left">{ownerName}</td>;
+                              if (c.id === 'percentage') return <td key={c.id} className="py-0.5 px-1 text-right">{percentage.toFixed(2)}%</td>;
+                              if (c.id === 'acquisitionPrice') return <td key={c.id} className="py-0.5 px-1 text-right">{formatCurrency(acquisitionPrice)}</td>;
+                              if (c.id === 'investedCapital') return <td key={c.id} className="py-0.5 px-1 text-right">{formatCurrency(investedCapital)}</td>;
                               if (c.id === 'ingresosAnuales') return <td key={c.id} className="py-0.5 px-1 text-right">{formatCurrency(ingresosAnuales)}</td>;
                               if (c.id === 'gastosAnuales') return <td key={c.id} className="py-0.5 px-1 text-right">{formatCurrency(gastosAnuales)}</td>;
                               if (c.id === 'beneficioNeto') return <td key={c.id} className="py-0.5 px-1 text-right">{formatCurrency(beneficioNeto)}</td>;
@@ -4087,10 +4126,15 @@ export default function PrintPage() {
       const cv = (colId) => isColVisible('plan_contable', colId);
       
       const grouped = {};
+      const groupNames = {};
       accounts.forEach(acc => {
-        const group = acc.code.charAt(0);
-        if (!grouped[group]) grouped[group] = [];
-        grouped[group].push(acc);
+        if (acc.code.length === 1) {
+          groupNames[acc.code] = acc.name;
+        } else {
+          const group = acc.code.charAt(0);
+          if (!grouped[group]) grouped[group] = [];
+          grouped[group].push(acc);
+        }
       });
       const sortedGroups = Object.keys(grouped).sort();
       sortedGroups.forEach(g => {
@@ -4126,11 +4170,11 @@ export default function PrintPage() {
           pageViews.push(
             <div key={pageIdx} className="page-sheet relative">
               <div className="flex flex-col gap-4">
-                {renderPageHeader('Plan Contable')}
+                {renderPageHeader('Plan de Cuentas')}
                 {pageItems.map((block, bIdx) => (
                   <div key={bIdx} className="mb-2 break-inside-avoid">
                     <div className="bg-slate-100 p-1 border border-slate-300 font-bold text-slate-800 flex justify-between text-[9px] mb-1.5 uppercase">
-                      <span>Grupo {block.group}</span>
+                      <span>Grupo {block.group}: {groupNames[block.group] || ''}</span>
                     </div>
                     <table className="w-full text-[8.5px] border-collapse">
                       <thead>
