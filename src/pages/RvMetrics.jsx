@@ -227,10 +227,13 @@ export default function RvMetrics() {
 
       // Calculate exchange rates for this day
       const ratesForDay = { EUR: 1.0, USD: 1.08, GBP: 0.85, CHF: 0.95, JPY: 130.0, ...(config?.exchangeRates || {}) };
+      const isToday = dateStr === today.toISOString().split('T')[0];
+      
       Object.values(assets).forEach(a => {
          if (a.type && a.type.toLowerCase() === 'divisa') {
             const h = history[a.id];
-            let price = h && h[dateStr] !== undefined ? h[dateStr] : parseFloat(a.currentPrice) || 0;
+            // If it's today, prefer currentPrice, otherwise use history, fallback to currentPrice
+            let price = isToday ? (parseFloat(a.currentPrice) || h?.[dateStr] || 0) : (h?.[dateStr] !== undefined ? h[dateStr] : parseFloat(a.currentPrice) || 0);
             if (price > 0) {
               const id = String(a.id).toUpperCase();
               const name = String(a.name).toUpperCase();
@@ -247,15 +250,21 @@ export default function RvMetrics() {
       Object.keys(holdings).forEach(t => {
         if (holdings[t].shares > 0) {
           capitalInvertido += (holdings[t].shares * holdings[t].avgCost);
+          
           if (history[t] && history[t][dateStr] !== undefined) {
             lastKnownPrices[t] = history[t][dateStr];
           }
           
+          let priceRaw = lastKnownPrices[t];
+          if (isToday && assets[t] && assets[t].currentPrice) {
+            priceRaw = parseFloat(assets[t].currentPrice) || priceRaw;
+          }
+          
           let priceEUR = holdings[t].avgCost; // default to cost if no price
-          if (lastKnownPrices[t] !== undefined) {
+          if (priceRaw !== undefined) {
             const curr = assets[t]?.currency || 'EUR';
             const rate = ratesForDay[curr] || 1.0;
-            priceEUR = lastKnownPrices[t] / rate;
+            priceEUR = priceRaw / rate;
           }
           
           valorMercado += (holdings[t].shares * priceEUR);
