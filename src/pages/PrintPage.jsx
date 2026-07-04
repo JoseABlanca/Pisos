@@ -5583,16 +5583,28 @@ export default function PrintPage() {
               {!isColsCollapsed && (
                 <div className="flex flex-col gap-1.5 pt-2 border-t border-slate-100 mt-1">
                   <div className="flex justify-between items-center mb-1">
-                    <span className="text-[8px] text-slate-400 uppercase font-bold">Seleccionar columnas</span>
-                    <button
-                      onClick={() => setVisibleColumns(prev => ({
-                        ...prev,
-                        [selectedTemplate]: new Set(ALL_COLUMNS[selectedTemplate].map(c => c.id))
-                      }))}
-                      className="text-[8px] text-blue-600 hover:underline font-bold"
-                    >
-                      Todas
-                    </button>
+                    <span className="text-[8px] text-slate-450 uppercase font-bold">Seleccionar columnas</span>
+                    <div className="flex gap-1.5">
+                      <button
+                        onClick={() => setVisibleColumns(prev => ({
+                          ...prev,
+                          [selectedTemplate]: new Set(ALL_COLUMNS[selectedTemplate].map(c => c.id))
+                        }))}
+                        className="text-[8px] text-blue-650 hover:underline font-bold"
+                      >
+                        Todas
+                      </button>
+                      <span className="text-[8px] text-slate-350">|</span>
+                      <button
+                        onClick={() => setVisibleColumns(prev => ({
+                          ...prev,
+                          [selectedTemplate]: new Set()
+                        }))}
+                        className="text-[8px] text-red-650 hover:underline font-bold"
+                      >
+                        Ninguna
+                      </button>
+                    </div>
                   </div>
                   {ALL_COLUMNS[selectedTemplate].map(col => {
                     const isVisible = isColVisible(selectedTemplate, col.id);
