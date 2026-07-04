@@ -335,19 +335,84 @@ export default function RvMetrics() {
       lineChartData = lineChartData.filter((_, idx) => idx % step === 0 || idx === lineChartData.length - 1);
     }
 
-    const lastDay = lineChartData[lineChartData.length - 1] || {};
+    // ----- EXACT CURRENT SUMMARY CALCULATION (Matches Portfolio.jsx) -----
+    let exactCurrentCost = 0;
+    let exactCurrentValue = 0;
+    let exactRealizedGains = 0;
+
+    const currentRates = { EUR: 1.0, USD: 1.08, GBP: 0.85, CHF: 0.95, JPY: 130.0, ...(config?.exchangeRates || {}) };
+    Object.values(assets).forEach(a => {
+      if (a.type && a.type.toLowerCase() === 'divisa') {
+        const price = parseFloat(a.currentPrice);
+        if (price > 0) {
+          const id = String(a.id).toUpperCase();
+          const name = String(a.name).toUpperCase();
+          if (id === 'USD' || id === 'GBP' || id === 'CHF' || id === 'JPY') currentRates[id] = price;
+          else if (id.includes('EURUSD') || name.includes('EUR/USD') || name.includes('EURUSD')) currentRates['USD'] = price;
+          else if (id.includes('EURGBP') || name.includes('EUR/GBP') || name.includes('EURGBP')) currentRates['GBP'] = price;
+          else if (id.includes('EURCHF') || name.includes('EUR/CHF') || name.includes('EURCHF')) currentRates['CHF'] = price;
+          else if (id.includes('EURJPY') || name.includes('EUR/JPY') || name.includes('EURJPY')) currentRates['JPY'] = price;
+          else if (id.startsWith('EUR') && id.length >= 6) currentRates[id.substring(3, 6)] = price;
+        }
+      }
+    });
+
+    const positions = {};
+    txs.forEach(tx => {
+      const key = tx.assetId;
+      if (!positions[key]) positions[key] = { qty: 0, costEUR: 0 };
+      const rate = tx.exchangeRate || 1.0;
+      const q = parseFloat(tx.quantity) || 0;
+      const p = parseFloat(tx.price) || 0;
+      const f = parseFloat(tx.fee) || 0;
+
+      if (tx.type === 'Compra') {
+        positions[key].costEUR += (q * p + f) / rate;
+        positions[key].qty += q;
+      } else if (tx.type === 'Venta') {
+        const pmc = positions[key].qty > 0 ? positions[key].costEUR / positions[key].qty : 0;
+        const costReduction = q * pmc;
+        positions[key].costEUR = Math.max(0, positions[key].costEUR - costReduction);
+        positions[key].qty = Math.max(0, positions[key].qty - q);
+        exactRealizedGains += ((q * p - f) / rate) - costReduction;
+      } else if (tx.type === 'Dividendo') {
+        exactRealizedGains += (q * p - f) / rate;
+      }
+    });
+
+    Object.keys(positions).forEach(key => {
+      if (positions[key].qty > 0) {
+        exactCurrentCost += positions[key].costEUR;
+        const asset = assets[key];
+        const currentPriceRaw = asset ? parseFloat(asset.currentPrice) || 0 : 0;
+        const assetRate = currentRates[asset?.currency] || 1.0;
+        exactCurrentValue += (positions[key].qty * currentPriceRaw) / assetRate;
+      }
+    });
+
+    const exactTotalGains = (exactCurrentValue - exactCurrentCost) + exactRealizedGains;
+    const exactRoiPct = exactCurrentCost > 0 ? (exactTotalGains / exactCurrentCost) * 100 : 0;
+
+    // Apply exact current values to the final point on the chart
+    if (lineChartData.length > 0) {
+      const lastIdx = lineChartData.length - 1;
+      lineChartData[lastIdx].capitalInvertido = exactCurrentCost;
+      lineChartData[lastIdx].valorMercado = exactCurrentValue;
+      lineChartData[lastIdx].beneficioTotal = exactTotalGains;
+      lineChartData[lastIdx].rentabilidadPct = exactRoiPct;
+    }
 
     return { 
       lineData: lineChartData, 
       barData: barChartData, 
       summary: { 
-        currentCapital: lastDay.capitalInvertido || 0,
-        currentValue: lastDay.valorMercado || 0,
-        totalGains: lastDay.beneficioTotal || 0,
-        roiPct: lastDay.rentabilidadPct || 0
+        currentCapital: exactCurrentCost,
+        currentValue: exactCurrentValue,
+        totalGains: exactTotalGains,
+        roiPct: exactRoiPct
       } 
     };
-  }, [transactions, history, selectedTickers, selectedBrokers, selectedAccounts, startDate, endDate, barPeriod]);
+  }, [transactions, history, assets, config, selectedTickers, selectedBrokers, selectedAccounts, startDate, endDate, barPeriod]);
 
   if (loading) {
     return <div className="p-6 flex justify-center items-center h-full text-slate-500">Cargando histórico de mercado...</div>;
