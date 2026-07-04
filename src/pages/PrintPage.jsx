@@ -4045,9 +4045,39 @@ export default function PrintPage() {
       });
 
       const sortedOwnerRows = multiLevelSort(ownerRows, 'metricas_inversion', rentals, properties, sortCol1, sortDir1, sortCol2, sortDir2, filteredEntriesForPrint);
-      const listPages = chunkFlatList(sortedOwnerRows, getLimit(6));
 
-      if (sortedOwnerRows.length === 0) {
+      let blocks = [];
+      if (groupByOwner) {
+        const groups = {};
+        sortedOwnerRows.forEach(r => {
+          if (!groups[r.ownerName]) groups[r.ownerName] = [];
+          groups[r.ownerName].push(r);
+        });
+        
+        blocks = Object.entries(groups).map(([ownerName, rows]) => {
+          return {
+            headerLabel: `Propietario: ${ownerName}`,
+            rows: rows
+          };
+        });
+      } else {
+        const groups = {};
+        sortedOwnerRows.forEach(r => {
+          if (!groups[r.pName]) groups[r.pName] = [];
+          groups[r.pName].push(r);
+        });
+        
+        blocks = Object.entries(groups).map(([pName, rows]) => {
+          return {
+            headerLabel: `Finca: ${pName}`,
+            rows: rows
+          };
+        });
+      }
+
+      const listPages = chunkFlatList(blocks, getLimit(6));
+
+      if (blocks.length === 0) {
         pageViews.push(
           <div key="empty" className="page-sheet relative">
             {renderPageHeader('Métricas de Inversión')}
@@ -4061,21 +4091,13 @@ export default function PrintPage() {
             <div key={pageIdx} className="page-sheet relative">
               <div className="flex flex-col gap-4">
                 {renderPageHeader('Métricas de Inversión')}
-                {pageItems.map((item, idx) => {
-                  const { pName, ownerName, percentage, ingresosAnuales, gastosAnuales, beneficioNeto, investedCapital, acquisitionPrice } = item;
-                  
-                  const roi = investedCapital > 0 ? (beneficioNeto / investedCapital) * 100 : 0;
-                  const roe = investedCapital > 0 ? (beneficioNeto / investedCapital) * 100 : 0;
-                  const cashOnCash = investedCapital > 0 ? (beneficioNeto / investedCapital) * 100 : 0;
-                  const grossYield = acquisitionPrice > 0 ? (ingresosAnuales / acquisitionPrice) * 100 : 0;
-                  const netYield = acquisitionPrice > 0 ? (beneficioNeto / acquisitionPrice) * 100 : 0;
-
+                {pageItems.map((block, idx) => {
                   const orderedCols = ALL_COLUMNS['metricas_inversion'].filter(c => cv(c.id));
 
                   return (
                     <div key={idx} className="mb-2 break-inside-avoid">
                       <div className="bg-slate-100 p-1 border border-slate-300 font-bold text-slate-800 flex justify-between text-[9px] mb-1.5 uppercase">
-                        <span>Finca: {pName}</span>
+                        <span>{block.headerLabel}</span>
                       </div>
                       <table className="w-full text-[8.5px] border-collapse">
                         <thead>
@@ -4099,24 +4121,36 @@ export default function PrintPage() {
                           </tr>
                         </thead>
                         <tbody>
-                          <tr className="border-b border-slate-100">
-                            {orderedCols.map(c => {
-                              if (c.id === 'property') return <td key={c.id} className="py-0.5 px-1 text-left">{pName}</td>;
-                              if (c.id === 'owner') return <td key={c.id} className="py-0.5 px-1 text-left">{ownerName}</td>;
-                              if (c.id === 'percentage') return <td key={c.id} className="py-0.5 px-1 text-right">{percentage.toFixed(2)}%</td>;
-                              if (c.id === 'acquisitionPrice') return <td key={c.id} className="py-0.5 px-1 text-right">{formatCurrency(acquisitionPrice)}</td>;
-                              if (c.id === 'investedCapital') return <td key={c.id} className="py-0.5 px-1 text-right">{formatCurrency(investedCapital)}</td>;
-                              if (c.id === 'ingresosAnuales') return <td key={c.id} className="py-0.5 px-1 text-right">{formatCurrency(ingresosAnuales)}</td>;
-                              if (c.id === 'gastosAnuales') return <td key={c.id} className="py-0.5 px-1 text-right">{formatCurrency(gastosAnuales)}</td>;
-                              if (c.id === 'beneficioNeto') return <td key={c.id} className="py-0.5 px-1 text-right">{formatCurrency(beneficioNeto)}</td>;
-                              if (c.id === 'roi') return <td key={c.id} className="py-0.5 px-1 text-right">{roi.toFixed(2)}%</td>;
-                              if (c.id === 'roe') return <td key={c.id} className="py-0.5 px-1 text-right">{roe.toFixed(2)}%</td>;
-                              if (c.id === 'cashOnCash') return <td key={c.id} className="py-0.5 px-1 text-right">{cashOnCash.toFixed(2)}%</td>;
-                              if (c.id === 'grossYield') return <td key={c.id} className="py-0.5 px-1 text-right">{grossYield.toFixed(2)}%</td>;
-                              if (c.id === 'netYield') return <td key={c.id} className="py-0.5 px-1 text-right">{netYield.toFixed(2)}%</td>;
-                              return null;
-                            })}
-                          </tr>
+                          {block.rows.map((item, rIdx) => {
+                            const { pName, ownerName, percentage, ingresosAnuales, gastosAnuales, beneficioNeto, investedCapital, acquisitionPrice } = item;
+                            
+                            const roi = investedCapital > 0 ? (beneficioNeto / investedCapital) * 100 : 0;
+                            const roe = investedCapital > 0 ? (beneficioNeto / investedCapital) * 100 : 0;
+                            const cashOnCash = investedCapital > 0 ? (beneficioNeto / investedCapital) * 100 : 0;
+                            const grossYield = acquisitionPrice > 0 ? (ingresosAnuales / acquisitionPrice) * 100 : 0;
+                            const netYield = acquisitionPrice > 0 ? (beneficioNeto / acquisitionPrice) * 100 : 0;
+
+                            return (
+                              <tr key={rIdx} className="border-b border-slate-100">
+                                {orderedCols.map(c => {
+                                  if (c.id === 'property') return <td key={c.id} className="py-0.5 px-1 text-left">{pName}</td>;
+                                  if (c.id === 'owner') return <td key={c.id} className="py-0.5 px-1 text-left">{ownerName}</td>;
+                                  if (c.id === 'percentage') return <td key={c.id} className="py-0.5 px-1 text-right">{percentage.toFixed(2)}%</td>;
+                                  if (c.id === 'acquisitionPrice') return <td key={c.id} className="py-0.5 px-1 text-right">{formatCurrency(acquisitionPrice)}</td>;
+                                  if (c.id === 'investedCapital') return <td key={c.id} className="py-0.5 px-1 text-right">{formatCurrency(investedCapital)}</td>;
+                                  if (c.id === 'ingresosAnuales') return <td key={c.id} className="py-0.5 px-1 text-right">{formatCurrency(ingresosAnuales)}</td>;
+                                  if (c.id === 'gastosAnuales') return <td key={c.id} className="py-0.5 px-1 text-right">{formatCurrency(gastosAnuales)}</td>;
+                                  if (c.id === 'beneficioNeto') return <td key={c.id} className="py-0.5 px-1 text-right">{formatCurrency(beneficioNeto)}</td>;
+                                  if (c.id === 'roi') return <td key={c.id} className="py-0.5 px-1 text-right">{roi.toFixed(2)}%</td>;
+                                  if (c.id === 'roe') return <td key={c.id} className="py-0.5 px-1 text-right">{roe.toFixed(2)}%</td>;
+                                  if (c.id === 'cashOnCash') return <td key={c.id} className="py-0.5 px-1 text-right">{cashOnCash.toFixed(2)}%</td>;
+                                  if (c.id === 'grossYield') return <td key={c.id} className="py-0.5 px-1 text-right">{grossYield.toFixed(2)}%</td>;
+                                  if (c.id === 'netYield') return <td key={c.id} className="py-0.5 px-1 text-right">{netYield.toFixed(2)}%</td>;
+                                  return null;
+                                })}
+                              </tr>
+                            );
+                          })}
                         </tbody>
                       </table>
                     </div>
@@ -6594,25 +6628,41 @@ export default function PrintPage() {
               {!isOptsPropietariosCollapsed && (
                 <div className="flex flex-col gap-2.5 border-t border-slate-100 pt-2">
                   {['extracto_propietarios', 'metricas_inversion'].includes(selectedTemplate) && (
+                    <div className="flex flex-col gap-1.5 border-b border-slate-100 pb-2 mb-1">
+                      <span className="text-[9px] font-bold text-slate-400 uppercase">Modo de Agrupación</span>
+                      <label className="flex items-center gap-2 cursor-pointer select-none text-[10px] font-semibold text-slate-600 font-sans">
+                        <input 
+                          type="radio"
+                          name="groupingMode"
+                          checked={!groupByOwner}
+                          onChange={() => setGroupByOwner(false)}
+                          className="w-3 h-3"
+                        />
+                        <span>Agrupar por Inmueble</span>
+                      </label>
+                      <label className="flex items-center gap-2 cursor-pointer select-none text-[10px] font-semibold text-slate-600 font-sans">
+                        <input 
+                          type="radio"
+                          name="groupingMode"
+                          checked={groupByOwner}
+                          onChange={() => setGroupByOwner(true)}
+                          className="w-3 h-3"
+                        />
+                        <span>Agrupar por Propietario</span>
+                      </label>
+                    </div>
+                  )}
+                  {['extracto_propietarios', 'inventario_activos'].includes(selectedTemplate) && (
                     <label className="flex items-center gap-2 cursor-pointer select-none text-[10px] font-semibold text-slate-600 font-sans">
                       <input 
                         type="checkbox"
-                        checked={groupByOwner}
-                        onChange={(e) => setGroupByOwner(e.target.checked)}
+                        checked={groupAccessoryAssets}
+                        onChange={(e) => setGroupAccessoryAssets(e.target.checked)}
                         className="w-3 h-3"
                       />
-                      <span>Agrupar por Propietario</span>
+                      <span>Sumar activo accesorio al activo principal</span>
                     </label>
                   )}
-                  <label className="flex items-center gap-2 cursor-pointer select-none text-[10px] font-semibold text-slate-600 font-sans">
-                    <input 
-                      type="checkbox"
-                      checked={groupAccessoryAssets}
-                      onChange={(e) => setGroupAccessoryAssets(e.target.checked)}
-                      className="w-3 h-3"
-                    />
-                    <span>Sumar activo accesorio al activo principal</span>
-                  </label>
                 </div>
               )}
             </div>
