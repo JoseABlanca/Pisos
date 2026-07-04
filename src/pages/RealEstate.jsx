@@ -411,9 +411,17 @@ export default function RealEstate() {
     
     // Find the latest property from properties state to avoid stale data
     const latestProperty = properties.find(p => p.id === target.id) || target;
-    
+    const financialsObj = latestProperty.financials || {};
+
     setFormData({ 
       ...latestProperty,
+      purchaseDate: latestProperty.purchaseDate || financialsObj.acquisitionDate || '',
+      acquisitionPrice: latestProperty.acquisitionPrice || financialsObj.purchasePrice || '',
+      investedCapital: latestProperty.investedCapital || financialsObj.investedCapital || '',
+      currentValue: latestProperty.currentValue || financialsObj.currentValue || '',
+      agentFees: latestProperty.agentFees || financialsObj.agentFees || '',
+      theoreticalSalePrice: latestProperty.theoreticalSalePrice || financialsObj.salePrice || '',
+      adquisitionExpenses: latestProperty.adquisitionExpenses || financialsObj.acquisitionExpenses || [],
       services: transformServices(latestProperty.services),
       community: {
         admin: '',
@@ -462,29 +470,69 @@ export default function RealEstate() {
     const calculatedMonthlyRent = activeRentalsForProperty.reduce((sum, r) => sum + (parseFloat(r.rentAmount) || 0), 0);
 
     let updatedProperty;
+    let updatedAccessory = null;
+
+    // Sync financials
+    const syncedFinancials = {
+      ...(formData.financials || {}),
+      acquisitionDate: formData.purchaseDate || '',
+      purchasePrice: formData.acquisitionPrice || '',
+      investedCapital: formData.investedCapital || '',
+      currentValue: formData.currentValue || '',
+      agentFees: formData.agentFees || '',
+      salePrice: formData.theoreticalSalePrice || '',
+      acquisitionExpenses: formData.adquisitionExpenses || []
+    };
+
+    if (accessoryFormData && accessoryFormData.id) {
+      const accSyncedFinancials = {
+        ...(accessoryFormData.financials || {}),
+        acquisitionDate: accessoryFormData.purchaseDate || '',
+        purchasePrice: accessoryFormData.acquisitionPrice || '',
+        investedCapital: accessoryFormData.investedCapital || '',
+        currentValue: accessoryFormData.currentValue || '',
+        agentFees: accessoryFormData.agentFees || '',
+        salePrice: accessoryFormData.theoreticalSalePrice || '',
+        acquisitionExpenses: accessoryFormData.adquisitionExpenses || []
+      };
+      updatedAccessory = {
+        ...accessoryFormData,
+        financials: accSyncedFinancials
+      };
+    }
+
     try {
       if (isEditing) {
-        updatedProperty = { ...formData, monthlyRent: calculatedMonthlyRent.toString() };
+        updatedProperty = { 
+          ...formData, 
+          monthlyRent: calculatedMonthlyRent.toString(),
+          financials: syncedFinancials
+        };
         let newProps = properties.map(p => p.id === formData.id ? updatedProperty : p);
-        if (accessoryFormData && accessoryFormData.id) {
-          newProps = newProps.map(p => p.id === accessoryFormData.id ? accessoryFormData : p);
+        if (updatedAccessory) {
+          newProps = newProps.map(p => p.id === updatedAccessory.id ? updatedAccessory : p);
         }
         setProperties(newProps);
       } else {
         const newId = formData.id && !properties.find(p => p.id === formData.id) 
           ? formData.id 
           : doc(collection(db, 'properties')).id;
-        updatedProperty = { ...formData, id: newId, monthlyRent: calculatedMonthlyRent.toString() };
+        updatedProperty = { 
+          ...formData, 
+          id: newId, 
+          monthlyRent: calculatedMonthlyRent.toString(),
+          financials: syncedFinancials
+        };
         let newProps = [...properties, updatedProperty];
-        if (accessoryFormData && accessoryFormData.id) {
-          newProps = newProps.map(p => p.id === accessoryFormData.id ? accessoryFormData : p);
+        if (updatedAccessory) {
+          newProps = newProps.map(p => p.id === updatedAccessory.id ? updatedAccessory : p);
         }
         setProperties(newProps);
       }
       
       await savePropertyToCloud(updatedProperty);
-      if (accessoryFormData && accessoryFormData.id) {
-        await savePropertyToCloud(accessoryFormData);
+      if (updatedAccessory) {
+        await savePropertyToCloud(updatedAccessory);
       }
       setSelectedProperty(updatedProperty);
       setShowForm(false);
@@ -762,6 +810,9 @@ export default function RealEstate() {
               <label className="text-[10px] font-bold text-slate-700 uppercase" title="Doble clic en la caja de abajo para ir a la configuración de cuentas">Cuenta contable asociada:</label>
               <select className="win-input w-full cursor-pointer" value={formData.accountingAccount || ''} onChange={e => setFormData({ ...formData, accountingAccount: e.target.value })} onDoubleClick={() => navigate('/accounts')} title="Doble clic para añadir/editar cuentas">
                 <option value=""></option>
+                {formData.accountingAccount && !availableAccounts.some(acc => acc.code === formData.accountingAccount) && (
+                  <option value={formData.accountingAccount}>{formData.accountingAccount} (No en PGC / Inválida)</option>
+                )}
                 {availableAccounts.map(acc => (
                   <option key={acc.code} value={acc.code}>{acc.code} - {acc.name}</option>
                 ))}

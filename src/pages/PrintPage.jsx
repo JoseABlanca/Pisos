@@ -545,7 +545,6 @@ export default function PrintPage() {
       { id: 'mortgagePending', label: 'Hip. Pendiente' },
       { id: 'acquisitionDate', label: 'Fecha Adquisición' },
       { id: 'purchasePrice', label: 'Precio Compra' },
-      { id: 'currentValue', label: 'Valor Actual' },
       { id: 'ingresos', label: 'Ingresos' },
       { id: 'gastos', label: 'Gastos' },
       { id: 'netYield', label: 'Rend. Neto' },
@@ -662,11 +661,14 @@ export default function PrintPage() {
       if (colId === 'name') return item.name || '';
       if (colId === 'address') return item.address || '';
       if (colId === 'cebe_ceco') return item.cebe || '';
-      if (colId === 'accountingAccount') return item.accountingAccount || '';
+      if (colId === 'accountingAccount') {
+        const hasValidAcc = accounts.some(a => a.code === item.accountingAccount);
+        return hasValidAcc ? item.accountingAccount : '';
+      }
       if (colId === 'mortgagePending') return parseFloat(item.mortgagePending) || 0;
-      if (colId === 'acquisitionDate') return item.financials?.acquisitionDate || item.acquisitionDate || '';
-      if (colId === 'purchasePrice') return parseFloat(item.financials?.purchasePrice || item.purchasePrice) || 0;
-      if (colId === 'currentValue') return parseFloat(item.financials?.currentValue || item.currentValue) || 0;
+      if (colId === 'acquisitionDate') return item.purchaseDate || item.financials?.acquisitionDate || '';
+      if (colId === 'purchasePrice') return parseFloat(item.acquisitionPrice || item.financials?.purchasePrice) || 0;
+      if (colId === 'currentValue') return parseFloat(item.currentValue || item.financials?.currentValue) || 0;
       if (colId === 'ingresos') return getPropertyMetrics(item, filteredEntriesForPrint).ingresos;
       if (colId === 'gastos') return getPropertyMetrics(item, filteredEntriesForPrint).gastos;
       if (colId === 'netYield') return getPropertyMetrics(item, filteredEntriesForPrint).neto;
@@ -680,9 +682,8 @@ export default function PrintPage() {
       if (colId === 'capitalAportado') return parseFloat(item.investedCapital) || 0;
       if (colId === 'totalInversion') {
         const cAportado = parseFloat(item.investedCapital) || 0;
-        const cGastos = (item.adquisitionExpenses || item.financials?.acquisitionExpenses || []).reduce((acc, exp) => acc + (parseFloat(exp.amount) || 0), 0);
         const cReforms = (item.reforms || []).reduce((acc, ref) => acc + (ref.expenses || []).reduce((s, exp) => s + (exp.capitalize ? (parseFloat(exp.amount) || 0) : 0), 0), 0);
-        return cAportado + cGastos + cReforms;
+        return cAportado + cReforms;
       }
       if (colId === 'theoreticalSalePrice') return parseFloat(item.theoreticalSalePrice || item.financials?.theoreticalSalePrice || 0);
       if (colId === 'gastosCompraVenta') {
@@ -2915,8 +2916,12 @@ export default function PrintPage() {
                         const capSum = (ref.expenses || []).reduce((s, exp) => s + (exp.capitalize ? (parseFloat(exp.amount) || 0) : 0), 0);
                         return acc + capSum;
                       }, 0);
-                      const propTotalInversion = propInvestedCapital + propAdquisitionExpenses + propCapitalizedReforms;
+                      const propTotalInversion = propInvestedCapital + propCapitalizedReforms;
                       const propTheoreticalSalePrice = parseFloat(p.theoreticalSalePrice || p.financials?.theoreticalSalePrice || 0);
+
+                      const hasValidAccount = p.accountingAccount && accounts.some(a => a.code === p.accountingAccount);
+                      const displayAcqDate = p.purchaseDate || p.financials?.acquisitionDate || '';
+                      const displayPurchasePrice = parseFloat(p.acquisitionPrice || p.financials?.purchasePrice || 0);
 
                       return (
                         <tr key={p.id} className="border-b border-slate-200 text-[9px] text-slate-800">
@@ -2924,10 +2929,9 @@ export default function PrintPage() {
                           {cv('name') && <td className="py-1.5 px-2 uppercase">{p.name}</td>}
                           {cv('address') && <td className="py-1.5 px-2 uppercase">{p.address}{p.city ? `, ${p.city}` : ''}</td>}
                           {cv('cebe_ceco') && <td className="py-1.5 px-2 uppercase">{p.cebe || '---'}</td>}
-                          {cv('accountingAccount') && <td className="py-1.5 px-2 text-center">{p.accountingAccount || '---'}</td>}
-                          {cv('acquisitionDate') && <td className="py-1.5 px-2 text-center">{p.financials?.acquisitionDate ? formatDate(p.financials.acquisitionDate) : (p.acquisitionDate ? formatDate(p.acquisitionDate) : '---')}</td>}
-                          {cv('purchasePrice') && <td className="py-1.5 px-2 text-right tabular-nums">{p.financials?.purchasePrice > 0 ? formatCurrency(p.financials.purchasePrice) : (p.purchasePrice > 0 ? formatCurrency(p.purchasePrice) : '---')}</td>}
-                          {cv('currentValue') && <td className="py-1.5 px-2 text-right tabular-nums">{p.financials?.currentValue > 0 ? formatCurrency(p.financials.currentValue) : (p.currentValue > 0 ? formatCurrency(p.currentValue) : '---')}</td>}
+                          {cv('accountingAccount') && <td className="py-1.5 px-2 text-center">{hasValidAccount ? p.accountingAccount : '---'}</td>}
+                          {cv('acquisitionDate') && <td className="py-1.5 px-2 text-center">{displayAcqDate ? formatDate(displayAcqDate) : '---'}</td>}
+                          {cv('purchasePrice') && <td className="py-1.5 px-2 text-right tabular-nums">{displayPurchasePrice > 0 ? formatCurrency(displayPurchasePrice) : '---'}</td>}
                           {cv('mortgagePending') && <td className="py-1.5 px-2 text-right tabular-nums">{p.mortgagePending > 0 ? formatCurrency(p.mortgagePending) : '0,00'}</td>}
                           {cv('ingresos') && <td className="py-1.5 px-2 text-right tabular-nums">{formatCurrency(metrics.ingresos)}</td>}
                           {cv('gastos') && <td className="py-1.5 px-2 text-right tabular-nums">{formatCurrency(metrics.gastos)}</td>}
@@ -3085,16 +3089,30 @@ export default function PrintPage() {
     if (selectedTemplate === 'clientes') {
       const cv = (colId) => isColVisible('clientes', colId);
 
-      // Filter customers based on state
+      // Filter customers based on state and only active rentals
+      const seenNames = new Set();
       const filteredCustomers = customers.filter(c => {
         const status = c.status || 'activo';
         if (statusFilterClientes !== 'todos' && status !== statusFilterClientes) return false;
         
+        // Only include customers with an active rental contract
+        const hasActiveRental = rentals.some(r => 
+          (r.tenantId === c.id || (r.tenants && r.tenants.some(t => t.id === c.id))) && 
+          (r.status || 'activo') === 'activo'
+        );
+        if (!hasActiveRental) return false;
+
         const activePropFilters = selectedFilterProperties.clientes || [];
         if (activePropFilters.length > 0) {
           const matchesAny = activePropFilters.some(pid => isCustomerAssociatedWithProperty(c, pid, rentals, properties));
           if (!matchesAny) return false;
         }
+
+        // Deduplicate by name + DNI to avoid showing duplicate rows
+        const nameKey = `${(c.name || '').trim()} ${(c.lastName || '').trim()} - ${(c.dni || '').trim()}`.toLowerCase();
+        if (seenNames.has(nameKey)) return false;
+        seenNames.add(nameKey);
+
         return true;
       });
 
