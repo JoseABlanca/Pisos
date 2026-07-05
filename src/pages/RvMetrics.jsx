@@ -231,14 +231,17 @@ export default function RvMetrics() {
           if (!holdings[t]) holdings[t] = { shares: 0, avgCost: 0 };
           
           const qty = Number(tx.quantity || 0);
-          const amtInEur = Number(tx.totalAmount || 0) / Number(tx.exchangeRate || 1);
-          const feeInEur = Number(tx.fee || 0) / Number(tx.exchangeRate || 1);
+          const price = Number(tx.price || 0);
+          const rate = Number(tx.exchangeRate || 1);
+          const fee = Number(tx.fee || 0);
+          const amtInEur = (qty * price) / rate;
+          const feeInEur = fee / rate;
 
           if (tx.type === 'Compra') {
             const oldTotalCost = holdings[t].shares * holdings[t].avgCost;
             holdings[t].shares += qty;
             if (holdings[t].shares > 0) {
-              holdings[t].avgCost = (oldTotalCost + amtInEur) / holdings[t].shares;
+              holdings[t].avgCost = (oldTotalCost + amtInEur + feeInEur) / holdings[t].shares;
             }
           } else if (tx.type === 'Venta') {
             const costOfSold = holdings[t].avgCost * qty;
