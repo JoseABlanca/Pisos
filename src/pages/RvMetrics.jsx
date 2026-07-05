@@ -33,6 +33,7 @@ export default function RvMetrics() {
   const [linePeriod, setLinePeriod] = useState(() => localStorage.getItem('rv_metrics_line_period') || 'MONTH');
   const [barPeriod, setBarPeriod] = useState(() => localStorage.getItem('rv_metrics_bar_period') || 'MONTH');
   const [histPeriod, setHistPeriod] = useState(() => localStorage.getItem('rv_metrics_hist_period') || 'MONTH');
+  const [drawdownPeriod, setDrawdownPeriod] = useState(() => localStorage.getItem('rv_metrics_drawdown_period') || 'MONTH');
 
   // Topbar Filters
   const [unit, setUnit] = useState(() => localStorage.getItem('rv_metrics_unit') || 'EUR'); // 'EUR', 'PERCENT'
@@ -49,6 +50,7 @@ export default function RvMetrics() {
   useEffect(() => { localStorage.setItem('rv_metrics_line_period', linePeriod); }, [linePeriod]);
   useEffect(() => { localStorage.setItem('rv_metrics_bar_period', barPeriod); }, [barPeriod]);
   useEffect(() => { localStorage.setItem('rv_metrics_hist_period', histPeriod); }, [histPeriod]);
+  useEffect(() => { localStorage.setItem('rv_metrics_drawdown_period', drawdownPeriod); }, [drawdownPeriod]);
   useEffect(() => { localStorage.setItem('rv_metrics_kpi_type', kpiBenefitType); }, [kpiBenefitType]);
 
   // Toggle Lines state
@@ -204,8 +206,8 @@ export default function RvMetrics() {
     setFn(newSel);
   };
 
-  const { lineData, barData, histogramData, summary } = useMemo(() => {
-    if (!transactions.length) return { lineData: [], barData: [], histogramData: [], summary: {} };
+  const { lineData, barData, histogramData, drawdownData, summary } = useMemo(() => {
+    if (!transactions.length) return { lineData: [], barData: [], histogramData: [], drawdownData: [], summary: {} };
 
     // Initial filter by active/broker/account (These affect the actual invested capital calculations)
     let txs = [...transactions].sort((a, b) => new Date(a.date) - new Date(b.date));
@@ -472,9 +474,24 @@ export default function RvMetrics() {
        lineChartData = Object.values(periodMapForLine);
     }
 
-    // Calculate Drawdown for lineChartData
+    // Calculate Drawdown independently
+    let drawdownChartData = Object.values(dailyMap);
+    if (startDate) {
+      drawdownChartData = drawdownChartData.filter(d => d.date >= startDate);
+    }
+    if (endDate) {
+      drawdownChartData = drawdownChartData.filter(d => d.date <= endDate);
+    }
+    if (drawdownPeriod !== 'DAY') {
+       const periodMapForDD = {};
+       drawdownChartData.forEach(day => {
+          let periodKey = day.date.substring(0, drawdownPeriod === 'YEAR' ? 4 : 7);
+          periodMapForDD[periodKey] = { ...day, date: periodKey }; // Store last day of period
+       });
+       drawdownChartData = Object.values(periodMapForDD);
+    }
     let maxPortfolioValue = 0;
-    lineChartData.forEach(day => {
+    drawdownChartData.forEach(day => {
        const currentValue = day.capitalInvertido + day.beneficioTotal;
        if (currentValue > maxPortfolioValue) {
           maxPortfolioValue = currentValue;
@@ -688,6 +705,7 @@ export default function RvMetrics() {
       lineData: lineChartData, 
       barData: barChartData,
       histogramData: histogramData,
+      drawdownData: drawdownChartData,
       summary: { 
         currentCapital: exactCurrentCost,
         currentValue: exactCurrentValue,
@@ -716,7 +734,7 @@ export default function RvMetrics() {
         }
       } 
     };
-  }, [transactions, history, assets, config, selectedTickers, selectedBrokers, selectedAccounts, startDate, endDate, linePeriod, barPeriod, histPeriod]);
+  }, [transactions, history, assets, config, selectedTickers, selectedBrokers, selectedAccounts, startDate, endDate, linePeriod, barPeriod, histPeriod, drawdownPeriod]);
 
   useEffect(() => {
     const handleViewGraphics = () => setActiveView('graficos');
@@ -1133,10 +1151,21 @@ export default function RvMetrics() {
 
           {/* Drawdown Chart */}
           <div className="bg-white p-4 rounded-xl border border-slate-200 shadow-sm min-h-[250px]">
-            <h2 className="text-sm font-bold text-slate-700 mb-4">Drawdown del Portfolio</h2>
+            <div className="flex items-center justify-between mb-4">
+              <h2 className="text-sm font-bold text-slate-700">Drawdown del Portfolio</h2>
+              <select 
+                value={drawdownPeriod} 
+                onChange={e => setDrawdownPeriod(e.target.value)} 
+                className="text-xs border-slate-300 rounded shadow-sm focus:ring-[#5b21b6] focus:border-[#5b21b6] py-1 pl-2 pr-6"
+              >
+                <option value="DAY">Diario</option>
+                <option value="MONTH">Mensual</option>
+                <option value="YEAR">Anual</option>
+              </select>
+            </div>
             <div className="h-[200px]">
               <ResponsiveContainer width="100%" height="100%">
-                <AreaChart data={lineData} margin={{ top: 5, right: 20, left: 20, bottom: 5 }}>
+                <AreaChart data={drawdownData} margin={{ top: 5, right: 20, left: 20, bottom: 5 }}>
                   <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="#e2e8f0" />
                   <XAxis dataKey="date" tick={{ fontSize: 10, fill: '#64748b' }} tickFormatter={(val) => {
                       if(!val) return '';
@@ -1168,13 +1197,13 @@ export default function RvMetrics() {
             </div>
             <div className="h-[250px]">
               <ResponsiveContainer width="100%" height="100%">
-                <ComposedChart data={histogramData} margin={{ top: 5, right: 20, left: 20, bottom: 5 }}>
+                <ComposedChart data={histogramData} margin={{ top: 5, right: 20, left: 20, bottom: 5 }} barCategoryGap={0}>
                   <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="#e2e8f0" />
                   <XAxis dataKey="label" tick={{ fontSize: 10, fill: '#64748b' }} />
                   <YAxis yAxisId="left" tick={{ fontSize: 10, fill: '#64748b' }} />
                   <YAxis yAxisId="right" orientation="right" hide={true} />
                   <Tooltip labelStyle={{ color: '#0f172a', fontWeight: 'bold' }} />
-                  <Bar yAxisId="left" name="Frecuencia (Días/Meses)" dataKey="count" fill="#8b5cf6" radius={[4, 4, 0, 0]} />
+                  <Bar yAxisId="left" name="Frecuencia (Días/Meses)" dataKey="count" fill="#3b82f6" radius={[4, 4, 0, 0]} />
                   <Line yAxisId="right" type="monotone" name="Densidad Normal" dataKey="density" stroke="#10b981" strokeWidth={2} dot={false} />
                 </ComposedChart>
               </ResponsiveContainer>
