@@ -740,7 +740,7 @@ export default function Portfolio() {
 
               {/* Broker Filter */}
               <div className="space-y-2 pt-2 border-t border-gray-300">
-                <label className="text-slate-700 font-bold">Filtrar por Broker:</label>
+                <label className="text-slate-700 font-bold">Filtrar por Cuenta de Broker:</label>
                 <div className="space-y-1">
                   <label className="flex items-center space-x-2 cursor-pointer">
                     <input
@@ -751,7 +751,7 @@ export default function Portfolio() {
                       className="text-indigo-600 focus:ring-indigo-500 cursor-pointer text-xs"
                     />
                     <span className={brokerFilter === 'todos' ? 'text-indigo-700 font-bold' : 'text-slate-700'}>
-                      Todos
+                      Todas las cuentas
                     </span>
                   </label>
                   {brokers.map((broker) => (
@@ -764,7 +764,7 @@ export default function Portfolio() {
                         className="text-indigo-600 focus:ring-indigo-500 cursor-pointer text-xs"
                       />
                       <span className={brokerFilter === broker.id ? 'text-indigo-700 font-bold' : 'text-slate-700'}>
-                        {broker.name}
+                        {broker.accountNumber ? `${broker.name} (${broker.accountNumber})` : broker.name}
                       </span>
                     </label>
                   ))}

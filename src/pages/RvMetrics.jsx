@@ -4,7 +4,7 @@ import { db } from '../firebase/config';
 import { useAuth } from '../context/AuthContext';
 import { 
   LineChart, Line, BarChart, Bar, XAxis, YAxis, CartesianGrid, 
-  Tooltip, Legend, ResponsiveContainer, ReferenceLine 
+  Tooltip, Legend, ResponsiveContainer, ReferenceLine, ComposedChart, Area, AreaChart
 } from 'recharts';
 
 export default function RvMetrics() {
@@ -200,8 +200,8 @@ export default function RvMetrics() {
     setFn(newSel);
   };
 
-  const { lineData, barData, summary } = useMemo(() => {
-    if (!transactions.length) return { lineData: [], barData: [], summary: {} };
+  const { lineData, barData, histogramData, summary } = useMemo(() => {
+    if (!transactions.length) return { lineData: [], barData: [], histogramData: [], summary: {} };
 
     // Initial filter by active/broker/account (These affect the actual invested capital calculations)
     let txs = [...transactions].sort((a, b) => new Date(a.date) - new Date(b.date));
@@ -431,6 +431,51 @@ export default function RvMetrics() {
        lineChartData = Object.values(periodMapForLine);
     }
 
+    // Calculate Drawdown for lineChartData
+    let maxPortfolioValue = 0;
+    lineChartData.forEach(day => {
+       const currentValue = day.capitalInvertido + day.beneficioTotal;
+       if (currentValue > maxPortfolioValue) {
+          maxPortfolioValue = currentValue;
+       }
+       if (maxPortfolioValue > 0) {
+          day.drawdownPct = ((currentValue - maxPortfolioValue) / maxPortfolioValue) * 100;
+       } else {
+          day.drawdownPct = 0;
+       }
+    });
+
+    // Build frequency histogram data based on barChartData
+    let histogramData = [];
+    if (barChartData.length > 0) {
+      const returns = barChartData.map(d => unit === 'EUR' ? d.gains : d.gainsPct).filter(r => !isNaN(r));
+      if (returns.length > 0) {
+        const minRet = Math.min(...returns);
+        const maxRet = Math.max(...returns);
+        const range = maxRet - minRet;
+        const binSize = range === 0 ? 1 : Math.max(range / 15, unit === 'EUR' ? 10 : 0.5); // 15 bins
+        
+        const bins = {};
+        returns.forEach(r => {
+           let bin = Math.floor(r / binSize) * binSize;
+           const binLabel = `${bin.toFixed(unit === 'EUR' ? 0 : 1)}${unit === 'EUR' ? '€' : '%'}`;
+           if (!bins[binLabel]) bins[binLabel] = { binStart: bin, label: binLabel, count: 0 };
+           bins[binLabel].count++;
+        });
+        
+        histogramData = Object.values(bins).sort((a, b) => a.binStart - b.binStart);
+        
+        const mean = returns.reduce((a, b) => a + b, 0) / returns.length;
+        const stdDev = Math.sqrt(returns.reduce((a, b) => a + Math.pow(b - mean, 2), 0) / returns.length) || 1;
+        
+        histogramData.forEach(b => {
+           const x = b.binStart + (binSize / 2);
+           const density = (1 / (stdDev * Math.sqrt(2 * Math.PI))) * Math.exp(-0.5 * Math.pow((x - mean) / stdDev, 2));
+           b.density = density * returns.length * binSize;
+        });
+      }
+    }
+
     // ----- EXACT CURRENT SUMMARY CALCULATION (Matches Portfolio.jsx) -----
     let exactCurrentCost = 0;
     let exactCurrentValue = 0;
@@ -600,7 +645,8 @@ export default function RvMetrics() {
 
     return { 
       lineData: lineChartData, 
-      barData: barChartData, 
+      barData: barChartData,
+      histogramData: histogramData,
       summary: { 
         currentCapital: exactCurrentCost,
         currentValue: exactCurrentValue,
@@ -1042,7 +1088,45 @@ export default function RvMetrics() {
                 </BarChart>
               </ResponsiveContainer>
             </div>
+          {/* Drawdown Chart */}
+          <div className="bg-white p-4 rounded-xl border border-slate-200 shadow-sm min-h-[250px]">
+            <h2 className="text-sm font-bold text-slate-700 mb-4">Drawdown del Portfolio</h2>
+            <div className="h-[200px]">
+              <ResponsiveContainer width="100%" height="100%">
+                <AreaChart data={lineData} margin={{ top: 5, right: 20, left: 20, bottom: 5 }}>
+                  <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="#e2e8f0" />
+                  <XAxis dataKey="date" tick={{ fontSize: 10, fill: '#64748b' }} tickFormatter={(val) => {
+                      if(!val) return '';
+                      const d = new Date(val);
+                      return `${d.getMonth()+1}/${d.getFullYear().toString().slice(2)}`;
+                  }} />
+                  <YAxis tick={{ fontSize: 10, fill: '#64748b' }} tickFormatter={(v) => `${v.toFixed(1)}%`} />
+                  <Tooltip formatter={(value) => [`${Number(value).toFixed(2)}%`, 'Drawdown']} labelStyle={{ color: '#0f172a', fontWeight: 'bold' }} />
+                  <Area type="monotone" dataKey="drawdownPct" stroke="#ef4444" fill="#fecaca" />
+                </AreaChart>
+              </ResponsiveContainer>
+            </div>
           </div>
+
+          {/* Frequency Histogram Chart */}
+          {histogramData && histogramData.length > 0 && (
+          <div className="bg-white p-4 rounded-xl border border-slate-200 shadow-sm min-h-[300px]">
+            <h2 className="text-sm font-bold text-slate-700 mb-4">Distribución de Frecuencias (Periodo: {barPeriod === 'DAY' ? 'Diario' : barPeriod === 'MONTH' ? 'Mensual' : 'Anual'})</h2>
+            <div className="h-[250px]">
+              <ResponsiveContainer width="100%" height="100%">
+                <ComposedChart data={histogramData} margin={{ top: 5, right: 20, left: 20, bottom: 5 }}>
+                  <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="#e2e8f0" />
+                  <XAxis dataKey="label" tick={{ fontSize: 10, fill: '#64748b' }} />
+                  <YAxis yAxisId="left" tick={{ fontSize: 10, fill: '#64748b' }} />
+                  <YAxis yAxisId="right" orientation="right" hide={true} />
+                  <Tooltip labelStyle={{ color: '#0f172a', fontWeight: 'bold' }} />
+                  <Bar yAxisId="left" name="Frecuencia (Días/Meses)" dataKey="count" fill="#8b5cf6" radius={[4, 4, 0, 0]} />
+                  <Line yAxisId="right" type="monotone" name="Densidad Normal" dataKey="density" stroke="#10b981" strokeWidth={2} dot={false} />
+                </ComposedChart>
+              </ResponsiveContainer>
+            </div>
+          </div>
+          )}
           </>
           )}
 
