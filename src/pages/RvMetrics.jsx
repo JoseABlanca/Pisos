@@ -612,7 +612,7 @@ export default function RvMetrics() {
         }
       } 
     };
-  }, [transactions, history, assets, config, selectedTickers, startDate, endDate, barPeriod]);
+  }, [transactions, history, assets, config, selectedTickers, selectedBrokers, selectedAccounts, startDate, endDate, barPeriod]);
 
   useEffect(() => {
     const handleViewGraphics = () => setActiveView('graficos');
