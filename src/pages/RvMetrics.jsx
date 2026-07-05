@@ -859,7 +859,13 @@ export default function RvMetrics() {
 
             {/* Activos */}
             <div>
-              <h3 className="text-[11px] font-bold text-slate-700 mb-2">Activos:</h3>
+              <div className="flex items-center justify-between mb-2">
+                <h3 className="text-[11px] font-bold text-slate-700">Activos:</h3>
+              </div>
+              <label className="flex items-center gap-2 cursor-pointer mb-3 p-2 bg-indigo-50 border border-indigo-100 rounded-md hover:bg-indigo-100 transition-colors">
+                <input type="checkbox" checked={isAccumulated} onChange={e => setIsAccumulated(e.target.checked)} className="rounded text-indigo-600 focus:ring-indigo-600 w-3.5 h-3.5" />
+                <span className="text-[11px] font-bold text-indigo-900">Gráfico Acumulado</span>
+              </label>
               <FilterItem label="Todos los activos" isSelected={selectedTickers.includes('ALL')} onClick={() => toggleMultiSelect('ALL', selectedTickers, setSelectedTickers)} />
               {tickers.map(t => (
                 <FilterItem key={t} label={t} isSelected={selectedTickers.includes(t)} onClick={() => toggleMultiSelect(t, selectedTickers, setSelectedTickers)} />
