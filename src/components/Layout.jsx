@@ -977,10 +977,10 @@ export default function Layout() {
     ],
     'Histórico RV': [
       {
-        group: 'Histórico',
+        group: 'Vistas',
         items: [
-          { name: 'Calcular\nmétricas', action: 'rv-metrics:calculate', icon: BarChart3 },
-          { name: 'Exportar', action: 'rv-metrics:export', customIcon: 'Exportar' }
+          { name: 'Gráficos', action: 'rv-metrics:view-graphics', customIcon: 'Dashboard' },
+          { name: 'Métricas', action: 'rv-metrics:view-metrics', customIcon: 'Calculadora' }
         ]
       }
     ],

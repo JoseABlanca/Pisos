@@ -26,6 +26,7 @@ export default function RvMetrics() {
   const [selectedAccounts, setSelectedAccounts] = useState(['ALL']);
   const [startDate, setStartDate] = useState('');
   const [endDate, setEndDate] = useState('');
+  const [activeView, setActiveView] = useState('graficos');
   const [barPeriod, setBarPeriod] = useState('MONTH'); // 'DAY', 'MONTH', 'YEAR'
 
   // Topbar Filters
@@ -510,7 +511,18 @@ export default function RvMetrics() {
         plusvaliaPct: exactPlusvaliaPct
       } 
     };
-  }, [transactions, history, assets, config, selectedTickers, selectedBrokers, selectedAccounts, startDate, endDate, barPeriod]);
+  }, [transactions, history, assets, config, selectedTickers, startDate, endDate, barPeriod]);
+
+  useEffect(() => {
+    const handleViewGraphics = () => setActiveView('graficos');
+    const handleViewMetrics = () => setActiveView('metricas');
+    window.addEventListener('rv-metrics:view-graphics', handleViewGraphics);
+    window.addEventListener('rv-metrics:view-metrics', handleViewMetrics);
+    return () => {
+      window.removeEventListener('rv-metrics:view-graphics', handleViewGraphics);
+      window.removeEventListener('rv-metrics:view-metrics', handleViewMetrics);
+    };
+  }, []);
 
   if (loading) {
     return <div className="p-6 flex justify-center items-center h-full text-slate-500">Cargando histórico de mercado...</div>;
@@ -529,13 +541,13 @@ export default function RvMetrics() {
 
   const handleLegendClick = (e) => setHiddenLines(prev => ({ ...prev, [e.dataKey]: !prev[e.dataKey] }));
 
-  // Render Filter item (styled like Photo 2: circular radio-like, purple text when selected)
+  // Render Filter item
   const FilterItem = ({ label, isSelected, onClick }) => (
     <label className="flex items-center gap-2 cursor-pointer mb-2 group" onClick={onClick}>
-      <div className={`w-4 h-4 rounded-full border flex items-center justify-center ${isSelected ? 'border-[#5b21b6]' : 'border-slate-400 group-hover:border-[#7c3aed]'}`}>
-        {isSelected && <div className="w-2 h-2 rounded-full bg-[#5b21b6]"></div>}
+      <div className={`w-3.5 h-3.5 rounded-full border flex items-center justify-center ${isSelected ? 'border-[#5b21b6]' : 'border-slate-400 group-hover:border-[#7c3aed]'}`}>
+        {isSelected && <div className="w-1.5 h-1.5 rounded-full bg-[#5b21b6]"></div>}
       </div>
-      <span className={`text-sm ${isSelected ? 'text-[#5b21b6] font-medium' : 'text-slate-600'}`}>{label}</span>
+      <span className={`text-[11px] ${isSelected ? 'text-[#5b21b6] font-medium' : 'text-slate-600'}`}>{label}</span>
     </label>
   );
 
@@ -546,7 +558,7 @@ export default function RvMetrics() {
       {isSidebarOpen && (
         <div className="w-72 bg-[#f4f5f8] border-r border-slate-200 flex-shrink-0 flex flex-col h-full overflow-y-auto">
           <div className="p-4 border-b border-slate-200 bg-[#ebeef5] sticky top-0 z-10">
-            <h2 className="font-bold text-slate-700">Filtros</h2>
+            <h2 className="font-bold text-slate-700 text-sm">Filtros</h2>
           </div>
           <div className="p-4 flex flex-col gap-6">
 
@@ -555,16 +567,16 @@ export default function RvMetrics() {
               <button 
                 onClick={handleRefreshData}
                 disabled={isRefreshing}
-                className={`w-full justify-center px-4 py-2 text-sm font-medium border rounded-md transition-colors flex items-center gap-2 ${isRefreshing ? 'bg-slate-100 text-slate-400 border-slate-200' : 'bg-white text-[#5b21b6] border-[#ddd6fe] hover:bg-[#f5f3ff]'}`}
+                className={`w-full justify-center px-4 py-2 text-xs font-medium border rounded-md transition-colors flex items-center gap-2 ${isRefreshing ? 'bg-slate-100 text-slate-400 border-slate-200' : 'bg-white text-[#5b21b6] border-[#ddd6fe] hover:bg-[#f5f3ff]'}`}
               >
                 {isRefreshing ? (
                   <>
-                    <svg className="animate-spin h-4 w-4" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24"><circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle><path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path></svg>
+                    <svg className="animate-spin h-3 w-3" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24"><circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle><path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path></svg>
                     Descargando API...
                   </>
                 ) : (
                   <>
-                    <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+                    <svg xmlns="http://www.w3.org/2000/svg" className="h-3 w-3" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
                       <path strokeLinecap="round" strokeLinejoin="round" d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15" />
                     </svg>
                     Recargar de API
@@ -573,19 +585,19 @@ export default function RvMetrics() {
               </button>
 
               <div className="flex bg-white p-1 rounded-md border border-slate-200 w-full">
-                <button onClick={() => setPrimaryMetric('VALOR')} className={`flex-1 py-1.5 text-xs font-medium rounded transition-colors ${primaryMetric === 'VALOR' ? 'text-[#5b21b6] bg-[#f5f3ff]' : 'text-slate-600 hover:text-slate-900'}`}>
+                <button onClick={() => setPrimaryMetric('VALOR')} className={`flex-1 py-1.5 text-[11px] font-medium rounded transition-colors ${primaryMetric === 'VALOR' ? 'text-[#5b21b6] bg-[#f5f3ff]' : 'text-slate-600 hover:text-slate-900'}`}>
                   Gráfica Valor
                 </button>
-                <button onClick={() => setPrimaryMetric('PLUSVALIA')} className={`flex-1 py-1.5 text-xs font-medium rounded transition-colors ${primaryMetric === 'PLUSVALIA' ? 'text-[#5b21b6] bg-[#f5f3ff]' : 'text-slate-600 hover:text-slate-900'}`}>
+                <button onClick={() => setPrimaryMetric('PLUSVALIA')} className={`flex-1 py-1.5 text-[11px] font-medium rounded transition-colors ${primaryMetric === 'PLUSVALIA' ? 'text-[#5b21b6] bg-[#f5f3ff]' : 'text-slate-600 hover:text-slate-900'}`}>
                   Gráfica Plusvalía
                 </button>
               </div>
 
               <div className="flex bg-white p-1 rounded-md border border-slate-200 w-full">
-                <button onClick={() => setUnit('EUR')} className={`flex-1 py-1.5 text-xs font-medium rounded transition-colors ${unit === 'EUR' ? 'text-[#5b21b6] bg-[#f5f3ff]' : 'text-slate-600 hover:text-slate-900'}`}>
+                <button onClick={() => setUnit('EUR')} className={`flex-1 py-1.5 text-[11px] font-medium rounded transition-colors ${unit === 'EUR' ? 'text-[#5b21b6] bg-[#f5f3ff]' : 'text-slate-600 hover:text-slate-900'}`}>
                   Euros (€)
                 </button>
-                <button onClick={() => setUnit('PERCENT')} className={`flex-1 py-1.5 text-xs font-medium rounded transition-colors ${unit === 'PERCENT' ? 'text-[#5b21b6] bg-[#f5f3ff]' : 'text-slate-600 hover:text-slate-900'}`}>
+                <button onClick={() => setUnit('PERCENT')} className={`flex-1 py-1.5 text-[11px] font-medium rounded transition-colors ${unit === 'PERCENT' ? 'text-[#5b21b6] bg-[#f5f3ff]' : 'text-slate-600 hover:text-slate-900'}`}>
                   Porcentaje (%)
                 </button>
               </div>
@@ -595,76 +607,26 @@ export default function RvMetrics() {
             
             {/* Fechas */}
             <div>
-              <h3 className="text-sm font-bold text-slate-700 mb-2">Rango de Fechas:</h3>
+              <h3 className="text-[11px] font-bold text-slate-700 mb-2">Rango de Fechas:</h3>
               <div className="flex flex-col gap-2">
                 <div>
-                  <label className="text-xs text-slate-500 mb-1 block">Desde:</label>
-                  <input type="date" value={startDate} onChange={e => setStartDate(e.target.value)} className="w-full text-sm rounded border-slate-300 shadow-sm focus:ring-[#5b21b6] focus:border-[#5b21b6]" />
+                  <label className="text-[10px] text-slate-500 mb-1 block uppercase tracking-wider">Desde:</label>
+                  <input type="date" value={startDate} onChange={e => setStartDate(e.target.value)} className="w-full text-xs rounded border-slate-300 shadow-sm focus:ring-[#5b21b6] focus:border-[#5b21b6]" />
                 </div>
                 <div>
-                  <label className="text-xs text-slate-500 mb-1 block">Hasta:</label>
-                  <input type="date" value={endDate} onChange={e => setEndDate(e.target.value)} className="w-full text-sm rounded border-slate-300 shadow-sm focus:ring-[#5b21b6] focus:border-[#5b21b6]" />
+                  <label className="text-[10px] text-slate-500 mb-1 block uppercase tracking-wider">Hasta:</label>
+                  <input type="date" value={endDate} onChange={e => setEndDate(e.target.value)} className="w-full text-xs rounded border-slate-300 shadow-sm focus:ring-[#5b21b6] focus:border-[#5b21b6]" />
                 </div>
               </div>
             </div>
 
             {/* Activos */}
             <div>
-              <h3 className="text-sm font-bold text-slate-700 mb-2">Activos:</h3>
+              <h3 className="text-[11px] font-bold text-slate-700 mb-2">Activos:</h3>
               <FilterItem label="Todos los activos" isSelected={selectedTickers.includes('ALL')} onClick={() => toggleMultiSelect('ALL', selectedTickers, setSelectedTickers)} />
               {tickers.map(t => (
                 <FilterItem key={t} label={t} isSelected={selectedTickers.includes(t)} onClick={() => toggleMultiSelect(t, selectedTickers, setSelectedTickers)} />
               ))}
-            </div>
-
-            {/* Brokers */}
-            {brokers.length > 0 && (
-              <div>
-                <h3 className="text-sm font-bold text-slate-700 mb-2">Brokers:</h3>
-                <FilterItem label="Todos los brokers" isSelected={selectedBrokers.includes('ALL')} onClick={() => toggleMultiSelect('ALL', selectedBrokers, setSelectedBrokers)} />
-                {brokers.map(b => (
-                  <FilterItem key={b} label={b} isSelected={selectedBrokers.includes(b)} onClick={() => toggleMultiSelect(b, selectedBrokers, setSelectedBrokers)} />
-                ))}
-              </div>
-            )}
-
-            {/* Cuentas */}
-            {accounts.length > 0 && (
-              <div>
-                <h3 className="text-sm font-bold text-slate-700 mb-2">Cuentas Broker:</h3>
-                <FilterItem label="Todas las cuentas" isSelected={selectedAccounts.includes('ALL')} onClick={() => toggleMultiSelect('ALL', selectedAccounts, setSelectedAccounts)} />
-                {accounts.map(a => (
-                  <FilterItem key={a} label={a} isSelected={selectedAccounts.includes(a)} onClick={() => toggleMultiSelect(a, selectedAccounts, setSelectedAccounts)} />
-                ))}
-              </div>
-            )}
-
-            {/* Temporalidad Barras */}
-            <div>
-              <h3 className="text-sm font-bold text-slate-700 mb-2">Temporalidad (Barras):</h3>
-              <div className="flex flex-col">
-                <label className="flex items-center gap-2 cursor-pointer mb-2 group">
-                  <div className={`w-4 h-4 rounded-full border flex items-center justify-center ${barPeriod === 'DAY' ? 'border-[#5b21b6]' : 'border-slate-400 group-hover:border-[#7c3aed]'}`}>
-                    {barPeriod === 'DAY' && <div className="w-2 h-2 rounded-full bg-[#5b21b6]"></div>}
-                  </div>
-                  <input type="radio" name="barPeriod" value="DAY" checked={barPeriod === 'DAY'} onChange={() => setBarPeriod('DAY')} className="hidden" />
-                  <span className={`text-sm ${barPeriod === 'DAY' ? 'text-[#5b21b6] font-medium' : 'text-slate-600'}`}>Diaria</span>
-                </label>
-                <label className="flex items-center gap-2 cursor-pointer mb-2 group">
-                  <div className={`w-4 h-4 rounded-full border flex items-center justify-center ${barPeriod === 'MONTH' ? 'border-[#5b21b6]' : 'border-slate-400 group-hover:border-[#7c3aed]'}`}>
-                    {barPeriod === 'MONTH' && <div className="w-2 h-2 rounded-full bg-[#5b21b6]"></div>}
-                  </div>
-                  <input type="radio" name="barPeriod" value="MONTH" checked={barPeriod === 'MONTH'} onChange={() => setBarPeriod('MONTH')} className="hidden" />
-                  <span className={`text-sm ${barPeriod === 'MONTH' ? 'text-[#5b21b6] font-medium' : 'text-slate-600'}`}>Mensual</span>
-                </label>
-                <label className="flex items-center gap-2 cursor-pointer mb-2 group">
-                  <div className={`w-4 h-4 rounded-full border flex items-center justify-center ${barPeriod === 'YEAR' ? 'border-[#5b21b6]' : 'border-slate-400 group-hover:border-[#7c3aed]'}`}>
-                    {barPeriod === 'YEAR' && <div className="w-2 h-2 rounded-full bg-[#5b21b6]"></div>}
-                  </div>
-                  <input type="radio" name="barPeriod" value="YEAR" checked={barPeriod === 'YEAR'} onChange={() => setBarPeriod('YEAR')} className="hidden" />
-                  <span className={`text-sm ${barPeriod === 'YEAR' ? 'text-[#5b21b6] font-medium' : 'text-slate-600'}`}>Anual</span>
-                </label>
-              </div>
             </div>
 
           </div>
@@ -685,7 +647,9 @@ export default function RvMetrics() {
             </svg>
           </button>
           <div>
-            <h1 className="text-xl font-bold text-slate-800">Histórico de Inversiones</h1>
+            <h1 className="text-xl font-bold text-slate-800">
+              {activeView === 'graficos' ? 'Histórico de Inversiones' : 'Métricas de la Estrategia'}
+            </h1>
             <p className="text-xs text-slate-500">Evolución de valor de mercado y rentabilidad</p>
           </div>
         </div>
@@ -693,6 +657,15 @@ export default function RvMetrics() {
         {/* Scrollable Content */}
         <div className="p-4 flex-1 flex flex-col gap-6 overflow-y-auto">
           
+          {activeView === 'metricas' && (
+            <div className="bg-white p-8 rounded-xl border border-slate-200 shadow-sm text-center">
+              <h2 className="text-2xl font-bold text-slate-800 mb-4">Métricas de Inversión</h2>
+              <p className="text-slate-500 mb-6">Aquí se mostrarán próximamente las principales métricas de tu estrategia (Sharpe, Drawdown Máximo, Volatilidad, etc).</p>
+            </div>
+          )}
+
+          {activeView === 'graficos' && (
+          <>
           {/* KPI Row */}
           <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
             <div className="bg-white p-4 rounded-xl border border-slate-200 shadow-sm">
@@ -723,10 +696,20 @@ export default function RvMetrics() {
 
           {/* Line Chart */}
           <div className="bg-white p-4 rounded-xl border border-slate-200 shadow-sm min-h-[350px]">
-            <h2 className="text-sm font-bold text-slate-700 mb-1">
-              {primaryMetric === 'VALOR' ? 'Evolución de Valor de Mercado' : 'Evolución de la Plusvalía Latente'}
-            </h2>
-            <p className="text-[10px] text-slate-400 mb-4">(Haz click en los elementos de la leyenda para ocultarlos o mostrarlos)</p>
+            <div className="flex items-center justify-between mb-4">
+              <h2 className="text-sm font-bold text-slate-700">
+                {primaryMetric === 'VALOR' ? 'Evolución de Valor de Mercado' : 'Evolución de la Plusvalía Latente'}
+              </h2>
+              <select 
+                value={barPeriod} 
+                onChange={e => setBarPeriod(e.target.value)} 
+                className="text-xs border-slate-300 rounded shadow-sm focus:ring-[#5b21b6] focus:border-[#5b21b6] py-1 pl-2 pr-6"
+              >
+                <option value="DAY">Diario</option>
+                <option value="MONTH">Mensual</option>
+                <option value="YEAR">Anual</option>
+              </select>
+            </div>
             <div className="h-[300px]">
               <ResponsiveContainer width="100%" height="100%">
                 <LineChart data={lineData} margin={{ top: 5, right: 20, left: 20, bottom: 5 }}>
@@ -787,7 +770,18 @@ export default function RvMetrics() {
 
           {/* Bar Chart */}
           <div className="bg-white p-4 rounded-xl border border-slate-200 shadow-sm min-h-[350px]">
-            <h2 className="text-sm font-bold text-slate-700 mb-4">Rentabilidad (Latente + Realizada) por Período</h2>
+            <div className="flex items-center justify-between mb-4">
+              <h2 className="text-sm font-bold text-slate-700">Rentabilidad por Período</h2>
+              <select 
+                value={barPeriod} 
+                onChange={e => setBarPeriod(e.target.value)} 
+                className="text-xs border-slate-300 rounded shadow-sm focus:ring-[#5b21b6] focus:border-[#5b21b6] py-1 pl-2 pr-6"
+              >
+                <option value="DAY">Diario</option>
+                <option value="MONTH">Mensual</option>
+                <option value="YEAR">Anual</option>
+              </select>
+            </div>
             <div className="h-[300px]">
               <ResponsiveContainer width="100%" height="100%">
                 <BarChart data={barData} margin={{ top: 5, right: 20, left: 20, bottom: 5 }}>
@@ -805,6 +799,8 @@ export default function RvMetrics() {
               </ResponsiveContainer>
             </div>
           </div>
+          </>
+          )}
 
         </div>
       </div>
