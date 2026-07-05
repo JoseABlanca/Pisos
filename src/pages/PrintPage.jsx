@@ -3920,19 +3920,19 @@ export default function PrintPage() {
               propertyName: p.name || p.id,
               propertyId: p.id,
               percentage: o.percentage,
-              acquisitionPrice: propAcquisitionPrice * perc,
-              investedCapital: propInvestedCapital * perc,
-              adquisitionExpenses: propAdquisitionExpenses * perc,
-              acqPlusExpenses: propAcqPlusExpenses * perc,
-              capitalReforma: propCapReforma * perc,
-              currentValue: propCurrentValue * perc,
-              ingresosExtracto: cp.ingresosExtracto * perc,
-              gastosExtracto: cp.gastosExtracto * perc,
-              rendimientoNetoExtracto: cp.rendimientoNetoExtracto * perc,
-              mortgagePending: propMortgagePending * perc,
-              gain: propGanancia * perc,
-              netGain: propGananciaNeta * perc,
-              realReturn: propRealReturn * perc
+              acquisitionPrice: propAcquisitionPrice,
+              investedCapital: propInvestedCapital,
+              adquisitionExpenses: propAdquisitionExpenses,
+              acqPlusExpenses: propAcqPlusExpenses,
+              capitalReforma: propCapReforma,
+              currentValue: propCurrentValue,
+              ingresosExtracto: cp.ingresosExtracto,
+              gastosExtracto: cp.gastosExtracto,
+              rendimientoNetoExtracto: cp.rendimientoNetoExtracto,
+              mortgagePending: propMortgagePending,
+              gain: propGanancia,
+              netGain: propGananciaNeta,
+              realReturn: propRealReturn
             });
           }
         });
@@ -3940,7 +3940,6 @@ export default function PrintPage() {
         // Add residual to main owner if total < 100% (with a threshold for rounding like 99.99%)
         const totalPct = ownersArr.reduce((sum, o) => sum + (o.percentage || 0), 0);
         if (ownersArr.length > 0 && totalPct < 99.9) {
-          const perc = (100 - totalPct) / 100;
           ownerRows.push({
             type: 'group-item',
             partnerName: 'PROPIETARIO PRINCIPAL',
@@ -3948,19 +3947,19 @@ export default function PrintPage() {
             propertyName: p.name || p.id,
             propertyId: p.id,
             percentage: 100 - totalPct,
-            acquisitionPrice: propAcquisitionPrice * perc,
-            investedCapital: propInvestedCapital * perc,
-            adquisitionExpenses: propAdquisitionExpenses * perc,
-            acqPlusExpenses: propAcqPlusExpenses * perc,
-            capitalReforma: propCapReforma * perc,
-            currentValue: propCurrentValue * perc,
-            ingresosExtracto: cp.ingresosExtracto * perc,
-            gastosExtracto: cp.gastosExtracto * perc,
-            rendimientoNetoExtracto: cp.rendimientoNetoExtracto * perc,
-            mortgagePending: propMortgagePending * perc,
-            gain: propGanancia * perc,
-            netGain: propGananciaNeta * perc,
-            realReturn: propRealReturn * perc
+            acquisitionPrice: propAcquisitionPrice,
+            investedCapital: propInvestedCapital,
+            adquisitionExpenses: propAdquisitionExpenses,
+            acqPlusExpenses: propAcqPlusExpenses,
+            capitalReforma: propCapReforma,
+            currentValue: propCurrentValue,
+            ingresosExtracto: cp.ingresosExtracto,
+            gastosExtracto: cp.gastosExtracto,
+            rendimientoNetoExtracto: cp.rendimientoNetoExtracto,
+            mortgagePending: propMortgagePending,
+            gain: propGanancia,
+            netGain: propGananciaNeta,
+            realReturn: propRealReturn
           });
         }
         
