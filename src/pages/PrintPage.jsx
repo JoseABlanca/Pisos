@@ -3787,22 +3787,25 @@ export default function PrintPage() {
         
         if (ownersArr.length === 0) {
           ownerRows.push({
+            type: 'group-item',
             partnerName: '(Sin propietario asignado)',
             partnerNif: '---',
             propertyName: p.name || p.id,
             propertyId: p.id,
             percentage: 100,
             acquisitionPrice: propAcquisitionPrice,
-            capitalAportadoGastos: propCapAportadoGastos,
+            investedCapital: propInvestedCapital,
+            adquisitionExpenses: propAdquisitionExpenses,
+            acqPlusExpenses: propAcqPlusExpenses,
             capitalReforma: propCapReforma,
             currentValue: propCurrentValue,
-            gain: propGanancia,
+            ingresosExtracto: cp.ingresosExtracto,
+            gastosExtracto: cp.gastosExtracto,
+            rendimientoNetoExtracto: cp.rendimientoNetoExtracto,
             mortgagePending: propMortgagePending,
+            gain: propGanancia,
             netGain: propGananciaNeta,
-            ingresosExtracto: propExtract.ingresos,
-            gastosExtracto: propExtract.gastos,
-            rendimientoNetoExtracto: propExtract.neto,
-            realReturn: propRealReturn,
+            realReturn: propRealReturn
           });
         }
       });
