@@ -889,7 +889,116 @@ export default function PrintPage() {
       return { ingresos: 0, gastos: 0, neto: 0 };
     }
 
-    entriesList.forEach(entry => {
+    // 1. Pre-filter entries exactly like ExtractoContableTab's filteredEntries
+    const filteredEntries = entriesList.filter(entry => {
+      let matchCebe = false;
+      let matchCeco = false;
+
+      const hasLineLevelAnalytics = entry.lines && entry.lines.some(l => l.cebe || l.ceco);
+
+      if (entry.lines) {
+        entry.lines.forEach(l => {
+          // Income check
+          let lineCebeMatch = false;
+          if (normValueCebe && l.cebe) {
+            const normField = String(l.cebe).trim().replace(/^(CEBE|CECO)/i, '').toLowerCase();
+            if (normField.startsWith(normValueCebe)) lineCebeMatch = true;
+          } else if (!l.cebe && normValueCebe) {
+            const entryCebe = String(entry.cebe || '').trim().replace(/^(CEBE|CECO)/i, '').toLowerCase();
+            if (entryCebe.startsWith(normValueCebe)) lineCebeMatch = true;
+          }
+
+          let lineCecoMatch = false;
+          if (normIncomeCecos.length > 0) {
+            if (l.ceco) {
+              const normField = String(l.ceco).trim().replace(/^(CEBE|CECO)/i, '').toLowerCase();
+              if (normIncomeCecos.some(c => normField.startsWith(c))) lineCecoMatch = true;
+            } else if (!l.ceco) {
+              const entryCeco = String(entry.ceco || '').trim().replace(/^(CEBE|CECO)/i, '').toLowerCase();
+              if (normIncomeCecos.some(c => entryCeco.startsWith(c))) lineCecoMatch = true;
+            }
+          } else {
+            lineCecoMatch = true;
+          }
+
+          if (lineCebeMatch && lineCecoMatch) {
+            matchCebe = true;
+          }
+
+          // Expense check
+          let lineExpenseCebeMatch = false;
+          if (!normValueCebe) {
+            lineExpenseCebeMatch = true;
+          } else if (l.cebe) {
+            const normField = String(l.cebe).trim().replace(/^(CEBE|CECO)/i, '').toLowerCase();
+            if (normField.startsWith(normValueCebe)) lineExpenseCebeMatch = true;
+          } else if (entry.cebe) {
+            const entryCebe = String(entry.cebe).trim().replace(/^(CEBE|CECO)/i, '').toLowerCase();
+            if (entryCebe.startsWith(normValueCebe)) lineExpenseCebeMatch = true;
+          }
+
+          let lineExpenseCecoMatch = false;
+          if (normExpenseCecos.length > 0) {
+            if (l.ceco) {
+              const normField = String(l.ceco).trim().replace(/^(CEBE|CECO)/i, '').toLowerCase();
+              if (normExpenseCecos.some(c => normField.startsWith(c))) lineExpenseCecoMatch = true;
+            } else if (!l.ceco) {
+              const entryCeco = String(entry.ceco || '').trim().replace(/^(CEBE|CECO)/i, '').toLowerCase();
+              if (normExpenseCecos.some(c => entryCeco.startsWith(c))) lineExpenseCecoMatch = true;
+            }
+          } else {
+            lineExpenseCecoMatch = true;
+          }
+
+          if (lineExpenseCebeMatch && lineExpenseCecoMatch) {
+            matchCeco = true;
+          }
+        });
+      }
+
+      if (!hasLineLevelAnalytics) {
+        // Global Income
+        let globalCebe = false;
+        if (normValueCebe && entry.cebe) {
+          const normField = String(entry.cebe).trim().replace(/^(CEBE|CECO)/i, '').toLowerCase();
+          if (normField.startsWith(normValueCebe)) globalCebe = true;
+        }
+        let globalIncomeCeco = false;
+        if (normIncomeCecos.length > 0) {
+          if (entry.ceco) {
+            const normField = String(entry.ceco).trim().replace(/^(CEBE|CECO)/i, '').toLowerCase();
+            if (normIncomeCecos.some(c => normField.startsWith(c))) globalIncomeCeco = true;
+          }
+        } else {
+          globalIncomeCeco = true;
+        }
+        if (globalCebe && globalIncomeCeco) matchCebe = true;
+
+        // Global Expense
+        let globalExpenseCebe = false;
+        if (!normValueCebe) {
+          globalExpenseCebe = true;
+        } else if (entry.cebe) {
+          const normField = String(entry.cebe).trim().replace(/^(CEBE|CECO)/i, '').toLowerCase();
+          globalExpenseCebe = normField.startsWith(normValueCebe);
+        }
+        let globalExpenseCeco = false;
+        if (normExpenseCecos.length > 0) {
+          if (entry.ceco) {
+            const normField = String(entry.ceco).trim().replace(/^(CEBE|CECO)/i, '').toLowerCase();
+            if (normExpenseCecos.some(c => normField.startsWith(c))) globalExpenseCeco = true;
+          }
+        } else {
+          globalExpenseCeco = true;
+        }
+        if (globalExpenseCebe && globalExpenseCeco) matchCeco = true;
+      }
+
+      return matchCebe || matchCeco;
+    });
+
+    // 2. Sum totals for the pre-filtered list
+    filteredEntries.forEach(entry => {
       let cebeEntryAmount = 0;
       let cecoEntryAmount = 0;
       const hasLineLevelAnalytics = entry.lines && entry.lines.some(l => l.cebe || l.ceco);
@@ -902,18 +1011,15 @@ export default function PrintPage() {
           let lineMatchCebe = false;
           let lineMatchCeco = false;
 
-          // Income match: ONLY line-level l.cebe (NOT header entry.cebe — that is handled below in !hasLineLevelAnalytics)
           if (normValueCebe && l.cebe) {
             const normField = String(l.cebe).trim().replace(/^(CEBE|CECO)/i, '').toLowerCase();
             if (normField.startsWith(normValueCebe)) lineMatchCebe = true;
           }
-          // Income CECO match
           if (normIncomeCecos.length > 0 && l.ceco) {
             const normField = String(l.ceco).trim().replace(/^(CEBE|CECO)/i, '').toLowerCase();
             if (normIncomeCecos.some(c => normField.startsWith(c))) lineMatchCebe = true;
           }
 
-          // Expense CECO match
           if (normExpenseCecos.length > 0 && l.ceco) {
             const normField = String(l.ceco).trim().replace(/^(CEBE|CECO)/i, '').toLowerCase();
             if (normExpenseCecos.some(c => normField.startsWith(c))) lineMatchCeco = true;
@@ -945,7 +1051,7 @@ export default function PrintPage() {
           if (normIncomeCecos.some(c => normField.startsWith(c))) globalCebe = true;
         }
         if (globalCebe) {
-          cebeEntryAmount += (entry.total || 0);
+          cebeEntryAmount = entry.total || 0;
         }
 
         let globalCeco = false;
@@ -954,7 +1060,7 @@ export default function PrintPage() {
           if (normExpenseCecos.some(c => normField.startsWith(c))) globalCeco = true;
         }
         if (globalCeco) {
-          cecoEntryAmount += (entry.total || 0);
+          cecoEntryAmount = entry.total || 0;
         }
       }
 
