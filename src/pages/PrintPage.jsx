@@ -6130,6 +6130,11 @@ export default function PrintPage() {
             }
 
             @media print {
+              * {
+                -webkit-print-color-adjust: exact !important;
+                print-color-adjust: exact !important;
+              }
+
               @page {
                 size: ${paperSize} ${pageOrientation};
                 margin: 10mm 14mm;
