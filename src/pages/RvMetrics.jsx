@@ -508,6 +508,43 @@ export default function RvMetrics() {
       histChartData = histChartData.filter(d => d.period <= endDate.substring(0, histPeriod === 'YEAR' ? 4 : (histPeriod === 'MONTH' ? 7 : 10)));
     }
 
+    // Rebase lineChartData so that metrics start at 0 at the beginning of the filtered period
+    if (lineChartData.length > 0) {
+      const firstDay = lineChartData[0];
+      const baseBeneficioLatente = firstDay.beneficioLatente || 0;
+      const baseBeneficioTotal = firstDay.beneficioTotal || 0;
+      const baseLatentePerAsset = {};
+      const baseTotalPerAsset = {};
+      
+      activeTickersList.forEach(t => {
+        baseLatentePerAsset[t] = firstDay[`beneficioLatente_${t}`] || 0;
+        baseTotalPerAsset[t] = firstDay[`beneficioTotal_${t}`] || 0;
+      });
+
+      lineChartData = lineChartData.map(day => {
+        const newDay = { ...day };
+        
+        // Global rebase
+        newDay.beneficioLatente = day.beneficioLatente - baseBeneficioLatente;
+        newDay.beneficioTotal = day.beneficioTotal - baseBeneficioTotal;
+        newDay.plusvaliaPct = day.capitalInvertido > 0 ? (newDay.beneficioLatente / day.capitalInvertido) * 100 : 0;
+        newDay.rentabilidadPct = day.capitalInvertido > 0 ? (newDay.beneficioTotal / day.capitalInvertido) * 100 : 0;
+        
+        // Per-asset rebase
+        activeTickersList.forEach(t => {
+           if (newDay[`capitalInvertido_${t}`] !== undefined) {
+             newDay[`beneficioLatente_${t}`] = (day[`beneficioLatente_${t}`] || 0) - baseLatentePerAsset[t];
+             newDay[`beneficioTotal_${t}`] = (day[`beneficioTotal_${t}`] || 0) - baseTotalPerAsset[t];
+             const capInv = newDay[`capitalInvertido_${t}`] || 0;
+             newDay[`plusvaliaPct_${t}`] = capInv > 0 ? (newDay[`beneficioLatente_${t}`] / capInv) * 100 : 0;
+             newDay[`rentabilidadPct_${t}`] = capInv > 0 ? (newDay[`beneficioTotal_${t}`] / capInv) * 100 : 0;
+           }
+        });
+        
+        return newDay;
+      });
+    }
+
     // Apply Temporalidad (linePeriod) to lineChartData
     if (linePeriod !== 'DAY') {
        const periodMapForLine = {};
@@ -559,10 +596,12 @@ export default function RvMetrics() {
     let histogramData = [];
     if (histChartData.length > 0) {
       let returns = [];
-      if (isAccumulated || selectedTickers.includes('ALL')) {
+      const tickersToProcess = selectedTickers.includes('ALL') ? activeTickersList : selectedTickers;
+
+      if (isAccumulated) {
          returns = histChartData.map(d => unit === 'EUR' ? d.gains : d.gainsPct).filter(r => !isNaN(r));
       } else {
-         selectedTickers.forEach(t => {
+         tickersToProcess.forEach(t => {
             if (t !== 'ALL') {
                const tRets = histChartData.map(d => unit === 'EUR' ? d[`gains_${t}`] : d[`gainsPct_${t}`]).filter(r => !isNaN(r));
                returns.push(...tRets);
@@ -578,7 +617,7 @@ export default function RvMetrics() {
         
         const bins = {};
         histChartData.forEach(p => {
-           if (isAccumulated || selectedTickers.includes('ALL')) {
+           if (isAccumulated) {
                const r = unit === 'EUR' ? p.gains : p.gainsPct;
                if (!isNaN(r)) {
                   let bin = Math.floor(r / binSize) * binSize;
@@ -587,7 +626,7 @@ export default function RvMetrics() {
                   bins[binLabel].count++;
                }
            } else {
-               selectedTickers.forEach(t => {
+               tickersToProcess.forEach(t => {
                    if (t !== 'ALL') {
                        const r = unit === 'EUR' ? p[`gains_${t}`] : p[`gainsPct_${t}`];
                        if (!isNaN(r)) {
@@ -595,7 +634,7 @@ export default function RvMetrics() {
                           const binLabel = `${bin.toFixed(unit === 'EUR' ? 0 : 1)}${unit === 'EUR' ? '€' : '%'}`;
                           if (!bins[binLabel]) {
                               bins[binLabel] = { binStart: bin, label: binLabel, count: 0 };
-                              selectedTickers.forEach(st => { if (st !== 'ALL') bins[binLabel][`count_${st}`] = 0; });
+                              tickersToProcess.forEach(st => { if (st !== 'ALL') bins[binLabel][`count_${st}`] = 0; });
                           }
                           bins[binLabel][`count_${t}`]++;
                        }
@@ -1230,21 +1269,22 @@ export default function RvMetrics() {
                   <XAxis dataKey="period" tick={{ fontSize: 10, fill: '#64748b' }} />
                   <YAxis tick={{ fontSize: 10, fill: '#64748b' }} tickFormatter={formatYAxis} />
                   <Tooltip formatter={formatTooltip} cursor={{ fill: '#f1f5f9' }} />
+                  <Legend onClick={handleLegendClick} wrapperStyle={{ fontSize: '11px', cursor: 'pointer' }} />
                   <ReferenceLine y={0} stroke="#94a3b8" />
                   {isAccumulated ? (
                     unit === 'EUR' ? (
-                      <Bar name="Beneficio Periodo (€)" dataKey="gains" fill="#3b82f6" radius={[4, 4, 0, 0]} />
+                      <Bar name="Beneficio Periodo (€)" dataKey="gains" fill="#3b82f6" radius={[4, 4, 0, 0]} hide={hiddenLines['gains']} />
                     ) : (
-                      <Bar name="Rentabilidad Periodo (%)" dataKey="gainsPct" fill="#3b82f6" radius={[4, 4, 0, 0]} />
+                      <Bar name="Rentabilidad Periodo (%)" dataKey="gainsPct" fill="#3b82f6" radius={[4, 4, 0, 0]} hide={hiddenLines['gainsPct']} />
                     )
                   ) : (
                     tickersToRender.map((t, idx) => {
                        const colors = ['#3b82f6', '#10b981', '#f59e0b', '#ef4444', '#8b5cf6', '#ec4899', '#06b6d4', '#14b8a6', '#f97316'];
                        const color = colors[idx % colors.length];
                        return unit === 'EUR' ? (
-                         <Bar key={t} name={`${t} (€)`} dataKey={`gains_${t}`} fill={color} radius={[4, 4, 0, 0]} />
+                         <Bar key={t} name={`${t} (€)`} dataKey={`gains_${t}`} fill={color} radius={[4, 4, 0, 0]} hide={hiddenLines[`gains_${t}`]} />
                        ) : (
-                         <Bar key={t} name={`${t} (%)`} dataKey={`gainsPct_${t}`} fill={color} radius={[4, 4, 0, 0]} />
+                         <Bar key={t} name={`${t} (%)`} dataKey={`gainsPct_${t}`} fill={color} radius={[4, 4, 0, 0]} hide={hiddenLines[`gainsPct_${t}`]} />
                        )
                     })
                   )}
@@ -1278,14 +1318,15 @@ export default function RvMetrics() {
                   }} />
                   <YAxis tick={{ fontSize: 10, fill: '#64748b' }} tickFormatter={(v) => `${v.toFixed(1)}%`} />
                   <Tooltip formatter={(value) => [`${Number(value).toFixed(2)}%`, 'Drawdown']} labelStyle={{ color: '#0f172a', fontWeight: 'bold' }} />
+                  <Legend onClick={handleLegendClick} wrapperStyle={{ fontSize: '11px', cursor: 'pointer' }} />
                   {isAccumulated ? (
-                    <Area type="monotone" dataKey="drawdownPct" stroke="#ef4444" fill="#fecaca" />
+                    <Area type="monotone" name="Drawdown Global" dataKey="drawdownPct" stroke="#ef4444" fill="#fecaca" hide={hiddenLines['drawdownPct']} />
                   ) : (
                     tickersToRender.map((t, idx) => {
                        const colors = ['#3b82f6', '#10b981', '#f59e0b', '#ef4444', '#8b5cf6', '#ec4899', '#06b6d4', '#14b8a6', '#f97316'];
                        const color = colors[idx % colors.length];
                        return (
-                         <Area key={t} type="monotone" name={`${t} Drawdown`} dataKey={`drawdownPct_${t}`} stroke={color} fill={color} fillOpacity={0.3} />
+                         <Area key={t} type="monotone" name={`${t} Drawdown`} dataKey={`drawdownPct_${t}`} stroke={color} fill={color} fillOpacity={0.3} hide={hiddenLines[`drawdownPct_${t}`]} />
                        )
                     })
                   )}
@@ -1317,17 +1358,18 @@ export default function RvMetrics() {
                   <YAxis yAxisId="left" tick={{ fontSize: 10, fill: '#64748b' }} />
                   <YAxis yAxisId="right" orientation="right" hide={true} />
                   <Tooltip labelStyle={{ color: '#0f172a', fontWeight: 'bold' }} />
+                  <Legend onClick={handleLegendClick} wrapperStyle={{ fontSize: '11px', cursor: 'pointer' }} />
                   {isAccumulated ? (
                     <>
-                      <Bar yAxisId="left" name="Frecuencia (Días/Meses)" dataKey="count" fill="#3b82f6" radius={[4, 4, 0, 0]} />
-                      <Line yAxisId="right" type="monotone" name="Densidad Normal" dataKey="density" stroke="#10b981" strokeWidth={2} dot={false} />
+                      <Bar yAxisId="left" name="Frecuencia (Días/Meses)" dataKey="count" fill="#3b82f6" radius={[4, 4, 0, 0]} hide={hiddenLines['count']} />
+                      <Line yAxisId="right" type="monotone" name="Densidad Normal" dataKey="density" stroke="#10b981" strokeWidth={2} dot={false} hide={hiddenLines['density']} />
                     </>
                   ) : (
                     tickersToRender.map((t, idx) => {
                        const colors = ['#3b82f6', '#10b981', '#f59e0b', '#ef4444', '#8b5cf6', '#ec4899', '#06b6d4', '#14b8a6', '#f97316'];
                        const color = colors[idx % colors.length];
                        return (
-                         <Bar key={t} yAxisId="left" name={`Frecuencia ${t}`} dataKey={`count_${t}`} fill={color} radius={[4, 4, 0, 0]} />
+                         <Bar key={t} yAxisId="left" name={`Frecuencia ${t}`} dataKey={`count_${t}`} fill={color} radius={[4, 4, 0, 0]} hide={hiddenLines[`count_${t}`]} />
                        )
                     })
                   )}
