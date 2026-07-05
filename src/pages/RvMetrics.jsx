@@ -33,6 +33,7 @@ export default function RvMetrics() {
   const [linePeriod, setLinePeriod] = useState(() => localStorage.getItem('rv_metrics_line_period') || 'MONTH');
   const [barPeriod, setBarPeriod] = useState(() => localStorage.getItem('rv_metrics_bar_period') || 'MONTH');
   const [histPeriod, setHistPeriod] = useState(() => localStorage.getItem('rv_metrics_hist_period') || 'MONTH');
+  const [histBins, setHistBins] = useState(() => parseInt(localStorage.getItem('rv_metrics_hist_bins')) || 15);
   const [drawdownPeriod, setDrawdownPeriod] = useState(() => localStorage.getItem('rv_metrics_drawdown_period') || 'MONTH');
   const [isAccumulated, setIsAccumulated] = useState(() => localStorage.getItem('rv_metrics_accumulated') !== 'false');
 
@@ -51,6 +52,7 @@ export default function RvMetrics() {
   useEffect(() => { localStorage.setItem('rv_metrics_line_period', linePeriod); }, [linePeriod]);
   useEffect(() => { localStorage.setItem('rv_metrics_bar_period', barPeriod); }, [barPeriod]);
   useEffect(() => { localStorage.setItem('rv_metrics_hist_period', histPeriod); }, [histPeriod]);
+  useEffect(() => { localStorage.setItem('rv_metrics_hist_bins', histBins); }, [histBins]);
   useEffect(() => { localStorage.setItem('rv_metrics_drawdown_period', drawdownPeriod); }, [drawdownPeriod]);
   useEffect(() => { localStorage.setItem('rv_metrics_kpi_type', kpiBenefitType); }, [kpiBenefitType]);
   useEffect(() => { localStorage.setItem('rv_metrics_accumulated', isAccumulated); }, [isAccumulated]);
@@ -613,7 +615,7 @@ export default function RvMetrics() {
         const minRet = Math.min(...returns);
         const maxRet = Math.max(...returns);
         const range = maxRet - minRet;
-        const binSize = range === 0 ? 1 : Math.max(range / 15, unit === 'EUR' ? 10 : 0.5); // 15 bins
+        const binSize = range === 0 ? 1 : Math.max(range / histBins, unit === 'EUR' ? 10 : 0.5);
         
         const bins = {};
         histChartData.forEach(p => {
@@ -646,14 +648,31 @@ export default function RvMetrics() {
         histogramData = Object.values(bins).sort((a, b) => a.binStart - b.binStart);
 
         
-        const mean = returns.reduce((a, b) => a + b, 0) / returns.length;
-        const stdDev = Math.sqrt(returns.reduce((a, b) => a + Math.pow(b - mean, 2), 0) / returns.length) || 1;
-        
-        histogramData.forEach(b => {
-           const x = b.binStart + (binSize / 2);
-           const density = (1 / (stdDev * Math.sqrt(2 * Math.PI))) * Math.exp(-0.5 * Math.pow((x - mean) / stdDev, 2));
-           b.density = density * returns.length * binSize;
-        });
+        if (isAccumulated) {
+           const mean = returns.reduce((a, b) => a + b, 0) / returns.length;
+           const stdDev = Math.sqrt(returns.reduce((a, b) => a + Math.pow(b - mean, 2), 0) / returns.length) || 1;
+           
+           histogramData.forEach(b => {
+              const x = b.binStart + (binSize / 2);
+              const density = (1 / (stdDev * Math.sqrt(2 * Math.PI))) * Math.exp(-0.5 * Math.pow((x - mean) / stdDev, 2));
+              b.density = density * returns.length * binSize;
+           });
+        } else {
+           tickersToProcess.forEach(t => {
+              if (t !== 'ALL') {
+                 const tRets = histChartData.map(d => unit === 'EUR' ? d[`gains_${t}`] : d[`gainsPct_${t}`]).filter(r => !isNaN(r));
+                 if (tRets.length > 0) {
+                    const mean = tRets.reduce((a, b) => a + b, 0) / tRets.length;
+                    const stdDev = Math.sqrt(tRets.reduce((a, b) => a + Math.pow(b - mean, 2), 0) / tRets.length) || 1;
+                    histogramData.forEach(b => {
+                       const x = b.binStart + (binSize / 2);
+                       const density = (1 / (stdDev * Math.sqrt(2 * Math.PI))) * Math.exp(-0.5 * Math.pow((x - mean) / stdDev, 2));
+                       b[`density_${t}`] = density * tRets.length * binSize;
+                    });
+                 }
+              }
+           });
+        }
       }
     }
 
@@ -857,7 +876,7 @@ export default function RvMetrics() {
         }
       } 
     };
-  }, [transactions, history, assets, config, selectedTickers, selectedBrokers, selectedAccounts, startDate, endDate, linePeriod, barPeriod, histPeriod, drawdownPeriod, isAccumulated]);
+  }, [transactions, history, assets, config, selectedTickers, selectedBrokers, selectedAccounts, startDate, endDate, linePeriod, barPeriod, histPeriod, histBins, drawdownPeriod, isAccumulated]);
 
   const tickersToRender = selectedTickers.includes('ALL') ? tickers : selectedTickers;
 
@@ -1340,19 +1359,32 @@ export default function RvMetrics() {
           <div className="bg-white p-4 rounded-xl border border-slate-200 shadow-sm min-h-[300px]">
             <div className="flex items-center justify-between mb-4">
               <h2 className="text-sm font-bold text-slate-700">Distribución de Frecuencias</h2>
-              <select 
-                value={histPeriod} 
-                onChange={e => setHistPeriod(e.target.value)} 
-                className="text-xs border-slate-300 rounded shadow-sm focus:ring-[#5b21b6] focus:border-[#5b21b6] py-1 pl-2 pr-6"
-              >
-                <option value="DAY">Diario</option>
-                <option value="MONTH">Mensual</option>
-                <option value="YEAR">Anual</option>
-              </select>
+              <div className="flex items-center gap-2">
+                <select 
+                  value={histBins} 
+                  onChange={e => setHistBins(parseInt(e.target.value))} 
+                  className="text-xs border-slate-300 rounded shadow-sm focus:ring-[#5b21b6] focus:border-[#5b21b6] py-1 pl-2 pr-2"
+                >
+                  <option value={10}>10 Bins</option>
+                  <option value={15}>15 Bins</option>
+                  <option value={20}>20 Bins</option>
+                  <option value={30}>30 Bins</option>
+                  <option value={50}>50 Bins</option>
+                </select>
+                <select 
+                  value={histPeriod} 
+                  onChange={e => setHistPeriod(e.target.value)} 
+                  className="text-xs border-slate-300 rounded shadow-sm focus:ring-[#5b21b6] focus:border-[#5b21b6] py-1 pl-2 pr-6"
+                >
+                  <option value="DAY">Diario</option>
+                  <option value="MONTH">Mensual</option>
+                  <option value="YEAR">Anual</option>
+                </select>
+              </div>
             </div>
             <div className="h-[250px]">
               <ResponsiveContainer width="100%" height="100%">
-                <ComposedChart data={histogramData} margin={{ top: 5, right: 20, left: 20, bottom: 5 }} barCategoryGap={0}>
+                <ComposedChart data={histogramData} margin={{ top: 5, right: 20, left: 20, bottom: 5 }} barCategoryGap={0} barGap={0}>
                   <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="#e2e8f0" />
                   <XAxis dataKey="label" tick={{ fontSize: 10, fill: '#64748b' }} />
                   <YAxis yAxisId="left" tick={{ fontSize: 10, fill: '#64748b' }} />
@@ -1362,14 +1394,17 @@ export default function RvMetrics() {
                   {isAccumulated ? (
                     <>
                       <Bar yAxisId="left" name="Frecuencia (Días/Meses)" dataKey="count" fill="#3b82f6" radius={[4, 4, 0, 0]} hide={hiddenLines['count']} />
-                      <Line yAxisId="right" type="monotone" name="Densidad Normal" dataKey="density" stroke="#10b981" strokeWidth={2} dot={false} hide={hiddenLines['density']} />
+                      <Line yAxisId="right" type="monotone" name="Densidad Normal" dataKey="density" stroke="#3b82f6" strokeWidth={2} dot={false} hide={hiddenLines['density']} />
                     </>
                   ) : (
                     tickersToRender.map((t, idx) => {
                        const colors = ['#3b82f6', '#10b981', '#f59e0b', '#ef4444', '#8b5cf6', '#ec4899', '#06b6d4', '#14b8a6', '#f97316'];
                        const color = colors[idx % colors.length];
                        return (
-                         <Bar key={t} yAxisId="left" name={`Frecuencia ${t}`} dataKey={`count_${t}`} fill={color} radius={[4, 4, 0, 0]} hide={hiddenLines[`count_${t}`]} />
+                         <React.Fragment key={t}>
+                           <Bar yAxisId="left" name={`Frecuencia ${t}`} dataKey={`count_${t}`} fill={color} fillOpacity={0.6} radius={[4, 4, 0, 0]} hide={hiddenLines[`count_${t}`]} />
+                           <Line yAxisId="right" type="monotone" name={`Densidad ${t}`} dataKey={`density_${t}`} stroke={color} strokeWidth={2} dot={false} hide={hiddenLines[`density_${t}`]} />
+                         </React.Fragment>
                        )
                     })
                   )}
