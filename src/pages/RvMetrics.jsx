@@ -783,51 +783,64 @@ export default function RvMetrics() {
           
           {activeView === 'metricas' && (
             <div className="bg-white p-6 rounded-xl border border-slate-200 shadow-sm max-w-4xl mx-auto w-full">
-              <h2 className="text-xl font-bold text-slate-800 mb-6">Métricas de la Estrategia (All Trades)</h2>
+              <h2 className="text-xl font-bold text-slate-800 mb-6">
+                Métricas de la Estrategia {kpiBenefitType === 'LATENTE' ? '(Solo Latente)' : '(Realizado + Latente)'}
+              </h2>
               
               <div className="flex flex-col gap-8">
                 
                 <table className="w-full text-sm text-left">
                   <tbody>
                     <tr className="border-b border-slate-200">
-                      <td className="py-2 text-slate-600">Beneficio neto total (Total net profit)</td>
-                      <td className={`py-2 font-medium ${summary.metrics?.totalNetProfit >= 0 ? 'text-green-600' : 'text-red-600'}`}>
-                        {summary.metrics?.totalNetProfit?.toLocaleString('es-ES', { style: 'currency', currency: 'EUR' })}
+                      <td className="py-2 text-slate-600">Beneficio {kpiBenefitType === 'LATENTE' ? 'latente' : 'neto total'} (Total profit)</td>
+                      <td className={`py-2 font-medium ${(kpiBenefitType === 'LATENTE' ? summary.latenteGains : summary.metrics?.totalNetProfit) >= 0 ? 'text-green-600' : 'text-red-600'}`}>
+                        {(kpiBenefitType === 'LATENTE' ? summary.latenteGains : summary.metrics?.totalNetProfit)?.toLocaleString('es-ES', { style: 'currency', currency: 'EUR' })}
                       </td>
                     </tr>
-                    <tr className="border-b border-slate-200">
-                      <td className="py-2 text-slate-600">Beneficio bruto (Gross profit)</td>
-                      <td className="py-2 font-medium text-green-600">{summary.metrics?.grossProfit?.toLocaleString('es-ES', { style: 'currency', currency: 'EUR' })}</td>
-                    </tr>
-                    <tr className="border-b border-slate-200">
-                      <td className="py-2 text-slate-600">Pérdida bruta (Gross loss)</td>
-                      <td className="py-2 font-medium text-red-600">{summary.metrics?.grossLoss?.toLocaleString('es-ES', { style: 'currency', currency: 'EUR' })}</td>
-                    </tr>
-                    <tr className="border-b border-slate-200">
-                      <td className="py-2 text-slate-600">Comisiones pagadas (Commission)</td>
-                      <td className="py-2 font-medium text-slate-800">{summary.metrics?.totalCommissions?.toLocaleString('es-ES', { style: 'currency', currency: 'EUR' })}</td>
-                    </tr>
-                    <tr className="border-b border-slate-200">
-                      <td className="py-2 text-slate-600">Factor de beneficio (Profit factor)</td>
-                      <td className="py-2 font-medium text-slate-800">{summary.metrics?.profitFactor}</td>
-                    </tr>
-                    <tr className="border-b border-slate-200">
-                      <td className="py-2 text-slate-600">Drawdown Máximo (Max. drawdown)</td>
-                      <td className="py-2 font-medium text-red-600">{summary.metrics?.maxDrawdownPct} %</td>
-                    </tr>
-                    <tr className="border-b border-slate-200">
-                      <td className="py-2 text-slate-600">Ratio de Sharpe (Sharpe ratio)</td>
-                      <td className="py-2 font-medium text-slate-800">{summary.metrics?.sharpeRatio}</td>
-                    </tr>
+                    
+                    {kpiBenefitType !== 'LATENTE' && (
+                      <>
+                        <tr className="border-b border-slate-200">
+                          <td className="py-2 text-slate-600">Beneficio bruto (Gross profit)</td>
+                          <td className="py-2 font-medium text-green-600">{summary.metrics?.grossProfit?.toLocaleString('es-ES', { style: 'currency', currency: 'EUR' })}</td>
+                        </tr>
+                        <tr className="border-b border-slate-200">
+                          <td className="py-2 text-slate-600">Pérdida bruta (Gross loss)</td>
+                          <td className="py-2 font-medium text-red-600">{summary.metrics?.grossLoss?.toLocaleString('es-ES', { style: 'currency', currency: 'EUR' })}</td>
+                        </tr>
+                        <tr className="border-b border-slate-200">
+                          <td className="py-2 text-slate-600">Comisiones pagadas (Commission)</td>
+                          <td className="py-2 font-medium text-slate-800">{summary.metrics?.totalCommissions?.toLocaleString('es-ES', { style: 'currency', currency: 'EUR' })}</td>
+                        </tr>
+                        <tr className="border-b border-slate-200">
+                          <td className="py-2 text-slate-600">Factor de beneficio (Profit factor)</td>
+                          <td className="py-2 font-medium text-slate-800">{summary.metrics?.profitFactor}</td>
+                        </tr>
+                        <tr className="border-b border-slate-200">
+                          <td className="py-2 text-slate-600">Drawdown Máximo (Max. drawdown)</td>
+                          <td className="py-2 font-medium text-red-600">{summary.metrics?.maxDrawdownPct} %</td>
+                        </tr>
+                        <tr className="border-b border-slate-200">
+                          <td className="py-2 text-slate-600">Ratio de Sharpe (Sharpe ratio)</td>
+                          <td className="py-2 font-medium text-slate-800">{summary.metrics?.sharpeRatio}</td>
+                        </tr>
+                      </>
+                    )}
                   </tbody>
                 </table>
 
-                <table className="w-full text-sm text-left">
-                  <tbody>
-                    <tr className="border-b border-slate-200">
-                      <td className="py-2 text-slate-600">Total de ventas (Total # of trades)</td>
-                      <td className="py-2 font-medium text-slate-800">{summary.metrics?.totalTrades}</td>
-                    </tr>
+                {kpiBenefitType === 'LATENTE' ? (
+                  <div className="bg-amber-50 p-4 rounded-md text-amber-800 text-sm border border-amber-200">
+                    ⚠️ <strong>Modo Solo Latente:</strong> Las estadísticas de trading (aciertos, rachas, medias, drawdown) se calculan únicamente sobre el histórico de operaciones ya cerradas (Realizado) o curvas de capital consolidadas. Cambia el filtro lateral a "Realizado+Latente" para visualizar el desglose completo.
+                  </div>
+                ) : (
+                  <>
+                    <table className="w-full text-sm text-left">
+                      <tbody>
+                        <tr className="border-b border-slate-200">
+                          <td className="py-2 text-slate-600">Total de ventas (Total # of trades)</td>
+                          <td className="py-2 font-medium text-slate-800">{summary.metrics?.totalTrades}</td>
+                        </tr>
                     <tr className="border-b border-slate-200">
                       <td className="py-2 text-slate-600">Porcentaje de acierto (Percent profitable)</td>
                       <td className="py-2 font-medium text-slate-800">{summary.metrics?.percentProfitable} %</td>
@@ -871,6 +884,8 @@ export default function RvMetrics() {
                     </tr>
                   </tbody>
                 </table>
+                </>
+                )}
 
               </div>
             </div>
