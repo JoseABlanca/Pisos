@@ -3984,7 +3984,35 @@ export default function PrintPage() {
         listPages = paginateBlocks(ownerBlocks, getLimit(22), Math.max(2, Math.floor(6 * heightRatio)));
         totalPages = listPages.length || 1;
       } else {
-        listPages = chunkFlatList(sortedOwnerRows, getLimit(22));
+        // Group by inmueble: each property is a block with a property header, owner rows, and subtotal
+        const propertyGroups = {};
+        sortedOwnerRows.forEach(r => {
+          if (!propertyGroups[r.propertyId]) propertyGroups[r.propertyId] = { propertyName: r.propertyName, rows: [] };
+          propertyGroups[r.propertyId].rows.push(r);
+        });
+        const propertyBlocks = Object.entries(propertyGroups).map(([pId, { propertyName, rows }]) => {
+          const ingresosSum = rows.reduce((s, r) => s + (r.ingresosExtracto || 0), 0);
+          const gastosSum = rows.reduce((s, r) => s + (r.gastosExtracto || 0), 0);
+          const rendNetoSum = rows.reduce((s, r) => s + (r.rendimientoNetoExtracto || 0), 0);
+          const acqSum = rows.reduce((s, r) => s + (r.acquisitionPrice || 0), 0);
+          const invSum = rows.reduce((s, r) => s + (r.investedCapital || 0), 0);
+          const adqSum = rows.reduce((s, r) => s + (r.adquisitionExpenses || 0), 0);
+          const acqPlusSum = rows.reduce((s, r) => s + (r.acqPlusExpenses || 0), 0);
+          const capRefSum = rows.reduce((s, r) => s + (r.capitalReforma || 0), 0);
+          const valSum = rows.reduce((s, r) => s + (r.currentValue || 0), 0);
+          const gainSum = rows.reduce((s, r) => s + (r.gain || 0), 0);
+          const mortgageSum = rows.reduce((s, r) => s + (r.mortgagePending || 0), 0);
+          const netGainSum = rows.reduce((s, r) => s + (r.netGain || 0), 0);
+          const realReturnSum = rows.reduce((s, r) => s + (r.realReturn || 0), 0);
+          return [
+            { type: 'property-header', label: propertyName },
+            ...rows.map(r => ({ ...r, type: 'group-item' })),
+            { type: 'group-total', label: propertyName, ingresosExtracto: ingresosSum, gastosExtracto: gastosSum, rendimientoNetoExtracto: rendNetoSum,
+              acquisitionPrice: acqSum, investedCapital: invSum, adquisitionExpenses: adqSum, acqPlusExpenses: acqPlusSum,
+              capitalReforma: capRefSum, currentValue: valSum, gain: gainSum, mortgagePending: mortgageSum, netGain: netGainSum, realReturn: realReturnSum }
+          ];
+        }).filter(b => b.length > 0);
+        listPages = paginateBlocks(propertyBlocks, getLimit(22), Math.max(2, Math.floor(6 * heightRatio)));
         totalPages = listPages.length || 1;
       }
 
@@ -4038,6 +4066,15 @@ export default function PrintPage() {
                           </tr>
                         );
                       }
+                      if (row.type === 'property-header') {
+                        return (
+                          <tr key={`phead-${row.label}-${ri}`} className="bg-slate-100/50 font-bold border-t border-slate-350">
+                            <td colSpan={visibleCount} className="py-2 px-2 text-[10px] text-slate-800 font-sans tracking-wide uppercase">
+                              INMUEBLE: {row.label}
+                            </td>
+                          </tr>
+                        );
+                      }
                       if (row.type === 'group-total') {
                         return (
                           <tr key={`gtotal-${row.label}-${ri}`} className="bg-slate-50 font-bold border-t border-slate-300 border-b-2 border-slate-450 text-[9px] text-slate-805">
@@ -4064,8 +4101,8 @@ export default function PrintPage() {
 
                       return (
                         <tr key={`${row.partnerName}-${row.propertyId}-${ri}`} className="border-b border-slate-200 text-[9px] text-slate-800">
-                          {cv('name') && <td className="py-1.5 px-2 uppercase">{row.type === 'group-item' ? '' : row.partnerName}</td>}
-                          {cv('nif') && <td className="py-1.5 px-2">{row.type === 'group-item' ? '' : row.partnerNif}</td>}
+                          {cv('name') && <td className="py-1.5 px-2 uppercase">{groupByOwner ? '' : row.partnerName}</td>}
+                          {cv('nif') && <td className="py-1.5 px-2">{groupByOwner ? '' : row.partnerNif}</td>}
                           {cv('property') && <td className="py-1.5 px-2 uppercase">{row.propertyName}</td>}
                           {cv('percentage') && <td className="py-1.5 px-2 text-right tabular-nums">{row.percentage.toFixed(2)}%</td>}
                           {cv('acquisitionPrice') && <td className="py-1.5 px-2 text-right tabular-nums">{(row.acquisitionPrice || 0) > 0 ? formatCurrency(row.acquisitionPrice) : '---'}</td>}
