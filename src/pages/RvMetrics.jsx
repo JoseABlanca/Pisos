@@ -287,6 +287,8 @@ export default function RvMetrics() {
         date: dateStr,
         capitalInvertido: 0,
         valorMercado: 0,
+        beneficioLatente: 0,
+        plusvaliaPct: 0,
         beneficioTotal: 0,
         rentabilidadPct: 0
       };
@@ -318,10 +320,13 @@ export default function RvMetrics() {
           
           let assetBeneficioLatente = assetValorMercado - assetCapitalInvertido;
           let assetBeneficioTotal = assetBeneficioLatente + (realizedGainsByAsset[t] || 0);
+          let assetPlusvaliaPct = assetCapitalInvertido > 0 ? (assetBeneficioLatente / assetCapitalInvertido) * 100 : 0;
           let assetRentabilidadPct = assetCapitalInvertido > 0 ? (assetBeneficioTotal / assetCapitalInvertido) * 100 : 0;
 
           dayObj[`capitalInvertido_${t}`] = assetCapitalInvertido;
           dayObj[`valorMercado_${t}`] = assetValorMercado;
+          dayObj[`beneficioLatente_${t}`] = assetBeneficioLatente;
+          dayObj[`plusvaliaPct_${t}`] = assetPlusvaliaPct;
           dayObj[`beneficioTotal_${t}`] = assetBeneficioTotal;
           dayObj[`rentabilidadPct_${t}`] = assetRentabilidadPct;
         }
@@ -329,10 +334,13 @@ export default function RvMetrics() {
 
       const beneficioLatente = valorMercado - capitalInvertido;
       const beneficioTotal = beneficioLatente + cumulativeRealizedGains;
+      const plusvaliaPct = capitalInvertido > 0 ? (beneficioLatente / capitalInvertido) * 100 : 0;
       const rentabilidadPct = capitalInvertido > 0 ? (beneficioTotal / capitalInvertido) * 100 : 0;
 
       dayObj.capitalInvertido = capitalInvertido;
       dayObj.valorMercado = valorMercado;
+      dayObj.beneficioLatente = beneficioLatente;
+      dayObj.plusvaliaPct = plusvaliaPct;
       dayObj.beneficioTotal = beneficioTotal;
       dayObj.rentabilidadPct = rentabilidadPct;
 
@@ -460,6 +468,8 @@ export default function RvMetrics() {
     });
 
     const exactTotalGains = (exactCurrentValue - exactCurrentCost) + exactRealizedGains;
+    const exactLatente = exactCurrentValue - exactCurrentCost;
+    const exactPlusvaliaPct = exactCurrentCost > 0 ? (exactLatente / exactCurrentCost) * 100 : 0;
     const exactRoiPct = exactCurrentCost > 0 ? (exactTotalGains / exactCurrentCost) * 100 : 0;
 
     // Apply exact current values to the final point on the chart
@@ -467,6 +477,8 @@ export default function RvMetrics() {
       const lastIdx = lineChartData.length - 1;
       lineChartData[lastIdx].capitalInvertido = exactCurrentCost;
       lineChartData[lastIdx].valorMercado = exactCurrentValue;
+      lineChartData[lastIdx].beneficioLatente = exactLatente;
+      lineChartData[lastIdx].plusvaliaPct = exactPlusvaliaPct;
       lineChartData[lastIdx].beneficioTotal = exactTotalGains;
       lineChartData[lastIdx].rentabilidadPct = exactRoiPct;
       
@@ -474,7 +486,10 @@ export default function RvMetrics() {
          lineChartData[lastIdx][`capitalInvertido_${key}`] = exactAssetStats[key].capitalInvertido;
          lineChartData[lastIdx][`valorMercado_${key}`] = exactAssetStats[key].valorMercado;
          lineChartData[lastIdx][`beneficioTotal_${key}`] = exactAssetStats[key].beneficioTotal;
+         const latente = exactAssetStats[key].valorMercado - exactAssetStats[key].capitalInvertido;
+         lineChartData[lastIdx][`beneficioLatente_${key}`] = latente;
          const cap = exactAssetStats[key].capitalInvertido;
+         lineChartData[lastIdx][`plusvaliaPct_${key}`] = cap > 0 ? (latente / cap) * 100 : 0;
          lineChartData[lastIdx][`rentabilidadPct_${key}`] = cap > 0 ? (exactAssetStats[key].beneficioTotal / cap) * 100 : 0;
       });
     }
@@ -486,7 +501,8 @@ export default function RvMetrics() {
         currentCapital: exactCurrentCost,
         currentValue: exactCurrentValue,
         totalGains: exactTotalGains,
-        roiPct: exactRoiPct
+        roiPct: exactRoiPct,
+        plusvaliaPct: exactPlusvaliaPct
       } 
     };
   }, [transactions, history, assets, config, selectedTickers, selectedBrokers, selectedAccounts, startDate, endDate, barPeriod]);
@@ -693,9 +709,9 @@ export default function RvMetrics() {
               </p>
             </div>
             <div className="bg-white p-4 rounded-xl border border-slate-200 shadow-sm">
-              <p className="text-xs text-slate-500 font-medium mb-1">Rentabilidad Total (ROI)</p>
-              <p className={`text-xl font-bold ${summary.roiPct >= 0 ? 'text-green-600' : 'text-red-600'}`}>
-                {summary.roiPct > 0 ? '+' : ''}{summary.roiPct?.toFixed(2)} %
+              <p className="text-xs text-slate-500 font-medium mb-1">Porcentaje de Plusvalía</p>
+              <p className={`text-xl font-bold ${summary.plusvaliaPct >= 0 ? 'text-green-600' : 'text-red-600'}`}>
+                {summary.plusvaliaPct > 0 ? '+' : ''}{summary.plusvaliaPct?.toFixed(2)} %
               </p>
             </div>
           </div>
@@ -703,7 +719,7 @@ export default function RvMetrics() {
           {/* Line Chart */}
           <div className="bg-white p-4 rounded-xl border border-slate-200 shadow-sm min-h-[350px]">
             <h2 className="text-sm font-bold text-slate-700 mb-1">
-              {primaryMetric === 'VALOR' ? 'Evolución de Valor de Mercado' : 'Evolución de la Plusvalía Total'}
+              {primaryMetric === 'VALOR' ? 'Evolución de Valor de Mercado' : 'Evolución de la Plusvalía Latente'}
             </h2>
             <p className="text-[10px] text-slate-400 mb-4">(Haz click en los elementos de la leyenda para ocultarlos o mostrarlos)</p>
             <div className="h-[300px]">
@@ -732,11 +748,11 @@ export default function RvMetrics() {
                       )}
 
                       {primaryMetric === 'PLUSVALIA' && unit === 'EUR' && (
-                        <Line type="monotone" name="Beneficio Total (€)" dataKey="beneficioTotal" stroke="#10b981" strokeWidth={2} dot={false} hide={hiddenLines['beneficioTotal']} />
+                        <Line type="monotone" name="Plusvalía Latente (€)" dataKey="beneficioLatente" stroke="#10b981" strokeWidth={2} dot={false} hide={hiddenLines['beneficioLatente']} />
                       )}
 
                       {primaryMetric === 'PLUSVALIA' && unit === 'PERCENT' && (
-                        <Line type="monotone" name="Rentabilidad Acumulada (%)" dataKey="rentabilidadPct" stroke="#10b981" strokeWidth={2} dot={false} hide={hiddenLines['rentabilidadPct']} />
+                        <Line type="monotone" name="Plusvalía Latente (%)" dataKey="plusvaliaPct" stroke="#10b981" strokeWidth={2} dot={false} hide={hiddenLines['plusvaliaPct']} />
                       )}
                     </>
                   ) : (
@@ -752,9 +768,9 @@ export default function RvMetrics() {
                                </React.Fragment>
                             );
                          } else if (unit === 'EUR') {
-                            return <Line key={t} type="monotone" name={`${t} (Beneficio €)`} dataKey={`beneficioTotal_${t}`} stroke={color} strokeWidth={2} dot={false} hide={hiddenLines[`beneficioTotal_${t}`]} />;
+                            return <Line key={t} type="monotone" name={`${t} (Plusvalía €)`} dataKey={`beneficioLatente_${t}`} stroke={color} strokeWidth={2} dot={false} hide={hiddenLines[`beneficioLatente_${t}`]} />;
                          } else {
-                            return <Line key={t} type="monotone" name={`${t} (Rentabilidad %)`} dataKey={`rentabilidadPct_${t}`} stroke={color} strokeWidth={2} dot={false} hide={hiddenLines[`rentabilidadPct_${t}`]} />;
+                            return <Line key={t} type="monotone" name={`${t} (Plusvalía %)`} dataKey={`plusvaliaPct_${t}`} stroke={color} strokeWidth={2} dot={false} hide={hiddenLines[`plusvaliaPct_${t}`]} />;
                          }
                       })}
                     </>
