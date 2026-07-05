@@ -4027,6 +4027,9 @@ export default function PrintPage() {
       } else {
         listPages.forEach((pageItems, pageIdx) => {
           const isLastPage = pageIdx === listPages.length - 1;
+          const visibleCols = (ALL_COLUMNS.extracto_propietarios || []).filter(col => cv(col.id));
+          const firstVisibleId = visibleCols[0]?.id;
+
           pageViews.push(
             <div key={`eprop-${pageIdx}`} className="page-sheet relative">
               <div>
@@ -4034,28 +4037,28 @@ export default function PrintPage() {
                 <table className="w-full text-[10px] border-collapse">
                   <thead>
                     <tr className="border-b border-slate-400 bg-slate-100 text-[9px] uppercase">
-                      {cv('name') && <th className="py-1.5 px-2 text-left w-36 font-semibold">Propietario</th>}
-                      {cv('nif') && <th className="py-1.5 px-2 text-left w-24 font-semibold">NIF/CIF</th>}
-                      {cv('property') && <th className="py-1.5 px-2 text-left font-semibold">Inmueble</th>}
-                      {cv('percentage') && <th className="py-1.5 px-2 text-right w-14 font-semibold">% Prop.</th>}
-                      {cv('acquisitionPrice') && <th className="py-1.5 px-2 text-right w-24 font-semibold">P. Adquisición</th>}
-                      {cv('investedCapital') && <th className="py-1.5 px-2 text-right w-24 font-semibold">Cap. Aportado</th>}
-                      {cv('adquisitionExpenses') && <th className="py-1.5 px-2 text-right w-24 font-semibold">Gastos Adquisición</th>}
-                      {cv('acqPlusExpenses') && <th className="py-1.5 px-2 text-right w-28 font-semibold">Precio + Gastos</th>}
-                      {cv('capitalReforma') && <th className="py-1.5 px-2 text-right w-28 font-semibold">Cap. + Reforma Cap.</th>}
-                      {cv('currentValue') && <th className="py-1.5 px-2 text-right w-24 font-semibold">V. Actual</th>}
-                      {cv('ingresosExtracto') && <th className="py-1.5 px-2 text-right w-24 font-semibold">Ingresos</th>}
-                      {cv('gastosExtracto') && <th className="py-1.5 px-2 text-right w-24 font-semibold">Gastos</th>}
-                      {cv('rendimientoNetoExtracto') && <th className="py-1.5 px-2 text-right w-24 font-semibold">Rend. Neto</th>}
-                      {cv('mortgagePending') && <th className="py-1.5 px-2 text-right w-24 font-semibold">Hipoteca Pendiente</th>}
-                      {cv('gain') && <th className="py-1.5 px-2 text-right w-24 font-semibold">Ganancia Bruta</th>}
-                      {cv('netGain') && <th className="py-1.5 px-2 text-right w-24 font-semibold">Ganancia Neta</th>}
-                      {cv('realReturn') && <th className="py-1.5 px-2 text-right w-32 font-semibold">Ganancia Real + Rend. Neto</th>}
+                      {visibleCols.map(col => {
+                        let align = 'text-right';
+                        if (['name', 'nif', 'property'].includes(col.id)) align = 'text-left';
+                        let width = 'w-24';
+                        if (col.id === 'name') width = 'w-36';
+                        else if (col.id === 'nif') width = 'w-24';
+                        else if (col.id === 'acqPlusExpenses') width = 'w-28';
+                        else if (col.id === 'capitalReforma') width = 'w-28';
+                        else if (col.id === 'realReturn') width = 'w-32';
+                        else if (col.id === 'percentage') width = 'w-14';
+
+                        return (
+                          <th key={col.id} className={`py-1.5 px-2 ${align} ${width} font-semibold`}>
+                            {col.label}
+                          </th>
+                        );
+                      })}
                     </tr>
                   </thead>
                   <tbody>
                     {pageItems.map((row, ri) => {
-                      const visibleCount = ['name', 'nif', 'property', 'percentage', 'acquisitionPrice', 'investedCapital', 'adquisitionExpenses', 'acqPlusExpenses', 'capitalReforma', 'currentValue', 'ingresosExtracto', 'gastosExtracto', 'rendimientoNetoExtracto', 'mortgagePending', 'gain', 'netGain', 'realReturn'].filter(cv).length;
+                      const visibleCount = visibleCols.length;
 
                       if (row.type === 'group-header') {
                         return (
@@ -4077,71 +4080,129 @@ export default function PrintPage() {
                       }
                       if (row.type === 'group-total') {
                         return (
-                          <tr key={`gtotal-${row.label}-${ri}`} className="bg-slate-50 font-bold border-t border-slate-300 border-b-2 border-slate-450 text-[9px] text-slate-805">
-                            {cv('name') && <td className="py-1.5 px-2 font-bold font-sans">SUBTOTAL</td>}
-                            {cv('nif') && <td className="py-1.5 px-2"></td>}
-                            {cv('property') && <td className="py-1.5 px-2"></td>}
-                            {cv('percentage') && <td className="py-1.5 px-2"></td>}
-                            {cv('acquisitionPrice') && <td className="py-1.5 px-2 text-right tabular-nums">{formatCurrency(row.acquisitionPrice || 0)}</td>}
-                            {cv('investedCapital') && <td className="py-1.5 px-2 text-right tabular-nums">{formatCurrency(row.investedCapital || 0)}</td>}
-                            {cv('adquisitionExpenses') && <td className="py-1.5 px-2 text-right tabular-nums">{formatCurrency(row.adquisitionExpenses || 0)}</td>}
-                            {cv('acqPlusExpenses') && <td className="py-1.5 px-2 text-right tabular-nums">{formatCurrency(row.acqPlusExpenses || 0)}</td>}
-                            {cv('capitalReforma') && <td className="py-1.5 px-2 text-right tabular-nums">{formatCurrency(row.capitalReforma || 0)}</td>}
-                            {cv('currentValue') && <td className="py-1.5 px-2 text-right tabular-nums">{formatCurrency(row.currentValue || 0)}</td>}
-                            {cv('ingresosExtracto') && <td className="py-1.5 px-2 text-right tabular-nums">{formatCurrency(row.ingresosExtracto || 0)}</td>}
-                            {cv('gastosExtracto') && <td className="py-1.5 px-2 text-right tabular-nums">{formatCurrency(-(row.gastosExtracto || 0))}</td>}
-                            {cv('rendimientoNetoExtracto') && <td className="py-1.5 px-2 text-right tabular-nums"><span>{formatCurrency(row.rendimientoNetoExtracto || 0)}</span></td>}
-                            {cv('mortgagePending') && <td className="py-1.5 px-2 text-right tabular-nums">{formatCurrency(row.mortgagePending || 0)}</td>}
-                            {cv('gain') && <td className="py-1.5 px-2 text-right tabular-nums"><span>{formatCurrency(row.gain || 0)}</span></td>}
-                            {cv('netGain') && <td className="py-1.5 px-2 text-right tabular-nums"><span>{formatCurrency(row.netGain || 0)}</span></td>}
-                            {cv('realReturn') && <td className="py-1.5 px-2 text-right tabular-nums"><span>{formatCurrency(row.realReturn || 0)}</span></td>}
+                          <tr key={`gtotal-${row.label}-${ri}`} className="bg-slate-50 font-bold border-t border-slate-300 border-b-2 border-slate-450 text-[9px] text-slate-850">
+                            {visibleCols.map(col => {
+                              let align = 'text-right';
+                              if (['name', 'nif', 'property'].includes(col.id)) align = 'text-left';
+
+                              if (col.id === firstVisibleId) {
+                                return (
+                                  <td key={col.id} className={`py-1.5 px-2 ${align} font-bold font-sans`}>
+                                    SUBTOTAL
+                                  </td>
+                                );
+                              }
+
+                              if (['name', 'nif', 'property', 'percentage'].includes(col.id)) {
+                                return <td key={col.id} className="py-1.5 px-2"></td>;
+                              }
+
+                              let valDisplay = '---';
+                              if (col.id === 'acquisitionPrice') valDisplay = formatCurrency(row.acquisitionPrice || 0);
+                              else if (col.id === 'investedCapital') valDisplay = formatCurrency(row.investedCapital || 0);
+                              else if (col.id === 'adquisitionExpenses') valDisplay = formatCurrency(row.adquisitionExpenses || 0);
+                              else if (col.id === 'acqPlusExpenses') valDisplay = formatCurrency(row.acqPlusExpenses || 0);
+                              else if (col.id === 'capitalReforma') valDisplay = formatCurrency(row.capitalReforma || 0);
+                              else if (col.id === 'currentValue') valDisplay = formatCurrency(row.currentValue || 0);
+                              else if (col.id === 'ingresosExtracto') valDisplay = formatCurrency(row.ingresosExtracto || 0);
+                              else if (col.id === 'gastosExtracto') valDisplay = formatCurrency(-(row.gastosExtracto || 0));
+                              else if (col.id === 'rendimientoNetoExtracto') valDisplay = formatCurrency(row.rendimientoNetoExtracto || 0);
+                              else if (col.id === 'mortgagePending') valDisplay = formatCurrency(row.mortgagePending || 0);
+                              else if (col.id === 'gain') valDisplay = formatCurrency(row.gain || 0);
+                              else if (col.id === 'netGain') valDisplay = formatCurrency(row.netGain || 0);
+                              else if (col.id === 'realReturn') valDisplay = formatCurrency(row.realReturn || 0);
+
+                              const isSpan = ['rendimientoNetoExtracto', 'gain', 'netGain', 'realReturn'].includes(col.id);
+
+                              return (
+                                <td key={col.id} className={`py-1.5 px-2 ${align} tabular-nums`}>
+                                  {isSpan ? <span>{valDisplay}</span> : valDisplay}
+                                </td>
+                              );
+                            })}
                           </tr>
                         );
                       }
 
                       return (
                         <tr key={`${row.partnerName}-${row.propertyId}-${ri}`} className="border-b border-slate-200 text-[9px] text-slate-800">
-                          {cv('name') && <td className="py-1.5 px-2 uppercase">{groupByOwner ? '' : row.partnerName}</td>}
-                          {cv('nif') && <td className="py-1.5 px-2">{groupByOwner ? '' : row.partnerNif}</td>}
-                          {cv('property') && <td className="py-1.5 px-2 uppercase">{row.propertyName}</td>}
-                          {cv('percentage') && <td className="py-1.5 px-2 text-right tabular-nums">{row.percentage.toFixed(2)}%</td>}
-                          {cv('acquisitionPrice') && <td className="py-1.5 px-2 text-right tabular-nums">{(row.acquisitionPrice || 0) > 0 ? formatCurrency(row.acquisitionPrice) : '---'}</td>}
-                          {cv('investedCapital') && <td className="py-1.5 px-2 text-right tabular-nums">{(row.investedCapital || 0) > 0 ? formatCurrency(row.investedCapital) : '---'}</td>}
-                          {cv('adquisitionExpenses') && <td className="py-1.5 px-2 text-right tabular-nums">{(row.adquisitionExpenses || 0) > 0 ? formatCurrency(row.adquisitionExpenses) : '---'}</td>}
-                          {cv('acqPlusExpenses') && <td className="py-1.5 px-2 text-right tabular-nums">{(row.acqPlusExpenses || 0) > 0 ? formatCurrency(row.acqPlusExpenses) : '---'}</td>}
-                          {cv('capitalReforma') && <td className="py-1.5 px-2 text-right tabular-nums">{(row.capitalReforma || 0) > 0 ? formatCurrency(row.capitalReforma) : '---'}</td>}
-                          {cv('currentValue') && <td className="py-1.5 px-2 text-right tabular-nums">{(row.currentValue || 0) > 0 ? formatCurrency(row.currentValue) : '---'}</td>}
-                          {cv('ingresosExtracto') && <td className="py-1.5 px-2 text-right tabular-nums">{(row.ingresosExtracto || 0) > 0 ? formatCurrency(row.ingresosExtracto) : '---'}</td>}
-                          {cv('gastosExtracto') && <td className="py-1.5 px-2 text-right tabular-nums">{(row.gastosExtracto || 0) > 0 ? formatCurrency(-row.gastosExtracto) : '---'}</td>}
-                          {cv('rendimientoNetoExtracto') && <td className="py-1.5 px-2 text-right tabular-nums"><span>{formatCurrency(row.rendimientoNetoExtracto || 0)}</span></td>}
-                          {cv('mortgagePending') && <td className="py-1.5 px-2 text-right tabular-nums">{(row.mortgagePending || 0) > 0 ? formatCurrency(row.mortgagePending) : '---'}</td>}
-                          {cv('gain') && <td className="py-1.5 px-2 text-right tabular-nums"><span>{formatCurrency(row.gain || 0)}</span></td>}
-                          {cv('netGain') && <td className="py-1.5 px-2 text-right tabular-nums"><span>{formatCurrency(row.netGain || 0)}</span></td>}
-                          {cv('realReturn') && <td className="py-1.5 px-2 text-right tabular-nums"><span>{formatCurrency(row.realReturn || 0)}</span></td>}
+                          {visibleCols.map(col => {
+                            let align = 'text-right';
+                            if (['name', 'nif', 'property'].includes(col.id)) align = 'text-left';
+
+                            let valDisplay = '---';
+                            if (col.id === 'name') valDisplay = groupByOwner ? '' : row.partnerName;
+                            else if (col.id === 'nif') valDisplay = groupByOwner ? '' : row.partnerNif;
+                            else if (col.id === 'property') valDisplay = row.propertyName;
+                            else if (col.id === 'percentage') valDisplay = `${row.percentage.toFixed(2)}%`;
+                            else if (col.id === 'acquisitionPrice') valDisplay = (row.acquisitionPrice || 0) > 0 ? formatCurrency(row.acquisitionPrice) : '---';
+                            else if (col.id === 'investedCapital') valDisplay = (row.investedCapital || 0) > 0 ? formatCurrency(row.investedCapital) : '---';
+                            else if (col.id === 'adquisitionExpenses') valDisplay = (row.adquisitionExpenses || 0) > 0 ? formatCurrency(row.adquisitionExpenses) : '---';
+                            else if (col.id === 'acqPlusExpenses') valDisplay = (row.acqPlusExpenses || 0) > 0 ? formatCurrency(row.acqPlusExpenses) : '---';
+                            else if (col.id === 'capitalReforma') valDisplay = (row.capitalReforma || 0) > 0 ? formatCurrency(row.capitalReforma) : '---';
+                            else if (col.id === 'currentValue') valDisplay = (row.currentValue || 0) > 0 ? formatCurrency(row.currentValue) : '---';
+                            else if (col.id === 'ingresosExtracto') valDisplay = (row.ingresosExtracto || 0) > 0 ? formatCurrency(row.ingresosExtracto) : '---';
+                            else if (col.id === 'gastosExtracto') valDisplay = (row.gastosExtracto || 0) > 0 ? formatCurrency(-row.gastosExtracto) : '---';
+                            else if (col.id === 'rendimientoNetoExtracto') valDisplay = formatCurrency(row.rendimientoNetoExtracto || 0);
+                            else if (col.id === 'mortgagePending') valDisplay = (row.mortgagePending || 0) > 0 ? formatCurrency(row.mortgagePending) : '---';
+                            else if (col.id === 'gain') valDisplay = formatCurrency(row.gain || 0);
+                            else if (col.id === 'netGain') valDisplay = formatCurrency(row.netGain || 0);
+                            else if (col.id === 'realReturn') valDisplay = formatCurrency(row.realReturn || 0);
+
+                            const isSpan = ['rendimientoNetoExtracto', 'gain', 'netGain', 'realReturn'].includes(col.id);
+
+                            return (
+                              <td key={col.id} className={`py-1.5 px-2 ${align} tabular-nums`}>
+                                {isSpan ? <span>{valDisplay}</span> : valDisplay}
+                              </td>
+                            );
+                          })}
                         </tr>
                       );
                     })}
-                    
+
                     {/* Summation TOTAL row at the end of the last page (only for flat list) */}
                     {!groupByOwner && isLastPage && (
                       <tr className="bg-slate-150 font-bold border-t-2 border-slate-400 text-[9px] text-slate-800">
-                        {cv('name') && <td className="py-1.5 px-2 font-bold">TOTAL</td>}
-                        {cv('nif') && <td className="py-1.5 px-2"></td>}
-                        {cv('property') && <td className="py-1.5 px-2"></td>}
-                        {cv('percentage') && <td className="py-1.5 px-2 text-right"></td>}
-                        {cv('acquisitionPrice') && <td className="py-1.5 px-2 text-right tabular-nums">{formatCurrency(totals.acquisitionPrice)}</td>}
-                        {cv('investedCapital') && <td className="py-1.5 px-2 text-right tabular-nums">{formatCurrency(totals.investedCapital || 0)}</td>}
-                        {cv('adquisitionExpenses') && <td className="py-1.5 px-2 text-right tabular-nums">{formatCurrency(totals.adquisitionExpenses || 0)}</td>}
-                        {cv('acqPlusExpenses') && <td className="py-1.5 px-2 text-right tabular-nums">{formatCurrency(totals.acqPlusExpenses || 0)}</td>}
-                        {cv('capitalReforma') && <td className="py-1.5 px-2 text-right tabular-nums">{formatCurrency(totals.capitalReforma)}</td>}
-                        {cv('currentValue') && <td className="py-1.5 px-2 text-right tabular-nums">{formatCurrency(totals.currentValue)}</td>}
-                        {cv('ingresosExtracto') && <td className="py-1.5 px-2 text-right tabular-nums">{formatCurrency(totals.ingresosExtracto)}</td>}
-                        {cv('gastosExtracto') && <td className="py-1.5 px-2 text-right tabular-nums">{formatCurrency(-totals.gastosExtracto)}</td>}
-                        {cv('rendimientoNetoExtracto') && <td className="py-1.5 px-2 text-right tabular-nums"><span>{formatCurrency(totals.rendimientoNetoExtracto)}</span></td>}
-                        {cv('mortgagePending') && <td className="py-1.5 px-2 text-right tabular-nums">{formatCurrency(totals.mortgagePending)}</td>}
-                        {cv('gain') && <td className="py-1.5 px-2 text-right tabular-nums"><span>{formatCurrency(totals.gain)}</span></td>}
-                        {cv('netGain') && <td className="py-1.5 px-2 text-right tabular-nums"><span>{formatCurrency(totals.netGain)}</span></td>}
-                        {cv('realReturn') && <td className="py-1.5 px-2 text-right tabular-nums"><span>{formatCurrency(totals.realReturn)}</span></td>}
+                        {visibleCols.map(col => {
+                          let align = 'text-right';
+                          if (['name', 'nif', 'property'].includes(col.id)) align = 'text-left';
+
+                          if (col.id === firstVisibleId) {
+                            return (
+                              <td key={col.id} className={`py-1.5 px-2 ${align} font-bold`}>
+                                TOTAL
+                              </td>
+                            );
+                          }
+
+                          if (['name', 'nif', 'property', 'percentage'].includes(col.id)) {
+                            return <td key={col.id} className="py-1.5 px-2"></td>;
+                          }
+
+                          let valDisplay = '---';
+                          if (col.id === 'acquisitionPrice') valDisplay = formatCurrency(totals.acquisitionPrice);
+                          else if (col.id === 'investedCapital') valDisplay = formatCurrency(totals.investedCapital || 0);
+                          else if (col.id === 'adquisitionExpenses') valDisplay = formatCurrency(totals.adquisitionExpenses || 0);
+                          else if (col.id === 'acqPlusExpenses') valDisplay = formatCurrency(totals.acqPlusExpenses || 0);
+                          else if (col.id === 'capitalReforma') valDisplay = formatCurrency(totals.capitalReforma);
+                          else if (col.id === 'currentValue') valDisplay = formatCurrency(totals.currentValue);
+                          else if (col.id === 'ingresosExtracto') valDisplay = formatCurrency(totals.ingresosExtracto);
+                          else if (col.id === 'gastosExtracto') valDisplay = formatCurrency(-totals.gastosExtracto);
+                          else if (col.id === 'rendimientoNetoExtracto') valDisplay = formatCurrency(totals.rendimientoNetoExtracto);
+                          else if (col.id === 'mortgagePending') valDisplay = formatCurrency(totals.mortgagePending);
+                          else if (col.id === 'gain') valDisplay = formatCurrency(totals.gain);
+                          else if (col.id === 'netGain') valDisplay = formatCurrency(totals.netGain);
+                          else if (col.id === 'realReturn') valDisplay = formatCurrency(totals.realReturn);
+
+                          const isSpan = ['rendimientoNetoExtracto', 'gain', 'netGain', 'realReturn'].includes(col.id);
+
+                          return (
+                            <td key={col.id} className={`py-1.5 px-2 ${align} tabular-nums`}>
+                              {isSpan ? <span>{valDisplay}</span> : valDisplay}
+                            </td>
+                          );
+                        })}
                       </tr>
                     )}
                   </tbody>
