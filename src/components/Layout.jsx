@@ -979,8 +979,8 @@ export default function Layout() {
       {
         group: 'Vistas',
         items: [
-          { name: 'Gráficos', action: 'rv-metrics:view-graphics', customIcon: 'Dashboard' },
-          { name: 'Métricas', action: 'rv-metrics:view-metrics', customIcon: 'Calculadora' }
+          { name: 'Gráficos', action: 'rv-metrics:view-graphics', icon: TrendingUp },
+          { name: 'Métricas', action: 'rv-metrics:view-metrics', icon: BarChart3 }
         ]
       }
     ],

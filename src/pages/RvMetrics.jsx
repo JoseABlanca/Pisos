@@ -21,17 +21,29 @@ export default function RvMetrics() {
   const [isSidebarOpen, setIsSidebarOpen] = useState(true);
 
   // Sidebar Filters
-  const [selectedTickers, setSelectedTickers] = useState(['ALL']);
+  const [selectedTickers, setSelectedTickers] = useState(() => {
+    const saved = localStorage.getItem('rv_metrics_tickers');
+    return saved ? JSON.parse(saved) : ['ALL'];
+  });
   const [selectedBrokers, setSelectedBrokers] = useState(['ALL']);
   const [selectedAccounts, setSelectedAccounts] = useState(['ALL']);
-  const [startDate, setStartDate] = useState('');
-  const [endDate, setEndDate] = useState('');
-  const [activeView, setActiveView] = useState('graficos');
-  const [barPeriod, setBarPeriod] = useState('MONTH'); // 'DAY', 'MONTH', 'YEAR'
+  const [startDate, setStartDate] = useState(() => localStorage.getItem('rv_metrics_start') || '');
+  const [endDate, setEndDate] = useState(() => localStorage.getItem('rv_metrics_end') || '');
+  const [activeView, setActiveView] = useState(() => localStorage.getItem('rv_metrics_view') || 'graficos');
+  const [barPeriod, setBarPeriod] = useState(() => localStorage.getItem('rv_metrics_period') || 'MONTH'); // 'DAY', 'MONTH', 'YEAR'
 
   // Topbar Filters
-  const [unit, setUnit] = useState('EUR'); // 'EUR', 'PERCENT'
-  const [primaryMetric, setPrimaryMetric] = useState('VALOR'); // 'VALOR', 'PLUSVALIA'
+  const [unit, setUnit] = useState(() => localStorage.getItem('rv_metrics_unit') || 'EUR'); // 'EUR', 'PERCENT'
+  const [primaryMetric, setPrimaryMetric] = useState(() => localStorage.getItem('rv_metrics_primary') || 'VALOR'); // 'VALOR', 'PLUSVALIA'
+
+  // Persist state to localStorage
+  useEffect(() => { localStorage.setItem('rv_metrics_primary', primaryMetric); }, [primaryMetric]);
+  useEffect(() => { localStorage.setItem('rv_metrics_unit', unit); }, [unit]);
+  useEffect(() => { localStorage.setItem('rv_metrics_tickers', JSON.stringify(selectedTickers)); }, [selectedTickers]);
+  useEffect(() => { localStorage.setItem('rv_metrics_start', startDate); }, [startDate]);
+  useEffect(() => { localStorage.setItem('rv_metrics_end', endDate); }, [endDate]);
+  useEffect(() => { localStorage.setItem('rv_metrics_view', activeView); }, [activeView]);
+  useEffect(() => { localStorage.setItem('rv_metrics_period', barPeriod); }, [barPeriod]);
 
   // Toggle Lines state
   const [hiddenLines, setHiddenLines] = useState({});
