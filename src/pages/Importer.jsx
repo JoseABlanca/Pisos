@@ -158,7 +158,7 @@ const TABLES_CONFIG = [
     collection: 'rv_transactions',
     idField: 'id',
     icon: TrendingUp,
-    headers: ['id', 'assetId', 'brokerId', 'type', 'date', 'quantity', 'price', 'fee', 'exchangeRate', 'currency', 'notes'],
+    headers: ['id', 'assetId', 'brokerId', 'type', 'date', 'quantity', 'price', 'fee', 'exchangeRate', 'currency', 'divisaAssetId', 'notes'],
     numeric: ['quantity', 'price', 'fee', 'exchangeRate'],
     booleans: [],
     example: {
@@ -172,6 +172,7 @@ const TABLES_CONFIG = [
       fee: 2.50,
       exchangeRate: 1.085,
       currency: 'USD',
+      divisaAssetId: 'EURUSD=X',
       notes: 'Adquisición de títulos de Apple'
     }
   },
