@@ -428,6 +428,16 @@ export default function RvMetrics() {
     });
 
     const positions = {};
+    let grossProfit = 0;
+    let grossLoss = 0;
+    let totalCommissions = 0;
+    let winningTrades = 0;
+    let losingTrades = 0;
+    let evenTrades = 0;
+    let maxConsecutiveLosses = 0;
+    let currentConsecutiveLosses = 0;
+    let totalTrades = 0;
+
     txs.forEach(tx => {
       const key = tx.assetId;
       if (!positions[key]) positions[key] = { qty: 0, costEUR: 0, realized: 0 };
@@ -435,6 +445,8 @@ export default function RvMetrics() {
       const q = parseFloat(tx.quantity) || 0;
       const p = parseFloat(tx.price) || 0;
       const f = parseFloat(tx.fee) || 0;
+
+      totalCommissions += f / rate;
 
       if (tx.type === 'Compra') {
         positions[key].costEUR += (q * p + f) / rate;
@@ -444,13 +456,32 @@ export default function RvMetrics() {
         const costReduction = q * pmc;
         positions[key].costEUR = Math.max(0, positions[key].costEUR - costReduction);
         positions[key].qty = Math.max(0, positions[key].qty - q);
+        
         const gain = ((q * p - f) / rate) - costReduction;
         exactRealizedGains += gain;
         positions[key].realized += gain;
+
+        totalTrades++;
+        if (gain > 0.01) {
+          grossProfit += gain;
+          winningTrades++;
+          currentConsecutiveLosses = 0;
+        } else if (gain < -0.01) {
+          grossLoss += Math.abs(gain);
+          losingTrades++;
+          currentConsecutiveLosses++;
+          if (currentConsecutiveLosses > maxConsecutiveLosses) maxConsecutiveLosses = currentConsecutiveLosses;
+        } else {
+          evenTrades++;
+          currentConsecutiveLosses = 0;
+        }
+
       } else if (tx.type === 'Dividendo') {
         const gain = (q * p - f) / rate;
         exactRealizedGains += gain;
         positions[key].realized += gain;
+        // Dividend could be considered as gross profit but not a "trade" per se. We will add it to gross profit.
+        grossProfit += gain > 0 ? gain : 0;
       }
     });
 
@@ -500,6 +531,42 @@ export default function RvMetrics() {
       });
     }
 
+    let maxDrawdownPct = 0;
+    let peakValue = 0;
+    let prevVal = null;
+    const dailyReturns = [];
+
+    lineChartData.forEach(day => {
+       const equity = day.valorMercado + (day.beneficioTotal - day.beneficioLatente); 
+       if (equity > peakValue) peakValue = equity;
+       if (peakValue > 0) {
+          const ddPct = (peakValue - equity) / peakValue;
+          if (ddPct > maxDrawdownPct) maxDrawdownPct = ddPct;
+       }
+       if (prevVal !== null && prevVal > 0) {
+          const ret = (equity - prevVal) / prevVal;
+          dailyReturns.push(ret);
+       }
+       prevVal = equity;
+    });
+
+    let avgReturn = 0;
+    let stdDev = 0;
+    let sharpeRatio = 0;
+    if (dailyReturns.length > 0) {
+       avgReturn = dailyReturns.reduce((a, b) => a + b, 0) / dailyReturns.length;
+       const variance = dailyReturns.reduce((a, b) => a + Math.pow(b - avgReturn, 2), 0) / dailyReturns.length;
+       stdDev = Math.sqrt(variance);
+       sharpeRatio = stdDev > 0 ? (avgReturn / stdDev) * Math.sqrt(252) : 0;
+    }
+
+    const profitFactor = grossLoss > 0 ? (grossProfit / grossLoss).toFixed(2) : (grossProfit > 0 ? '99.00' : '0.00');
+    const percentProfitable = totalTrades > 0 ? ((winningTrades / totalTrades) * 100).toFixed(2) : '0.00';
+    const avgTrade = totalTrades > 0 ? ((grossProfit - grossLoss) / totalTrades).toFixed(2) : '0.00';
+    const avgWin = winningTrades > 0 ? (grossProfit / winningTrades).toFixed(2) : '0.00';
+    const avgLoss = losingTrades > 0 ? (grossLoss / losingTrades).toFixed(2) : '0.00';
+    const ratioWinLoss = avgLoss > 0 ? (avgWin / avgLoss).toFixed(2) : (avgWin > 0 ? '99.00' : '0.00');
+
     return { 
       lineData: lineChartData, 
       barData: barChartData, 
@@ -508,7 +575,26 @@ export default function RvMetrics() {
         currentValue: exactCurrentValue,
         totalGains: exactTotalGains,
         roiPct: exactRoiPct,
-        plusvaliaPct: exactPlusvaliaPct
+        plusvaliaPct: exactPlusvaliaPct,
+        metrics: {
+          totalNetProfit: exactTotalGains,
+          grossProfit,
+          grossLoss,
+          totalCommissions,
+          profitFactor,
+          maxDrawdownPct: (maxDrawdownPct * 100).toFixed(2),
+          sharpeRatio: sharpeRatio.toFixed(2),
+          totalTrades,
+          percentProfitable,
+          winningTrades,
+          losingTrades,
+          evenTrades,
+          avgTrade,
+          avgWin,
+          avgLoss,
+          ratioWinLoss,
+          maxConsecutiveLosses
+        }
       } 
     };
   }, [transactions, history, assets, config, selectedTickers, startDate, endDate, barPeriod]);
@@ -658,9 +744,97 @@ export default function RvMetrics() {
         <div className="p-4 flex-1 flex flex-col gap-6 overflow-y-auto">
           
           {activeView === 'metricas' && (
-            <div className="bg-white p-8 rounded-xl border border-slate-200 shadow-sm text-center">
-              <h2 className="text-2xl font-bold text-slate-800 mb-4">Métricas de Inversión</h2>
-              <p className="text-slate-500 mb-6">Aquí se mostrarán próximamente las principales métricas de tu estrategia (Sharpe, Drawdown Máximo, Volatilidad, etc).</p>
+            <div className="bg-white p-6 rounded-xl border border-slate-200 shadow-sm max-w-4xl mx-auto w-full">
+              <h2 className="text-xl font-bold text-slate-800 mb-6">Métricas de la Estrategia (All Trades)</h2>
+              
+              <div className="flex flex-col gap-8">
+                
+                <table className="w-full text-sm text-left">
+                  <tbody>
+                    <tr className="border-b border-slate-200">
+                      <td className="py-2 text-slate-600">Beneficio neto total (Total net profit)</td>
+                      <td className={`py-2 font-medium ${summary.metrics?.totalNetProfit >= 0 ? 'text-green-600' : 'text-red-600'}`}>
+                        {summary.metrics?.totalNetProfit?.toLocaleString('es-ES', { style: 'currency', currency: 'EUR' })}
+                      </td>
+                    </tr>
+                    <tr className="border-b border-slate-200">
+                      <td className="py-2 text-slate-600">Beneficio bruto (Gross profit)</td>
+                      <td className="py-2 font-medium text-green-600">{summary.metrics?.grossProfit?.toLocaleString('es-ES', { style: 'currency', currency: 'EUR' })}</td>
+                    </tr>
+                    <tr className="border-b border-slate-200">
+                      <td className="py-2 text-slate-600">Pérdida bruta (Gross loss)</td>
+                      <td className="py-2 font-medium text-red-600">{summary.metrics?.grossLoss?.toLocaleString('es-ES', { style: 'currency', currency: 'EUR' })}</td>
+                    </tr>
+                    <tr className="border-b border-slate-200">
+                      <td className="py-2 text-slate-600">Comisiones pagadas (Commission)</td>
+                      <td className="py-2 font-medium text-slate-800">{summary.metrics?.totalCommissions?.toLocaleString('es-ES', { style: 'currency', currency: 'EUR' })}</td>
+                    </tr>
+                    <tr className="border-b border-slate-200">
+                      <td className="py-2 text-slate-600">Factor de beneficio (Profit factor)</td>
+                      <td className="py-2 font-medium text-slate-800">{summary.metrics?.profitFactor}</td>
+                    </tr>
+                    <tr className="border-b border-slate-200">
+                      <td className="py-2 text-slate-600">Drawdown Máximo (Max. drawdown)</td>
+                      <td className="py-2 font-medium text-red-600">{summary.metrics?.maxDrawdownPct} %</td>
+                    </tr>
+                    <tr className="border-b border-slate-200">
+                      <td className="py-2 text-slate-600">Ratio de Sharpe (Sharpe ratio)</td>
+                      <td className="py-2 font-medium text-slate-800">{summary.metrics?.sharpeRatio}</td>
+                    </tr>
+                  </tbody>
+                </table>
+
+                <table className="w-full text-sm text-left">
+                  <tbody>
+                    <tr className="border-b border-slate-200">
+                      <td className="py-2 text-slate-600">Total de ventas (Total # of trades)</td>
+                      <td className="py-2 font-medium text-slate-800">{summary.metrics?.totalTrades}</td>
+                    </tr>
+                    <tr className="border-b border-slate-200">
+                      <td className="py-2 text-slate-600">Porcentaje de acierto (Percent profitable)</td>
+                      <td className="py-2 font-medium text-slate-800">{summary.metrics?.percentProfitable} %</td>
+                    </tr>
+                    <tr className="border-b border-slate-200">
+                      <td className="py-2 text-slate-600">Ventas ganadoras (# of winning trades)</td>
+                      <td className="py-2 font-medium text-green-600">{summary.metrics?.winningTrades}</td>
+                    </tr>
+                    <tr className="border-b border-slate-200">
+                      <td className="py-2 text-slate-600">Ventas perdedoras (# of losing trades)</td>
+                      <td className="py-2 font-medium text-red-600">{summary.metrics?.losingTrades}</td>
+                    </tr>
+                    <tr className="border-b border-slate-200">
+                      <td className="py-2 text-slate-600">Ventas a cero (# of even trades)</td>
+                      <td className="py-2 font-medium text-slate-800">{summary.metrics?.evenTrades}</td>
+                    </tr>
+                    <tr className="border-b border-slate-200">
+                      <td className="py-2 text-slate-600">Racha de pérdidas (Max. consecutive losses)</td>
+                      <td className="py-2 font-medium text-red-600">{summary.metrics?.maxConsecutiveLosses}</td>
+                    </tr>
+                  </tbody>
+                </table>
+
+                <table className="w-full text-sm text-left">
+                  <tbody>
+                    <tr className="border-b border-slate-200">
+                      <td className="py-2 text-slate-600">Media por venta (Avg. trade)</td>
+                      <td className="py-2 font-medium text-slate-800">€ {summary.metrics?.avgTrade}</td>
+                    </tr>
+                    <tr className="border-b border-slate-200">
+                      <td className="py-2 text-slate-600">Media de ventas ganadoras (Avg. winning trade)</td>
+                      <td className="py-2 font-medium text-green-600">€ {summary.metrics?.avgWin}</td>
+                    </tr>
+                    <tr className="border-b border-slate-200">
+                      <td className="py-2 text-slate-600">Media de ventas perdedoras (Avg. losing trade)</td>
+                      <td className="py-2 font-medium text-red-600">€ {summary.metrics?.avgLoss}</td>
+                    </tr>
+                    <tr className="border-b border-slate-200">
+                      <td className="py-2 text-slate-600">Ratio Ganancia/Pérdida (Ratio avg. win / avg. loss)</td>
+                      <td className="py-2 font-medium text-slate-800">{summary.metrics?.ratioWinLoss}</td>
+                    </tr>
+                  </tbody>
+                </table>
+
+              </div>
             </div>
           )}
 
