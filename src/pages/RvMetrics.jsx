@@ -121,7 +121,7 @@ export default function RvMetrics() {
     if (isRefreshing) return;
     setIsRefreshing(true);
     
-    const assetsToFetch = Object.values(assets).filter(a => a.apiSource === 'Yahoo Finance' && a.ticker);
+    const assetsToFetch = Object.values(assets).filter(a => a.apiSource === 'Yahoo Finance' && (a.ticker || a.id));
     
     for (const asset of assetsToFetch) {
       const hKeys = history[asset.id] ? Object.keys(history[asset.id]).sort() : [];
@@ -140,7 +140,7 @@ export default function RvMetrics() {
       if (period1 >= period2 - 43200) continue;
       
       try {
-        const yahooUrl = `https://query1.finance.yahoo.com/v8/finance/chart/${asset.ticker}?period1=${period1}&period2=${period2}&interval=1d&events=history&includeAdjustedClose=true`;
+        const yahooUrl = `https://query1.finance.yahoo.com/v8/finance/chart/${asset.ticker || asset.id}?period1=${period1}&period2=${period2}&interval=1d&events=history&includeAdjustedClose=true`;
         const proxies = [
           { url: `https://corsproxy.io/?url=${encodeURIComponent(yahooUrl)}`, mode: 'direct' },
           { url: `https://api.allorigins.win/raw?url=${encodeURIComponent(yahooUrl)}`, mode: 'direct' },
@@ -188,7 +188,7 @@ export default function RvMetrics() {
           if (count > 0) await batch.commit();
         }
       } catch(e) {
-        console.error('Error fetching data for', asset.ticker, e);
+        console.error('Error fetching data for', asset.ticker || asset.id, e);
       }
       await new Promise(r => setTimeout(r, 600));
     }
