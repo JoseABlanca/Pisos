@@ -387,8 +387,13 @@ export default function RvMetrics() {
 
     let lineChartData = Object.values(dailyMap);
     
+    const activeTickersList = Array.from(new Set(txs.map(t => t.assetId)));
+
     // Build periodMap for barChartData
     let previousBeneficioTotal = 0;
+    let prevBeneficioPerAsset = {};
+    activeTickersList.forEach(t => prevBeneficioPerAsset[t] = 0);
+
     lineChartData.forEach(day => {
       let periodKey = day.date; // DAY
       if (barPeriod === 'MONTH') periodKey = day.date.substring(0, 7);
@@ -402,27 +407,47 @@ export default function RvMetrics() {
           avgCapital: day.capitalInvertido,
           count: 1
         };
+        activeTickersList.forEach(t => {
+           periodMap[periodKey][`startBeneficio_${t}`] = prevBeneficioPerAsset[t];
+           periodMap[periodKey][`endBeneficio_${t}`] = day[`beneficioTotal_${t}`] || 0;
+           periodMap[periodKey][`avgCapital_${t}`] = day[`capitalInvertido_${t}`] || 0;
+        });
       } else {
         periodMap[periodKey].endBeneficio = day.beneficioTotal;
         periodMap[periodKey].avgCapital += day.capitalInvertido;
         periodMap[periodKey].count += 1;
+        activeTickersList.forEach(t => {
+           periodMap[periodKey][`endBeneficio_${t}`] = day[`beneficioTotal_${t}`] || 0;
+           periodMap[periodKey][`avgCapital_${t}`] += day[`capitalInvertido_${t}`] || 0;
+        });
       }
       previousBeneficioTotal = day.beneficioTotal;
+      activeTickersList.forEach(t => prevBeneficioPerAsset[t] = day[`beneficioTotal_${t}`] || 0);
     });
 
     let barChartData = Object.values(periodMap).map(p => {
       const gains = p.endBeneficio - p.startBeneficio;
       const avgCap = p.avgCapital / p.count;
-      return {
+      const res = {
         period: p.period,
         gains: gains,
         gainsPct: avgCap > 0 ? (gains / avgCap) * 100 : 0
       };
+      activeTickersList.forEach(t => {
+         const tGains = (p[`endBeneficio_${t}`] || 0) - (p[`startBeneficio_${t}`] || 0);
+         const tAvgCap = (p[`avgCapital_${t}`] || 0) / p.count;
+         res[`gains_${t}`] = tGains;
+         res[`gainsPct_${t}`] = tAvgCap > 0 ? (tGains / tAvgCap) * 100 : 0;
+      });
+      return res;
     });
 
     // Build histChartData for histogramData
     const histPeriodMap = {};
     let prevBeneficioTotalHist = 0;
+    let prevBeneficioPerAssetHist = {};
+    activeTickersList.forEach(t => prevBeneficioPerAssetHist[t] = 0);
+
     lineChartData.forEach(day => {
       let periodKey = day.date;
       if (histPeriod === 'MONTH') periodKey = day.date.substring(0, 7);
@@ -436,22 +461,39 @@ export default function RvMetrics() {
           avgCapital: day.capitalInvertido,
           count: 1
         };
+        activeTickersList.forEach(t => {
+           histPeriodMap[periodKey][`startBeneficio_${t}`] = prevBeneficioPerAssetHist[t];
+           histPeriodMap[periodKey][`endBeneficio_${t}`] = day[`beneficioTotal_${t}`] || 0;
+           histPeriodMap[periodKey][`avgCapital_${t}`] = day[`capitalInvertido_${t}`] || 0;
+        });
       } else {
         histPeriodMap[periodKey].endBeneficio = day.beneficioTotal;
         histPeriodMap[periodKey].avgCapital += day.capitalInvertido;
         histPeriodMap[periodKey].count += 1;
+        activeTickersList.forEach(t => {
+           histPeriodMap[periodKey][`endBeneficio_${t}`] = day[`beneficioTotal_${t}`] || 0;
+           histPeriodMap[periodKey][`avgCapital_${t}`] += day[`capitalInvertido_${t}`] || 0;
+        });
       }
       prevBeneficioTotalHist = day.beneficioTotal;
+      activeTickersList.forEach(t => prevBeneficioPerAssetHist[t] = day[`beneficioTotal_${t}`] || 0);
     });
 
     let histChartData = Object.values(histPeriodMap).map(p => {
       const gains = p.endBeneficio - p.startBeneficio;
       const avgCap = p.avgCapital / p.count;
-      return {
+      const res = {
         period: p.period,
         gains: gains,
         gainsPct: avgCap > 0 ? (gains / avgCap) * 100 : 0
       };
+      activeTickersList.forEach(t => {
+         const tGains = (p[`endBeneficio_${t}`] || 0) - (p[`startBeneficio_${t}`] || 0);
+         const tAvgCap = (p[`avgCapital_${t}`] || 0) / p.count;
+         res[`gains_${t}`] = tGains;
+         res[`gainsPct_${t}`] = tAvgCap > 0 ? (tGains / tAvgCap) * 100 : 0;
+      });
+      return res;
     });
 
     // Date Filter (Display only)
@@ -493,6 +535,9 @@ export default function RvMetrics() {
        drawdownChartData = Object.values(periodMapForDD);
     }
     let maxPortfolioValue = 0;
+    let maxPortfolioPerAsset = {};
+    activeTickersList.forEach(t => maxPortfolioPerAsset[t] = 0);
+
     drawdownChartData.forEach(day => {
        const currentValue = day.capitalInvertido + day.beneficioTotal;
        if (currentValue > maxPortfolioValue) {
@@ -503,12 +548,28 @@ export default function RvMetrics() {
        } else {
           day.drawdownPct = 0;
        }
+
+       activeTickersList.forEach(t => {
+          const tVal = (day[`capitalInvertido_${t}`] || 0) + (day[`beneficioTotal_${t}`] || 0);
+          if (tVal > maxPortfolioPerAsset[t]) maxPortfolioPerAsset[t] = tVal;
+          day[`drawdownPct_${t}`] = maxPortfolioPerAsset[t] > 0 ? ((tVal - maxPortfolioPerAsset[t]) / maxPortfolioPerAsset[t]) * 100 : 0;
+       });
     });
 
-    // Build frequency histogram data based on histChartData
     let histogramData = [];
     if (histChartData.length > 0) {
-      const returns = histChartData.map(d => unit === 'EUR' ? d.gains : d.gainsPct).filter(r => !isNaN(r));
+      let returns = [];
+      if (isAccumulated || selectedTickers.includes('ALL')) {
+         returns = histChartData.map(d => unit === 'EUR' ? d.gains : d.gainsPct).filter(r => !isNaN(r));
+      } else {
+         selectedTickers.forEach(t => {
+            if (t !== 'ALL') {
+               const tRets = histChartData.map(d => unit === 'EUR' ? d[`gains_${t}`] : d[`gainsPct_${t}`]).filter(r => !isNaN(r));
+               returns.push(...tRets);
+            }
+         });
+      }
+
       if (returns.length > 0) {
         const minRet = Math.min(...returns);
         const maxRet = Math.max(...returns);
@@ -516,14 +577,35 @@ export default function RvMetrics() {
         const binSize = range === 0 ? 1 : Math.max(range / 15, unit === 'EUR' ? 10 : 0.5); // 15 bins
         
         const bins = {};
-        returns.forEach(r => {
-           let bin = Math.floor(r / binSize) * binSize;
-           const binLabel = `${bin.toFixed(unit === 'EUR' ? 0 : 1)}${unit === 'EUR' ? '€' : '%'}`;
-           if (!bins[binLabel]) bins[binLabel] = { binStart: bin, label: binLabel, count: 0 };
-           bins[binLabel].count++;
+        histChartData.forEach(p => {
+           if (isAccumulated || selectedTickers.includes('ALL')) {
+               const r = unit === 'EUR' ? p.gains : p.gainsPct;
+               if (!isNaN(r)) {
+                  let bin = Math.floor(r / binSize) * binSize;
+                  const binLabel = `${bin.toFixed(unit === 'EUR' ? 0 : 1)}${unit === 'EUR' ? '€' : '%'}`;
+                  if (!bins[binLabel]) bins[binLabel] = { binStart: bin, label: binLabel, count: 0 };
+                  bins[binLabel].count++;
+               }
+           } else {
+               selectedTickers.forEach(t => {
+                   if (t !== 'ALL') {
+                       const r = unit === 'EUR' ? p[`gains_${t}`] : p[`gainsPct_${t}`];
+                       if (!isNaN(r)) {
+                          let bin = Math.floor(r / binSize) * binSize;
+                          const binLabel = `${bin.toFixed(unit === 'EUR' ? 0 : 1)}${unit === 'EUR' ? '€' : '%'}`;
+                          if (!bins[binLabel]) {
+                              bins[binLabel] = { binStart: bin, label: binLabel, count: 0 };
+                              selectedTickers.forEach(st => { if (st !== 'ALL') bins[binLabel][`count_${st}`] = 0; });
+                          }
+                          bins[binLabel][`count_${t}`]++;
+                       }
+                   }
+               });
+           }
         });
         
         histogramData = Object.values(bins).sort((a, b) => a.binStart - b.binStart);
+
         
         const mean = returns.reduce((a, b) => a + b, 0) / returns.length;
         const stdDev = Math.sqrt(returns.reduce((a, b) => a + Math.pow(b - mean, 2), 0) / returns.length) || 1;
@@ -736,7 +818,9 @@ export default function RvMetrics() {
         }
       } 
     };
-  }, [transactions, history, assets, config, selectedTickers, selectedBrokers, selectedAccounts, startDate, endDate, linePeriod, barPeriod, histPeriod, drawdownPeriod]);
+  }, [transactions, history, assets, config, selectedTickers, selectedBrokers, selectedAccounts, startDate, endDate, linePeriod, barPeriod, histPeriod, drawdownPeriod, isAccumulated]);
+
+  const tickersToRender = selectedTickers.includes('ALL') ? tickers : selectedTickers;
 
   useEffect(() => {
     const handleViewGraphics = () => setActiveView('graficos');
@@ -1083,7 +1167,7 @@ export default function RvMetrics() {
                   <Tooltip formatter={formatTooltip} labelStyle={{ color: '#0f172a', fontWeight: 'bold' }} />
                   <Legend onClick={handleLegendClick} wrapperStyle={{ fontSize: '11px', cursor: 'pointer' }} />
                   
-                  {selectedTickers.includes('ALL') ? (
+                  {isAccumulated ? (
                     <>
                       {primaryMetric === 'VALOR' && (
                         <>
@@ -1102,7 +1186,7 @@ export default function RvMetrics() {
                     </>
                   ) : (
                     <>
-                      {selectedTickers.map((t, idx) => {
+                      {tickersToRender.map((t, idx) => {
                          const colors = ['#3b82f6', '#10b981', '#f59e0b', '#ef4444', '#8b5cf6', '#ec4899', '#06b6d4', '#14b8a6', '#f97316'];
                          const color = colors[idx % colors.length];
                          if (primaryMetric === 'VALOR') {
@@ -1147,10 +1231,22 @@ export default function RvMetrics() {
                   <YAxis tick={{ fontSize: 10, fill: '#64748b' }} tickFormatter={formatYAxis} />
                   <Tooltip formatter={formatTooltip} cursor={{ fill: '#f1f5f9' }} />
                   <ReferenceLine y={0} stroke="#94a3b8" />
-                  {unit === 'EUR' ? (
-                    <Bar name="Beneficio Periodo (€)" dataKey="gains" fill="#3b82f6" radius={[4, 4, 0, 0]} />
+                  {isAccumulated ? (
+                    unit === 'EUR' ? (
+                      <Bar name="Beneficio Periodo (€)" dataKey="gains" fill="#3b82f6" radius={[4, 4, 0, 0]} />
+                    ) : (
+                      <Bar name="Rentabilidad Periodo (%)" dataKey="gainsPct" fill="#3b82f6" radius={[4, 4, 0, 0]} />
+                    )
                   ) : (
-                    <Bar name="Rentabilidad Periodo (%)" dataKey="gainsPct" fill="#3b82f6" radius={[4, 4, 0, 0]} />
+                    tickersToRender.map((t, idx) => {
+                       const colors = ['#3b82f6', '#10b981', '#f59e0b', '#ef4444', '#8b5cf6', '#ec4899', '#06b6d4', '#14b8a6', '#f97316'];
+                       const color = colors[idx % colors.length];
+                       return unit === 'EUR' ? (
+                         <Bar key={t} name={`${t} (€)`} dataKey={`gains_${t}`} fill={color} radius={[4, 4, 0, 0]} />
+                       ) : (
+                         <Bar key={t} name={`${t} (%)`} dataKey={`gainsPct_${t}`} fill={color} radius={[4, 4, 0, 0]} />
+                       )
+                    })
                   )}
                 </BarChart>
               </ResponsiveContainer>
@@ -1182,7 +1278,17 @@ export default function RvMetrics() {
                   }} />
                   <YAxis tick={{ fontSize: 10, fill: '#64748b' }} tickFormatter={(v) => `${v.toFixed(1)}%`} />
                   <Tooltip formatter={(value) => [`${Number(value).toFixed(2)}%`, 'Drawdown']} labelStyle={{ color: '#0f172a', fontWeight: 'bold' }} />
-                  <Area type="monotone" dataKey="drawdownPct" stroke="#ef4444" fill="#fecaca" />
+                  {isAccumulated ? (
+                    <Area type="monotone" dataKey="drawdownPct" stroke="#ef4444" fill="#fecaca" />
+                  ) : (
+                    tickersToRender.map((t, idx) => {
+                       const colors = ['#3b82f6', '#10b981', '#f59e0b', '#ef4444', '#8b5cf6', '#ec4899', '#06b6d4', '#14b8a6', '#f97316'];
+                       const color = colors[idx % colors.length];
+                       return (
+                         <Area key={t} type="monotone" name={`${t} Drawdown`} dataKey={`drawdownPct_${t}`} stroke={color} fill={color} fillOpacity={0.3} />
+                       )
+                    })
+                  )}
                 </AreaChart>
               </ResponsiveContainer>
             </div>
@@ -1211,8 +1317,20 @@ export default function RvMetrics() {
                   <YAxis yAxisId="left" tick={{ fontSize: 10, fill: '#64748b' }} />
                   <YAxis yAxisId="right" orientation="right" hide={true} />
                   <Tooltip labelStyle={{ color: '#0f172a', fontWeight: 'bold' }} />
-                  <Bar yAxisId="left" name="Frecuencia (Días/Meses)" dataKey="count" fill="#8b5cf6" radius={[4, 4, 0, 0]} />
-                  <Line yAxisId="right" type="monotone" name="Densidad Normal" dataKey="density" stroke="#2563eb" strokeWidth={2} dot={false} />
+                  {isAccumulated ? (
+                    <>
+                      <Bar yAxisId="left" name="Frecuencia (Días/Meses)" dataKey="count" fill="#3b82f6" radius={[4, 4, 0, 0]} />
+                      <Line yAxisId="right" type="monotone" name="Densidad Normal" dataKey="density" stroke="#10b981" strokeWidth={2} dot={false} />
+                    </>
+                  ) : (
+                    tickersToRender.map((t, idx) => {
+                       const colors = ['#3b82f6', '#10b981', '#f59e0b', '#ef4444', '#8b5cf6', '#ec4899', '#06b6d4', '#14b8a6', '#f97316'];
+                       const color = colors[idx % colors.length];
+                       return (
+                         <Bar key={t} yAxisId="left" name={`Frecuencia ${t}`} dataKey={`count_${t}`} fill={color} radius={[4, 4, 0, 0]} />
+                       )
+                    })
+                  )}
                 </ComposedChart>
               </ResponsiveContainer>
             </div>
