@@ -393,9 +393,14 @@ export default function RvMetrics() {
       barChartData = barChartData.filter(d => d.period <= endDate.substring(0, barPeriod === 'YEAR' ? 4 : (barPeriod === 'MONTH' ? 7 : 10)));
     }
 
-    if (lineChartData.length > 200) {
-      const step = Math.ceil(lineChartData.length / 150);
-      lineChartData = lineChartData.filter((_, idx) => idx % step === 0 || idx === lineChartData.length - 1);
+    // Apply Temporalidad (barPeriod) to lineChartData
+    if (barPeriod !== 'DAY') {
+       const periodMapForLine = {};
+       lineChartData.forEach(day => {
+          let periodKey = day.date.substring(0, barPeriod === 'YEAR' ? 4 : 7);
+          periodMapForLine[periodKey] = { ...day, date: periodKey }; // Store last day of period
+       });
+       lineChartData = Object.values(periodMapForLine);
     }
 
     // ----- EXACT CURRENT SUMMARY CALCULATION (Matches Portfolio.jsx) -----
@@ -709,7 +714,7 @@ export default function RvMetrics() {
               </p>
             </div>
             <div className="bg-white p-4 rounded-xl border border-slate-200 shadow-sm">
-              <p className="text-xs text-slate-500 font-medium mb-1">Porcentaje de Plusvalía</p>
+              <p className="text-xs text-slate-500 font-medium mb-1">Rentabilidad</p>
               <p className={`text-xl font-bold ${summary.plusvaliaPct >= 0 ? 'text-green-600' : 'text-red-600'}`}>
                 {summary.plusvaliaPct > 0 ? '+' : ''}{summary.plusvaliaPct?.toFixed(2)} %
               </p>
