@@ -15,6 +15,7 @@ export default function RvMetrics() {
   const [loading, setLoading] = useState(true);
   const [isRefreshing, setIsRefreshing] = useState(false);
   const [config, setConfig] = useState({ exchangeRates: { USD: 1.08, GBP: 0.85, CHF: 0.95 } });
+  const [rvBrokers, setRvBrokers] = useState({});
 
   // Layout
   const [isSidebarOpen, setIsSidebarOpen] = useState(true);
@@ -46,20 +47,27 @@ export default function RvMetrics() {
         const asMap = {};
         snapAs.docs.forEach(d => { asMap[d.id] = d.data(); });
         setAssets(asMap);
-        
-        const qHist = query(collection(db, 'rv_asset_history'), where('userId', '==', user.uid));
-        onSnapshot(qHist, (snapHist) => {
-          const hMap = {};
-          snapHist.docs.forEach(d => {
-            const data = d.data();
-            if (!hMap[data.assetId]) hMap[data.assetId] = {};
-            hMap[data.assetId][data.date] = data.close;
-          });
-          setHistory(hMap);
+
+        const qBrokers = query(collection(db, 'rv_brokers'), where('userId', '==', user.uid));
+        onSnapshot(qBrokers, (snapBrokers) => {
+          const brMap = {};
+          snapBrokers.docs.forEach(d => { brMap[d.id] = d.data(); });
+          setRvBrokers(brMap);
           
-          const unsubConfig = onSnapshot(doc(db, 'rv_config', user.uid), (snapConf) => {
-            if (snapConf.exists()) setConfig(snapConf.data());
-            setLoading(false);
+          const qHist = query(collection(db, 'rv_asset_history'), where('userId', '==', user.uid));
+          onSnapshot(qHist, (snapHist) => {
+            const hMap = {};
+            snapHist.docs.forEach(d => {
+              const data = d.data();
+              if (!hMap[data.assetId]) hMap[data.assetId] = {};
+              hMap[data.assetId][data.date] = data.close;
+            });
+            setHistory(hMap);
+            
+            const unsubConfig = onSnapshot(doc(db, 'rv_config', user.uid), (snapConf) => {
+              if (snapConf.exists()) setConfig(snapConf.data());
+              setLoading(false);
+            });
           });
         });
       });
@@ -69,8 +77,20 @@ export default function RvMetrics() {
 
   // Derived unique lists for filters
   const tickers = useMemo(() => Array.from(new Set(transactions.map(tx => tx.assetId))).sort(), [transactions]);
-  const brokers = useMemo(() => Array.from(new Set(transactions.map(tx => tx.broker).filter(Boolean))).sort(), [transactions]);
-  const accounts = useMemo(() => Array.from(new Set(transactions.map(tx => tx.brokerAccount).filter(Boolean))).sort(), [transactions]);
+  
+  const brokers = useMemo(() => {
+    return Array.from(new Set(transactions.map(tx => {
+      const b = rvBrokers[tx.brokerId];
+      return b ? b.name : tx.brokerId;
+    }).filter(Boolean))).sort();
+  }, [transactions, rvBrokers]);
+
+  const accounts = useMemo(() => {
+    return Array.from(new Set(transactions.map(tx => {
+      const b = rvBrokers[tx.brokerId];
+      return b ? b.accountNumber : null;
+    }).filter(Boolean))).sort();
+  }, [transactions, rvBrokers]);
 
   const handleRefreshData = async () => {
     if (isRefreshing) return;
@@ -171,8 +191,16 @@ export default function RvMetrics() {
     // Initial filter by active/broker/account (These affect the actual invested capital calculations)
     let txs = [...transactions].sort((a, b) => new Date(a.date) - new Date(b.date));
     if (!selectedTickers.includes('ALL')) txs = txs.filter(t => selectedTickers.includes(t.assetId));
-    if (!selectedBrokers.includes('ALL')) txs = txs.filter(t => selectedBrokers.includes(t.broker));
-    if (!selectedAccounts.includes('ALL')) txs = txs.filter(t => selectedAccounts.includes(t.brokerAccount));
+    if (!selectedBrokers.includes('ALL')) txs = txs.filter(t => {
+       const b = rvBrokers[t.brokerId];
+       const name = b ? b.name : t.brokerId;
+       return selectedBrokers.includes(name);
+    });
+    if (!selectedAccounts.includes('ALL')) txs = txs.filter(t => {
+       const b = rvBrokers[t.brokerId];
+       const acc = b ? b.accountNumber : null;
+       return selectedAccounts.includes(acc);
+    });
     
     if (!txs.length) return { lineData: [], barData: [], summary: {} };
 
