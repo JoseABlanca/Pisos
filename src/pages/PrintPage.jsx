@@ -4138,8 +4138,8 @@ export default function PrintPage() {
           const firstVisibleId = visibleCols[0]?.id;
 
           pageViews.push(
-            <div key={`eprop-${pageIdx}`} className="page-sheet relative">
-              <div>
+            <div key={`eprop-${pageIdx}`} className="page-sheet relative flex flex-col justify-between">
+              <div className="flex-1">
                 {renderPageHeader('Extracto de Propietarios')}
                 <table className="w-full text-[10px] border-collapse">
                   <thead>
@@ -6155,7 +6155,7 @@ export default function PrintPage() {
                 border: none !important;
                 margin: 0 !important;
                 width: 100% !important;
-                min-height: 0 !important;
+                height: calc(${sheetH}mm - 20mm) !important;
                 page-break-after: always;
                 break-after: page;
               }
