@@ -30,7 +30,9 @@ export default function RvMetrics() {
   const [startDate, setStartDate] = useState(() => localStorage.getItem('rv_metrics_start') || '');
   const [endDate, setEndDate] = useState(() => localStorage.getItem('rv_metrics_end') || '');
   const [activeView, setActiveView] = useState(() => localStorage.getItem('rv_metrics_view') || 'graficos');
-  const [barPeriod, setBarPeriod] = useState(() => localStorage.getItem('rv_metrics_period') || 'MONTH'); // 'DAY', 'MONTH', 'YEAR'
+  const [linePeriod, setLinePeriod] = useState(() => localStorage.getItem('rv_metrics_line_period') || 'MONTH');
+  const [barPeriod, setBarPeriod] = useState(() => localStorage.getItem('rv_metrics_bar_period') || 'MONTH');
+  const [histPeriod, setHistPeriod] = useState(() => localStorage.getItem('rv_metrics_hist_period') || 'MONTH');
 
   // Topbar Filters
   const [unit, setUnit] = useState(() => localStorage.getItem('rv_metrics_unit') || 'EUR'); // 'EUR', 'PERCENT'
@@ -44,7 +46,9 @@ export default function RvMetrics() {
   useEffect(() => { localStorage.setItem('rv_metrics_start', startDate); }, [startDate]);
   useEffect(() => { localStorage.setItem('rv_metrics_end', endDate); }, [endDate]);
   useEffect(() => { localStorage.setItem('rv_metrics_view', activeView); }, [activeView]);
-  useEffect(() => { localStorage.setItem('rv_metrics_period', barPeriod); }, [barPeriod]);
+  useEffect(() => { localStorage.setItem('rv_metrics_line_period', linePeriod); }, [linePeriod]);
+  useEffect(() => { localStorage.setItem('rv_metrics_bar_period', barPeriod); }, [barPeriod]);
+  useEffect(() => { localStorage.setItem('rv_metrics_hist_period', histPeriod); }, [histPeriod]);
   useEffect(() => { localStorage.setItem('rv_metrics_kpi_type', kpiBenefitType); }, [kpiBenefitType]);
 
   // Toggle Lines state
@@ -379,6 +383,7 @@ export default function RvMetrics() {
 
     let lineChartData = Object.values(dailyMap);
     
+    // Build periodMap for barChartData
     let previousBeneficioTotal = 0;
     lineChartData.forEach(day => {
       let periodKey = day.date; // DAY
@@ -411,21 +416,57 @@ export default function RvMetrics() {
       };
     });
 
+    // Build histChartData for histogramData
+    const histPeriodMap = {};
+    let prevBeneficioTotalHist = 0;
+    lineChartData.forEach(day => {
+      let periodKey = day.date;
+      if (histPeriod === 'MONTH') periodKey = day.date.substring(0, 7);
+      if (histPeriod === 'YEAR') periodKey = day.date.substring(0, 4);
+
+      if (!histPeriodMap[periodKey]) {
+        histPeriodMap[periodKey] = {
+          period: periodKey,
+          startBeneficio: prevBeneficioTotalHist,
+          endBeneficio: day.beneficioTotal,
+          avgCapital: day.capitalInvertido,
+          count: 1
+        };
+      } else {
+        histPeriodMap[periodKey].endBeneficio = day.beneficioTotal;
+        histPeriodMap[periodKey].avgCapital += day.capitalInvertido;
+        histPeriodMap[periodKey].count += 1;
+      }
+      prevBeneficioTotalHist = day.beneficioTotal;
+    });
+
+    let histChartData = Object.values(histPeriodMap).map(p => {
+      const gains = p.endBeneficio - p.startBeneficio;
+      const avgCap = p.avgCapital / p.count;
+      return {
+        period: p.period,
+        gains: gains,
+        gainsPct: avgCap > 0 ? (gains / avgCap) * 100 : 0
+      };
+    });
+
     // Date Filter (Display only)
     if (startDate) {
       lineChartData = lineChartData.filter(d => d.date >= startDate);
       barChartData = barChartData.filter(d => d.period >= startDate.substring(0, barPeriod === 'YEAR' ? 4 : (barPeriod === 'MONTH' ? 7 : 10)));
+      histChartData = histChartData.filter(d => d.period >= startDate.substring(0, histPeriod === 'YEAR' ? 4 : (histPeriod === 'MONTH' ? 7 : 10)));
     }
     if (endDate) {
       lineChartData = lineChartData.filter(d => d.date <= endDate);
       barChartData = barChartData.filter(d => d.period <= endDate.substring(0, barPeriod === 'YEAR' ? 4 : (barPeriod === 'MONTH' ? 7 : 10)));
+      histChartData = histChartData.filter(d => d.period <= endDate.substring(0, histPeriod === 'YEAR' ? 4 : (histPeriod === 'MONTH' ? 7 : 10)));
     }
 
-    // Apply Temporalidad (barPeriod) to lineChartData
-    if (barPeriod !== 'DAY') {
+    // Apply Temporalidad (linePeriod) to lineChartData
+    if (linePeriod !== 'DAY') {
        const periodMapForLine = {};
        lineChartData.forEach(day => {
-          let periodKey = day.date.substring(0, barPeriod === 'YEAR' ? 4 : 7);
+          let periodKey = day.date.substring(0, linePeriod === 'YEAR' ? 4 : 7);
           periodMapForLine[periodKey] = { ...day, date: periodKey }; // Store last day of period
        });
        lineChartData = Object.values(periodMapForLine);
@@ -445,10 +486,10 @@ export default function RvMetrics() {
        }
     });
 
-    // Build frequency histogram data based on barChartData
+    // Build frequency histogram data based on histChartData
     let histogramData = [];
-    if (barChartData.length > 0) {
-      const returns = barChartData.map(d => unit === 'EUR' ? d.gains : d.gainsPct).filter(r => !isNaN(r));
+    if (histChartData.length > 0) {
+      const returns = histChartData.map(d => unit === 'EUR' ? d.gains : d.gainsPct).filter(r => !isNaN(r));
       if (returns.length > 0) {
         const minRet = Math.min(...returns);
         const maxRet = Math.max(...returns);
@@ -675,7 +716,7 @@ export default function RvMetrics() {
         }
       } 
     };
-  }, [transactions, history, assets, config, selectedTickers, selectedBrokers, selectedAccounts, startDate, endDate, barPeriod]);
+  }, [transactions, history, assets, config, selectedTickers, selectedBrokers, selectedAccounts, startDate, endDate, linePeriod, barPeriod, histPeriod]);
 
   useEffect(() => {
     const handleViewGraphics = () => setActiveView('graficos');
@@ -991,8 +1032,8 @@ export default function RvMetrics() {
                 {primaryMetric === 'VALOR' ? 'Evolución de Valor de Mercado' : 'Evolución de la Plusvalía Latente'}
               </h2>
               <select 
-                value={barPeriod} 
-                onChange={e => setBarPeriod(e.target.value)} 
+                value={linePeriod} 
+                onChange={e => setLinePeriod(e.target.value)} 
                 className="text-xs border-slate-300 rounded shadow-sm focus:ring-[#5b21b6] focus:border-[#5b21b6] py-1 pl-2 pr-6"
               >
                 <option value="DAY">Diario</option>
@@ -1113,7 +1154,18 @@ export default function RvMetrics() {
           {/* Frequency Histogram Chart */}
           {histogramData && histogramData.length > 0 && (
           <div className="bg-white p-4 rounded-xl border border-slate-200 shadow-sm min-h-[300px]">
-            <h2 className="text-sm font-bold text-slate-700 mb-4">Distribución de Frecuencias (Periodo: {barPeriod === 'DAY' ? 'Diario' : barPeriod === 'MONTH' ? 'Mensual' : 'Anual'})</h2>
+            <div className="flex items-center justify-between mb-4">
+              <h2 className="text-sm font-bold text-slate-700">Distribución de Frecuencias</h2>
+              <select 
+                value={histPeriod} 
+                onChange={e => setHistPeriod(e.target.value)} 
+                className="text-xs border-slate-300 rounded shadow-sm focus:ring-[#5b21b6] focus:border-[#5b21b6] py-1 pl-2 pr-6"
+              >
+                <option value="DAY">Diario</option>
+                <option value="MONTH">Mensual</option>
+                <option value="YEAR">Anual</option>
+              </select>
+            </div>
             <div className="h-[250px]">
               <ResponsiveContainer width="100%" height="100%">
                 <ComposedChart data={histogramData} margin={{ top: 5, right: 20, left: 20, bottom: 5 }}>

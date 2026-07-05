@@ -422,6 +422,18 @@ export default function Portfolio() {
     }
   };
 
+  // Memoized filtered holdings
+  const filteredHoldings = useMemo(() => {
+    return holdings.filter(h => {
+      if (brokerFilter !== 'todos' && h.brokerId !== brokerFilter) return false;
+      if (searchQuery) {
+        const q = searchQuery.toLowerCase();
+        return h.symbol.toLowerCase().includes(q) || h.name.toLowerCase().includes(q);
+      }
+      return true;
+    });
+  }, [holdings, brokerFilter, searchQuery]);
+
   // Recharts Chart Data Prep
   const chartsData = useMemo(() => {
     const assetTypeAlloc = {};
@@ -429,7 +441,7 @@ export default function Portfolio() {
     const brokerAlloc = {};
     const assetCostValue = [];
 
-    holdings.forEach(h => {
+    filteredHoldings.forEach(h => {
       assetTypeAlloc[h.type] = (assetTypeAlloc[h.type] || 0) + h.currentValue;
       sectorAlloc[h.sector] = (sectorAlloc[h.sector] || 0) + h.currentValue;
       brokerAlloc[h.brokerName] = (brokerAlloc[h.brokerName] || 0) + h.currentValue;
@@ -455,19 +467,7 @@ export default function Portfolio() {
       brokers: formatPie(brokerAlloc),
       bars: assetCostValue
     };
-  }, [holdings]);
-
-  // Memoized filtered holdings
-  const filteredHoldings = useMemo(() => {
-    return holdings.filter(h => {
-      if (brokerFilter !== 'todos' && h.brokerId !== brokerFilter) return false;
-      if (searchQuery) {
-        const q = searchQuery.toLowerCase();
-        return h.symbol.toLowerCase().includes(q) || h.name.toLowerCase().includes(q);
-      }
-      return true;
-    });
-  }, [holdings, brokerFilter, searchQuery]);
+  }, [filteredHoldings]);
 
   // Table row renderer helper
   const renderRow = (h) => {
