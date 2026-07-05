@@ -510,13 +510,16 @@ export default function RvMetrics() {
       histChartData = histChartData.filter(d => d.period <= endDate.substring(0, histPeriod === 'YEAR' ? 4 : (histPeriod === 'MONTH' ? 7 : 10)));
     }
 
+    let baseBeneficioLatente = 0;
+    let baseBeneficioTotal = 0;
+    const baseLatentePerAsset = {};
+    const baseTotalPerAsset = {};
+
     // Rebase lineChartData so that metrics start at 0 at the beginning of the filtered period
     if (lineChartData.length > 0) {
       const firstDay = lineChartData[0];
-      const baseBeneficioLatente = firstDay.beneficioLatente || 0;
-      const baseBeneficioTotal = firstDay.beneficioTotal || 0;
-      const baseLatentePerAsset = {};
-      const baseTotalPerAsset = {};
+      baseBeneficioLatente = firstDay.beneficioLatente || 0;
+      baseBeneficioTotal = firstDay.beneficioTotal || 0;
       
       activeTickersList.forEach(t => {
         baseLatentePerAsset[t] = firstDay[`beneficioLatente_${t}`] || 0;
@@ -788,22 +791,35 @@ export default function RvMetrics() {
     // Apply exact current values to the final point on the chart
     if (lineChartData.length > 0) {
       const lastIdx = lineChartData.length - 1;
+      
+      const rawLatente = exactLatente;
+      const rawTotal = exactTotalGains;
+      
       lineChartData[lastIdx].capitalInvertido = exactCurrentCost;
       lineChartData[lastIdx].valorMercado = exactCurrentValue;
-      lineChartData[lastIdx].beneficioLatente = exactLatente;
-      lineChartData[lastIdx].plusvaliaPct = exactPlusvaliaPct;
-      lineChartData[lastIdx].beneficioTotal = exactTotalGains;
-      lineChartData[lastIdx].rentabilidadPct = exactRoiPct;
+      
+      // Rebase the final point values using the base offsets!
+      lineChartData[lastIdx].beneficioLatente = rawLatente - baseBeneficioLatente;
+      lineChartData[lastIdx].plusvaliaPct = exactCurrentCost > 0 ? (lineChartData[lastIdx].beneficioLatente / exactCurrentCost) * 100 : 0;
+      lineChartData[lastIdx].beneficioTotal = rawTotal - baseBeneficioTotal;
+      lineChartData[lastIdx].rentabilidadPct = exactCurrentCost > 0 ? (lineChartData[lastIdx].beneficioTotal / exactCurrentCost) * 100 : 0;
       
       Object.keys(exactAssetStats).forEach(key => {
          lineChartData[lastIdx][`capitalInvertido_${key}`] = exactAssetStats[key].capitalInvertido;
          lineChartData[lastIdx][`valorMercado_${key}`] = exactAssetStats[key].valorMercado;
-         lineChartData[lastIdx][`beneficioTotal_${key}`] = exactAssetStats[key].beneficioTotal;
-         const latente = exactAssetStats[key].valorMercado - exactAssetStats[key].capitalInvertido;
-         lineChartData[lastIdx][`beneficioLatente_${key}`] = latente;
+         
+         const rawAssetTotal = exactAssetStats[key].beneficioTotal;
+         const rawAssetLatente = exactAssetStats[key].valorMercado - exactAssetStats[key].capitalInvertido;
+         
+         const rebasedAssetLatente = rawAssetLatente - (baseLatentePerAsset[key] || 0);
+         const rebasedAssetTotal = rawAssetTotal - (baseTotalPerAsset[key] || 0);
+         
+         lineChartData[lastIdx][`beneficioLatente_${key}`] = rebasedAssetLatente;
+         lineChartData[lastIdx][`beneficioTotal_${key}`] = rebasedAssetTotal;
+         
          const cap = exactAssetStats[key].capitalInvertido;
-         lineChartData[lastIdx][`plusvaliaPct_${key}`] = cap > 0 ? (latente / cap) * 100 : 0;
-         lineChartData[lastIdx][`rentabilidadPct_${key}`] = cap > 0 ? (exactAssetStats[key].beneficioTotal / cap) * 100 : 0;
+         lineChartData[lastIdx][`plusvaliaPct_${key}`] = cap > 0 ? (rebasedAssetLatente / cap) * 100 : 0;
+         lineChartData[lastIdx][`rentabilidadPct_${key}`] = cap > 0 ? (rebasedAssetTotal / cap) * 100 : 0;
       });
     }
 
