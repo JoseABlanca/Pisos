@@ -623,7 +623,7 @@ export default function PrintPage() {
       { id: 'mortgagePending', label: 'Hipoteca Pendiente' },
       { id: 'gain', label: 'Ganancia Bruta' },
       { id: 'netGain', label: 'Ganancia Neta' },
-      { id: 'realReturn', label: 'Ganancia Real + Rend. Neto' },
+      { id: 'realReturn', label: 'Total' },
     ],
     metricas_inversion: [
       { id: 'property', label: 'Inmueble' },
