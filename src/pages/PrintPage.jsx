@@ -3036,11 +3036,8 @@ export default function PrintPage() {
 
   // Reusable Page Header
   const renderPageHeader = (title) => {
-    const isAccounting = ['Diario de Movimientos', 'Libro Mayor de Cuentas', 'Balance de Sumas y Saldos'].includes(title);
     const yearLabel = selectedYears.length > 0 ? selectedYears.join(', ') : 'Todos los ejercicios';
-    const subtitle = isAccounting
-      ? `Ejercicio Contable: ${yearLabel}${selectedMonths.length > 0 || selectedQuarters.length > 0 ? ` (${[...selectedQuarters, ...selectedMonths].join(', ')})` : ''}`
-      : `Ejercicio Contable: ${selectedYear}`;
+    const subtitle = `Ejercicio Contable: ${yearLabel}${selectedMonths.length > 0 || selectedQuarters.length > 0 ? ` (${[...selectedQuarters, ...selectedMonths].join(', ')})` : ''}`;
     return (
       <div className="border-b-2 border-slate-800 pb-3 flex justify-between items-end mb-4 select-none">
         <div>
