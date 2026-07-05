@@ -1088,6 +1088,8 @@ export default function RvMetrics() {
                 </BarChart>
               </ResponsiveContainer>
             </div>
+          </div>
+
           {/* Drawdown Chart */}
           <div className="bg-white p-4 rounded-xl border border-slate-200 shadow-sm min-h-[250px]">
             <h2 className="text-sm font-bold text-slate-700 mb-4">Drawdown del Portfolio</h2>
