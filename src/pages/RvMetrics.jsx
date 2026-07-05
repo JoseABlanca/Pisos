@@ -187,6 +187,7 @@ export default function RvMetrics() {
 
     let holdings = {}; 
     let cumulativeRealizedGains = 0;
+    let realizedGainsByAsset = {};
     
     const dailyMap = {};
     const periodMap = {}; 
@@ -213,11 +214,16 @@ export default function RvMetrics() {
             }
           } else if (tx.type === 'Venta') {
             const costOfSold = holdings[t].avgCost * qty;
-            cumulativeRealizedGains += (amtInEur - costOfSold - feeInEur);
+            const gain = (amtInEur - costOfSold - feeInEur);
+            cumulativeRealizedGains += gain;
+            realizedGainsByAsset[t] = (realizedGainsByAsset[t] || 0) + gain;
+            
             holdings[t].shares = Math.max(0, holdings[t].shares - qty);
             if (holdings[t].shares === 0) holdings[t].avgCost = 0;
           } else if (tx.type === 'Dividendo') {
-            cumulativeRealizedGains += (amtInEur - feeInEur);
+            const gain = (amtInEur - feeInEur);
+            cumulativeRealizedGains += gain;
+            realizedGainsByAsset[t] = (realizedGainsByAsset[t] || 0) + gain;
           }
         });
       }
@@ -232,7 +238,6 @@ export default function RvMetrics() {
       Object.values(assets).forEach(a => {
          if (a.type && a.type.toLowerCase() === 'divisa') {
             const h = history[a.id];
-            // If it's today, prefer currentPrice, otherwise use history, fallback to currentPrice
             let price = isToday ? (parseFloat(a.currentPrice) || h?.[dateStr] || 0) : (h?.[dateStr] !== undefined ? h[dateStr] : parseFloat(a.currentPrice) || 0);
             if (price > 0) {
               const id = String(a.id).toUpperCase();
@@ -247,9 +252,16 @@ export default function RvMetrics() {
          }
       });
 
+      let dayObj = {
+        date: dateStr,
+        capitalInvertido: 0,
+        valorMercado: 0,
+        beneficioTotal: 0,
+        rentabilidadPct: 0
+      };
+
       Object.keys(holdings).forEach(t => {
-        if (holdings[t].shares > 0) {
-          capitalInvertido += (holdings[t].shares * holdings[t].avgCost);
+        if (holdings[t].shares > 0 || (realizedGainsByAsset[t] && holdings[t].shares === 0)) {
           
           if (history[t] && history[t][dateStr] !== undefined) {
             lastKnownPrices[t] = history[t][dateStr];
@@ -267,7 +279,20 @@ export default function RvMetrics() {
             priceEUR = priceRaw / rate;
           }
           
-          valorMercado += (holdings[t].shares * priceEUR);
+          let assetCapitalInvertido = (holdings[t].shares * holdings[t].avgCost);
+          let assetValorMercado = (holdings[t].shares * priceEUR);
+          
+          capitalInvertido += assetCapitalInvertido;
+          valorMercado += assetValorMercado;
+          
+          let assetBeneficioLatente = assetValorMercado - assetCapitalInvertido;
+          let assetBeneficioTotal = assetBeneficioLatente + (realizedGainsByAsset[t] || 0);
+          let assetRentabilidadPct = assetCapitalInvertido > 0 ? (assetBeneficioTotal / assetCapitalInvertido) * 100 : 0;
+
+          dayObj[`capitalInvertido_${t}`] = assetCapitalInvertido;
+          dayObj[`valorMercado_${t}`] = assetValorMercado;
+          dayObj[`beneficioTotal_${t}`] = assetBeneficioTotal;
+          dayObj[`rentabilidadPct_${t}`] = assetRentabilidadPct;
         }
       });
 
@@ -275,13 +300,12 @@ export default function RvMetrics() {
       const beneficioTotal = beneficioLatente + cumulativeRealizedGains;
       const rentabilidadPct = capitalInvertido > 0 ? (beneficioTotal / capitalInvertido) * 100 : 0;
 
-      dailyMap[dateStr] = {
-        date: dateStr,
-        capitalInvertido,
-        valorMercado,
-        beneficioTotal,
-        rentabilidadPct
-      };
+      dayObj.capitalInvertido = capitalInvertido;
+      dayObj.valorMercado = valorMercado;
+      dayObj.beneficioTotal = beneficioTotal;
+      dayObj.rentabilidadPct = rentabilidadPct;
+
+      dailyMap[dateStr] = dayObj;
 
       currentDate.setDate(currentDate.getDate() + 1);
     }
@@ -339,6 +363,7 @@ export default function RvMetrics() {
     let exactCurrentCost = 0;
     let exactCurrentValue = 0;
     let exactRealizedGains = 0;
+    let exactAssetStats = {};
 
     const currentRates = { EUR: 1.0, USD: 1.08, GBP: 0.85, CHF: 0.95, JPY: 130.0, ...(config?.exchangeRates || {}) };
     Object.values(assets).forEach(a => {
@@ -360,7 +385,7 @@ export default function RvMetrics() {
     const positions = {};
     txs.forEach(tx => {
       const key = tx.assetId;
-      if (!positions[key]) positions[key] = { qty: 0, costEUR: 0 };
+      if (!positions[key]) positions[key] = { qty: 0, costEUR: 0, realized: 0 };
       const rate = tx.exchangeRate || 1.0;
       const q = parseFloat(tx.quantity) || 0;
       const p = parseFloat(tx.price) || 0;
@@ -374,19 +399,32 @@ export default function RvMetrics() {
         const costReduction = q * pmc;
         positions[key].costEUR = Math.max(0, positions[key].costEUR - costReduction);
         positions[key].qty = Math.max(0, positions[key].qty - q);
-        exactRealizedGains += ((q * p - f) / rate) - costReduction;
+        const gain = ((q * p - f) / rate) - costReduction;
+        exactRealizedGains += gain;
+        positions[key].realized += gain;
       } else if (tx.type === 'Dividendo') {
-        exactRealizedGains += (q * p - f) / rate;
+        const gain = (q * p - f) / rate;
+        exactRealizedGains += gain;
+        positions[key].realized += gain;
       }
     });
 
     Object.keys(positions).forEach(key => {
+      const asset = assets[key];
+      const currentPriceRaw = asset ? parseFloat(asset.currentPrice) || 0 : 0;
+      const assetRate = currentRates[asset?.currency] || 1.0;
+      
+      const posVal = (positions[key].qty * currentPriceRaw) / assetRate;
+      
+      exactAssetStats[key] = {
+        capitalInvertido: positions[key].costEUR,
+        valorMercado: posVal,
+        beneficioTotal: (posVal - positions[key].costEUR) + positions[key].realized,
+      };
+      
       if (positions[key].qty > 0) {
         exactCurrentCost += positions[key].costEUR;
-        const asset = assets[key];
-        const currentPriceRaw = asset ? parseFloat(asset.currentPrice) || 0 : 0;
-        const assetRate = currentRates[asset?.currency] || 1.0;
-        exactCurrentValue += (positions[key].qty * currentPriceRaw) / assetRate;
+        exactCurrentValue += posVal;
       }
     });
 
@@ -400,6 +438,14 @@ export default function RvMetrics() {
       lineChartData[lastIdx].valorMercado = exactCurrentValue;
       lineChartData[lastIdx].beneficioTotal = exactTotalGains;
       lineChartData[lastIdx].rentabilidadPct = exactRoiPct;
+      
+      Object.keys(exactAssetStats).forEach(key => {
+         lineChartData[lastIdx][`capitalInvertido_${key}`] = exactAssetStats[key].capitalInvertido;
+         lineChartData[lastIdx][`valorMercado_${key}`] = exactAssetStats[key].valorMercado;
+         lineChartData[lastIdx][`beneficioTotal_${key}`] = exactAssetStats[key].beneficioTotal;
+         const cap = exactAssetStats[key].capitalInvertido;
+         lineChartData[lastIdx][`rentabilidadPct_${key}`] = cap > 0 ? (exactAssetStats[key].beneficioTotal / cap) * 100 : 0;
+      });
     }
 
     return { 
@@ -645,19 +691,42 @@ export default function RvMetrics() {
                   <Tooltip formatter={formatTooltip} labelStyle={{ color: '#0f172a', fontWeight: 'bold' }} />
                   <Legend onClick={handleLegendClick} wrapperStyle={{ fontSize: '11px', cursor: 'pointer' }} />
                   
-                  {primaryMetric === 'VALOR' && (
+                  {selectedTickers.includes('ALL') ? (
                     <>
-                      <Line type="monotone" name="Capital Invertido" dataKey="capitalInvertido" stroke="#94a3b8" strokeWidth={2} dot={false} hide={hiddenLines['capitalInvertido']} />
-                      <Line type="monotone" name="Valor de Mercado" dataKey="valorMercado" stroke="#3b82f6" strokeWidth={2} dot={false} hide={hiddenLines['valorMercado']} />
+                      {primaryMetric === 'VALOR' && (
+                        <>
+                          <Line type="monotone" name="Capital Invertido" dataKey="capitalInvertido" stroke="#94a3b8" strokeWidth={2} dot={false} hide={hiddenLines['capitalInvertido']} />
+                          <Line type="monotone" name="Valor de Mercado" dataKey="valorMercado" stroke="#3b82f6" strokeWidth={2} dot={false} hide={hiddenLines['valorMercado']} />
+                        </>
+                      )}
+
+                      {primaryMetric === 'PLUSVALIA' && unit === 'EUR' && (
+                        <Line type="monotone" name="Beneficio Total (€)" dataKey="beneficioTotal" stroke="#10b981" strokeWidth={2} dot={false} hide={hiddenLines['beneficioTotal']} />
+                      )}
+
+                      {primaryMetric === 'PLUSVALIA' && unit === 'PERCENT' && (
+                        <Line type="monotone" name="Rentabilidad Acumulada (%)" dataKey="rentabilidadPct" stroke="#10b981" strokeWidth={2} dot={false} hide={hiddenLines['rentabilidadPct']} />
+                      )}
                     </>
-                  )}
-
-                  {primaryMetric === 'PLUSVALIA' && unit === 'EUR' && (
-                    <Line type="monotone" name="Beneficio Total (€)" dataKey="beneficioTotal" stroke="#10b981" strokeWidth={2} dot={false} hide={hiddenLines['beneficioTotal']} />
-                  )}
-
-                  {primaryMetric === 'PLUSVALIA' && unit === 'PERCENT' && (
-                    <Line type="monotone" name="Rentabilidad Acumulada (%)" dataKey="rentabilidadPct" stroke="#10b981" strokeWidth={2} dot={false} hide={hiddenLines['rentabilidadPct']} />
+                  ) : (
+                    <>
+                      {selectedTickers.map((t, idx) => {
+                         const colors = ['#3b82f6', '#10b981', '#f59e0b', '#ef4444', '#8b5cf6', '#ec4899', '#06b6d4', '#14b8a6', '#f97316'];
+                         const color = colors[idx % colors.length];
+                         if (primaryMetric === 'VALOR') {
+                            return (
+                               <React.Fragment key={t}>
+                                 <Line type="monotone" name={`${t} (Invertido)`} dataKey={`capitalInvertido_${t}`} stroke={color} strokeWidth={2} strokeDasharray="3 3" opacity={0.6} dot={false} hide={hiddenLines[`capitalInvertido_${t}`]} />
+                                 <Line type="monotone" name={`${t} (Valor)`} dataKey={`valorMercado_${t}`} stroke={color} strokeWidth={2} dot={false} hide={hiddenLines[`valorMercado_${t}`]} />
+                               </React.Fragment>
+                            );
+                         } else if (unit === 'EUR') {
+                            return <Line key={t} type="monotone" name={`${t} (Beneficio €)`} dataKey={`beneficioTotal_${t}`} stroke={color} strokeWidth={2} dot={false} hide={hiddenLines[`beneficioTotal_${t}`]} />;
+                         } else {
+                            return <Line key={t} type="monotone" name={`${t} (Rentabilidad %)`} dataKey={`rentabilidadPct_${t}`} stroke={color} strokeWidth={2} dot={false} hide={hiddenLines[`rentabilidadPct_${t}`]} />;
+                         }
+                      })}
+                    </>
                   )}
                 </LineChart>
               </ResponsiveContainer>
