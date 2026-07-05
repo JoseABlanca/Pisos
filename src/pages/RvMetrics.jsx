@@ -242,8 +242,10 @@ export default function RvMetrics() {
       
       if (txByDate[dateStr]) {
         txByDate[dateStr].forEach(tx => {
-          const t = tx.assetId;
-          if (!holdings[t]) holdings[t] = { shares: 0, avgCost: 0 };
+          const tKey = `${tx.assetId}_${tx.brokerId}`;
+          const tAsset = tx.assetId;
+          
+          if (!holdings[tKey]) holdings[tKey] = { assetId: tAsset, shares: 0, avgCost: 0 };
           
           const qty = Number(tx.quantity || 0);
           const price = Number(tx.price || 0);
@@ -253,23 +255,23 @@ export default function RvMetrics() {
           const feeInEur = fee / rate;
 
           if (tx.type === 'Compra') {
-            const oldTotalCost = holdings[t].shares * holdings[t].avgCost;
-            holdings[t].shares += qty;
-            if (holdings[t].shares > 0) {
-              holdings[t].avgCost = (oldTotalCost + amtInEur + feeInEur) / holdings[t].shares;
+            const oldTotalCost = holdings[tKey].shares * holdings[tKey].avgCost;
+            holdings[tKey].shares += qty;
+            if (holdings[tKey].shares > 0) {
+              holdings[tKey].avgCost = (oldTotalCost + amtInEur + feeInEur) / holdings[tKey].shares;
             }
           } else if (tx.type === 'Venta') {
-            const costOfSold = holdings[t].avgCost * qty;
+            const costOfSold = holdings[tKey].avgCost * qty;
             const gain = (amtInEur - costOfSold - feeInEur);
             cumulativeRealizedGains += gain;
-            realizedGainsByAsset[t] = (realizedGainsByAsset[t] || 0) + gain;
+            realizedGainsByAsset[tAsset] = (realizedGainsByAsset[tAsset] || 0) + gain;
             
-            holdings[t].shares = Math.max(0, holdings[t].shares - qty);
-            if (holdings[t].shares === 0) holdings[t].avgCost = 0;
+            holdings[tKey].shares = Math.max(0, holdings[tKey].shares - qty);
+            if (holdings[tKey].shares === 0) holdings[tKey].avgCost = 0;
           } else if (tx.type === 'Dividendo') {
             const gain = (amtInEur - feeInEur);
             cumulativeRealizedGains += gain;
-            realizedGainsByAsset[t] = (realizedGainsByAsset[t] || 0) + gain;
+            realizedGainsByAsset[tAsset] = (realizedGainsByAsset[tAsset] || 0) + gain;
           }
         });
       }
@@ -308,43 +310,54 @@ export default function RvMetrics() {
         rentabilidadPct: 0
       };
 
-      Object.keys(holdings).forEach(t => {
-        if (holdings[t].shares > 0 || (realizedGainsByAsset[t] && holdings[t].shares === 0)) {
+      Object.keys(holdings).forEach(tKey => {
+        const hld = holdings[tKey];
+        const tAsset = hld.assetId;
+        
+        // Only include if there are shares, or if there is realized gain for this asset
+        if (hld.shares > 0 || realizedGainsByAsset[tAsset]) {
           
-          if (history[t] && history[t][dateStr] !== undefined) {
-            lastKnownPrices[t] = history[t][dateStr];
+          if (history[tAsset] && history[tAsset][dateStr] !== undefined) {
+            lastKnownPrices[tAsset] = history[tAsset][dateStr];
           }
           
-          let priceRaw = lastKnownPrices[t];
-          if (isToday && assets[t] && assets[t].currentPrice) {
-            priceRaw = parseFloat(assets[t].currentPrice) || priceRaw;
+          let priceRaw = lastKnownPrices[tAsset];
+          if (isToday && assets[tAsset] && assets[tAsset].currentPrice) {
+            priceRaw = parseFloat(assets[tAsset].currentPrice) || priceRaw;
           }
           
-          let priceEUR = holdings[t].avgCost; // default to cost if no price
+          let priceEUR = hld.avgCost; // default to cost if no price
           if (priceRaw !== undefined) {
-            const curr = assets[t]?.currency || 'EUR';
+            const curr = assets[tAsset]?.currency || 'EUR';
             const rate = ratesForDay[curr] || 1.0;
             priceEUR = priceRaw / rate;
           }
           
-          let assetCapitalInvertido = (holdings[t].shares * holdings[t].avgCost);
-          let assetValorMercado = (holdings[t].shares * priceEUR);
+          let assetCapitalInvertido = (hld.shares * hld.avgCost);
+          let assetValorMercado = (hld.shares * priceEUR);
           
           capitalInvertido += assetCapitalInvertido;
           valorMercado += assetValorMercado;
           
           let assetBeneficioLatente = assetValorMercado - assetCapitalInvertido;
-          let assetBeneficioTotal = assetBeneficioLatente + (realizedGainsByAsset[t] || 0);
-          let assetPlusvaliaPct = assetCapitalInvertido > 0 ? (assetBeneficioLatente / assetCapitalInvertido) * 100 : 0;
-          let assetRentabilidadPct = assetCapitalInvertido > 0 ? (assetBeneficioTotal / assetCapitalInvertido) * 100 : 0;
-
-          dayObj[`capitalInvertido_${t}`] = assetCapitalInvertido;
-          dayObj[`valorMercado_${t}`] = assetValorMercado;
-          dayObj[`beneficioLatente_${t}`] = assetBeneficioLatente;
-          dayObj[`plusvaliaPct_${t}`] = assetPlusvaliaPct;
-          dayObj[`beneficioTotal_${t}`] = assetBeneficioTotal;
-          dayObj[`rentabilidadPct_${t}`] = assetRentabilidadPct;
+          
+          dayObj[`capitalInvertido_${tAsset}`] = (dayObj[`capitalInvertido_${tAsset}`] || 0) + assetCapitalInvertido;
+          dayObj[`valorMercado_${tAsset}`] = (dayObj[`valorMercado_${tAsset}`] || 0) + assetValorMercado;
+          dayObj[`beneficioLatente_${tAsset}`] = (dayObj[`beneficioLatente_${tAsset}`] || 0) + assetBeneficioLatente;
         }
+      });
+      
+      // Calculate pct and realized gains at the asset level to avoid broker duplication
+      Object.keys(assets).forEach(tAsset => {
+         if (dayObj[`capitalInvertido_${tAsset}`] !== undefined || realizedGainsByAsset[tAsset]) {
+            const capInv = dayObj[`capitalInvertido_${tAsset}`] || 0;
+            const latente = dayObj[`beneficioLatente_${tAsset}`] || 0;
+            const benTotal = latente + (realizedGainsByAsset[tAsset] || 0);
+            
+            dayObj[`beneficioTotal_${tAsset}`] = benTotal;
+            dayObj[`plusvaliaPct_${tAsset}`] = capInv > 0 ? (latente / capInv) * 100 : 0;
+            dayObj[`rentabilidadPct_${tAsset}`] = capInv > 0 ? (benTotal / capInv) * 100 : 0;
+         }
       });
 
       const beneficioLatente = valorMercado - capitalInvertido;
@@ -453,8 +466,9 @@ export default function RvMetrics() {
     let totalTrades = 0;
 
     txs.forEach(tx => {
-      const key = tx.assetId;
-      if (!positions[key]) positions[key] = { qty: 0, costEUR: 0, realized: 0 };
+      const key = `${tx.assetId}_${tx.brokerId}`;
+      const tAsset = tx.assetId;
+      if (!positions[key]) positions[key] = { assetId: tAsset, qty: 0, costEUR: 0, realized: 0 };
       const rate = tx.exchangeRate || 1.0;
       const q = parseFloat(tx.quantity) || 0;
       const p = parseFloat(tx.price) || 0;
@@ -500,20 +514,23 @@ export default function RvMetrics() {
     });
 
     Object.keys(positions).forEach(key => {
-      const asset = assets[key];
+      const pos = positions[key];
+      const asset = assets[pos.assetId];
       const currentPriceRaw = asset ? parseFloat(asset.currentPrice) || 0 : 0;
       const assetRate = currentRates[asset?.currency] || 1.0;
       
-      const posVal = (positions[key].qty * currentPriceRaw) / assetRate;
+      const posVal = (pos.qty * currentPriceRaw) / assetRate;
       
-      exactAssetStats[key] = {
-        capitalInvertido: positions[key].costEUR,
-        valorMercado: posVal,
-        beneficioTotal: (posVal - positions[key].costEUR) + positions[key].realized,
-      };
+      if (!exactAssetStats[pos.assetId]) {
+        exactAssetStats[pos.assetId] = { capitalInvertido: 0, valorMercado: 0, beneficioTotal: 0 };
+      }
       
-      if (positions[key].qty > 0) {
-        exactCurrentCost += positions[key].costEUR;
+      exactAssetStats[pos.assetId].capitalInvertido += pos.costEUR;
+      exactAssetStats[pos.assetId].valorMercado += posVal;
+      exactAssetStats[pos.assetId].beneficioTotal += (posVal - pos.costEUR) + pos.realized;
+      
+      if (pos.qty > 0) {
+        exactCurrentCost += pos.costEUR;
         exactCurrentValue += posVal;
       }
     });
