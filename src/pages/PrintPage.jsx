@@ -902,12 +902,9 @@ export default function PrintPage() {
           let lineMatchCebe = false;
           let lineMatchCeco = false;
 
-          // Income match: line CEBE matches property CEBE
+          // Income match: ONLY line-level l.cebe (NOT header entry.cebe — that is handled below in !hasLineLevelAnalytics)
           if (normValueCebe && l.cebe) {
             const normField = String(l.cebe).trim().replace(/^(CEBE|CECO)/i, '').toLowerCase();
-            if (normField.startsWith(normValueCebe)) lineMatchCebe = true;
-          } else if (normValueCebe && !l.cebe && entry.cebe) {
-            const normField = String(entry.cebe).trim().replace(/^(CEBE|CECO)/i, '').toLowerCase();
             if (normField.startsWith(normValueCebe)) lineMatchCebe = true;
           }
           // Income CECO match
