@@ -439,19 +439,25 @@ export default function Portfolio() {
     const assetTypeAlloc = {};
     const sectorAlloc = {};
     const brokerAlloc = {};
-    const assetCostValue = [];
+    const assetCostValueMap = {};
 
     filteredHoldings.forEach(h => {
       assetTypeAlloc[h.type] = (assetTypeAlloc[h.type] || 0) + h.currentValue;
       sectorAlloc[h.sector] = (sectorAlloc[h.sector] || 0) + h.currentValue;
       brokerAlloc[h.brokerName] = (brokerAlloc[h.brokerName] || 0) + h.currentValue;
 
-      assetCostValue.push({
-        name: h.symbol,
-        coste: Math.round(h.totalCost),
-        valor: Math.round(h.currentValue)
-      });
+      if (!assetCostValueMap[h.symbol]) {
+        assetCostValueMap[h.symbol] = { name: h.symbol, coste: 0, valor: 0 };
+      }
+      assetCostValueMap[h.symbol].coste += h.totalCost;
+      assetCostValueMap[h.symbol].valor += h.currentValue;
     });
+
+    const assetCostValue = Object.values(assetCostValueMap).map(item => ({
+      name: item.name,
+      coste: Math.round(item.coste),
+      valor: Math.round(item.valor)
+    }));
 
     const COLORS = ['#3b82f6', '#10b981', '#f59e0b', '#ef4444', '#8b5cf6', '#ec4899', '#06b6d4'];
 
