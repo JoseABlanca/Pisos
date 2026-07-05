@@ -3834,9 +3834,9 @@ export default function PrintPage() {
           }
         });
         
-        // Add residual to main owner if total < 100%
+        // Add residual to main owner if total < 100% (with a threshold for rounding like 99.99%)
         const totalPct = ownersArr.reduce((sum, o) => sum + (o.percentage || 0), 0);
-        if (totalPct < 100) {
+        if (ownersArr.length > 0 && totalPct < 99.9) {
           const perc = (100 - totalPct) / 100;
           ownerRows.push({
             type: 'group-item',
