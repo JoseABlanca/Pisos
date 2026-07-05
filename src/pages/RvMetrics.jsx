@@ -34,6 +34,7 @@ export default function RvMetrics() {
   const [barPeriod, setBarPeriod] = useState(() => localStorage.getItem('rv_metrics_bar_period') || 'MONTH');
   const [histPeriod, setHistPeriod] = useState(() => localStorage.getItem('rv_metrics_hist_period') || 'MONTH');
   const [drawdownPeriod, setDrawdownPeriod] = useState(() => localStorage.getItem('rv_metrics_drawdown_period') || 'MONTH');
+  const [isAccumulated, setIsAccumulated] = useState(() => localStorage.getItem('rv_metrics_accumulated') !== 'false');
 
   // Topbar Filters
   const [unit, setUnit] = useState(() => localStorage.getItem('rv_metrics_unit') || 'EUR'); // 'EUR', 'PERCENT'
@@ -52,6 +53,7 @@ export default function RvMetrics() {
   useEffect(() => { localStorage.setItem('rv_metrics_hist_period', histPeriod); }, [histPeriod]);
   useEffect(() => { localStorage.setItem('rv_metrics_drawdown_period', drawdownPeriod); }, [drawdownPeriod]);
   useEffect(() => { localStorage.setItem('rv_metrics_kpi_type', kpiBenefitType); }, [kpiBenefitType]);
+  useEffect(() => { localStorage.setItem('rv_metrics_accumulated', isAccumulated); }, [isAccumulated]);
 
   // Toggle Lines state
   const [hiddenLines, setHiddenLines] = useState({});
@@ -1203,8 +1205,8 @@ export default function RvMetrics() {
                   <YAxis yAxisId="left" tick={{ fontSize: 10, fill: '#64748b' }} />
                   <YAxis yAxisId="right" orientation="right" hide={true} />
                   <Tooltip labelStyle={{ color: '#0f172a', fontWeight: 'bold' }} />
-                  <Bar yAxisId="left" name="Frecuencia (Días/Meses)" dataKey="count" fill="#3b82f6" radius={[4, 4, 0, 0]} />
-                  <Line yAxisId="right" type="monotone" name="Densidad Normal" dataKey="density" stroke="#10b981" strokeWidth={2} dot={false} />
+                  <Bar yAxisId="left" name="Frecuencia (Días/Meses)" dataKey="count" fill="#8b5cf6" radius={[4, 4, 0, 0]} />
+                  <Line yAxisId="right" type="monotone" name="Densidad Normal" dataKey="density" stroke="#2563eb" strokeWidth={2} dot={false} />
                 </ComposedChart>
               </ResponsiveContainer>
             </div>
