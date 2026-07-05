@@ -35,6 +35,7 @@ export default function RvMetrics() {
   // Topbar Filters
   const [unit, setUnit] = useState(() => localStorage.getItem('rv_metrics_unit') || 'EUR'); // 'EUR', 'PERCENT'
   const [primaryMetric, setPrimaryMetric] = useState(() => localStorage.getItem('rv_metrics_primary') || 'VALOR'); // 'VALOR', 'PLUSVALIA'
+  const [kpiBenefitType, setKpiBenefitType] = useState(() => localStorage.getItem('rv_metrics_kpi_type') || 'TOTAL'); // 'TOTAL', 'LATENTE'
 
   // Persist state to localStorage
   useEffect(() => { localStorage.setItem('rv_metrics_primary', primaryMetric); }, [primaryMetric]);
@@ -44,6 +45,7 @@ export default function RvMetrics() {
   useEffect(() => { localStorage.setItem('rv_metrics_end', endDate); }, [endDate]);
   useEffect(() => { localStorage.setItem('rv_metrics_view', activeView); }, [activeView]);
   useEffect(() => { localStorage.setItem('rv_metrics_period', barPeriod); }, [barPeriod]);
+  useEffect(() => { localStorage.setItem('rv_metrics_kpi_type', kpiBenefitType); }, [kpiBenefitType]);
 
   // Toggle Lines state
   const [hiddenLines, setHiddenLines] = useState({});
@@ -586,6 +588,7 @@ export default function RvMetrics() {
         currentCapital: exactCurrentCost,
         currentValue: exactCurrentValue,
         totalGains: exactTotalGains,
+        latenteGains: exactLatente,
         roiPct: exactRoiPct,
         plusvaliaPct: exactPlusvaliaPct,
         metrics: {
@@ -699,6 +702,18 @@ export default function RvMetrics() {
                   Porcentaje (%)
                 </button>
               </div>
+
+              <div className="flex flex-col bg-white p-2 rounded-md border border-slate-200 w-full">
+                <span className="text-[10px] font-bold text-slate-500 mb-1">Datos tarjetas (KPIs):</span>
+                <div className="flex">
+                  <button onClick={() => setKpiBenefitType('TOTAL')} className={`flex-1 py-1.5 text-[10px] font-medium rounded transition-colors ${kpiBenefitType === 'TOTAL' ? 'text-[#5b21b6] bg-[#f5f3ff]' : 'text-slate-600 hover:text-slate-900'}`}>
+                    Realizado+Latente
+                  </button>
+                  <button onClick={() => setKpiBenefitType('LATENTE')} className={`flex-1 py-1.5 text-[10px] font-medium rounded transition-colors ${kpiBenefitType === 'LATENTE' ? 'text-[#5b21b6] bg-[#f5f3ff]' : 'text-slate-600 hover:text-slate-900'}`}>
+                    Solo Latente
+                  </button>
+                </div>
+              </div>
             </div>
 
             <hr className="border-slate-200" />
@@ -726,6 +741,17 @@ export default function RvMetrics() {
                 <FilterItem key={t} label={t} isSelected={selectedTickers.includes(t)} onClick={() => toggleMultiSelect(t, selectedTickers, setSelectedTickers)} />
               ))}
             </div>
+
+            {/* Cuentas */}
+            {accounts.length > 0 && (
+              <div>
+                <h3 className="text-[11px] font-bold text-slate-700 mb-2">Cuentas Broker:</h3>
+                <FilterItem label="Todas las cuentas" isSelected={selectedAccounts.includes('ALL')} onClick={() => toggleMultiSelect('ALL', selectedAccounts, setSelectedAccounts)} />
+                {accounts.map(a => (
+                  <FilterItem key={a} label={a} isSelected={selectedAccounts.includes(a)} onClick={() => toggleMultiSelect(a, selectedAccounts, setSelectedAccounts)} />
+                ))}
+              </div>
+            )}
 
           </div>
         </div>
@@ -867,15 +893,15 @@ export default function RvMetrics() {
               </p>
             </div>
             <div className="bg-white p-4 rounded-xl border border-slate-200 shadow-sm">
-              <p className="text-xs text-slate-500 font-medium mb-1">Beneficio Total (Latente + Realizado)</p>
-              <p className={`text-xl font-bold ${summary.totalGains >= 0 ? 'text-green-600' : 'text-red-600'}`}>
-                {summary.totalGains?.toLocaleString('es-ES', { style: 'currency', currency: 'EUR', signDisplay: 'always' })}
+              <p className="text-xs text-slate-500 font-medium mb-1">{kpiBenefitType === 'LATENTE' ? 'Plusvalía Latente' : 'Beneficio Total (Latente + Realizado)'}</p>
+              <p className={`text-xl font-bold ${(kpiBenefitType === 'LATENTE' ? summary.latenteGains : summary.totalGains) >= 0 ? 'text-green-600' : 'text-red-600'}`}>
+                {(kpiBenefitType === 'LATENTE' ? summary.latenteGains : summary.totalGains)?.toLocaleString('es-ES', { style: 'currency', currency: 'EUR', signDisplay: 'always' })}
               </p>
             </div>
             <div className="bg-white p-4 rounded-xl border border-slate-200 shadow-sm">
               <p className="text-xs text-slate-500 font-medium mb-1">Rentabilidad</p>
-              <p className={`text-xl font-bold ${summary.plusvaliaPct >= 0 ? 'text-green-600' : 'text-red-600'}`}>
-                {summary.plusvaliaPct > 0 ? '+' : ''}{summary.plusvaliaPct?.toFixed(2)} %
+              <p className={`text-xl font-bold ${(kpiBenefitType === 'LATENTE' ? summary.plusvaliaPct : summary.roiPct) >= 0 ? 'text-green-600' : 'text-red-600'}`}>
+                {(kpiBenefitType === 'LATENTE' ? summary.plusvaliaPct : summary.roiPct) > 0 ? '+' : ''}{(kpiBenefitType === 'LATENTE' ? summary.plusvaliaPct : summary.roiPct)?.toFixed(2)} %
               </p>
             </div>
           </div>
