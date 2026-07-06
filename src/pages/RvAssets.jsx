@@ -303,6 +303,7 @@ export default function RvAssets() {
           { header: 'Tipo', dataKey: 'type' },
           { header: 'Sector', dataKey: 'sector' },
           { header: 'Divisa', dataKey: 'currency' },
+          { header: 'Precio Actual', dataKey: 'currentPrice' },
           { header: 'Origen API', dataKey: 'apiSource' }
         ];
         const colsToExport = allColumns.filter((c) => visibleColumns.includes(c.dataKey));
@@ -671,6 +672,7 @@ export default function RvAssets() {
                   {visibleColumns.includes('type') && <th style={{ width: columnWidths['type'] || '130px' }}>Tipo de activo</th>}
                   {visibleColumns.includes('sector') && <th style={{ width: columnWidths['sector'] || '140px' }}>Sector</th>}
                   {visibleColumns.includes('currency') && <th style={{ width: columnWidths['currency'] || '90px' }}>Divisa</th>}
+                  {visibleColumns.includes('currentPrice') && <th style={{ width: columnWidths['currentPrice'] || '150px' }}>Precio actual</th>}
                   {visibleColumns.includes('apiSource') && <th style={{ width: columnWidths['apiSource'] || '130px' }}>Origen API</th>}
                 </tr>
               </thead>
@@ -693,6 +695,7 @@ export default function RvAssets() {
                       {visibleColumns.includes('type') && <EditableCell value={asset.type} options={['Acción', 'Fondo', 'ETF', 'Cripto', 'Otros']} onSave={(val) => handleSaveField(asset, 'type', val)} />}
                       {visibleColumns.includes('sector') && <EditableCell value={asset.sector} options={['Tecnología', 'Financiero', 'Consumo', 'Industrial', 'Energía', 'Salud', 'Telecomunicaciones', 'Inmobiliario', 'Materiales Básicos', 'Otros']} onSave={(val) => handleSaveField(asset, 'sector', val)} />}
                       {visibleColumns.includes('currency') && <EditableCell value={asset.currency} options={['EUR', 'USD', 'GBP', 'CHF', 'JPY']} onSave={(val) => handleSaveField(asset, 'currency', val)} />}
+                      {visibleColumns.includes('currentPrice') && <td className="font-mono text-right">{asset.currentPrice ? `${parseFloat(asset.currentPrice).toLocaleString('es-ES', { minimumFractionDigits: 2, maximumFractionDigits: 4 })} ${asset.currency || ''}` : '-'}</td>}
                       {visibleColumns.includes('apiSource') && <EditableCell className="text-gray-500" value={asset.apiSource} options={['Yahoo Finance', 'Manual']} onSave={(val) => handleSaveField(asset, 'apiSource', val)} />}
                     </tr>
                   ))

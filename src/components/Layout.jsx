@@ -608,6 +608,7 @@ export default function Layout() {
         { id: 'type', name: 'Tipo de activo' },
         { id: 'sector', name: 'Sector' },
         { id: 'currency', name: 'Divisa histórico' },
+        { id: 'currentPrice', name: 'Precio actual de mercado' },
         { id: 'apiSource', name: 'Origen API' }
       ]}
     ],
