@@ -1211,6 +1211,7 @@ export default function Layout() {
             ))}
           </nav>
           
+          {!isHomePage && (
           <div className="absolute right-2 bottom-1 z-10 flex items-center h-[24px]">
             <button 
               onClick={() => setShowRibbon(!showRibbon)}
@@ -1220,6 +1221,7 @@ export default function Layout() {
               {showRibbon ? <ChevronUp className="w-4 h-4" /> : <ChevronDown className="w-4 h-4" />}
             </button>
           </div>
+          )}
         </div>
       </header>
 
