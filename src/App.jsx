@@ -33,6 +33,8 @@ import CfActivos from './pages/CfActivos';
 import TaxesCf from './pages/TaxesCf';
 import Importer from './pages/Importer';
 import CfTransactions from './pages/CfTransactions';
+import LaboralEmpresas from './pages/LaboralEmpresas';
+import LaboralContratos from './pages/LaboralContratos';
 
 const ProtectedRoute = ({ children }) => {
   const { user, queryUserIds, loading } = useAuth();
@@ -81,6 +83,8 @@ function App() {
             <Route path="rv-transactions" element={<RvTransactions />} />
             <Route path="rv-metrics" element={<RvMetrics />} />
             <Route path="account-statement" element={<Ledger initialMode="detail" />} />
+            <Route path="laboral-empresas" element={<LaboralEmpresas />} />
+            <Route path="laboral-contratos" element={<LaboralContratos />} />
           </Route>
           </Routes>
         </Router>

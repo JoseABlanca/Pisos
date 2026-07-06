@@ -675,6 +675,32 @@ export default function Layout() {
         { id: 'yieldGross', name: 'Rent. Bruta' },
         { id: 'yieldNet', name: 'Rent. Neta' }
       ]}
+    ],
+    'Empresas': [
+      { group: 'DATOS EMPRESA', items: [
+        { id: 'id', name: 'ID' },
+        { id: 'nombre', name: 'Nombre' },
+        { id: 'razonSocial', name: 'Razón Social' },
+        { id: 'cif', name: 'CIF/NIF' },
+        { id: 'sector', name: 'Sector' },
+        { id: 'telefono', name: 'Teléfono' },
+        { id: 'email', name: 'Email' },
+        { id: 'direccion', name: 'Dirección' },
+        { id: 'ciudad', name: 'Ciudad' },
+        { id: 'web', name: 'Web' }
+      ]}
+    ],
+    'Contratos': [
+      { group: 'DATOS CONTRATO', items: [
+        { id: 'id', name: 'ID' },
+        { id: 'empresaId', name: 'Empresa' },
+        { id: 'puesto', name: 'Puesto' },
+        { id: 'fechaInicio', name: 'Fecha Inicio' },
+        { id: 'fechaFin', name: 'Fecha Fin' },
+        { id: 'ingresoMensual', name: 'Ingreso Mensual' },
+        { id: 'tipoJornada', name: 'Tipo Jornada' },
+        { id: 'referencia', name: 'Referencia' }
+      ]}
     ]
   };
 
@@ -683,6 +709,7 @@ export default function Layout() {
     'Inversiones inmobiliarias',
     'Renta variable',
     'Crowdfunding',
+    'Laboral',
     'Impuestos',
     'Informes',
     'Herramientas',
@@ -694,6 +721,7 @@ export default function Layout() {
     'Inversiones inmobiliarias': ['Activos', 'Propietarios', 'Clientes', 'Alquileres'],
     'Renta variable': ['Portfolio', 'Broker', 'Activos RV', 'Transacciones', 'Histórico RV'],
     'Crowdfunding': ['CF Portfolio', 'Plataforma', 'CF Activos', 'Transacciones CF'],
+    'Laboral': ['Empresas', 'Contratos'],
     'Informes': ['Dashboard', 'Impresion'],
     'Impuestos': ['Total', 'Inversiones inmobiliarias', 'Renta variable', 'Crowdfunding'],
     'Herramientas': ['Importador'],
@@ -718,6 +746,8 @@ export default function Layout() {
     'Plataforma': '/cf-empresas',
     'CF Activos': '/cf-activos',
     'Transacciones CF': '/cf-transactions',
+    'Empresas': '/laboral-empresas',
+    'Contratos': '/laboral-contratos',
     'Dashboard': '/dashboard',
     'Impresion': '/print',
     'Total': '/taxes-total',
@@ -1050,6 +1080,40 @@ export default function Layout() {
         items: [
           { name: 'Añadir columna', action: 'cf-transactions-columns', path: '/cf-transactions', customIcon: 'AddColumn' },
           { name: 'Exportar', action: 'cf-transactions-export', path: '/cf-transactions', customIcon: 'Exportar' }
+        ]
+      }
+    ],
+    'Empresas': [
+      {
+        group: 'Mantenimiento',
+        items: [
+          { name: 'Nuevo', action: 'laboral-empresa:new', path: '/laboral-empresas', customIcon: 'Nuevo' },
+          { name: 'Modificar', action: 'laboral-empresa:edit', path: '/laboral-empresas', customIcon: 'Modificar' },
+          { name: 'Eliminar', action: 'laboral-empresa:delete', path: '/laboral-empresas', customIcon: 'Eliminar' }
+        ]
+      },
+      {
+        group: 'Acciones',
+        items: [
+          { name: 'Añadir columna', action: 'laboral-empresa:columns', path: '/laboral-empresas', customIcon: 'AddColumn' },
+          { name: 'Exportar', action: 'laboral-empresa:export', path: '/laboral-empresas', customIcon: 'Exportar' }
+        ]
+      }
+    ],
+    'Contratos': [
+      {
+        group: 'Mantenimiento',
+        items: [
+          { name: 'Nuevo', action: 'laboral-contrato:new', path: '/laboral-contratos', customIcon: 'Nuevo' },
+          { name: 'Modificar', action: 'laboral-contrato:edit', path: '/laboral-contratos', customIcon: 'Modificar' },
+          { name: 'Eliminar', action: 'laboral-contrato:delete', path: '/laboral-contratos', customIcon: 'Eliminar' }
+        ]
+      },
+      {
+        group: 'Acciones',
+        items: [
+          { name: 'Añadir columna', action: 'laboral-contrato:columns', path: '/laboral-contratos', customIcon: 'AddColumn' },
+          { name: 'Exportar', action: 'laboral-contrato:export', path: '/laboral-contratos', customIcon: 'Exportar' }
         ]
       }
     ],
