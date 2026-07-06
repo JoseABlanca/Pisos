@@ -31,7 +31,7 @@ export default function LaboralContratos() {
   const emptyForm = {
     id: '', empresaId: '', puesto: '', fechaInicio: '', fechaFin: '',
     ingresoMensual: '', tipoJornada: 'Completa', referencia: '',
-    cebeId: '', cecoId: '', descripcion: '', documentos: []
+    cebe: '', ceco: '', cebeId: '', cecoId: '', descripcion: '', documentos: []
   };
   const [formData, setFormData] = useState({ ...emptyForm });
 
@@ -105,7 +105,14 @@ export default function LaboralContratos() {
   };
 
   const handleEdit = (c) => {
-    setFormData({ ...emptyForm, ...c });
+    const cebeCode = c.cebe || (c.cebeId ? cebes.find(x => x.id === c.cebeId)?.code : '') || '';
+    const cecoCode = c.ceco || (c.cecoId ? cecos.find(x => x.id === c.cecoId)?.code : '') || '';
+    setFormData({
+      ...emptyForm,
+      ...c,
+      cebe: cebeCode,
+      ceco: cecoCode
+    });
     setIsEditing(true);
     setActiveTab('Datos');
     setShowForm(true);
@@ -201,16 +208,24 @@ export default function LaboralContratos() {
           <div className="space-y-3">
             <div className="space-y-1">
               <label className="text-[10px] font-bold text-slate-700 uppercase">CEBE (Centro de Beneficio)</label>
-              <select className="win-input w-full cursor-pointer" value={formData.cebeId} onChange={e => setFormData(p => ({ ...p, cebeId: e.target.value }))}>
+              <select className="win-input w-full cursor-pointer" value={formData.cebe || ''} onChange={e => {
+                const code = e.target.value;
+                const id = cebes.find(x => x.code === code)?.id || '';
+                setFormData(p => ({ ...p, cebe: code, cebeId: id }));
+              }}>
                 <option value="">(Sin CEBE)</option>
-                {cebes.map(c => <option key={c.id} value={c.id}>{c.code ? `${c.code} - ` : ''}{c.name}</option>)}
+                {cebes.map(c => <option key={c.id} value={c.code}>{c.code ? `${c.code} - ` : ''}{c.name}</option>)}
               </select>
             </div>
             <div className="space-y-1">
               <label className="text-[10px] font-bold text-slate-700 uppercase">CECO (Centro de Coste)</label>
-              <select className="win-input w-full cursor-pointer" value={formData.cecoId} onChange={e => setFormData(p => ({ ...p, cecoId: e.target.value }))}>
+              <select className="win-input w-full cursor-pointer" value={formData.ceco || ''} onChange={e => {
+                const code = e.target.value;
+                const id = cecos.find(x => x.code === code)?.id || '';
+                setFormData(p => ({ ...p, ceco: code, cecoId: id }));
+              }}>
                 <option value="">(Sin CECO)</option>
-                {cecos.map(c => <option key={c.id} value={c.id}>{c.code ? `${c.code} - ` : ''}{c.name}</option>)}
+                {cecos.map(c => <option key={c.id} value={c.code}>{c.code ? `${c.code} - ` : ''}{c.name}</option>)}
               </select>
             </div>
           </div>
