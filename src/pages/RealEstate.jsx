@@ -877,7 +877,7 @@ export default function RealEstate() {
       );
     }
     
-    if (activeTab === 'Hipoteca') return <HipotecaTab formData={formData} setFormData={setFormData} user={user} isMobile={isMobile} setPreviewDocument={setPreviewDocument} isUploading={isUploading} setIsUploading={setIsUploading} />;
+    if (activeTab === 'Hipoteca') return <HipotecaTab formData={formData} setFormData={setFormData} user={user} isMobile={isMobile} setPreviewDocument={setPreviewDocument} isUploading={isUploading} setIsUploading={setIsUploading} availableAccounts={availableAccounts} cecos={cecos} queryUserIds={queryUserIds} />;
     if (activeTab === 'Servicios') return <ServiciosTab formData={formData} setFormData={setFormData} user={user} isMobile={isMobile} setPreviewDocument={setPreviewDocument} isUploading={isUploading} setIsUploading={setIsUploading} availableAccounts={availableAccounts} />;
     if (activeTab === 'Comunidad') return <ComunidadTab formData={formData} setFormData={setFormData} user={user} isMobile={isMobile} setPreviewDocument={setPreviewDocument} isUploading={isUploading} setIsUploading={setIsUploading} availableAccounts={availableAccounts} />;
     if (activeTab === 'Cliente') return <ClienteTab formData={formData} user={user} queryUserIds={queryUserIds} />;

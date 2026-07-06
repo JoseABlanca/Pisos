@@ -1,6 +1,9 @@
-import React, { useState, useMemo } from 'react';
-import { Upload, Trash2, Eye, FileText, Plus, Landmark, Calculator, FolderOpen } from 'lucide-react';
+import React, { useState, useEffect, useMemo } from 'react';
+import { Upload, Trash2, Eye, FileText, Plus, Landmark, Calculator, FolderOpen, X } from 'lucide-react';
 import { uploadFileToStorage } from '../utils/storageUtils';
+import { db } from '../firebase/config';
+import { collection, query, where, onSnapshot } from 'firebase/firestore';
+import Accounts from '../pages/Accounts';
 
 export default function HipotecaTab({ 
   formData, 
@@ -9,9 +12,179 @@ export default function HipotecaTab({
   isMobile, 
   setPreviewDocument,
   isUploading,
-  setIsUploading
+  setIsUploading,
+  availableAccounts = [],
+  cecos = [],
+  queryUserIds
 }) {
-  const [activeSubTab, setActiveSubTab] = useState('datos'); // datos, docs, amortizacion
+  const [activeSubTab, setActiveSubTab] = useState('datos'); // datos, docs, amortizacion, amortizacion_real
+  const [journalEntries, setJournalEntries] = useState([]);
+  const [loadingEntries, setLoadingEntries] = useState(true);
+  
+  // Modals states
+  const [showAccountsModal, setShowAccountsModal] = useState(false);
+  const [showCecosModal, setShowCecosModal] = useState(false);
+  
+  // CECO search state
+  const [cecoSearch, setCecoSearch] = useState('');
+  const [selectedCecoTemp, setSelectedCecoTemp] = useState('');
+
+  useEffect(() => {
+    if (!user) return;
+    const userIds = queryUserIds?.length > 0 ? queryUserIds : [user.uid];
+    const q = query(
+      collection(db, 'journal_entries'),
+      where('userId', 'in', userIds)
+    );
+    const unsubscribe = onSnapshot(q, (snap) => {
+      const list = snap.docs.map(doc => ({ id: doc.id, ...doc.data() }));
+      setJournalEntries(list);
+      setLoadingEntries(false);
+    }, (error) => {
+      console.error("Error loading journal entries in HipotecaTab:", error);
+      setLoadingEntries(false);
+    });
+    return () => unsubscribe();
+  }, [user, queryUserIds]);
+
+  const activeMortgageAccount = formData.mortgageAccount || '';
+  const activeInterestCeco = formData.mortgageCeco || '';
+
+  const principalEntries = useMemo(() => {
+    if (!activeMortgageAccount || !formData.cebe) return [];
+    
+    // Find the account document ID for the selected code
+    const targetAccount = availableAccounts.find(a => a.code === activeMortgageAccount);
+    if (!targetAccount) return [];
+
+    const list = [];
+    journalEntries.forEach(entry => {
+      if (!entry.date) return;
+      
+      const hasLineCebe = entry.lines?.some(l => l.cebe);
+      
+      entry.lines?.forEach(l => {
+        if (l.accountId !== targetAccount.id) return;
+        
+        const lineCebe = l.cebe || (!hasLineCebe && entry.cebe) || '';
+        if (lineCebe !== formData.cebe) return;
+
+        list.push({
+          date: entry.date,
+          debit: parseFloat(l.debit) || 0,
+          credit: parseFloat(l.credit) || 0
+        });
+      });
+    });
+    return list.sort((a, b) => new Date(a.date) - new Date(b.date));
+  }, [journalEntries, availableAccounts, activeMortgageAccount, formData.cebe]);
+
+  const interestEntries = useMemo(() => {
+    if (!activeInterestCeco || !formData.cebe) return [];
+
+    const list = [];
+    journalEntries.forEach(entry => {
+      if (!entry.date) return;
+      
+      const hasLineLevel = entry.lines?.some(l => l.cebe || l.ceco);
+      
+      entry.lines?.forEach(l => {
+        const lineCebe = l.cebe || (!hasLineLevel && entry.cebe) || '';
+        if (lineCebe !== formData.cebe) return;
+        
+        const lineCeco = l.ceco || (!hasLineLevel && entry.ceco) || '';
+        if (lineCeco !== formData.ceco) return;
+
+        list.push({
+          date: entry.date,
+          debit: parseFloat(l.debit) || 0,
+          credit: parseFloat(l.credit) || 0
+        });
+      });
+    });
+    return list.sort((a, b) => new Date(a.date) - new Date(b.date));
+  }, [journalEntries, activeInterestCeco, formData.cebe]);
+
+  const realAmortizationTable = useMemo(() => {
+    const P = parseFloat(formData.loanAmount) || 0;
+    if (P <= 0) return [];
+
+    const principalByMonth = {};
+    principalEntries.forEach(e => {
+      const monthKey = e.date.substring(0, 7);
+      const netPaid = e.debit - e.credit;
+      principalByMonth[monthKey] = (principalByMonth[monthKey] || 0) + netPaid;
+    });
+
+    const interestByMonth = {};
+    interestEntries.forEach(e => {
+      const monthKey = e.date.substring(0, 7);
+      const paid = e.debit - e.credit;
+      interestByMonth[monthKey] = (interestByMonth[monthKey] || 0) + paid;
+    });
+
+    let startYear, startMonth;
+    if (formData.mortgageStart) {
+      const start = new Date(formData.mortgageStart);
+      startYear = start.getFullYear();
+      startMonth = start.getMonth();
+    } else {
+      const allDates = [...principalEntries, ...interestEntries].map(e => e.date);
+      if (allDates.length === 0) return [];
+      allDates.sort();
+      const start = new Date(allDates[0]);
+      startYear = start.getFullYear();
+      startMonth = start.getMonth();
+    }
+
+    const todayObj = new Date();
+    const endYear = todayObj.getFullYear();
+    const endMonth = todayObj.getMonth();
+
+    const table = [];
+    let currentBalance = P;
+    let monthIndex = 1;
+
+    let y = startYear;
+    let m = startMonth;
+
+    while (y < endYear || (y === endYear && m <= endMonth)) {
+      const yearStr = String(y);
+      const monthStr = String(m + 1).padStart(2, '0');
+      const monthKey = `${yearStr}-${monthStr}`;
+
+      const principalPaid = principalByMonth[monthKey] || 0;
+      const interestPaid = interestByMonth[monthKey] || 0;
+      const quota = principalPaid + interestPaid;
+
+      currentBalance -= principalPaid;
+
+      table.push({
+        month: monthIndex++,
+        date: monthKey,
+        payment: quota,
+        principal: principalPaid,
+        interest: interestPaid,
+        balance: Math.max(0, currentBalance)
+      });
+
+      m++;
+      if (m > 11) {
+        m = 0;
+        y++;
+      }
+    }
+
+    return table;
+  }, [formData.loanAmount, formData.mortgageStart, principalEntries, interestEntries]);
+
+  const filteredCecos = useMemo(() => {
+    const term = cecoSearch.toLowerCase().trim();
+    return cecos.filter(c => 
+      c.code.toLowerCase().includes(term) || 
+      c.name.toLowerCase().includes(term)
+    );
+  }, [cecos, cecoSearch]);
 
   const handleFileUpload = async (e) => {
     const inputTarget = e.target;
@@ -130,22 +303,32 @@ export default function HipotecaTab({
       {/* Sub-tabs header */}
       <div className="flex bg-[#f0f0f0] border-b border-[#a0a0a0] shrink-0">
         <button
+          type="button"
           onClick={() => setActiveSubTab('datos')}
           className={`px-4 py-2 text-[11px] font-bold flex items-center gap-2 border-r border-[#a0a0a0] ${activeSubTab === 'datos' ? 'bg-white text-blue-800 border-b-2 border-b-blue-500' : 'text-slate-600 hover:bg-[#e0e0e0]'}`}
         >
           <Landmark className="w-3 h-3" /> Datos
         </button>
         <button
+          type="button"
           onClick={() => setActiveSubTab('docs')}
           className={`px-4 py-2 text-[11px] font-bold flex items-center gap-2 border-r border-[#a0a0a0] ${activeSubTab === 'docs' ? 'bg-white text-blue-800 border-b-2 border-b-blue-500' : 'text-slate-600 hover:bg-[#e0e0e0]'}`}
         >
           <FolderOpen className="w-3 h-3" /> Documentos
         </button>
         <button
+          type="button"
+          onClick={() => setActiveSubTab('amortizacion_real')}
+          className={`px-4 py-2 text-[11px] font-bold flex items-center gap-2 border-r border-[#a0a0a0] ${activeSubTab === 'amortizacion_real' ? 'bg-white text-blue-800 border-b-2 border-b-blue-500' : 'text-slate-600 hover:bg-[#e0e0e0]'}`}
+        >
+          <Calculator className="w-3 h-3" /> Cuadro Amortización
+        </button>
+        <button
+          type="button"
           onClick={() => setActiveSubTab('amortizacion')}
           className={`px-4 py-2 text-[11px] font-bold flex items-center gap-2 border-r border-[#a0a0a0] ${activeSubTab === 'amortizacion' ? 'bg-white text-blue-800 border-b-2 border-b-blue-500' : 'text-slate-600 hover:bg-[#e0e0e0]'}`}
         >
-          <Calculator className="w-3 h-3" /> Cuadro Amortización
+          <Calculator className="w-3 h-3" /> Cuadro Amortización Teórico
         </button>
       </div>
 
@@ -174,6 +357,53 @@ export default function HipotecaTab({
                     onChange={e => setFormData({ ...formData, loanNumber: e.target.value })} 
                   />
                 </div>
+                
+                <div className="space-y-1">
+                  <label className="text-[10px] font-bold text-slate-700 uppercase">Cuenta Amortización Principal:</label>
+                  <div className="flex gap-1">
+                    <input 
+                      type="text" 
+                      className="win-input flex-1 bg-slate-50 cursor-pointer font-mono" 
+                      placeholder="Haga clic para seleccionar cuenta..."
+                      value={formData.mortgageAccount ? `${formData.mortgageAccount} - ${availableAccounts.find(a => a.code === formData.mortgageAccount)?.name || ''}` : ''}
+                      readOnly
+                      onClick={() => setShowAccountsModal(true)}
+                    />
+                    {formData.mortgageAccount && (
+                      <button 
+                        type="button" 
+                        className="btn-classic px-2 text-red-600 font-bold" 
+                        onClick={() => setFormData({ ...formData, mortgageAccount: '' })}
+                      >
+                        X
+                      </button>
+                    )}
+                  </div>
+                </div>
+
+                <div className="space-y-1">
+                  <label className="text-[10px] font-bold text-slate-700 uppercase">CECO Intereses Hipoteca:</label>
+                  <div className="flex gap-1">
+                    <input 
+                      type="text" 
+                      className="win-input flex-1 bg-slate-50 cursor-pointer font-mono" 
+                      placeholder="Haga clic para seleccionar CECO..."
+                      value={formData.mortgageCeco ? `${formData.mortgageCeco} - ${cecos.find(c => c.code === formData.mortgageCeco)?.name || ''}` : ''}
+                      readOnly
+                      onClick={() => setShowCecosModal(true)}
+                    />
+                    {formData.mortgageCeco && (
+                      <button 
+                        type="button" 
+                        className="btn-classic px-2 text-red-600 font-bold" 
+                        onClick={() => setFormData({ ...formData, mortgageCeco: '' })}
+                      >
+                        X
+                      </button>
+                    )}
+                  </div>
+                </div>
+
                 <div className="space-y-1">
                   <label className="text-[10px] font-bold text-slate-700 uppercase">Tipo de Hipoteca:</label>
                   <select 
@@ -412,7 +642,7 @@ export default function HipotecaTab({
 
         {activeSubTab === 'amortizacion' && (
           <div className="h-full flex flex-col">
-            <h3 className="text-[12px] font-bold text-slate-800 uppercase italic mb-4">Cuadro de Amortización (Simulado)</h3>
+            <h3 className="text-[12px] font-bold text-slate-800 uppercase italic mb-4">Cuadro de Amortización Teórico (Simulado)</h3>
             <div className="flex-1 border border-[#808080] bg-white overflow-hidden flex flex-col min-h-[300px]">
               <div className="bg-[#f0f0f0] grid grid-cols-6 gap-2 p-2 border-b border-[#808080] text-[10px] font-bold uppercase text-right">
                 <div className="text-center">Mes</div>
@@ -445,7 +675,157 @@ export default function HipotecaTab({
             </div>
           </div>
         )}
+
+        {activeSubTab === 'amortizacion_real' && (
+          <div className="h-full flex flex-col">
+            <div className="flex justify-between items-center mb-4">
+              <h3 className="text-[12px] font-bold text-slate-800 uppercase italic">Cuadro de Amortización Real</h3>
+              <div className="text-[10px] bg-blue-50 border border-blue-200 px-3 py-1 rounded text-blue-800 flex gap-4">
+                <span>CEBE: <strong>{formData.cebe || 'No configurado'}</strong></span>
+                <span>Principal: <strong>{activeMortgageAccount || 'No configurada'}</strong></span>
+                <span>Intereses: <strong>{activeInterestCeco || 'No configurado'}</strong></span>
+              </div>
+            </div>
+            
+            {!formData.cebe ? (
+              <div className="text-center text-red-600 bg-red-50 border border-red-200 p-6 rounded text-[11px] italic">
+                ⚠️ Este activo no tiene un CEBE asociado. Asígnale un CEBE en la pestaña "Datos" para poder vincular sus movimientos contables.
+              </div>
+            ) : (!activeMortgageAccount || !activeInterestCeco) ? (
+              <div className="text-center text-amber-700 bg-amber-50 border border-amber-200 p-6 rounded text-[11px] italic">
+                ⚠️ Falta configurar la cuenta contable de principal y el CECO de intereses en la subpestaña "Datos".
+              </div>
+            ) : (
+              <div className="flex-1 border border-[#808080] bg-white overflow-hidden flex flex-col min-h-[300px]">
+                <div className="bg-[#f0f0f0] grid grid-cols-6 gap-2 p-2 border-b border-[#808080] text-[10px] font-bold uppercase text-right">
+                  <div className="text-center">Mes</div>
+                  <div className="text-center">Fecha</div>
+                  <div>Cuota</div>
+                  <div>Principal</div>
+                  <div>Intereses</div>
+                  <div>Capital Pendiente</div>
+                </div>
+                <div className="flex-1 overflow-auto">
+                  {realAmortizationTable.length === 0 ? (
+                    <div className="text-center text-slate-400 italic py-8 text-[11px]">
+                      No se encontraron apuntes contables para los parámetros configurados en el periodo.
+                    </div>
+                  ) : (
+                    <div className="p-2 space-y-1">
+                      {realAmortizationTable.map((row, idx) => (
+                        <div key={idx} className={`grid grid-cols-6 gap-2 px-2 py-1 text-[11px] text-right ${idx % 2 === 0 ? 'bg-white' : 'bg-slate-50'}`}>
+                          <div className="text-center">{row.month}</div>
+                          <div className="text-center">{row.date}</div>
+                          <div>{row.payment.toLocaleString('es-ES', { minimumFractionDigits: 2, maximumFractionDigits: 2 })} €</div>
+                          <div>{row.principal.toLocaleString('es-ES', { minimumFractionDigits: 2, maximumFractionDigits: 2 })} €</div>
+                          <div>{row.interest.toLocaleString('es-ES', { minimumFractionDigits: 2, maximumFractionDigits: 2 })} €</div>
+                          <div>{row.balance.toLocaleString('es-ES', { minimumFractionDigits: 2, maximumFractionDigits: 2 })} €</div>
+                        </div>
+                      ))}
+                    </div>
+                  )}
+                </div>
+              </div>
+            )}
+          </div>
+        )}
       </div>
+
+      {/* Accounts Selection Modal */}
+      {showAccountsModal && (
+        <div className="fixed inset-0 bg-black/40 backdrop-blur-sm flex items-center justify-center z-[9999] p-4">
+          <div className="bg-white shadow-2xl rounded-lg flex flex-col w-[90vw] h-[90vh] overflow-hidden max-w-[1000px] border border-gray-400">
+            <div className="flex justify-between items-center px-4 py-2 bg-[#4e80c8] text-white select-none">
+              <h2 className="font-bold text-[13px] tracking-wide uppercase">Selección de Cuenta Contable</h2>
+              <button type="button" onClick={() => setShowAccountsModal(false)} className="hover:bg-white/20 p-1 rounded">
+                <X className="w-5 h-5" />
+              </button>
+            </div>
+            <div className="flex-1 overflow-hidden relative">
+              <Accounts 
+                isModal={true} 
+                onAccountSelect={(code) => {
+                  setFormData({ ...formData, mortgageAccount: code });
+                  setShowAccountsModal(false);
+                }} 
+              />
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* CECO Selection Modal */}
+      {showCecosModal && (
+        <div className="fixed inset-0 bg-black/40 backdrop-blur-sm flex items-center justify-center z-[9999] p-4">
+          <div className="bg-white shadow-2xl rounded-lg flex flex-col w-[90vw] h-[90vh] overflow-hidden max-w-[800px] border border-gray-400">
+            <div className="flex justify-between items-center px-4 py-2 bg-[#4e80c8] text-white select-none">
+              <h2 className="font-bold text-[13px] tracking-wide uppercase">Selección de Centro de Coste (CECO)</h2>
+              <button type="button" onClick={() => setShowCecosModal(false)} className="hover:bg-white/20 p-1 rounded">
+                <X className="w-5 h-5" />
+              </button>
+            </div>
+            <div className="p-3 border-b border-slate-200 bg-slate-50 flex gap-2">
+              <input 
+                type="text" 
+                placeholder="Buscar por código o nombre..." 
+                className="win-input flex-1"
+                value={cecoSearch}
+                onChange={e => setCecoSearch(e.target.value)}
+                autoFocus
+              />
+            </div>
+            <div className="flex-1 overflow-auto p-2">
+              <table className="w-full border-collapse">
+                <thead>
+                  <tr className="bg-slate-100 text-slate-700 text-[10px] font-bold uppercase sticky top-0">
+                    <th className="px-3 py-2 text-left border-b border-slate-200 w-32">Código</th>
+                    <th className="px-3 py-2 text-left border-b border-slate-200">Descripción</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {filteredCecos.map(c => (
+                    <tr 
+                      key={c.id} 
+                      className="hover:bg-[#e8f0fe] cursor-pointer text-[11px] border-b border-slate-100"
+                      onDoubleClick={() => {
+                        setFormData({ ...formData, mortgageCeco: c.code });
+                        setShowCecosModal(false);
+                      }}
+                      onClick={() => setSelectedCecoTemp(c.code)}
+                    >
+                      <td className={`px-3 py-2 font-mono ${selectedCecoTemp === c.code ? 'bg-[#316ac5] text-white font-bold' : ''}`}>{c.code}</td>
+                      <td className={`px-3 py-2 ${selectedCecoTemp === c.code ? 'bg-[#316ac5] text-white font-bold' : ''}`}>{c.name}</td>
+                    </tr>
+                  ))}
+                  {filteredCecos.length === 0 && (
+                    <tr>
+                      <td colSpan="2" className="p-8 text-center text-slate-400 italic">No se encontraron CECOs.</td>
+                    </tr>
+                  )}
+                </tbody>
+              </table>
+            </div>
+            <div className="bg-[#d4d0c8] px-4 py-3 flex justify-end space-x-2 border-t border-[#808080]">
+              <button 
+                type="button"
+                onClick={() => {
+                  if (selectedCecoTemp) {
+                    setFormData({ ...formData, mortgageCeco: selectedCecoTemp });
+                    setShowCecosModal(false);
+                  }
+                }} 
+                disabled={!selectedCecoTemp}
+                className="btn-classic px-5 py-1 text-[10px] font-bold bg-blue-50 border-blue-300 hover:bg-blue-100 disabled:opacity-50"
+              >
+                Aceptar
+              </button>
+              <button type="button" onClick={() => setShowCecosModal(false)} className="btn-classic px-5 py-1 text-[10px] font-bold">
+                Cancelar
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 }
