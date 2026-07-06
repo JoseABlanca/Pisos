@@ -1182,13 +1182,7 @@ export default function Layout() {
             <div className="text-right hidden sm:block">
               <p className="text-[9px] uppercase font-bold text-white/90 leading-tight truncate max-w-[120px]">{user?.email}</p>
             </div>
-            <button 
-              onClick={() => setIsSettingsOpen(true)}
-              className="p-1 hover:bg-white/20 rounded transition-colors"
-              title="Configuración"
-            >
-              <Settings className="w-4 h-4" />
-            </button>
+
             <button 
               onPointerDown={(e) => { e.preventDefault(); logout(); }}
               className="p-1 hover:bg-white/20 rounded transition-colors"
