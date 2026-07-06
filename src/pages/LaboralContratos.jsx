@@ -5,10 +5,12 @@ import { collection, query, where, onSnapshot, doc, setDoc, deleteDoc } from 'fi
 import { useAuth } from '../context/AuthContext';
 import Window from '../components/Window';
 import { useTableColumns } from '../hooks/useTableColumns';
+import { useTableFilters } from '../hooks/useTableFilters';
 import { exportToPDF } from '../utils/pdfExport';
 import EditableCell from '../components/EditableCell';
 import { handleExportFormat } from '../utils/exportUtils';
 import { uploadFileToStorage } from '../utils/storageUtils';
+import ZoomControl from '../components/ZoomControl';
 
 export default function LaboralContratos() {
   const { user, queryUserIds } = useAuth();
@@ -26,7 +28,8 @@ export default function LaboralContratos() {
   const [previewDocument, setPreviewDocument] = useState(null);
 
   const DEFAULT_COLUMNS = ['id', 'empresaId', 'puesto', 'fechaInicio', 'ingresoMensual'];
-  const { visibleColumns, toggleColumn, columnWidths } = useTableColumns('laboral-contratos', DEFAULT_COLUMNS);
+  const { visibleColumns, toggleColumn, columnWidths, updateColumnWidth } = useTableColumns('laboral-contratos', DEFAULT_COLUMNS);
+  const { applyTableFilters, TableHeaderWithFilter, renderFilterMenu } = useTableFilters({ columnWidths, updateColumnWidth });
 
   const emptyForm = {
     id: '', empresaId: '', puesto: '', fechaInicio: '', fechaFin: '',
@@ -96,6 +99,10 @@ export default function LaboralContratos() {
       (c.referencia || '').toLowerCase().includes(f)
     );
   }, [contratosConNombre, filterValue]);
+
+  const filteredAndColumnFilteredContratos = useMemo(() => {
+    return applyTableFilters(filteredContratos, 'laboral-contratos');
+  }, [filteredContratos, applyTableFilters]);
 
   const handleNew = () => {
     setFormData({ ...emptyForm, id: Date.now().toString(36).toUpperCase() });
@@ -303,21 +310,21 @@ export default function LaboralContratos() {
             <table className="clean-table">
               <thead>
                 <tr className="sticky top-0 z-10">
-                  {visibleColumns.includes('id') && <th>ID</th>}
-                  {visibleColumns.includes('empresaId') && <th>Empresa</th>}
-                  {visibleColumns.includes('puesto') && <th>Puesto</th>}
-                  {visibleColumns.includes('fechaInicio') && <th>Fecha Inicio</th>}
-                  {visibleColumns.includes('fechaFin') && <th>Fecha Fin</th>}
-                  {visibleColumns.includes('ingresoMensual') && <th className="text-right">Ingreso Mensual</th>}
-                  {visibleColumns.includes('tipoJornada') && <th>Tipo Jornada</th>}
-                  {visibleColumns.includes('referencia') && <th>Referencia</th>}
+                  {visibleColumns.includes('id') && <TableHeaderWithFilter label="ID" columnKey="id" data={contratosConNombre} tableId="laboral-contratos" className="w-16" />}
+                  {visibleColumns.includes('empresaId') && <TableHeaderWithFilter label="Empresa" columnKey="empresaNombre" data={contratosConNombre} tableId="laboral-contratos" className="w-32" />}
+                  {visibleColumns.includes('puesto') && <TableHeaderWithFilter label="Puesto" columnKey="puesto" data={contratosConNombre} tableId="laboral-contratos" className="w-48" />}
+                  {visibleColumns.includes('fechaInicio') && <TableHeaderWithFilter label="Fecha Inicio" columnKey="fechaInicio" data={contratosConNombre} tableId="laboral-contratos" />}
+                  {visibleColumns.includes('fechaFin') && <TableHeaderWithFilter label="Fecha Fin" columnKey="fechaFin" data={contratosConNombre} tableId="laboral-contratos" />}
+                  {visibleColumns.includes('ingresoMensual') && <TableHeaderWithFilter label="Ingreso Mensual" columnKey="ingresoMensual" data={contratosConNombre} tableId="laboral-contratos" className="text-right" />}
+                  {visibleColumns.includes('tipoJornada') && <TableHeaderWithFilter label="Tipo Jornada" columnKey="tipoJornada" data={contratosConNombre} tableId="laboral-contratos" />}
+                  {visibleColumns.includes('referencia') && <TableHeaderWithFilter label="Referencia" columnKey="referencia" data={contratosConNombre} tableId="laboral-contratos" />}
                 </tr>
               </thead>
               <tbody>
-                {filteredContratos.length === 0 ? (
+                {filteredAndColumnFilteredContratos.length === 0 ? (
                   <tr><td colSpan={visibleColumns.length} className="text-center py-8 text-gray-400 font-medium">No hay contratos registrados.</td></tr>
                 ) : (
-                  filteredContratos.map(c => (
+                  filteredAndColumnFilteredContratos.map(c => (
                     <tr key={c.id} className={selectedContrato?.id === c.id ? 'selected' : ''}
                       onClick={e => { e.stopPropagation(); setSelectedContrato(c); }}
                       onDoubleClick={() => handleEdit(c)}>
@@ -337,6 +344,13 @@ export default function LaboralContratos() {
           </div>
         </div>
       </div>
+
+      <div className="flex justify-between items-center bg-[#f0f0f0] p-1 border-t border-[#808080] text-[10px]">
+        <div>{filteredAndColumnFilteredContratos.length} contratos encontrados</div>
+        <ZoomControl />
+      </div>
+
+      {renderFilterMenu()}
 
       {showForm && (
         <div className="fixed inset-0 bg-black/40 backdrop-blur-sm flex items-center justify-center z-50">

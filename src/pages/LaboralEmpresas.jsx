@@ -5,9 +5,11 @@ import { collection, query, where, onSnapshot, doc, setDoc, deleteDoc } from 'fi
 import { useAuth } from '../context/AuthContext';
 import Window from '../components/Window';
 import { useTableColumns } from '../hooks/useTableColumns';
+import { useTableFilters } from '../hooks/useTableFilters';
 import { exportToPDF } from '../utils/pdfExport';
 import EditableCell from '../components/EditableCell';
 import { handleExportFormat } from '../utils/exportUtils';
+import ZoomControl from '../components/ZoomControl';
 
 export default function LaboralEmpresas() {
   const { user, queryUserIds } = useAuth();
@@ -18,7 +20,8 @@ export default function LaboralEmpresas() {
   const [filterValue, setFilterValue] = useState('');
 
   const DEFAULT_COLUMNS = ['id', 'nombre', 'razonSocial', 'cif', 'sector'];
-  const { visibleColumns, toggleColumn, columnWidths } = useTableColumns('laboral-empresas', DEFAULT_COLUMNS);
+  const { visibleColumns, toggleColumn, columnWidths, updateColumnWidth } = useTableColumns('laboral-empresas', DEFAULT_COLUMNS);
+  const { applyTableFilters, TableHeaderWithFilter, renderFilterMenu } = useTableFilters({ columnWidths, updateColumnWidth });
 
   const [formData, setFormData] = useState({
     id: '', nombre: '', razonSocial: '', cif: '', sector: '',
@@ -86,6 +89,10 @@ export default function LaboralEmpresas() {
     );
   }, [empresas, filterValue]);
 
+  const filteredAndColumnFilteredEmpresas = useMemo(() => {
+    return applyTableFilters(filteredEmpresas, 'laboral-empresas');
+  }, [filteredEmpresas, applyTableFilters]);
+
   const handleNew = () => {
     setFormData({ id: Date.now().toString(36).toUpperCase(), nombre: '', razonSocial: '', cif: '', sector: '', telefono: '', email: '', direccion: '', ciudad: '', web: '', notas: '' });
     setIsEditing(false);
@@ -132,23 +139,23 @@ export default function LaboralEmpresas() {
             <table className="clean-table">
               <thead>
                 <tr className="sticky top-0 z-10">
-                  {visibleColumns.includes('id') && <th>ID</th>}
-                  {visibleColumns.includes('nombre') && <th>Nombre</th>}
-                  {visibleColumns.includes('razonSocial') && <th>Razón Social</th>}
-                  {visibleColumns.includes('cif') && <th>CIF/NIF</th>}
-                  {visibleColumns.includes('sector') && <th>Sector</th>}
-                  {visibleColumns.includes('telefono') && <th>Teléfono</th>}
-                  {visibleColumns.includes('email') && <th>Email</th>}
-                  {visibleColumns.includes('direccion') && <th>Dirección</th>}
-                  {visibleColumns.includes('ciudad') && <th>Ciudad</th>}
-                  {visibleColumns.includes('web') && <th>Web</th>}
+                  {visibleColumns.includes('id') && <TableHeaderWithFilter label="ID" columnKey="id" data={empresas} tableId="laboral-empresas" className="w-16" />}
+                  {visibleColumns.includes('nombre') && <TableHeaderWithFilter label="Nombre" columnKey="nombre" data={empresas} tableId="laboral-empresas" className="w-48" />}
+                  {visibleColumns.includes('razonSocial') && <TableHeaderWithFilter label="Razón Social" columnKey="razonSocial" data={empresas} tableId="laboral-empresas" className="w-48" />}
+                  {visibleColumns.includes('cif') && <TableHeaderWithFilter label="CIF/NIF" columnKey="cif" data={empresas} tableId="laboral-empresas" className="w-32" />}
+                  {visibleColumns.includes('sector') && <TableHeaderWithFilter label="Sector" columnKey="sector" data={empresas} tableId="laboral-empresas" className="w-32" />}
+                  {visibleColumns.includes('telefono') && <TableHeaderWithFilter label="Teléfono" columnKey="telefono" data={empresas} tableId="laboral-empresas" />}
+                  {visibleColumns.includes('email') && <TableHeaderWithFilter label="Email" columnKey="email" data={empresas} tableId="laboral-empresas" />}
+                  {visibleColumns.includes('direccion') && <TableHeaderWithFilter label="Dirección" columnKey="direccion" data={empresas} tableId="laboral-empresas" />}
+                  {visibleColumns.includes('ciudad') && <TableHeaderWithFilter label="Ciudad" columnKey="ciudad" data={empresas} tableId="laboral-empresas" />}
+                  {visibleColumns.includes('web') && <TableHeaderWithFilter label="Web" columnKey="web" data={empresas} tableId="laboral-empresas" />}
                 </tr>
               </thead>
               <tbody>
-                {filteredEmpresas.length === 0 ? (
+                {filteredAndColumnFilteredEmpresas.length === 0 ? (
                   <tr><td colSpan={visibleColumns.length} className="text-center py-8 text-gray-400 font-medium">No hay empresas registradas.</td></tr>
                 ) : (
-                  filteredEmpresas.map(emp => (
+                  filteredAndColumnFilteredEmpresas.map(emp => (
                     <tr key={emp.id} className={selectedEmpresa?.id === emp.id ? 'selected' : ''}
                       onClick={e => { e.stopPropagation(); setSelectedEmpresa(emp); }}
                       onDoubleClick={() => handleEdit(emp)}>
@@ -170,6 +177,13 @@ export default function LaboralEmpresas() {
           </div>
         </div>
       </div>
+
+      <div className="flex justify-between items-center bg-[#f0f0f0] p-1 border-t border-[#808080] text-[10px]">
+        <div>{filteredAndColumnFilteredEmpresas.length} empresas encontradas</div>
+        <ZoomControl />
+      </div>
+
+      {renderFilterMenu()}
 
       {showForm && (
         <div className="fixed inset-0 bg-black/40 backdrop-blur-sm flex items-center justify-center z-50">
