@@ -1103,7 +1103,7 @@ export default function Layout() {
 
   return (
     <div className="flex flex-col h-screen bg-[#e2e8f0] font-sans overflow-hidden select-none">
-      <header className={`bg-[#4e80c8] text-white flex flex-col shadow-inner z-50 relative ${isHomePage ? 'hidden' : ''}`}>
+      <header className={`bg-[#4e80c8] text-white flex flex-col shadow-inner z-50 relative`}>
         <div className="flex justify-between items-center w-full px-2 py-1">
           <div className="flex items-center space-x-2 shrink-0 w-1/3 relative">
             <button 

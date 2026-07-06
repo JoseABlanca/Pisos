@@ -341,6 +341,27 @@ export default function HipotecaTab({
     return remaining > 0 ? remaining : 0;
   }, [formData.mortgageStart, formData.totalMonths]);
 
+  const calculatedExpiryDate = useMemo(() => {
+    if (!formData.mortgageStart || !formData.totalMonths) return '';
+    const start = new Date(formData.mortgageStart + 'T00:00:00');
+    const total = parseInt(formData.totalMonths) || 0;
+    start.setMonth(start.getMonth() + total);
+    
+    const y = start.getFullYear();
+    const m = String(start.getMonth() + 1).padStart(2, '0');
+    const d = String(start.getDate()).padStart(2, '0');
+    return `${y}-${m}-${d}`;
+  }, [formData.mortgageStart, formData.totalMonths]);
+
+  useEffect(() => {
+    if (calculatedExpiryDate && calculatedExpiryDate !== formData.expiry) {
+      setFormData(prev => ({
+        ...prev,
+        expiry: calculatedExpiryDate
+      }));
+    }
+  }, [calculatedExpiryDate, formData.expiry, setFormData]);
+
   return (
     <div className="flex flex-col h-full bg-white relative">
       {/* Sub-tabs header */}
@@ -602,9 +623,10 @@ export default function HipotecaTab({
                   <label className="text-[10px] font-bold text-slate-700 uppercase">Fecha Vencimiento:</label>
                   <input 
                     type="date" 
-                    className="win-input w-full" 
+                    className="win-input w-full bg-slate-100 font-semibold" 
                     value={formData.expiry || ''} 
-                    onChange={e => setFormData({ ...formData, expiry: e.target.value })} 
+                    readOnly
+                    disabled
                   />
                 </div>
               </div>

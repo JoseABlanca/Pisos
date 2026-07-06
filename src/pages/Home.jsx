@@ -79,25 +79,66 @@ export default function Home() {
   const kpis = useMemo(() => {
     // 1. Bank balances (Tesorería grupo 57)
     let bankBalance = 0;
+    let bankBalance572 = 0;
     const bankAccounts = accounts.filter(a => a.code && a.code.startsWith('57') && a.code.length > 4);
     const bankAccIds = new Set(bankAccounts.map(a => a.id));
     const bankAccCodes = new Set(bankAccounts.map(a => a.code));
 
-    bankAccounts.forEach(a => {
-      bankBalance += (parseFloat(a.balance_actual) || 0);
+    // Patrimonio Neto variables
+    let totalActivo = 0;
+    let totalPasivo = 0;
+
+    accounts.forEach(a => {
+      const amt = parseFloat(a.balance_actual) || 0;
+      const code = String(a.code || '');
+      
+      // For bank balance
+      if (a.code && a.code.startsWith('57') && a.code.length > 4) {
+        bankBalance += amt;
+      }
+      if (a.code && a.code.startsWith('572')) {
+        bankBalance572 += amt;
+      }
+
+      // For Patrimonio Neto
+      const isActivo = a.type === 'Activo';
+      const isPasivo = a.type === 'Pasivo' && !(code.startsWith('10') || code.startsWith('11') || code.startsWith('12') || code.startsWith('13'));
+      if (isActivo) totalActivo += amt;
+      else if (isPasivo) totalPasivo += amt;
     });
 
     journalEntries.forEach(entry => {
       entry.lines?.forEach(l => {
         const accId = String(l.accountId || '');
         const accCode = String(l.accountCode || '');
+        const debit = parseFloat(l.debit) || 0;
+        const credit = parseFloat(l.credit) || 0;
+
+        // For bank balance
         if (bankAccIds.has(accId) || bankAccCodes.has(accCode) || accCode.startsWith('572') || accCode.startsWith('570')) {
-          const debit = parseFloat(l.debit) || 0;
-          const credit = parseFloat(l.credit) || 0;
           bankBalance += (debit - credit);
+          if (accCode.startsWith('572')) {
+            bankBalance572 += (debit - credit);
+          }
+        }
+
+        // For Patrimonio Neto
+        const acc = accounts.find(a => a.id === accId || a.code === accCode);
+        if (acc) {
+          const code = String(acc.code || '');
+          const isActivo = acc.type === 'Activo';
+          const isPasivo = acc.type === 'Pasivo' && !(code.startsWith('10') || code.startsWith('11') || code.startsWith('12') || code.startsWith('13'));
+          
+          if (isActivo) {
+            totalActivo += (debit - credit);
+          } else if (isPasivo) {
+            totalPasivo += (credit - debit);
+          }
         }
       });
     });
+
+    const patrimonioNeto = totalActivo - totalPasivo;
 
     // 2. Real estate (Inmuebles) values & mortgages
     let realEstateValue = 0;
@@ -231,13 +272,14 @@ export default function Home() {
     const cfValue = cfInvested + cfRentsNet;
 
     // Totals
-    const patrimonio = bankBalance + (realEstateValue - realEstateMortgages) + rvPortfolioValue + rvBrokerCash + cfValue;
-    const liquidez = bankBalance + rvLatente;
+    const patrimonio = patrimonioNeto;
+    const liquidez = bankBalance572 + rvPortfolioValue;
 
     return {
       patrimonio,
       liquidez,
       bankBalance,
+      bankBalance572,
       rvLatente,
       rvPortfolioValue,
       rvBrokerCash,
@@ -261,26 +303,7 @@ export default function Home() {
   return (
     <div className="w-full h-full min-h-screen bg-slate-50 flex flex-col font-sans text-slate-800">
       
-      {/* Sleek Minimal Top Header (Replacer for layout ribbon) */}
-      <header className="bg-white border-b border-slate-200 px-6 py-3 flex justify-between items-center shadow-sm select-none shrink-0">
-        <div className="flex items-center gap-2">
-          <Sparkles className="w-5 h-5 text-blue-600 animate-pulse" />
-          <span className="font-black text-lg tracking-wider text-slate-900">NEXO</span>
-        </div>
-        <div className="flex items-center gap-4">
-          <div className="flex items-center gap-2 bg-slate-100 px-3 py-1 rounded-full text-xs text-slate-600 font-medium">
-            <User className="w-3.5 h-3.5 text-slate-500" />
-            <span>{user?.email}</span>
-          </div>
-          <button 
-            onClick={logout}
-            className="flex items-center gap-1 text-xs font-bold text-red-600 hover:text-red-800 transition-colors border border-red-200 hover:bg-red-50 px-3 py-1 rounded-lg"
-          >
-            <LogOut className="w-3.5 h-3.5" />
-            <span>Cerrar Sesión</span>
-          </button>
-        </div>
-      </header>
+      {/* Main header managed by Layout.jsx */}
 
       {/* Main Content Dashboard */}
       <div className="flex-1 max-w-7xl w-full mx-auto p-6 space-y-8 overflow-y-auto">
@@ -346,14 +369,12 @@ export default function Home() {
                 </p>
                 <div className="mt-2 text-[10px] text-slate-500 space-y-0.5 border-t border-slate-100 pt-2">
                   <div className="flex justify-between">
-                    <span>Cuentas Bancarias:</span>
-                    <span className="font-bold">{kpis.bankBalance.toLocaleString('es-ES', { minimumFractionDigits: 2 })} €</span>
+                    <span>Cuenta 572:</span>
+                    <span className="font-bold">{(kpis.bankBalance572 || 0).toLocaleString('es-ES', { minimumFractionDigits: 2 })} €</span>
                   </div>
                   <div className="flex justify-between items-center">
-                    <span>Latente RV:</span>
-                    <span className={`font-bold ${kpis.rvLatente >= 0 ? 'text-green-600' : 'text-red-600'}`}>
-                      {kpis.rvLatente >= 0 ? '+' : ''}{kpis.rvLatente.toLocaleString('es-ES', { minimumFractionDigits: 2 })} €
-                    </span>
+                    <span>Valor Mercado RV:</span>
+                    <span className="font-bold">{(kpis.rvPortfolioValue || 0).toLocaleString('es-ES', { minimumFractionDigits: 2 })} €</span>
                   </div>
                 </div>
               </div>
