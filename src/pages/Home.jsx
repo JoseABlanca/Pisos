@@ -14,7 +14,8 @@ import {
   User,
   ArrowUpRight,
   TrendingDown,
-  Sparkles
+  Sparkles,
+  Briefcase
 } from 'lucide-react';
 import { db } from '../firebase/config';
 import { collection, query, where, onSnapshot } from 'firebase/firestore';
@@ -293,6 +294,7 @@ export default function Home() {
 
   const modules = [
     { name: 'Contabilidad', desc: 'Gestión de asientos y cuentas', icon: Calculator },
+    { name: 'Laboral', desc: 'Gestión de nóminas, empresas y contratos', icon: Briefcase },
     { name: 'Inversiones inmobiliarias', desc: 'Gestión de propiedades y alquileres', icon: Building2 },
     { name: 'Renta variable', desc: 'Cartera de acciones y dividendos', icon: TrendingUp },
     { name: 'Crowdfunding', desc: 'Préstamos y participaciones', icon: Coins },

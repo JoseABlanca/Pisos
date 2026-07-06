@@ -706,10 +706,10 @@ export default function Layout() {
 
   const modules = [
     'Contabilidad',
+    'Laboral',
     'Inversiones inmobiliarias',
     'Renta variable',
     'Crowdfunding',
-    'Laboral',
     'Impuestos',
     'Informes',
     'Herramientas',

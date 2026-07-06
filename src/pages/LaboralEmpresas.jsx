@@ -24,6 +24,12 @@ export default function LaboralEmpresas() {
     id: '', nombre: '', razonSocial: '', cif: '', sector: '',
     telefono: '', email: '', direccion: '', ciudad: '', web: '', notas: ''
   });
+  const [showSidebar, setShowSidebar] = useState(true);
+  const [activeTab, setActiveTab] = useState('Datos');
+
+  const tabs = [
+    { id: 'Datos', icon: Building2 }
+  ];
 
   useEffect(() => {
     if (!user) return;
@@ -168,59 +174,67 @@ export default function LaboralEmpresas() {
       {showForm && (
         <div className="fixed inset-0 bg-black/40 backdrop-blur-sm flex items-center justify-center z-50">
           <Window title={isEditing ? `Editar Empresa: ${formData.nombre || formData.id}` : 'Nueva Empresa'}
-            width="800px" height="580px" initialPos={{ x: 100, y: 60 }} onClose={() => setShowForm(false)}>
+            width="900px" height="580px" initialPos={{ x: 100, y: 60 }} onClose={() => setShowForm(false)} onMenuClick={() => setShowSidebar(!showSidebar)}>
             <div className="flex flex-1 h-full min-h-0 bg-[#d4d0c8] relative">
+              {showSidebar && (
+                <div className="bg-[#f0f0f0] border-r border-[#808080] shrink-0 overflow-y-auto p-2 flex flex-col shadow-[inset_-1px_0_0_rgba(0,0,0,0.1)] w-44">
+                  <div className="bg-white border border-[#a0a0a0] flex flex-col">
+                    {tabs.map(tab => (
+                      <button key={tab.id} onClick={() => setActiveTab(tab.id)}
+                        className={`w-full text-left px-4 py-2.5 text-[12px] transition-colors border-y ${activeTab === tab.id ? 'bg-[#c0c0c0] text-black border-[#a0a0a0] shadow-[inset_0px_1px_1px_rgba(0,0,0,0.1)] font-semibold' : 'bg-white text-slate-700 border-transparent hover:bg-[#f8f8f8]'}`}>
+                        {tab.id}
+                      </button>
+                    ))}
+                  </div>
+                </div>
+              )}
               <div className="flex-1 bg-[#d4d0c8] flex flex-col relative overflow-hidden">
                 <div className="flex-1 overflow-auto bg-[#d4d0c8] p-3">
                   <div className="bg-[#d4d0c8] border border-white shadow-[1px_1px_0px_#000] p-4 min-h-full">
-                    <div className="flex flex-col gap-4">
-                      <div className="bg-[#f0f0f0] border border-[#a0a0a0] p-3">
-                        <div className="text-[10px] font-bold uppercase text-slate-500 mb-3 border-b border-[#c0c0c0] pb-1">DATOS EMPRESA</div>
-                        <div className="grid grid-cols-2 gap-3">
-                          <div>
-                            <label className="block text-[11px] font-bold text-slate-600 mb-1">NOMBRE *</label>
-                            <input className="w-full border border-gray-400 px-2 py-1 text-[12px] bg-white" value={formData.nombre} onChange={e => setFormData(p => ({ ...p, nombre: e.target.value }))} />
+                    <div className="flex flex-col gap-6">
+                      <div className="grid grid-cols-2 gap-6">
+                        <div className="space-y-3">
+                          <div className="space-y-1">
+                            <label className="text-[10px] font-bold text-slate-700 uppercase">NOMBRE *</label>
+                            <input className="win-input w-full" value={formData.nombre} onChange={e => setFormData(p => ({ ...p, nombre: e.target.value }))} />
                           </div>
-                          <div>
-                            <label className="block text-[11px] font-bold text-slate-600 mb-1">RAZÓN SOCIAL</label>
-                            <input className="w-full border border-gray-400 px-2 py-1 text-[12px] bg-white" value={formData.razonSocial} onChange={e => setFormData(p => ({ ...p, razonSocial: e.target.value }))} />
+                          <div className="space-y-1">
+                            <label className="text-[10px] font-bold text-slate-700 uppercase">RAZÓN SOCIAL</label>
+                            <input className="win-input w-full" value={formData.razonSocial} onChange={e => setFormData(p => ({ ...p, razonSocial: e.target.value }))} />
                           </div>
-                          <div>
-                            <label className="block text-[11px] font-bold text-slate-600 mb-1">CIF/NIF</label>
-                            <input className="w-full border border-gray-400 px-2 py-1 text-[12px] bg-white" value={formData.cif} onChange={e => setFormData(p => ({ ...p, cif: e.target.value }))} />
+                          <div className="space-y-1">
+                            <label className="text-[10px] font-bold text-slate-700 uppercase">CIF/NIF</label>
+                            <input className="win-input w-full" value={formData.cif} onChange={e => setFormData(p => ({ ...p, cif: e.target.value }))} />
                           </div>
-                          <div>
-                            <label className="block text-[11px] font-bold text-slate-600 mb-1">SECTOR</label>
-                            <input className="w-full border border-gray-400 px-2 py-1 text-[12px] bg-white" value={formData.sector} onChange={e => setFormData(p => ({ ...p, sector: e.target.value }))} />
+                          <div className="space-y-1">
+                            <label className="text-[10px] font-bold text-slate-700 uppercase">SECTOR</label>
+                            <input className="win-input w-full" value={formData.sector} onChange={e => setFormData(p => ({ ...p, sector: e.target.value }))} />
+                          </div>
+                          <div className="space-y-1">
+                            <label className="text-[10px] font-bold text-slate-700 uppercase">NOTAS</label>
+                            <textarea className="win-input w-full" rows={3} value={formData.notas} onChange={e => setFormData(p => ({ ...p, notas: e.target.value }))} />
                           </div>
                         </div>
-                      </div>
-                      <div className="bg-[#f0f0f0] border border-[#a0a0a0] p-3">
-                        <div className="text-[10px] font-bold uppercase text-slate-500 mb-3 border-b border-[#c0c0c0] pb-1">CONTACTO</div>
-                        <div className="grid grid-cols-2 gap-3">
-                          <div>
-                            <label className="block text-[11px] font-bold text-slate-600 mb-1">TELÉFONO</label>
-                            <input className="w-full border border-gray-400 px-2 py-1 text-[12px] bg-white" value={formData.telefono} onChange={e => setFormData(p => ({ ...p, telefono: e.target.value }))} />
+                        <div className="space-y-3">
+                          <div className="space-y-1">
+                            <label className="text-[10px] font-bold text-slate-700 uppercase">TELÉFONO</label>
+                            <input className="win-input w-full" value={formData.telefono} onChange={e => setFormData(p => ({ ...p, telefono: e.target.value }))} />
                           </div>
-                          <div>
-                            <label className="block text-[11px] font-bold text-slate-600 mb-1">EMAIL</label>
-                            <input type="email" className="w-full border border-gray-400 px-2 py-1 text-[12px] bg-white" value={formData.email} onChange={e => setFormData(p => ({ ...p, email: e.target.value }))} />
+                          <div className="space-y-1">
+                            <label className="text-[10px] font-bold text-slate-700 uppercase">EMAIL</label>
+                            <input type="email" className="win-input w-full" value={formData.email} onChange={e => setFormData(p => ({ ...p, email: e.target.value }))} />
                           </div>
-                          <div>
-                            <label className="block text-[11px] font-bold text-slate-600 mb-1">DIRECCIÓN</label>
-                            <input className="w-full border border-gray-400 px-2 py-1 text-[12px] bg-white" value={formData.direccion} onChange={e => setFormData(p => ({ ...p, direccion: e.target.value }))} />
+                          <div className="space-y-1">
+                            <label className="text-[10px] font-bold text-slate-700 uppercase">DIRECCIÓN</label>
+                            <input className="win-input w-full" value={formData.direccion} onChange={e => setFormData(p => ({ ...p, direccion: e.target.value }))} />
                           </div>
-                          <div>
-                            <label className="block text-[11px] font-bold text-slate-600 mb-1">CIUDAD</label>
-                            <input className="w-full border border-gray-400 px-2 py-1 text-[12px] bg-white" value={formData.ciudad} onChange={e => setFormData(p => ({ ...p, ciudad: e.target.value }))} />
+                          <div className="space-y-1">
+                            <label className="text-[10px] font-bold text-slate-700 uppercase">CIUDAD</label>
+                            <input className="win-input w-full" value={formData.ciudad} onChange={e => setFormData(p => ({ ...p, ciudad: e.target.value }))} />
                           </div>
-                          <div className="col-span-2">
-                            <label className="block text-[11px] font-bold text-slate-600 mb-1">WEB</label>
-                            <input className="w-full border border-gray-400 px-2 py-1 text-[12px] bg-white" value={formData.web} onChange={e => setFormData(p => ({ ...p, web: e.target.value }))} />
-                          </div>
-                          <div className="col-span-2">
-                            <label className="block text-[11px] font-bold text-slate-600 mb-1">NOTAS</label>
-                            <textarea className="w-full border border-gray-400 px-2 py-1 text-[12px] bg-white" rows={3} value={formData.notas} onChange={e => setFormData(p => ({ ...p, notas: e.target.value }))} />
+                          <div className="space-y-1">
+                            <label className="text-[10px] font-bold text-slate-700 uppercase">WEB</label>
+                            <input className="win-input w-full" value={formData.web} onChange={e => setFormData(p => ({ ...p, web: e.target.value }))} />
                           </div>
                         </div>
                       </div>

@@ -1,5 +1,5 @@
 import { useState, useEffect, useMemo } from 'react';
-import { Search, X, FileText, Briefcase, Upload } from 'lucide-react';
+import { Search, X, FileText, Briefcase, Upload, Eye, Trash2, FileArchive } from 'lucide-react';
 import { db } from '../firebase/config';
 import { collection, query, where, onSnapshot, doc, setDoc, deleteDoc } from 'firebase/firestore';
 import { useAuth } from '../context/AuthContext';
@@ -151,102 +151,122 @@ export default function LaboralContratos() {
 
   const renderTabContent = () => {
     if (activeTab === 'Datos') return (
-      <div className="flex flex-col gap-4">
-        <div className="bg-[#f0f0f0] border border-[#a0a0a0] p-3">
-          <div className="text-[10px] font-bold uppercase text-slate-500 mb-3 border-b border-[#c0c0c0] pb-1">DATOS DEL CONTRATO</div>
-          <div className="grid grid-cols-2 gap-3">
-            <div>
-              <label className="block text-[11px] font-bold text-slate-600 mb-1">EMPRESA</label>
-              <select className="w-full border border-gray-400 px-2 py-1 text-[12px] bg-white" value={formData.empresaId} onChange={e => setFormData(p => ({ ...p, empresaId: e.target.value }))}>
+      <div className="flex flex-col gap-6">
+        <div className="grid grid-cols-2 gap-6">
+          <div className="space-y-3">
+            <div className="space-y-1">
+              <label className="text-[10px] font-bold text-slate-700 uppercase">EMPRESA</label>
+              <select className="win-input w-full cursor-pointer" value={formData.empresaId} onChange={e => setFormData(p => ({ ...p, empresaId: e.target.value }))}>
                 <option value="">(Sin empresa)</option>
                 {empresas.map(emp => <option key={emp.id} value={emp.id}>{emp.nombre}</option>)}
               </select>
             </div>
-            <div>
-              <label className="block text-[11px] font-bold text-slate-600 mb-1">PUESTO *</label>
-              <input className="w-full border border-gray-400 px-2 py-1 text-[12px] bg-white" value={formData.puesto} onChange={e => setFormData(p => ({ ...p, puesto: e.target.value }))} />
+            <div className="space-y-1">
+              <label className="text-[10px] font-bold text-slate-700 uppercase">PUESTO *</label>
+              <input className="win-input w-full" value={formData.puesto} onChange={e => setFormData(p => ({ ...p, puesto: e.target.value }))} />
             </div>
-            <div>
-              <label className="block text-[11px] font-bold text-slate-600 mb-1">FECHA INICIO</label>
-              <input type="date" className="w-full border border-gray-400 px-2 py-1 text-[12px] bg-white" value={formData.fechaInicio} onChange={e => setFormData(p => ({ ...p, fechaInicio: e.target.value }))} />
+            <div className="space-y-1">
+              <label className="text-[10px] font-bold text-slate-700 uppercase">FECHA INICIO</label>
+              <input type="date" className="win-input w-full" value={formData.fechaInicio} onChange={e => setFormData(p => ({ ...p, fechaInicio: e.target.value }))} />
             </div>
-            <div>
-              <label className="block text-[11px] font-bold text-slate-600 mb-1">FECHA FIN</label>
-              <input type="date" className="w-full border border-gray-400 px-2 py-1 text-[12px] bg-white" value={formData.fechaFin} onChange={e => setFormData(p => ({ ...p, fechaFin: e.target.value }))} />
+            <div className="space-y-1">
+              <label className="text-[10px] font-bold text-slate-700 uppercase">FECHA FIN</label>
+              <input type="date" className="win-input w-full" value={formData.fechaFin} onChange={e => setFormData(p => ({ ...p, fechaFin: e.target.value }))} />
             </div>
-            <div>
-              <label className="block text-[11px] font-bold text-slate-600 mb-1">INGRESO MENSUAL (€)</label>
-              <input type="number" step="0.01" className="w-full border border-gray-400 px-2 py-1 text-[12px] bg-white" value={formData.ingresoMensual} onChange={e => setFormData(p => ({ ...p, ingresoMensual: e.target.value }))} />
+          </div>
+          <div className="space-y-3">
+            <div className="space-y-1">
+              <label className="text-[10px] font-bold text-slate-700 uppercase">INGRESO MENSUAL (€)</label>
+              <input type="number" step="0.01" className="win-input w-full" value={formData.ingresoMensual} onChange={e => setFormData(p => ({ ...p, ingresoMensual: e.target.value }))} />
             </div>
-            <div>
-              <label className="block text-[11px] font-bold text-slate-600 mb-1">TIPO JORNADA</label>
-              <select className="w-full border border-gray-400 px-2 py-1 text-[12px] bg-white" value={formData.tipoJornada} onChange={e => setFormData(p => ({ ...p, tipoJornada: e.target.value }))}>
+            <div className="space-y-1">
+              <label className="text-[10px] font-bold text-slate-700 uppercase">TIPO JORNADA</label>
+              <select className="win-input w-full cursor-pointer" value={formData.tipoJornada} onChange={e => setFormData(p => ({ ...p, tipoJornada: e.target.value }))}>
                 <option value="Completa">Completa</option>
                 <option value="Parcial">Parcial</option>
                 <option value="Reducida">Reducida</option>
               </select>
             </div>
-            <div className="col-span-2">
-              <label className="block text-[11px] font-bold text-slate-600 mb-1">REFERENCIA DE CONTRATO</label>
-              <input className="w-full border border-gray-400 px-2 py-1 text-[12px] bg-white" value={formData.referencia} onChange={e => setFormData(p => ({ ...p, referencia: e.target.value }))} />
+            <div className="space-y-1">
+              <label className="text-[10px] font-bold text-slate-700 uppercase">REFERENCIA DE CONTRATO</label>
+              <input className="win-input w-full" value={formData.referencia} onChange={e => setFormData(p => ({ ...p, referencia: e.target.value }))} />
             </div>
           </div>
         </div>
       </div>
     );
     if (activeTab === 'Analítica') return (
-      <div className="flex flex-col gap-4">
-        <div className="bg-[#f0f0f0] border border-[#a0a0a0] p-3">
-          <div className="text-[10px] font-bold uppercase text-slate-500 mb-3 border-b border-[#c0c0c0] pb-1">CENTROS ANALÍTICOS</div>
-          <div className="grid grid-cols-2 gap-3">
-            <div>
-              <label className="block text-[11px] font-bold text-slate-600 mb-1">CEBE (Centro de Beneficio)</label>
-              <select className="w-full border border-gray-400 px-2 py-1 text-[12px] bg-white" value={formData.cebeId} onChange={e => setFormData(p => ({ ...p, cebeId: e.target.value }))}>
+      <div className="flex flex-col gap-6">
+        <div className="grid grid-cols-2 gap-6">
+          <div className="space-y-3">
+            <div className="space-y-1">
+              <label className="text-[10px] font-bold text-slate-700 uppercase">CEBE (Centro de Beneficio)</label>
+              <select className="win-input w-full cursor-pointer" value={formData.cebeId} onChange={e => setFormData(p => ({ ...p, cebeId: e.target.value }))}>
                 <option value="">(Sin CEBE)</option>
                 {cebes.map(c => <option key={c.id} value={c.id}>{c.code ? `${c.code} - ` : ''}{c.name}</option>)}
               </select>
             </div>
-            <div>
-              <label className="block text-[11px] font-bold text-slate-600 mb-1">CECO (Centro de Coste)</label>
-              <select className="w-full border border-gray-400 px-2 py-1 text-[12px] bg-white" value={formData.cecoId} onChange={e => setFormData(p => ({ ...p, cecoId: e.target.value }))}>
+            <div className="space-y-1">
+              <label className="text-[10px] font-bold text-slate-700 uppercase">CECO (Centro de Coste)</label>
+              <select className="win-input w-full cursor-pointer" value={formData.cecoId} onChange={e => setFormData(p => ({ ...p, cecoId: e.target.value }))}>
                 <option value="">(Sin CECO)</option>
                 {cecos.map(c => <option key={c.id} value={c.id}>{c.code ? `${c.code} - ` : ''}{c.name}</option>)}
               </select>
             </div>
-            <div className="col-span-2">
-              <label className="block text-[11px] font-bold text-slate-600 mb-1">DESCRIPCIÓN</label>
-              <textarea className="w-full border border-gray-400 px-2 py-1 text-[12px] bg-white" rows={4} value={formData.descripcion} onChange={e => setFormData(p => ({ ...p, descripcion: e.target.value }))} />
+          </div>
+          <div className="space-y-3">
+            <div className="space-y-1">
+              <label className="text-[10px] font-bold text-slate-700 uppercase">DESCRIPCIÓN</label>
+              <textarea className="win-input w-full" rows={4} value={formData.descripcion} onChange={e => setFormData(p => ({ ...p, descripcion: e.target.value }))} />
             </div>
           </div>
         </div>
       </div>
     );
     if (activeTab === 'Documentos') return (
-      <div className="flex flex-col gap-3">
-        <div className="flex items-center gap-2">
-          <label className="flex items-center gap-1 cursor-pointer px-3 py-1 bg-[#e0e0e0] border border-[#a0a0a0] text-[11px] font-bold hover:bg-[#d0d0d0] uppercase">
-            <Upload className="w-3 h-3" />
-            {isUploading ? 'Subiendo...' : 'Adjuntar documento'}
-            <input type="file" className="hidden" multiple onChange={handleDocUpload} disabled={isUploading} />
-          </label>
+      <div className="flex flex-col bg-slate-50 border border-gray-200 rounded-md">
+        <div className="p-4 border-b border-gray-200 flex justify-between items-center bg-white rounded-t-md">
+          <h3 className="text-[12px] font-bold text-slate-800 uppercase italic">Documentos ({formData.puesto || 'Contrato'})</h3>
+          <div className="relative">
+            <input type="file" multiple id="contrato-doc-upload" className="hidden" onChange={handleDocUpload} disabled={isUploading} />
+            <label htmlFor="contrato-doc-upload" className={`btn-classic flex items-center space-x-1 px-3 py-1 cursor-pointer ${isUploading ? 'opacity-50 pointer-events-none' : ''}`}>
+              <FileArchive className="w-4 h-4" />
+              <span className="text-[11px] font-bold">{isUploading ? 'Subiendo...' : 'Subir Documento'}</span>
+            </label>
+          </div>
         </div>
-        <table className="clean-table">
-          <thead><tr><th>Nombre</th><th>Concepto</th><th>Fecha</th><th>Acciones</th></tr></thead>
-          <tbody>
-            {(formData.documentos || []).length === 0 ? (
-              <tr><td colSpan={4} className="text-center text-gray-400 py-4">No hay documentos adjuntos.</td></tr>
+        <div className="flex-1 bg-white overflow-hidden flex flex-col min-h-[200px] rounded-b-md">
+          <div className="bg-[#f0f0f0] grid grid-cols-12 gap-2 p-2 border-b border-[#808080] text-[10px] font-bold uppercase">
+            <div className="col-span-4">Documento</div>
+            <div className="col-span-4">Concepto</div>
+            <div className="col-span-2">Fecha</div>
+            <div className="col-span-2 text-center">Acción</div>
+          </div>
+          <div className="flex-1 overflow-auto p-2 space-y-2">
+            {(!formData.documentos || formData.documentos.length === 0) ? (
+              <div className="text-center text-slate-400 italic py-8 text-[11px]">No hay documentos asociados a este contrato.</div>
             ) : (
-              (formData.documentos || []).map(d => (
-                <tr key={d.id}>
-                  <td><a href={d.url} target="_blank" rel="noreferrer" className="text-blue-600 underline text-[11px]">{d.name}</a></td>
-                  <td><input className="border border-gray-300 px-1 py-0.5 text-[11px] w-full" value={d.concept || ''} onChange={e => setFormData(prev => ({ ...prev, documentos: prev.documentos.map(x => x.id === d.id ? { ...x, concept: e.target.value } : x) }))} /></td>
-                  <td className="text-[11px]">{d.date}</td>
-                  <td><button className="text-red-500 hover:text-red-700 text-[10px]" onClick={() => setFormData(prev => ({ ...prev, documentos: prev.documentos.filter(x => x.id !== d.id) }))}>Eliminar</button></td>
-                </tr>
+              formData.documentos.map((doc) => (
+                <div key={doc.id} className="grid grid-cols-12 gap-2 items-center text-[11px] border-b border-slate-100 pb-2">
+                  <div className="col-span-4 flex items-center space-x-2 truncate">
+                    <FileText className="w-4 h-4 text-slate-400 shrink-0" />
+                    <span className="truncate text-blue-600 underline cursor-pointer" onClick={() => setPreviewDocument(doc)} title={doc.name}>{doc.name}</span>
+                  </div>
+                  <div className="col-span-4">
+                    <input type="text" className="win-input w-full text-[11px]" value={doc.concept || ''} onChange={(e) => setFormData(prev => ({ ...prev, documentos: prev.documentos.map(x => x.id === doc.id ? { ...x, concept: e.target.value } : x) }))} placeholder="Ej. Contrato firmado, Nómina..." />
+                  </div>
+                  <div className="col-span-2">
+                    <input type="date" className="win-input w-full text-[11px]" value={doc.date || ''} onChange={(e) => setFormData(prev => ({ ...prev, documentos: prev.documentos.map(x => x.id === doc.id ? { ...x, date: e.target.value } : x) }))} />
+                  </div>
+                  <div className="col-span-2 flex justify-center space-x-2">
+                    <button className="p-1 hover:bg-blue-50 text-blue-600 rounded" onClick={() => setPreviewDocument(doc)} title="Previsualizar"><Eye className="w-4 h-4" /></button>
+                    <button className="p-1 hover:bg-red-50 text-red-600 rounded" onClick={() => setFormData(prev => ({ ...prev, documentos: prev.documentos.filter(x => x.id !== doc.id) }))} title="Eliminar"><Trash2 className="w-4 h-4" /></button>
+                  </div>
+                </div>
               ))
             )}
-          </tbody>
-        </table>
+          </div>
+        </div>
       </div>
     );
     return null;
