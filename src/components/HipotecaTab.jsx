@@ -55,7 +55,6 @@ export default function HipotecaTab({
     
     // Find the account document ID for the selected code
     const targetAccount = availableAccounts.find(a => a.code === activeMortgageAccount);
-    if (!targetAccount) return [];
 
     const list = [];
     journalEntries.forEach(entry => {
@@ -64,7 +63,9 @@ export default function HipotecaTab({
       const hasLineCebe = entry.lines?.some(l => l.cebe);
       
       entry.lines?.forEach(l => {
-        if (l.accountId !== targetAccount.id) return;
+        const isAccMatch = (targetAccount && l.accountId === targetAccount.id) || 
+                           String(l.accountCode || l.accountId || '').trim() === String(activeMortgageAccount).trim();
+        if (!isAccMatch) return;
         
         const lineCebe = l.cebe || (!hasLineCebe && entry.cebe) || '';
         if (lineCebe !== formData.cebe) return;
@@ -93,7 +94,7 @@ export default function HipotecaTab({
         if (lineCebe !== formData.cebe) return;
         
         const lineCeco = l.ceco || (!hasLineLevel && entry.ceco) || '';
-        if (lineCeco !== formData.ceco) return;
+        if (lineCeco !== activeInterestCeco) return;
 
         list.push({
           date: entry.date,
@@ -157,6 +158,9 @@ export default function HipotecaTab({
       const interestPaid = interestByMonth[monthKey] || 0;
       const quota = principalPaid + interestPaid;
 
+      const startingBalance = currentBalance;
+      const interestRate = startingBalance > 0 ? (interestPaid / startingBalance) * 12 * 100 : 0;
+
       currentBalance -= principalPaid;
 
       table.push({
@@ -165,6 +169,7 @@ export default function HipotecaTab({
         payment: quota,
         principal: principalPaid,
         interest: interestPaid,
+        interestRate: interestRate,
         balance: Math.max(0, currentBalance)
       });
 
@@ -177,6 +182,43 @@ export default function HipotecaTab({
 
     return table;
   }, [formData.loanAmount, formData.mortgageStart, principalEntries, interestEntries]);
+
+  const calculatedPendingCapital = useMemo(() => {
+    if (realAmortizationTable.length > 0) {
+      return realAmortizationTable[realAmortizationTable.length - 1].balance;
+    }
+    return parseFloat(formData.loanAmount) || 0;
+  }, [realAmortizationTable, formData.loanAmount]);
+
+  const calculatedGeneratedInterests = useMemo(() => {
+    return realAmortizationTable.reduce((sum, row) => sum + (row.interest || 0), 0);
+  }, [realAmortizationTable]);
+
+  const calculatedInterestRate = useMemo(() => {
+    if (realAmortizationTable.length > 0) {
+      return realAmortizationTable[realAmortizationTable.length - 1].interestRate;
+    }
+    return 0;
+  }, [realAmortizationTable]);
+
+  useEffect(() => {
+    const pendingVal = Number(calculatedPendingCapital).toFixed(2);
+    const interestsVal = Number(calculatedGeneratedInterests).toFixed(2);
+    const rateVal = Number(calculatedInterestRate).toFixed(2);
+
+    const prevPendingVal = Number(formData.mortgagePending || 0).toFixed(2);
+    const prevInterestsVal = Number(formData.generatedInterests || 0).toFixed(2);
+    const prevRateVal = Number(formData.lastInterestRate || 0).toFixed(2);
+
+    if (pendingVal !== prevPendingVal || interestsVal !== prevInterestsVal || rateVal !== prevRateVal) {
+      setFormData(prev => ({
+        ...prev,
+        mortgagePending: parseFloat(pendingVal),
+        generatedInterests: parseFloat(interestsVal),
+        lastInterestRate: parseFloat(rateVal)
+      }));
+    }
+  }, [calculatedPendingCapital, calculatedGeneratedInterests, calculatedInterestRate, setFormData]);
 
   const filteredCecos = useMemo(() => {
     const term = cecoSearch.toLowerCase().trim();
@@ -278,6 +320,7 @@ export default function HipotecaTab({
         payment: monthlyPayment,
         principal: principalPayment,
         interest: interestPayment,
+        interestRate: annualRate,
         balance: Math.max(0, currentBalance)
       });
     }
@@ -480,6 +523,16 @@ export default function HipotecaTab({
                     />
                   </div>
                 )}
+
+                <div className="space-y-1">
+                  <label className="text-[10px] font-bold text-slate-700 uppercase">Último Tipo de Interés Real (%):</label>
+                  <input 
+                    type="text" 
+                    className="win-input w-full bg-slate-50 font-semibold text-blue-900" 
+                    value={formData.lastInterestRate !== undefined ? `${Number(formData.lastInterestRate).toFixed(2)} %` : '0.00 %'} 
+                    readOnly
+                  />
+                </div>
               </div>
 
               {/* Columna Derecha */}
@@ -499,9 +552,9 @@ export default function HipotecaTab({
                   <input 
                     type="number" 
                     step="0.01"
-                    className="win-input w-full text-right" 
+                    className="win-input w-full text-right bg-slate-50 font-semibold" 
                     value={formData.mortgagePending || ''} 
-                    onChange={e => setFormData({ ...formData, mortgagePending: e.target.value })} 
+                    readOnly
                   />
                 </div>
                 <div className="space-y-1">
@@ -509,9 +562,9 @@ export default function HipotecaTab({
                   <input 
                     type="number" 
                     step="0.01"
-                    className="win-input w-full text-right" 
+                    className="win-input w-full text-right bg-slate-50 font-semibold" 
                     value={formData.generatedInterests || ''} 
-                    onChange={e => setFormData({ ...formData, generatedInterests: e.target.value })} 
+                    readOnly
                   />
                 </div>
 
@@ -644,12 +697,13 @@ export default function HipotecaTab({
           <div className="h-full flex flex-col">
             <h3 className="text-[12px] font-bold text-slate-800 uppercase italic mb-4">Cuadro de Amortización Teórico (Simulado)</h3>
             <div className="flex-1 border border-[#808080] bg-white overflow-hidden flex flex-col min-h-[300px]">
-              <div className="bg-[#f0f0f0] grid grid-cols-6 gap-2 p-2 border-b border-[#808080] text-[10px] font-bold uppercase text-right">
+              <div className="bg-[#f0f0f0] grid grid-cols-7 gap-2 p-2 border-b border-[#808080] text-[10px] font-bold uppercase text-right">
                 <div className="text-center">Mes</div>
                 <div className="text-center">Fecha</div>
                 <div>Cuota</div>
                 <div>Principal</div>
                 <div>Intereses</div>
+                <div>Interés (%)</div>
                 <div>Capital Pendiente</div>
               </div>
               <div className="flex-1 overflow-auto">
@@ -660,12 +714,13 @@ export default function HipotecaTab({
                 ) : (
                   <div className="p-2 space-y-1">
                     {calculateAmortization.map((row, idx) => (
-                      <div key={idx} className={`grid grid-cols-6 gap-2 px-2 py-1 text-[11px] text-right ${idx % 2 === 0 ? 'bg-white' : 'bg-slate-50'}`}>
+                      <div key={idx} className={`grid grid-cols-7 gap-2 px-2 py-1 text-[11px] text-right ${idx % 2 === 0 ? 'bg-white' : 'bg-slate-50'}`}>
                         <div className="text-center">{row.month}</div>
                         <div className="text-center">{row.date}</div>
                         <div>{row.payment.toFixed(2)} €</div>
                         <div>{row.principal.toFixed(2)} €</div>
                         <div>{row.interest.toFixed(2)} €</div>
+                        <div>{row.interestRate.toFixed(2)} %</div>
                         <div>{row.balance.toFixed(2)} €</div>
                       </div>
                     ))}
@@ -697,12 +752,13 @@ export default function HipotecaTab({
               </div>
             ) : (
               <div className="flex-1 border border-[#808080] bg-white overflow-hidden flex flex-col min-h-[300px]">
-                <div className="bg-[#f0f0f0] grid grid-cols-6 gap-2 p-2 border-b border-[#808080] text-[10px] font-bold uppercase text-right">
+                <div className="bg-[#f0f0f0] grid grid-cols-7 gap-2 p-2 border-b border-[#808080] text-[10px] font-bold uppercase text-right">
                   <div className="text-center">Mes</div>
                   <div className="text-center">Fecha</div>
                   <div>Cuota</div>
                   <div>Principal</div>
                   <div>Intereses</div>
+                  <div>Interés (%)</div>
                   <div>Capital Pendiente</div>
                 </div>
                 <div className="flex-1 overflow-auto">
@@ -713,12 +769,13 @@ export default function HipotecaTab({
                   ) : (
                     <div className="p-2 space-y-1">
                       {realAmortizationTable.map((row, idx) => (
-                        <div key={idx} className={`grid grid-cols-6 gap-2 px-2 py-1 text-[11px] text-right ${idx % 2 === 0 ? 'bg-white' : 'bg-slate-50'}`}>
+                        <div key={idx} className={`grid grid-cols-7 gap-2 px-2 py-1 text-[11px] text-right ${idx % 2 === 0 ? 'bg-white' : 'bg-slate-50'}`}>
                           <div className="text-center">{row.month}</div>
                           <div className="text-center">{row.date}</div>
                           <div>{row.payment.toLocaleString('es-ES', { minimumFractionDigits: 2, maximumFractionDigits: 2 })} €</div>
                           <div>{row.principal.toLocaleString('es-ES', { minimumFractionDigits: 2, maximumFractionDigits: 2 })} €</div>
                           <div>{row.interest.toLocaleString('es-ES', { minimumFractionDigits: 2, maximumFractionDigits: 2 })} €</div>
+                          <div>{row.interestRate.toLocaleString('es-ES', { minimumFractionDigits: 2, maximumFractionDigits: 2 })} %</div>
                           <div>{row.balance.toLocaleString('es-ES', { minimumFractionDigits: 2, maximumFractionDigits: 2 })} €</div>
                         </div>
                       ))}

@@ -93,7 +93,7 @@ const isAccountMatched = (accountCodeOrId, selectedAccounts, accountsList) => {
   });
 };
 
-const getPropertyMetrics = (p, entriesList) => {
+const getPropertyMetrics = (p, entriesList, selectedCecos = []) => {
   const propertyCebe = String(p.cebe || '').trim();
   const normalizedPropCebe = propertyCebe ? propertyCebe.replace(/^(CEBE|CECO)/i, '').trim().toLowerCase() : '';
   
@@ -104,6 +104,12 @@ const getPropertyMetrics = (p, entriesList) => {
   if (!normalizedPropCebe) {
     return { ingresos: 0, gastos: 0, servicios: 0, neto: 0 };
   }
+
+  const cecoMatches = (cecoCode) => {
+    if (selectedCecos.length === 0) return true;
+    const cleanCeco = String(cecoCode || '').trim().toUpperCase();
+    return selectedCecos.some(sel => cleanCeco.startsWith(String(sel).trim().toUpperCase()));
+  };
   
   entriesList.forEach(entry => {
     const entryCebe = String(entry.cebe || '').trim().replace(/^(CEBE|CECO)/i, '').trim().toLowerCase();
@@ -115,6 +121,9 @@ const getPropertyMetrics = (p, entriesList) => {
         const lineCebeMatches = lineCebe ? lineCebe.startsWith(normalizedPropCebe) : entryCebeMatches;
         
         if (lineCebeMatches) {
+          const lineCeco = l.ceco || entry.ceco || '';
+          if (!cecoMatches(lineCeco)) return;
+
           const acc = String(l.accountCode || '');
           const val = (parseFloat(l.debit) || 0) + (parseFloat(l.credit) || 0);
           
@@ -130,6 +139,9 @@ const getPropertyMetrics = (p, entriesList) => {
       });
     } else {
       if (entryCebeMatches) {
+        const entryCeco = entry.ceco || '';
+        if (!cecoMatches(entryCeco)) return;
+
         const total = parseFloat(entry.total) || 0;
         const entryAcc = String(entry.accountCode || entry.accountId || '');
         if (entryAcc.startsWith('7')) {
@@ -777,7 +789,7 @@ export default function PrintPage() {
     return combined.join(', ') || '---';
   };
 
-  const getRentalExtractMetrics = (r, entriesList) => {
+  const getRentalExtractMetrics = (r, entriesList, selectedCecos = []) => {
     let ingresos = 0;
     let gastos = 0;
 
@@ -787,9 +799,16 @@ export default function PrintPage() {
 
     if (!currentRef) return { ingresos: 0, gastos: 0, neto: 0 };
 
+    const cecoMatches = (cecoCode) => {
+      if (selectedCecos.length === 0) return true;
+      const cleanCeco = String(cecoCode || '').trim().toUpperCase();
+      return selectedCecos.some(sel => cleanCeco.startsWith(String(sel).trim().toUpperCase()));
+    };
+
     entriesList.forEach(entry => {
       let isMatch = false;
       let matchedLines = [];
+      const entryCeco = entry.ceco || '';
 
       // Check line levels
       if (entry.lines) {
@@ -813,8 +832,11 @@ export default function PrintPage() {
           }
 
           if (lineMatchCebe && lineMatchRef) {
-            isMatch = true;
-            matchedLines.push(l);
+            const lineCeco = l.ceco || entryCeco || '';
+            if (cecoMatches(lineCeco)) {
+              isMatch = true;
+              matchedLines.push(l);
+            }
           }
         });
       }
@@ -834,7 +856,9 @@ export default function PrintPage() {
         }
 
         if (matchCebe && matchRef) {
-          isMatch = true;
+          if (cecoMatches(entryCeco)) {
+            isMatch = true;
+          }
         }
       }
 
@@ -875,7 +899,7 @@ export default function PrintPage() {
     };
   };
 
-  const getPropertyExtractMetrics = (p, rentalsList, entriesList) => {
+  const getPropertyExtractMetrics = (p, rentalsList, entriesList, selectedCecos = []) => {
     // Use the same CEBE/CECO matching logic as ExtractoContableTab (properties mode)
     // so the informe figures match exactly what the extracto modal shows.
     let ingresos = 0;
@@ -884,6 +908,12 @@ export default function PrintPage() {
     const normValueCebe = p.cebe ? String(p.cebe).trim().replace(/^(CEBE|CECO)/i, '').toLowerCase() : '';
     const normIncomeCecos = (p.taxIncomeCecos || []).map(c => String(c).trim().replace(/^(CEBE|CECO)/i, '').toLowerCase());
     const normExpenseCecos = (p.taxExpenseCecos || []).map(c => String(c).trim().replace(/^(CEBE|CECO)/i, '').toLowerCase());
+
+    const cecoMatches = (cecoCode) => {
+      if (selectedCecos.length === 0) return true;
+      const cleanCeco = String(cecoCode || '').trim().toUpperCase();
+      return selectedCecos.some(sel => cleanCeco.startsWith(String(sel).trim().toUpperCase()));
+    };
 
     if (!normValueCebe && normIncomeCecos.length === 0 && normExpenseCecos.length === 0) {
       return { ingresos: 0, gastos: 0, neto: 0 };
@@ -1008,6 +1038,9 @@ export default function PrintPage() {
           const lineAmt = (Number(l.debit) || 0) + (Number(l.credit) || 0);
           const accCode = String(l.accountCode || '');
 
+          const lineCeco = l.ceco || entry.ceco || '';
+          if (!cecoMatches(lineCeco)) return;
+
           let lineMatchCebe = false;
           let lineMatchCeco = false;
 
@@ -1041,26 +1074,29 @@ export default function PrintPage() {
       }
 
       if (!hasLineLevelAnalytics) {
-        let globalCebe = false;
-        if (normValueCebe && entry.cebe) {
-          const normField = String(entry.cebe).trim().replace(/^(CEBE|CECO)/i, '').toLowerCase();
-          if (normField.startsWith(normValueCebe)) globalCebe = true;
-        }
-        if (normIncomeCecos.length > 0 && entry.ceco) {
-          const normField = String(entry.ceco).trim().replace(/^(CEBE|CECO)/i, '').toLowerCase();
-          if (normIncomeCecos.some(c => normField.startsWith(c))) globalCebe = true;
-        }
-        if (globalCebe) {
-          cebeEntryAmount = entry.total || 0;
-        }
+        const entryCeco = entry.ceco || '';
+        if (cecoMatches(entryCeco)) {
+          let globalCebe = false;
+          if (normValueCebe && entry.cebe) {
+            const normField = String(entry.cebe).trim().replace(/^(CEBE|CECO)/i, '').toLowerCase();
+            if (normField.startsWith(normValueCebe)) globalCebe = true;
+          }
+          if (normIncomeCecos.length > 0 && entry.ceco) {
+            const normField = String(entry.ceco).trim().replace(/^(CEBE|CECO)/i, '').toLowerCase();
+            if (normIncomeCecos.some(c => normField.startsWith(c))) globalCebe = true;
+          }
+          if (globalCebe) {
+            cebeEntryAmount = entry.total || 0;
+          }
 
-        let globalCeco = false;
-        if (normExpenseCecos.length > 0 && entry.ceco) {
-          const normField = String(entry.ceco).trim().replace(/^(CEBE|CECO)/i, '').toLowerCase();
-          if (normExpenseCecos.some(c => normField.startsWith(c))) globalCeco = true;
-        }
-        if (globalCeco) {
-          cecoEntryAmount = entry.total || 0;
+          let globalCeco = false;
+          if (normExpenseCecos.length > 0 && entry.ceco) {
+            const normField = String(entry.ceco).trim().replace(/^(CEBE|CECO)/i, '').toLowerCase();
+            if (normExpenseCecos.some(c => normField.startsWith(c))) globalCeco = true;
+          }
+          if (globalCeco) {
+            cecoEntryAmount = entry.total || 0;
+          }
         }
       }
 
@@ -1075,7 +1111,7 @@ export default function PrintPage() {
     };
   };
 
-  const getConsolidatedProperty = (p, propertiesList, rentalsList, entriesList) => {
+  const getConsolidatedProperty = (p, propertiesList, rentalsList, entriesList, selectedCecos = []) => {
     if (!groupAccessoryAssets) {
       const propInvestedCapital = parseFloat(p.investedCapital || 0);
       const propAdquisitionExpenses = (p.adquisitionExpenses || p.financials?.acquisitionExpenses || []).reduce((acc, exp) => acc + (parseFloat(exp.amount) || 0), 0);
@@ -1084,7 +1120,7 @@ export default function PrintPage() {
       const propCurrentValue = parseFloat(p.currentValue || p.financials?.currentValue || 0);
       const propMortgagePending = parseFloat(p.mortgagePending || p.financials?.mortgagePending || 0);
       const propTheoreticalSalePrice = parseFloat(p.theoreticalSalePrice || p.financials?.theoreticalSalePrice || 0);
-      const propExtract = getPropertyExtractMetrics(p, rentalsList, entriesList);
+      const propExtract = getPropertyExtractMetrics(p, rentalsList, entriesList, selectedCecos);
 
       return {
         ...p,
@@ -1121,8 +1157,8 @@ export default function PrintPage() {
     
     const propTheoreticalSalePrice = parseFloat(p.theoreticalSalePrice || p.financials?.theoreticalSalePrice || 0) + (acc ? parseFloat(acc.theoreticalSalePrice || acc.financials?.theoreticalSalePrice || 0) : 0);
 
-    const pExtract = getPropertyExtractMetrics(p, rentalsList, entriesList);
-    const accExtract = acc ? getPropertyExtractMetrics(acc, rentalsList, entriesList) : { ingresos: 0, gastos: 0, neto: 0 };
+    const pExtract = getPropertyExtractMetrics(p, rentalsList, entriesList, selectedCecos);
+    const accExtract = acc ? getPropertyExtractMetrics(acc, rentalsList, entriesList, selectedCecos) : { ingresos: 0, gastos: 0, neto: 0 };
     
     return {
       ...p,
@@ -1171,7 +1207,7 @@ export default function PrintPage() {
     }
 
     if (templateId === 'activos') {
-      const consolidated = getConsolidatedProperty(item, properties, rentals, filteredEntriesForPrint);
+      const consolidated = getConsolidatedProperty(item, properties, rentals, filteredEntriesForPrint, selectedCecos);
       if (colId === 'id') return item.id || '';
       if (colId === 'name') return item.name || '';
       if (colId === 'address') return item.address || '';
@@ -1185,21 +1221,21 @@ export default function PrintPage() {
       if (colId === 'purchasePrice') return consolidated.acquisitionPrice;
       if (colId === 'currentValue') return consolidated.currentValue;
       if (colId === 'ingresos') {
-        const mainMetrics = getPropertyMetrics(item, filteredEntriesForPrint);
+        const mainMetrics = getPropertyMetrics(item, filteredEntriesForPrint, selectedCecos);
         const acc = item.accessoryPropertyId ? properties.find(prop => prop.id === item.accessoryPropertyId || prop.name === item.accessoryPropertyId) : null;
-        const accMetrics = acc ? getPropertyMetrics(acc, filteredEntriesForPrint) : { ingresos: 0, gastos: 0, neto: 0 };
+        const accMetrics = acc ? getPropertyMetrics(acc, filteredEntriesForPrint, selectedCecos) : { ingresos: 0, gastos: 0, neto: 0 };
         return mainMetrics.ingresos + accMetrics.ingresos;
       }
       if (colId === 'gastos') {
-        const mainMetrics = getPropertyMetrics(item, filteredEntriesForPrint);
+        const mainMetrics = getPropertyMetrics(item, filteredEntriesForPrint, selectedCecos);
         const acc = item.accessoryPropertyId ? properties.find(prop => prop.id === item.accessoryPropertyId || prop.name === item.accessoryPropertyId) : null;
-        const accMetrics = acc ? getPropertyMetrics(acc, filteredEntriesForPrint) : { ingresos: 0, gastos: 0, neto: 0 };
+        const accMetrics = acc ? getPropertyMetrics(acc, filteredEntriesForPrint, selectedCecos) : { ingresos: 0, gastos: 0, neto: 0 };
         return mainMetrics.gastos + accMetrics.gastos;
       }
       if (colId === 'netYield') {
-        const mainMetrics = getPropertyMetrics(item, filteredEntriesForPrint);
+        const mainMetrics = getPropertyMetrics(item, filteredEntriesForPrint, selectedCecos);
         const acc = item.accessoryPropertyId ? properties.find(prop => prop.id === item.accessoryPropertyId || prop.name === item.accessoryPropertyId) : null;
-        const accMetrics = acc ? getPropertyMetrics(acc, filteredEntriesForPrint) : { ingresos: 0, gastos: 0, neto: 0 };
+        const accMetrics = acc ? getPropertyMetrics(acc, filteredEntriesForPrint, selectedCecos) : { ingresos: 0, gastos: 0, neto: 0 };
         return (mainMetrics.ingresos + accMetrics.ingresos) - (mainMetrics.gastos + accMetrics.gastos);
       }
       if (colId === 'catastral') return item.catastral || '';
@@ -1275,16 +1311,16 @@ export default function PrintPage() {
         return rent > 0 ? netYield / rent : 0;
       }
       if (colId === 'ingresosExtracto') {
-        return getRentalExtractMetrics(item, filteredEntriesForPrint).ingresos;
+        return getRentalExtractMetrics(item, filteredEntriesForPrint, selectedCecos).ingresos;
       }
       if (colId === 'gastosExtracto') {
-        return getRentalExtractMetrics(item, filteredEntriesForPrint).gastos;
+        return getRentalExtractMetrics(item, filteredEntriesForPrint, selectedCecos).gastos;
       }
       if (colId === 'rentaNetaExtracto') {
-        return getRentalExtractMetrics(item, filteredEntriesForPrint).neto;
+        return getRentalExtractMetrics(item, filteredEntriesForPrint, selectedCecos).neto;
       }
       if (colId === 'pctIngresos') {
-        const metrics = getRentalExtractMetrics(item, filteredEntriesForPrint);
+        const metrics = getRentalExtractMetrics(item, filteredEntriesForPrint, selectedCecos);
         return metrics.ingresos > 0 ? metrics.neto / metrics.ingresos : 0;
       }
       if (colId === 'status') return item.status || 'activo';
@@ -2806,22 +2842,18 @@ export default function PrintPage() {
 
   // Dynamic CECO options
   const selectableCecos = useMemo(() => {
-    const set = new Set();
-    entriesMatchingAccountAndTimeline.forEach(entry => {
-      if (entry.ceco) set.add(entry.ceco);
-      entry.lines.forEach(l => { if (l.ceco) set.add(l.ceco); });
-    });
-    return Array.from(set).sort();
-  }, [entriesMatchingAccountAndTimeline]);
+    return cecos.map(c => c.code).sort();
+  }, [cecos]);
 
   const filteredSelectableCecos = useMemo(() => {
     if (!cecoSearch) return selectableCecos;
     const query = cecoSearch.toLowerCase();
-    return selectableCecos.filter(c => {
-      const cecoObj = cecos.find(x => x.code === c);
-      const label = cecoObj ? `${c} - ${cecoObj.name}` : c;
-      return label.toLowerCase().includes(query);
-    });
+    return cecos
+      .filter(c => 
+        c.code.toLowerCase().includes(query) || 
+        c.name.toLowerCase().includes(query)
+      )
+      .map(c => c.code);
   }, [selectableCecos, cecoSearch, cecos]);
 
   // Dynamic Document options
@@ -3505,11 +3537,11 @@ export default function PrintPage() {
                   </thead>
                   <tbody>
                     {pageItems.map((p, ri) => {
-                      const consolidated = getConsolidatedProperty(p, properties, rentals, filteredEntriesForPrint);
+                      const consolidated = getConsolidatedProperty(p, properties, rentals, filteredEntriesForPrint, selectedCecos);
                       
-                      const mainMetrics = getPropertyMetrics(p, filteredEntriesForPrint);
+                      const mainMetrics = getPropertyMetrics(p, filteredEntriesForPrint, selectedCecos);
                       const acc = p.accessoryPropertyId ? properties.find(prop => prop.id === p.accessoryPropertyId || prop.name === p.accessoryPropertyId) : null;
-                      const accMetrics = acc ? getPropertyMetrics(acc, filteredEntriesForPrint) : { ingresos: 0, gastos: 0, neto: 0 };
+                      const accMetrics = acc ? getPropertyMetrics(acc, filteredEntriesForPrint, selectedCecos) : { ingresos: 0, gastos: 0, neto: 0 };
                       const metrics = {
                         ingresos: mainMetrics.ingresos + accMetrics.ingresos,
                         gastos: mainMetrics.gastos + accMetrics.gastos,
@@ -3635,7 +3667,7 @@ export default function PrintPage() {
           const rentVal = baseRent * monthsMultiplier;
           const expensesVal = baseExpenses * monthsMultiplier;
           const netYieldVal = rentVal - expensesVal;
-          const extractMetrics = getRentalExtractMetrics(r, filteredEntriesForPrint);
+          const extractMetrics = getRentalExtractMetrics(r, filteredEntriesForPrint, selectedCecos);
           
           acc.depositAmount += r.depositAmount || 0;
           acc.rentAmount += rentVal;
@@ -3708,7 +3740,7 @@ export default function PrintPage() {
                       const netYieldVal = rentVal - expensesVal;
                       
                       const startDateVal = getRentalStartDate(r);
-                      const extractMetrics = getRentalExtractMetrics(r, filteredEntriesForPrint);
+                      const extractMetrics = getRentalExtractMetrics(r, filteredEntriesForPrint, selectedCecos);
                       
                       const pctAlquilerVal = rentVal > 0 ? `${((netYieldVal / rentVal) * 100).toFixed(2)} %` : '---';
                       const pctIngresosVal = extractMetrics.ingresos > 0 ? `${((extractMetrics.neto / extractMetrics.ingresos) * 100).toFixed(2)} %` : '---';
@@ -3891,7 +3923,7 @@ export default function PrintPage() {
         if (groupAccessoryAssets && accessoryIds.has(p.id)) return;
         
         const ownersArr = Array.isArray(p.owners) ? p.owners : [];
-        const cp = getConsolidatedProperty(p, properties, rentals, filteredEntriesForPrint);
+        const cp = getConsolidatedProperty(p, properties, rentals, filteredEntriesForPrint, selectedCecos);
         const propAcquisitionPrice = cp.acquisitionPrice;
         const propInvestedCapital = cp.investedCapital;
         const propAdquisitionExpenses = cp.adquisitionExpenses;
@@ -4352,10 +4384,10 @@ export default function PrintPage() {
 
         let ownersArr = Array.isArray(p.owners) && p.owners.length > 0 ? p.owners : [{ name: 'Sin Propietario', percentage: 100 }];
 
-        const consolidated = getConsolidatedProperty(p, properties, rentals, filteredEntriesForPrint);
-        const mainMetrics = getPropertyMetrics(p, filteredEntriesForPrint);
+        const consolidated = getConsolidatedProperty(p, properties, rentals, filteredEntriesForPrint, selectedCecos);
+        const mainMetrics = getPropertyMetrics(p, filteredEntriesForPrint, selectedCecos);
         const acc = p.accessoryPropertyId ? properties.find(prop => prop.id === p.accessoryPropertyId || prop.name === p.accessoryPropertyId) : null;
-        const accMetrics = acc ? getPropertyMetrics(acc, filteredEntriesForPrint) : { ingresos: 0, gastos: 0, neto: 0 };
+        const accMetrics = acc ? getPropertyMetrics(acc, filteredEntriesForPrint, selectedCecos) : { ingresos: 0, gastos: 0, neto: 0 };
         
         const baseIngresos = mainMetrics.ingresos + accMetrics.ingresos;
         const baseGastos = mainMetrics.gastos + accMetrics.gastos;
@@ -7294,55 +7326,6 @@ export default function PrintPage() {
                 )}
               </div>
 
-              {/* CECO Filter */}
-              <div className="bg-white border border-[#a0a0a0] p-3 flex flex-col gap-2 relative" ref={cecoDropdownRef}>
-                <div className="text-[10px] font-bold text-slate-500 uppercase flex items-center gap-1 select-none">
-                  <span>CECO</span>
-                </div>
-                <div
-                  onClick={() => setCecoDropdownOpen(prev => { if (prev) setCecoSearch(''); return !prev; })}
-                  className="win-input w-full flex justify-between items-center cursor-pointer select-none bg-white border border-[#a0a0a0] px-2 py-1 text-[11px] font-sans rounded min-h-[24px]"
-                >
-                  <span className="truncate pr-2 text-slate-700">
-                    {selectedCecos.length === 0 ? 'Todos' : selectedCecos.join(', ')}
-                  </span>
-                  <span className="text-[9px] text-slate-555">▼</span>
-                </div>
-                {cecoDropdownOpen && (
-                  <div className="absolute left-3 right-3 top-[calc(100%-8px)] z-50 bg-white border border-[#a0a0a0] shadow-lg max-h-[180px] overflow-y-auto p-1.5 flex flex-col gap-1 rounded win-bevel">
-                    <input 
-                      type="text" 
-                      value={cecoSearch} 
-                      onChange={(e) => setCecoSearch(e.target.value)} 
-                      placeholder="Buscar CECO..." 
-                      className="w-full text-[10px] px-1.5 py-0.5 border border-slate-300 rounded mb-1 outline-none focus:border-blue-400 font-sans normal-case" 
-                      onClick={(e) => e.stopPropagation()} 
-                    />
-                    <label className="flex items-center gap-1.5 text-[10px] cursor-pointer hover:bg-slate-50 py-0.5 rounded select-none font-bold text-blue-900 border-b border-slate-100 pb-1">
-                      <input type="checkbox" checked={selectedCecos.length === 0} onChange={() => setSelectedCecos([])} className="mt-0.5" />
-                      <span>Todos</span>
-                    </label>
-                    {filteredSelectableCecos.length === 0 && (
-                      <span className="text-[10px] text-slate-400 italic px-1">Sin opciones disponibles</span>
-                    )}
-                    {filteredSelectableCecos.map(c => {
-                      const cecoObj = cecos.find(x => x.code === c);
-                      const label = cecoObj ? `${c} - ${cecoObj.name}` : c;
-                      return (
-                        <label key={c} className="flex items-start gap-1.5 text-[10px] cursor-pointer hover:bg-slate-50 py-0.5 rounded select-none">
-                          <input
-                            type="checkbox"
-                            checked={selectedCecos.includes(c)}
-                            onChange={() => setSelectedCecos(prev => prev.includes(c) ? prev.filter(x => x !== c) : [...prev, c])}
-                            className="mt-0.5"
-                          />
-                          <span className="text-slate-700">{label}</span>
-                        </label>
-                      );
-                    })}
-                  </div>
-                )}
-              </div>
 
               {/* Filtro Fiscal (Impuesto) */}
               <div className="bg-white border border-[#a0a0a0] p-3 flex flex-col gap-2">
@@ -7414,6 +7397,59 @@ export default function PrintPage() {
                 )}
               </div>
             </>
+          )}
+
+          {/* CECO Filter */}
+          {(['activos', 'alquileres', 'extracto_propietarios', 'metricas_inversion'].includes(selectedTemplate) || 
+            !['balance_situacion', 'cuenta_resultados', 'flujo_caja', 'activos', 'alquileres', 'clientes', 'extracto_propietarios', 'rv_portfolio', 'rv_transactions', 'cf_portfolio', 'cf_transactions', 'metricas_inversion', 'plan_contable'].includes(selectedTemplate)) && (
+            <div className="bg-white border border-[#a0a0a0] p-3 flex flex-col gap-2 relative" ref={cecoDropdownRef}>
+              <div className="text-[10px] font-bold text-slate-500 uppercase flex items-center gap-1 select-none">
+                <span>CECO</span>
+              </div>
+              <div
+                onClick={() => setCecoDropdownOpen(prev => { if (prev) setCecoSearch(''); return !prev; })}
+                className="win-input w-full flex justify-between items-center cursor-pointer select-none bg-white border border-[#a0a0a0] px-2 py-1 text-[11px] font-sans rounded min-h-[24px]"
+              >
+                <span className="truncate pr-2 text-slate-700">
+                  {selectedCecos.length === 0 ? 'Todos' : selectedCecos.join(', ')}
+                </span>
+                <span className="text-[9px] text-slate-555">▼</span>
+              </div>
+              {cecoDropdownOpen && (
+                <div className="absolute left-3 right-3 top-[calc(100%-8px)] z-50 bg-white border border-[#a0a0a0] shadow-lg max-h-[180px] overflow-y-auto p-1.5 flex flex-col gap-1 rounded win-bevel">
+                  <input 
+                    type="text" 
+                    value={cecoSearch} 
+                    onChange={(e) => setCecoSearch(e.target.value)} 
+                    placeholder="Buscar CECO..." 
+                    className="w-full text-[10px] px-1.5 py-0.5 border border-slate-300 rounded mb-1 outline-none focus:border-blue-400 font-sans normal-case" 
+                    onClick={(e) => e.stopPropagation()} 
+                  />
+                  <label className="flex items-center gap-1.5 text-[10px] cursor-pointer hover:bg-slate-50 py-0.5 rounded select-none font-bold text-blue-900 border-b border-slate-100 pb-1">
+                    <input type="checkbox" checked={selectedCecos.length === 0} onChange={() => setSelectedCecos([])} className="mt-0.5" />
+                    <span>Todos</span>
+                  </label>
+                  {filteredSelectableCecos.length === 0 && (
+                    <span className="text-[10px] text-slate-400 italic px-1">Sin opciones disponibles</span>
+                  )}
+                  {filteredSelectableCecos.map(c => {
+                    const cecoObj = cecos.find(x => x.code === c);
+                    const label = cecoObj ? `${c} - ${cecoObj.name}` : c;
+                    return (
+                      <label key={c} className="flex items-start gap-1.5 text-[10px] cursor-pointer hover:bg-slate-50 py-0.5 rounded select-none">
+                        <input
+                          type="checkbox"
+                          checked={selectedCecos.includes(c)}
+                          onChange={() => setSelectedCecos(prev => prev.includes(c) ? prev.filter(x => x !== c) : [...prev, c])}
+                          className="mt-0.5"
+                        />
+                        <span className="text-slate-700">{label}</span>
+                      </label>
+                    );
+                  })}
+                </div>
+              )}
+            </div>
           )}
 
           {/* Aclaraciones de Métricas */}

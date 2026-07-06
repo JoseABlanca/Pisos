@@ -1099,9 +1099,11 @@ export default function Layout() {
     setDropdownOpen(false);
   };
 
+  const isHomePage = location.pathname === '/';
+
   return (
     <div className="flex flex-col h-screen bg-[#e2e8f0] font-sans overflow-hidden select-none">
-      <header className="bg-[#4e80c8] text-white flex flex-col shadow-inner z-50 relative">
+      <header className={`bg-[#4e80c8] text-white flex flex-col shadow-inner z-50 relative ${isHomePage ? 'hidden' : ''}`}>
         <div className="flex justify-between items-center w-full px-2 py-1">
           <div className="flex items-center space-x-2 shrink-0 w-1/3 relative">
             <button 
@@ -1222,7 +1224,7 @@ export default function Layout() {
       </header>
 
       {showRibbon && (
-        <div className="bg-[#f3f4f6] border-b border-gray-300 flex h-[95px] overflow-x-auto overflow-y-hidden whitespace-nowrap shrink-0 shadow-sm select-none relative w-full scrollbar-hide">
+        <div className={`bg-[#f3f4f6] border-b border-gray-300 flex h-[95px] overflow-x-auto overflow-y-hidden whitespace-nowrap shrink-0 shadow-sm select-none relative w-full scrollbar-hide ${isHomePage ? 'hidden' : ''}`}>
           {tabRibbons[activeTab] && tabRibbons[activeTab].map((group, gIdx) => (
             <div key={gIdx} className="flex flex-col border-r border-gray-300">
               <div className="flex-1 flex items-stretch px-1 pt-1">

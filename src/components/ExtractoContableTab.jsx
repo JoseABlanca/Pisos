@@ -22,6 +22,13 @@ export default function ExtractoContableTab({
   const [loading, setLoading] = useState(true);
   const [selectedJournalEntry, setSelectedJournalEntry] = useState(null);
   const [accountsMap, setAccountsMap] = useState({});
+  const [selectedIncomeCecos, setSelectedIncomeCecos] = useState([]);
+  const [showIncomeCecoDropdown, setShowIncomeCecoDropdown] = useState(false);
+  const [incomeCecoSearch, setIncomeCecoSearch] = useState('');
+
+  const [selectedExpenseCecos, setSelectedExpenseCecos] = useState([]);
+  const [showExpenseCecoDropdown, setShowExpenseCecoDropdown] = useState(false);
+  const [expenseCecoSearch, setExpenseCecoSearch] = useState('');
   const [startDate, setStartDate] = useState('');
   const [endDate, setEndDate] = useState('');
 
@@ -264,6 +271,104 @@ export default function ExtractoContableTab({
       });
     }
 
+    // Helper function to check if entry has a CECO matching selectedCecos for a specific type (income vs expense)
+    const matchCecoFilter = (entry, selectedCecos, isIncomeType) => {
+      if (selectedCecos.length === 0) return true;
+      const entryCeco = entry.ceco || '';
+      const normEntryCeco = String(entryCeco).trim().toUpperCase();
+      const hasLineCeco = entry.lines?.some(l => l.ceco);
+      
+      const cecoMatches = (cecoVal) => {
+        const cleanVal = String(cecoVal).trim().toUpperCase();
+        return selectedCecos.some(sel => cleanVal.startsWith(String(sel).trim().toUpperCase()));
+      };
+
+      if (entry.lines && entry.lines.length > 0) {
+        return entry.lines.some(l => {
+          const accCode = String(l.accountCode || '');
+          let lineIsIncome = false;
+          if (mode === 'rentals') {
+            lineIsIncome = accCode.startsWith('7');
+          } else {
+            // Properties mode
+            let lineMatchCebe = false;
+            const normValueCebe = currentCebe ? String(currentCebe).trim().replace(/^(CEBE|CECO)/i, '') : '';
+            if (normValueCebe && l.cebe) {
+              const normField = String(l.cebe).trim().replace(/^(CEBE|CECO)/i, '');
+              if (normField.startsWith(normValueCebe)) lineMatchCebe = true;
+            }
+            const normIncomeCecos = (formData?.taxIncomeCecos || []).map(c => String(c).trim().replace(/^(CEBE|CECO)/i, ''));
+            if (normIncomeCecos.length > 0 && l.ceco) {
+              const normField = String(l.ceco).trim().replace(/^(CEBE|CECO)/i, '');
+              if (normIncomeCecos.some(c => normField.startsWith(c))) lineMatchCebe = true;
+            }
+            
+            let lineMatchCeco = false;
+            const normExpenseCecos = (formData?.taxExpenseCecos || []).map(c => String(c).trim().replace(/^(CEBE|CECO)/i, ''));
+            if (normExpenseCecos.length > 0 && l.ceco) {
+              const normField = String(l.ceco).trim().replace(/^(CEBE|CECO)/i, '');
+              if (normExpenseCecos.some(c => normField.startsWith(c))) lineMatchCeco = true;
+            }
+
+            if (lineMatchCebe || lineMatchCeco) {
+              const isInc = accCode.startsWith('7');
+              const isExp = accCode.startsWith('6');
+              if (isInc) {
+                lineIsIncome = true;
+              } else if (isExp) {
+                lineIsIncome = false;
+              } else {
+                if (lineMatchCebe) lineIsIncome = true;
+                if (lineMatchCeco) lineIsIncome = false;
+              }
+            }
+          }
+
+          if (isIncomeType !== lineIsIncome) return false;
+
+          const lineCeco = l.ceco || (!hasLineCeco && entryCeco) || '';
+          return cecoMatches(lineCeco);
+        });
+      } else {
+        let entryIsIncome = false;
+        if (mode === 'rentals') {
+          const totalAmt = entry.total || 0;
+          const isExpense = totalAmt < 0 || String(entry.description || '').toLowerCase().includes('comunidad') || String(entry.description || '').toLowerCase().includes('gasto');
+          entryIsIncome = !isExpense;
+        } else {
+          const normValueCebe = currentCebe ? String(currentCebe).trim().replace(/^(CEBE|CECO)/i, '') : '';
+          const normIncomeCecos = (formData?.taxIncomeCecos || []).map(c => String(c).trim().replace(/^(CEBE|CECO)/i, ''));
+          let globalCebe = false;
+          if (normValueCebe && entry.cebe) {
+            const normField = String(entry.cebe).trim().replace(/^(CEBE|CECO)/i, '');
+            if (normField.startsWith(normValueCebe)) globalCebe = true;
+          }
+          if (normIncomeCecos.length > 0 && entry.ceco) {
+            const normField = String(entry.ceco).trim().replace(/^(CEBE|CECO)/i, '');
+            if (normIncomeCecos.some(c => normField.startsWith(c))) globalCebe = true;
+          }
+          entryIsIncome = globalCebe;
+        }
+
+        if (isIncomeType !== entryIsIncome) return false;
+        return cecoMatches(normEntryCeco);
+      }
+    };
+
+    // Apply CECO filter if set
+    if (selectedIncomeCecos.length > 0 || selectedExpenseCecos.length > 0) {
+      result = result.filter(entry => {
+        let isMatch = false;
+        if (selectedIncomeCecos.length > 0 && matchCecoFilter(entry, selectedIncomeCecos, true)) {
+          isMatch = true;
+        }
+        if (selectedExpenseCecos.length > 0 && matchCecoFilter(entry, selectedExpenseCecos, false)) {
+          isMatch = true;
+        }
+        return isMatch;
+      });
+    }
+
     // Apply Date Range Filter if set
     if (startDate) {
       result = result.filter(entry => entry.date >= startDate);
@@ -273,7 +378,7 @@ export default function ExtractoContableTab({
     }
 
     return result.sort((a, b) => new Date(b.date) - new Date(a.date));
-  }, [journalEntries, currentCebe, formData?.taxIncomeCecos, formData?.taxExpenseCecos, formData?.reference, mode, startDate, endDate]);
+  }, [journalEntries, currentCebe, formData?.taxIncomeCecos, formData?.taxExpenseCecos, formData?.reference, mode, startDate, endDate, selectedIncomeCecos, selectedExpenseCecos]);
 
   // Calculate totals
   const totals = useMemo(() => {
@@ -282,6 +387,18 @@ export default function ExtractoContableTab({
 
     const normValueCebe = currentCebe ? String(currentCebe).trim().replace(/^(CEBE|CECO)/i, '') : '';
     const normValueCeco = currentCeco ? String(currentCeco).trim().replace(/^(CEBE|CECO)/i, '') : '';
+
+    const incomeCecoMatches = (cecoCode) => {
+      if (selectedIncomeCecos.length === 0) return true;
+      const cleanCeco = String(cecoCode || '').trim().toUpperCase();
+      return selectedIncomeCecos.some(sel => cleanCeco.startsWith(String(sel).trim().toUpperCase()));
+    };
+
+    const expenseCecoMatches = (cecoCode) => {
+      if (selectedExpenseCecos.length === 0) return true;
+      const cleanCeco = String(cecoCode || '').trim().toUpperCase();
+      return selectedExpenseCecos.some(sel => cleanCeco.startsWith(String(sel).trim().toUpperCase()));
+    };
 
     filteredEntries.forEach(entry => {
       let cebeEntryAmount = 0;
@@ -293,11 +410,13 @@ export default function ExtractoContableTab({
           const lineAmt = (Number(l.debit) || 0) + (Number(l.credit) || 0);
           const accCode = String(l.accountCode || '');
 
+          const lineCeco = l.ceco || (!hasLineLevelAnalytics && entry.ceco) || '';
+
           if (mode === 'rentals') {
             if (accCode.startsWith('7')) {
-              cebeEntryAmount += lineAmt;
+              if (incomeCecoMatches(lineCeco)) cebeEntryAmount += lineAmt;
             } else if (accCode.startsWith('6')) {
-              cecoEntryAmount += lineAmt;
+              if (expenseCecoMatches(lineCeco)) cecoEntryAmount += lineAmt;
             }
           } else {
             // Properties mode
@@ -325,13 +444,20 @@ export default function ExtractoContableTab({
             if (lineMatchCebe || lineMatchCeco) {
               const isInc = accCode.startsWith('7');
               const isExp = accCode.startsWith('6');
+              let isIncomeSide = false;
               if (isInc) {
-                cebeEntryAmount += lineAmt;
+                isIncomeSide = true;
               } else if (isExp) {
-                cecoEntryAmount += lineAmt;
+                isIncomeSide = false;
               } else {
-                if (lineMatchCebe) cebeEntryAmount += lineAmt;
-                if (lineMatchCeco) cecoEntryAmount += lineAmt;
+                if (lineMatchCebe) isIncomeSide = true;
+                if (lineMatchCeco) isIncomeSide = false;
+              }
+
+              if (isIncomeSide) {
+                if (incomeCecoMatches(lineCeco)) cebeEntryAmount += lineAmt;
+              } else {
+                if (expenseCecoMatches(lineCeco)) cecoEntryAmount += lineAmt;
               }
             }
           }
@@ -339,12 +465,19 @@ export default function ExtractoContableTab({
       }
 
       if (!hasLineLevelAnalytics) {
+        const entryCeco = entry.ceco || '';
         if (mode === 'rentals') {
           const totalAmt = entry.total || 0;
-          if (totalAmt < 0 || String(entry.description || '').toLowerCase().includes('comunidad') || String(entry.description || '').toLowerCase().includes('gasto')) {
-            cecoEntryAmount = Math.abs(totalAmt);
+          const desc = String(entry.description || '').toLowerCase();
+          const isExpense = totalAmt < 0 || desc.includes('comunidad') || desc.includes('gasto');
+          if (!isExpense) {
+            if (incomeCecoMatches(entryCeco)) {
+              cebeEntryAmount = totalAmt;
+            }
           } else {
-            cebeEntryAmount = totalAmt;
+            if (expenseCecoMatches(entryCeco)) {
+              cecoEntryAmount = Math.abs(totalAmt);
+            }
           }
         } else {
           // Properties mode
@@ -360,7 +493,7 @@ export default function ExtractoContableTab({
             const normField = String(entry.ceco).trim().replace(/^(CEBE|CECO)/i, '');
             if (normIncomeCecos.some(c => normField.startsWith(c))) globalCebe = true;
           }
-          if (globalCebe) {
+          if (globalCebe && incomeCecoMatches(entryCeco)) {
             cebeEntryAmount = entry.total || 0;
           }
 
@@ -369,7 +502,7 @@ export default function ExtractoContableTab({
             const normField = String(entry.ceco).trim().replace(/^(CEBE|CECO)/i, '');
             if (normExpenseCecos.some(c => normField.startsWith(c))) globalCeco = true;
           }
-          if (globalCeco) {
+          if (globalCeco && expenseCecoMatches(entryCeco)) {
             cecoEntryAmount = entry.total || 0;
           }
         }
@@ -384,7 +517,7 @@ export default function ExtractoContableTab({
       ceco: cecoSum,
       balance: cebeSum - cecoSum
     };
-  }, [filteredEntries, currentCebe, currentCeco, formData?.taxIncomeCecos, formData?.taxExpenseCecos, mode]);
+  }, [filteredEntries, currentCebe, currentCeco, formData?.taxIncomeCecos, formData?.taxExpenseCecos, mode, selectedIncomeCecos, selectedExpenseCecos]);
 
   const handleCebeChange = async (e) => {
     const val = e.target.value;
@@ -499,8 +632,8 @@ export default function ExtractoContableTab({
         </div>
       )}
 
-      {/* Date Range Filters */}
-      <div className="p-2.5 bg-slate-100 border border-[#808080] win-bevel flex flex-wrap items-center gap-4 text-xs select-none">
+      {/* Date Range Filters & CECO Multiselect */}
+      <div className="p-2.5 bg-slate-100 border border-[#808080] win-bevel flex flex-wrap items-center gap-4 text-xs select-none relative">
         <div className="flex items-center gap-2">
           <span className="text-[10px] font-bold text-slate-700 uppercase">Desde:</span>
           <input 
@@ -519,13 +652,173 @@ export default function ExtractoContableTab({
             onChange={e => setEndDate(e.target.value)} 
           />
         </div>
-        {(startDate || endDate) && (
+           {/* CECOs Ingresos Multiselect Filter */}
+        <div className="flex items-center gap-2 relative">
+          <span className="text-[10px] font-bold text-slate-700 uppercase">CECOs Ingresos:</span>
+          <div className="relative min-w-[180px]">
+            <button
+              type="button"
+              onClick={() => setShowIncomeCecoDropdown(!showIncomeCecoDropdown)}
+              className="win-input w-full flex justify-between items-center bg-white px-2 py-1 font-mono text-[11px] border border-gray-400 cursor-pointer rounded min-h-[24px]"
+            >
+              <span className="truncate max-w-[150px] text-slate-750 font-sans">
+                {selectedIncomeCecos.length === 0 ? 'Todos los Ingresos' : selectedIncomeCecos.join(', ')}
+              </span>
+              <span className="text-[9px] text-slate-500">▼</span>
+            </button>
+            
+            {showIncomeCecoDropdown && (
+              <>
+                <div className="fixed inset-0 z-40" onClick={() => setShowIncomeCecoDropdown(false)} />
+                <div className="absolute left-0 right-0 top-full mt-1 bg-white border border-[#808080] shadow-lg max-h-[200px] overflow-y-auto p-1.5 flex flex-col gap-1 rounded win-bevel z-50">
+                  <input
+                    type="text"
+                    placeholder="Buscar CECO..."
+                    className="w-full text-[10px] px-1.5 py-0.5 border border-slate-300 rounded mb-1 outline-none focus:border-blue-400 font-sans normal-case"
+                    value={incomeCecoSearch}
+                    onChange={e => setIncomeCecoSearch(e.target.value)}
+                    onClick={e => e.stopPropagation()}
+                    autoFocus
+                  />
+                  <label className="flex items-center gap-1.5 text-[10px] cursor-pointer hover:bg-slate-50 py-0.5 rounded select-none font-bold text-blue-900 border-b border-slate-100 pb-1">
+                    <input
+                      type="checkbox"
+                      checked={selectedIncomeCecos.length === 0}
+                      onChange={() => setSelectedIncomeCecos([])}
+                      className="mt-0.5"
+                    />
+                    <span>Todos</span>
+                  </label>
+                  {cecos
+                    .filter(c => 
+                      c.code.toLowerCase().includes(incomeCecoSearch.toLowerCase()) || 
+                      c.name.toLowerCase().includes(incomeCecoSearch.toLowerCase())
+                    )
+                    .map(c => (
+                      <label key={c.id} className="flex items-start gap-1.5 text-[10px] cursor-pointer hover:bg-slate-50 py-0.5 rounded select-none">
+                        <input
+                          type="checkbox"
+                          checked={selectedIncomeCecos.includes(c.code)}
+                          onChange={() => {
+                            setSelectedIncomeCecos(prev =>
+                              prev.includes(c.code)
+                                ? prev.filter(code => code !== c.code)
+                                : [...prev, c.code]
+                            );
+                          }}
+                          className="mt-0.5"
+                        />
+                        <span className="text-slate-700">{c.code} - {c.name}</span>
+                      </label>
+                    ))}
+                  {cecos.filter(c => 
+                    c.code.toLowerCase().includes(incomeCecoSearch.toLowerCase()) || 
+                    c.name.toLowerCase().includes(incomeCecoSearch.toLowerCase())
+                  ).length === 0 && (
+                    <span className="text-[10px] text-slate-400 italic px-1">No se encontraron CECOs</span>
+                  )}
+                </div>
+              </>
+            )}
+          </div>
+          {selectedIncomeCecos.length > 0 && (
+            <button
+              type="button"
+              onClick={() => setSelectedIncomeCecos([])}
+              className="px-2 py-0.5 border border-red-300 bg-red-50 text-red-700 hover:bg-red-100 shadow-sm text-[10px] font-bold uppercase cursor-pointer rounded"
+            >
+              Limpiar
+            </button>
+          )}
+        </div>
+
+        {/* CECOs Gastos Multiselect Filter */}
+        <div className="flex items-center gap-2 relative">
+          <span className="text-[10px] font-bold text-slate-700 uppercase">CECOs Gastos:</span>
+          <div className="relative min-w-[180px]">
+            <button
+              type="button"
+              onClick={() => setShowExpenseCecoDropdown(!showExpenseCecoDropdown)}
+              className="win-input w-full flex justify-between items-center bg-white px-2 py-1 font-mono text-[11px] border border-gray-400 cursor-pointer rounded min-h-[24px]"
+            >
+              <span className="truncate max-w-[150px] text-slate-750 font-sans">
+                {selectedExpenseCecos.length === 0 ? 'Todos los Gastos' : selectedExpenseCecos.join(', ')}
+              </span>
+              <span className="text-[9px] text-slate-555">▼</span>
+            </button>
+            
+            {showExpenseCecoDropdown && (
+              <>
+                <div className="fixed inset-0 z-40" onClick={() => setShowExpenseCecoDropdown(false)} />
+                <div className="absolute left-0 right-0 top-full mt-1 bg-white border border-[#808080] shadow-lg max-h-[200px] overflow-y-auto p-1.5 flex flex-col gap-1 rounded win-bevel z-50">
+                  <input
+                    type="text"
+                    placeholder="Buscar CECO..."
+                    className="w-full text-[10px] px-1.5 py-0.5 border border-slate-300 rounded mb-1 outline-none focus:border-blue-400 font-sans normal-case"
+                    value={expenseCecoSearch}
+                    onChange={e => setExpenseCecoSearch(e.target.value)}
+                    onClick={e => e.stopPropagation()}
+                    autoFocus
+                  />
+                  <label className="flex items-center gap-1.5 text-[10px] cursor-pointer hover:bg-slate-50 py-0.5 rounded select-none font-bold text-blue-900 border-b border-slate-100 pb-1">
+                    <input
+                      type="checkbox"
+                      checked={selectedExpenseCecos.length === 0}
+                      onChange={() => setSelectedExpenseCecos([])}
+                      className="mt-0.5"
+                    />
+                    <span>Todos</span>
+                  </label>
+                  {cecos
+                    .filter(c => 
+                      c.code.toLowerCase().includes(expenseCecoSearch.toLowerCase()) || 
+                      c.name.toLowerCase().includes(expenseCecoSearch.toLowerCase())
+                    )
+                    .map(c => (
+                      <label key={c.id} className="flex items-start gap-1.5 text-[10px] cursor-pointer hover:bg-slate-50 py-0.5 rounded select-none">
+                        <input
+                          type="checkbox"
+                          checked={selectedExpenseCecos.includes(c.code)}
+                          onChange={() => {
+                            setSelectedExpenseCecos(prev =>
+                              prev.includes(c.code)
+                                ? prev.filter(code => code !== c.code)
+                                : [...prev, c.code]
+                            );
+                          }}
+                          className="mt-0.5"
+                        />
+                        <span className="text-slate-700">{c.code} - {c.name}</span>
+                      </label>
+                    ))}
+                  {cecos.filter(c => 
+                    c.code.toLowerCase().includes(expenseCecoSearch.toLowerCase()) || 
+                    c.name.toLowerCase().includes(expenseCecoSearch.toLowerCase())
+                  ).length === 0 && (
+                    <span className="text-[10px] text-slate-400 italic px-1">No se encontraron CECOs</span>
+                  )}
+                </div>
+              </>
+            )}
+          </div>
+          {selectedExpenseCecos.length > 0 && (
+            <button
+              type="button"
+              onClick={() => setSelectedExpenseCecos([])}
+              className="px-2 py-0.5 border border-red-300 bg-red-50 text-red-700 hover:bg-red-100 shadow-sm text-[10px] font-bold uppercase cursor-pointer rounded"
+            >
+              Limpiar
+            </button>
+          )}
+        </div>
+
+        {(startDate || endDate || selectedIncomeCecos.length > 0 || selectedExpenseCecos.length > 0) && (
           <button 
             type="button" 
-            onClick={() => { setStartDate(''); setEndDate(''); }} 
-            className="px-3 py-1 border border-gray-400 bg-gray-100 hover:bg-gray-200 shadow-sm text-[10px] font-bold uppercase cursor-pointer rounded"
+            onClick={() => { setStartDate(''); setEndDate(''); setSelectedIncomeCecos([]); setSelectedExpenseCecos([]); }} 
+            className="px-3 py-1 border border-gray-400 bg-gray-100 hover:bg-gray-200 shadow-sm text-[10px] font-bold uppercase cursor-pointer rounded ml-auto"
           >
-            Limpiar Fechas
+            Limpiar Filtros
           </button>
         )}
       </div>
