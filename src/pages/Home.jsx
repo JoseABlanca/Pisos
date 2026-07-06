@@ -331,24 +331,7 @@ export default function Home() {
                 <p className="text-2xl font-black text-slate-900 tracking-tight font-mono">
                   {kpis.patrimonio.toLocaleString('es-ES', { minimumFractionDigits: 2, maximumFractionDigits: 2 })} €
                 </p>
-                <div className="mt-2 text-[10px] text-slate-500 space-y-0.5 border-t border-slate-100 pt-2">
-                  <div className="flex justify-between">
-                    <span>Efectivo/Cuentas:</span>
-                    <span className="font-bold">{kpis.bankBalance.toLocaleString('es-ES', { minimumFractionDigits: 2 })} €</span>
-                  </div>
-                  <div className="flex justify-between">
-                    <span>Inmobiliario (Neto):</span>
-                    <span className="font-bold">{(kpis.realEstateValue - kpis.realEstateMortgages).toLocaleString('es-ES', { minimumFractionDigits: 2 })} €</span>
-                  </div>
-                  <div className="flex justify-between">
-                    <span>Inversión RV:</span>
-                    <span className="font-bold">{(kpis.rvPortfolioValue + kpis.rvBrokerCash).toLocaleString('es-ES', { minimumFractionDigits: 2 })} €</span>
-                  </div>
-                  <div className="flex justify-between">
-                    <span>Crowdfunding:</span>
-                    <span className="font-bold">{kpis.cfValue.toLocaleString('es-ES', { minimumFractionDigits: 2 })} €</span>
-                  </div>
-                </div>
+
               </div>
             </div>
           </div>
@@ -369,7 +352,7 @@ export default function Home() {
                 </p>
                 <div className="mt-2 text-[10px] text-slate-500 space-y-0.5 border-t border-slate-100 pt-2">
                   <div className="flex justify-between">
-                    <span>Cuenta 572:</span>
+                    <span>Tesorería:</span>
                     <span className="font-bold">{(kpis.bankBalance572 || 0).toLocaleString('es-ES', { minimumFractionDigits: 2 })} €</span>
                   </div>
                   <div className="flex justify-between items-center">
