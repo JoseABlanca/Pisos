@@ -336,11 +336,11 @@ export default function Home() {
                 <div className="mt-2 text-[10px] text-slate-500 space-y-0.5 border-t border-slate-100 pt-2">
                   <div className="flex justify-between">
                     <span>Total Activos:</span>
-                    <span className="font-bold text-blue-700">{(kpis.totalActivo || 0).toLocaleString('es-ES', { minimumFractionDigits: 2 })} €</span>
+                    <span className="font-bold">{(kpis.totalActivo || 0).toLocaleString('es-ES', { minimumFractionDigits: 2 })} €</span>
                   </div>
                   <div className="flex justify-between">
                     <span>Total Pasivos:</span>
-                    <span className="font-bold text-red-600">-{(kpis.totalPasivo || 0).toLocaleString('es-ES', { minimumFractionDigits: 2 })} €</span>
+                    <span className="font-bold">{(kpis.totalPasivo || 0).toLocaleString('es-ES', { minimumFractionDigits: 2 })} €</span>
                   </div>
                 </div>
               </div>
