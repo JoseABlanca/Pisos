@@ -60,6 +60,9 @@ const getAccountDescription = (code, rawAccounts = []) => {
   return `Cuenta contable ${code}`;
 };
 
+const monthNames = ['Enero', 'Febrero', 'Marzo', 'Abril', 'Mayo', 'Junio', 'Julio', 'Agosto', 'Septiembre', 'Octubre', 'Noviembre', 'Diciembre'];
+const monthAbbrs = ['ENE', 'FEB', 'MAR', 'ABR', 'MAY', 'JUN', 'JUL', 'AGO', 'SEP', 'OCT', 'NOV', 'DIC'];
+
 export default function Analitica() {
   const { user, queryUserIds } = useAuth();
   const [searchParams] = useSearchParams();
