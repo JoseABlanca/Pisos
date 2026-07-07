@@ -485,75 +485,93 @@ export default function Analitica() {
           MODAL: Ficha de presupuesto anual  (Foto 4 EXACT)
       ═══════════════════════════════════════════════════════════════════════ */}
       {showForm && (
-        <WinDialog title="Ficha de presupuesto anual" onClose={() => setShowForm(false)} width={440}>
-          <div className="p-4 flex flex-col gap-3">
-
-            {/* Image placeholder */}
-            <div className="w-[90px] h-[65px] border border-[#999] bg-white flex items-center justify-center self-start">
-              <svg width="36" height="28" viewBox="0 0 36 28" fill="none">
-                <rect x="1" y="1" width="34" height="26" stroke="#bbb" fill="#fff" strokeWidth="1"/>
-                <circle cx="12" cy="10" r="3" stroke="#bbb" fill="none"/>
-                <polyline points="1,22 10,14 18,20 24,16 35,22" stroke="#bbb" fill="none" strokeWidth="1"/>
-              </svg>
-            </div>
-
-            {/* Cuenta */}
-            <div className="flex items-center gap-[6px]">
-              <span className="border border-[#999] bg-white px-2 py-[3px] text-[12px] text-[#333] w-[90px] text-center">Cuenta:</span>
-              <input type="text" readOnly value={formAccount?.code || ''}
-                     onClick={() => setShowAccountSel(true)}
-                     className="w-[80px] border border-[#999] px-2 py-[3px] text-[12px] bg-white cursor-pointer outline-none" />
-              <span className="text-[12px] text-[#333] uppercase truncate flex-1">{formAccount?.name || ''}</span>
-            </div>
-
-            {/* Presupuesto anual + Repartir */}
-            <div className="flex items-center gap-[6px]">
-              <span className="border border-[#999] bg-white px-2 py-[3px] text-[12px] font-semibold text-[#333] whitespace-nowrap">Presupuesto anual:</span>
-              <input type="text" readOnly value={formTotal.toLocaleString('es-ES', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
-                     className="w-[80px] border border-[#999] px-2 py-[3px] text-[12px] text-right bg-white outline-none" />
-              <button onClick={distribute}
-                      className="border border-[#999] bg-[#e1e1e1] hover:bg-[#d0d0d0] px-3 py-[3px] text-[12px] whitespace-nowrap active:bg-[#c0c0c0]">
-                Repartir proporcionalmente
+        <div className="fixed inset-0 z-[100]" style={{ background: 'rgba(0,0,0,0.08)' }}>
+          <div style={{ position: 'absolute', left: Math.max(0, (window.innerWidth - 440) / 2), top: 120, width: 440 }}
+               className="bg-[#f0f0f0] border border-[#888] shadow-[2px_3px_12px_rgba(0,0,0,0.35)] flex flex-col select-none">
+            {/* Title bar with image icons */}
+            <div className="flex items-center justify-between px-2 py-[5px] border-b border-[#ccc]">
+              <div className="flex items-center gap-[2px]">
+                {/* Multi-frame image icons (Foto 2 style) */}
+                <svg width="52" height="38" viewBox="0 0 52 38" fill="none">
+                  {/* Back frame */}
+                  <rect x="8" y="1" width="28" height="22" stroke="#999" fill="#fff" strokeWidth="1"/>
+                  {/* Front frame */}
+                  <rect x="1" y="5" width="28" height="22" stroke="#999" fill="#fff" strokeWidth="1"/>
+                  <circle cx="10" cy="13" r="2.5" stroke="#bbb" fill="none" strokeWidth="1"/>
+                  <polyline points="1,24 8,17 14,21 20,15 29,24" stroke="#bbb" fill="none" strokeWidth="1"/>
+                  {/* Color bars decoration */}
+                  <rect x="34" y="3" width="16" height="3" fill="#e74c3c" opacity="0.7"/>
+                  <rect x="34" y="7" width="16" height="3" fill="#f39c12" opacity="0.7"/>
+                  <rect x="34" y="11" width="16" height="3" fill="#3498db" opacity="0.7"/>
+                  <rect x="34" y="15" width="16" height="3" fill="#2ecc71" opacity="0.7"/>
+                  <line x1="34" y1="22" x2="50" y2="22" stroke="#999" strokeWidth="1"/>
+                  <line x1="34" y1="26" x2="50" y2="26" stroke="#999" strokeWidth="1"/>
+                  <line x1="34" y1="30" x2="50" y2="30" stroke="#999" strokeWidth="1"/>
+                </svg>
+              </div>
+              <span className="text-[12px] text-[#333] font-normal flex-1 text-center">Ficha de presupuesto anual</span>
+              <button onClick={() => setShowForm(false)} className="w-[20px] h-[20px] flex items-center justify-center hover:bg-red-500 hover:text-white text-[#666] rounded-[2px]">
+                <X size={13} strokeWidth={2.5} />
               </button>
             </div>
 
-            {/* Months grid: 2 columns, 6 rows */}
-            <div className="border border-[#bbb] bg-white p-3">
-              <div className="grid grid-cols-2 gap-x-6 gap-y-[4px]">
+            <div className="p-4 flex flex-col gap-3">
+              {/* Cuenta */}
+              <div className="flex items-center gap-[6px]">
+                <span className="border border-[#999] bg-white px-2 py-[3px] text-[12px] text-[#333] text-center">Cuenta:</span>
+                <input type="text" readOnly value={formAccount?.code || ''}
+                       onClick={() => setShowAccountSel(true)}
+                       className="w-[70px] border border-[#999] px-2 py-[3px] text-[12px] bg-white cursor-pointer outline-none" />
+                <span className="text-[12px] text-[#333] uppercase truncate flex-1">{formAccount?.name || ''}</span>
+              </div>
+
+              {/* Presupuesto anual + Repartir */}
+              <div className="flex items-center gap-[6px]">
+                <span className="border border-[#999] bg-white px-2 py-[3px] text-[12px] font-semibold text-[#333] whitespace-nowrap">Presupuesto anual:</span>
+                <input type="text" readOnly value={formTotal.toLocaleString('es-ES', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+                       className="w-[70px] border border-[#999] px-2 py-[3px] text-[12px] text-right bg-white outline-none" />
+                <button onClick={distribute}
+                        className="border border-[#999] bg-[#e1e1e1] hover:bg-[#d0d0d0] px-3 py-[3px] text-[12px] whitespace-nowrap active:bg-[#c0c0c0]">
+                  Repartir proporcionalmente
+                </button>
+              </div>
+
+              {/* Months grid: 2 columns, 6 rows with separators */}
+              <div className="border border-[#bbb] bg-white">
                 {[...Array(6)].map((_, i) => (
-                  <div key={i} className="contents">
+                  <div key={i} className={`grid grid-cols-2 gap-x-4 px-3 py-[5px] ${i < 5 ? 'border-b border-[#e0e0e0]' : ''}`}>
                     {/* Left column month */}
                     <div className="flex items-center justify-between gap-2">
                       <span className="text-[12px] text-[#333] font-semibold w-[85px]">{MONTHS_LONG[i]}</span>
-                      <input type="number" step="0.01" value={formMonths[i] ?? 0}
-                             onChange={e => setFormMonths(p => ({ ...p, [i]: parseFloat(e.target.value) || 0 }))}
-                             className="w-[70px] border border-[#999] px-2 py-[2px] text-[12px] text-right outline-none bg-white" />
+                      <input type="text" value={(parseFloat(formMonths[i]) || 0).toLocaleString('es-ES', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+                             onChange={e => { const v = e.target.value.replace(/[^0-9,.-]/g, '').replace(',', '.'); setFormMonths(p => ({ ...p, [i]: parseFloat(v) || 0 })); }}
+                             className="w-[65px] border border-[#999] px-2 py-[2px] text-[12px] text-right outline-none bg-white" />
                     </div>
                     {/* Right column month */}
                     <div className="flex items-center justify-between gap-2">
                       <span className="text-[12px] text-[#333] font-semibold w-[85px]">{MONTHS_LONG[i + 6]}</span>
-                      <input type="number" step="0.01" value={formMonths[i + 6] ?? 0}
-                             onChange={e => setFormMonths(p => ({ ...p, [i + 6]: parseFloat(e.target.value) || 0 }))}
-                             className="w-[70px] border border-[#999] px-2 py-[2px] text-[12px] text-right outline-none bg-white" />
+                      <input type="text" value={(parseFloat(formMonths[i + 6]) || 0).toLocaleString('es-ES', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+                             onChange={e => { const v = e.target.value.replace(/[^0-9,.-]/g, '').replace(',', '.'); setFormMonths(p => ({ ...p, [i + 6]: parseFloat(v) || 0 })); }}
+                             className="w-[65px] border border-[#999] px-2 py-[2px] text-[12px] text-right outline-none bg-white" />
                     </div>
                   </div>
                 ))}
               </div>
-            </div>
 
-            {/* Buttons */}
-            <div className="flex justify-end gap-2 mt-2">
-              <button onClick={saveBudget}
-                      className="w-[80px] py-[4px] border border-[#888] bg-[#e1e1e1] hover:bg-[#d0d0d0] text-[12px] active:bg-[#c0c0c0]">
-                Aceptar
-              </button>
-              <button onClick={() => setShowForm(false)}
-                      className="w-[80px] py-[4px] border border-[#888] bg-[#e1e1e1] hover:bg-[#d0d0d0] text-[12px] active:bg-[#c0c0c0]">
-                Cancelar
-              </button>
+              {/* Buttons */}
+              <div className="flex justify-end gap-2 mt-2">
+                <button onClick={saveBudget}
+                        className="w-[80px] py-[4px] border border-[#888] bg-[#e1e1e1] hover:bg-[#d0d0d0] text-[12px] active:bg-[#c0c0c0]">
+                  Aceptar
+                </button>
+                <button onClick={() => setShowForm(false)}
+                        className="w-[80px] py-[4px] border border-[#888] bg-[#e1e1e1] hover:bg-[#d0d0d0] text-[12px] active:bg-[#c0c0c0]">
+                  Cancelar
+                </button>
+              </div>
             </div>
           </div>
-        </WinDialog>
+        </div>
       )}
 
       {/* Account selector */}
