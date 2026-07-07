@@ -113,6 +113,11 @@ export const useTableFilters = ({ columnWidths = {}, updateColumnWidth = null } 
       const th = e.currentTarget.parentElement;
       const startWidth = th.offsetWidth;
 
+      // Prevent text selection and force cursor style globally during drag
+      document.body.style.cursor = 'col-resize';
+      document.body.style.userSelect = 'none';
+      document.body.style.webkitUserSelect = 'none';
+
       const handleMouseMove = (moveEvent) => {
         const newWidth = Math.max(30, startWidth + (moveEvent.clientX - startX));
         th.style.width = `${newWidth}px`;
@@ -121,6 +126,11 @@ export const useTableFilters = ({ columnWidths = {}, updateColumnWidth = null } 
       };
 
       const handleMouseUp = (upEvent) => {
+        // Reset global styles
+        document.body.style.cursor = '';
+        document.body.style.userSelect = '';
+        document.body.style.webkitUserSelect = '';
+
         document.removeEventListener('mousemove', handleMouseMove);
         document.removeEventListener('mouseup', handleMouseUp);
         const finalWidth = Math.max(30, startWidth + (upEvent.clientX - startX));
@@ -169,7 +179,7 @@ export const useTableFilters = ({ columnWidths = {}, updateColumnWidth = null } 
           </button>
         </div>
         <div 
-          className="absolute right-0 top-0 bottom-0 w-1 cursor-col-resize hover:bg-blue-400 z-10"
+          className="absolute right-[-6px] top-0 bottom-0 w-3 cursor-col-resize hover:bg-blue-400/30 active:bg-blue-500/50 z-20"
           onMouseDown={handleMouseDown}
         />
       </th>
