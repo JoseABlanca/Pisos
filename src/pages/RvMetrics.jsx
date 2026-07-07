@@ -658,7 +658,7 @@ export default function RvMetrics() {
         
         if (isAccumulated) {
            const n = returns.length;
-           const h = Math.max(binSize * 0.4, 0.05);
+           const h = Math.max(binSize * 0.3, 0.02);
            const factor = binSize / (h * Math.sqrt(2 * Math.PI));
 
            histogramData.forEach(b => {
@@ -676,7 +676,7 @@ export default function RvMetrics() {
                  const tRets = histChartData.map(d => unit === 'EUR' ? d[`gains_${t}`] : d[`gainsPct_${t}`]).filter(r => !isNaN(r));
                  if (tRets.length > 0) {
                     const n = tRets.length;
-                    const h = Math.max(binSize * 0.4, 0.05);
+                    const h = Math.max(binSize * 0.3, 0.02);
                     const factor = binSize / (h * Math.sqrt(2 * Math.PI));
 
                     histogramData.forEach(b => {
@@ -1424,7 +1424,7 @@ export default function RvMetrics() {
                   <Legend onClick={handleLegendClick} wrapperStyle={{ fontSize: '11px', cursor: 'pointer' }} />
                   {isAccumulated ? (
                     <>
-                      <Bar name="Frecuencia (Días/Meses)" dataKey="count" fill="#3b82f6" radius={[4, 4, 0, 0]} hide={hiddenLines['count']} />
+                      <Bar name="Frecuencia (Días/Meses)" dataKey="count" fill="#3b82f6" fillOpacity={0.45} radius={[4, 4, 0, 0]} hide={hiddenLines['count']} />
                       <Line type="monotone" name="Densidad Normal" dataKey="density" stroke="#3b82f6" strokeWidth={2} dot={false} hide={hiddenLines['density']} />
                     </>
                   ) : (
@@ -1433,7 +1433,7 @@ export default function RvMetrics() {
                        const color = colors[idx % colors.length];
                        return (
                          <React.Fragment key={t}>
-                           <Bar name={`Frecuencia ${t}`} dataKey={`count_${t}`} fill={color} fillOpacity={0.6} radius={[4, 4, 0, 0]} hide={hiddenLines[`count_${t}`]} />
+                           <Bar name={`Frecuencia ${t}`} dataKey={`count_${t}`} fill={color} fillOpacity={0.35} radius={[4, 4, 0, 0]} hide={hiddenLines[`count_${t}`]} />
                            <Line type="monotone" name={`Densidad ${t}`} dataKey={`density_${t}`} stroke={color} strokeWidth={2} dot={false} hide={hiddenLines[`density_${t}`]} />
                          </React.Fragment>
                        )

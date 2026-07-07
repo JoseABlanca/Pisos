@@ -34,7 +34,8 @@ import {
   FileSpreadsheet,
   TrendingUp,
   Landmark,
-  Printer
+  Printer,
+  RefreshCw
 } from 'lucide-react';
 import PunteoModal from './PunteoModal';
 import BankReconciliationModal from './BankReconciliationModal';
@@ -980,6 +981,12 @@ export default function Layout() {
           { name: 'Modificar', action: 'rv-asset:edit', path: '/rv-assets', customIcon: 'Modificar' },
           { name: 'Eliminar', action: 'rv-asset:delete', path: '/rv-assets', customIcon: 'Eliminar' }
         ] 
+      },
+      {
+        group: 'Procesos',
+        items: [
+          { name: 'Actualizar precios', action: 'rv-asset:refresh-prices', icon: RefreshCw, path: '/rv-assets' }
+        ]
       },
       {
         group: 'Acciones',

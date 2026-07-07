@@ -1,4 +1,4 @@
-import { useState, useEffect, useMemo } from 'react';
+import { useState, useEffect, useMemo, useCallback } from 'react';
 import { db } from '../firebase/config';
 import { collection, query, where, onSnapshot, doc, setDoc, deleteDoc, writeBatch } from 'firebase/firestore';
 import { useAuth } from '../context/AuthContext';
@@ -96,18 +96,19 @@ export default function RvAssets() {
     return () => unsub();
   }, [user, queryUserIds]);
 
-  // Background price updater for all assets on page load
-  useEffect(() => {
-    if (!user || assets.length === 0 || hasRefreshedPrices) return;
-    setHasRefreshedPrices(true);
-
-    const updateAllPrices = async () => {
+  const updateAllPrices = useCallback(async (force = false) => {
+    setIsFetchingCurrentPrice(true);
+    try {
       const assetsToUpdate = assets.filter(a => a.apiSource === 'Yahoo Finance' && (a.ticker || a.id));
+      let updatedCount = 0;
+      
       for (const asset of assetsToUpdate) {
-        // Only update if not updated in the last 15 minutes
-        const lastUpdated = asset.updatedAt ? new Date(asset.updatedAt).getTime() : 0;
-        const fifteenMinutesAgo = Date.now() - 15 * 60 * 1000;
-        if (lastUpdated > fifteenMinutesAgo) continue;
+        if (!force) {
+          // Only update if not updated in the last 15 minutes
+          const lastUpdated = asset.updatedAt ? new Date(asset.updatedAt).getTime() : 0;
+          const fifteenMinutesAgo = Date.now() - 15 * 60 * 1000;
+          if (lastUpdated > fifteenMinutesAgo) continue;
+        }
 
         try {
           const ticker = asset.ticker || asset.id;
@@ -115,15 +116,38 @@ export default function RvAssets() {
           if (price !== null && parseFloat(asset.currentPrice) !== parseFloat(price)) {
             const docRef = doc(db, 'rv_assets', asset.id);
             await setDoc(docRef, { currentPrice: price, updatedAt: new Date().toISOString() }, { merge: true });
+            updatedCount++;
           }
         } catch (err) {
           console.error(`Error updating price for ${asset.id}:`, err);
         }
       }
-    };
+      
+      if (force) {
+        alert(`Actualización completada. Se han actualizado las cotizaciones en tiempo real.`);
+      }
+    } catch (e) {
+      console.error(e);
+    } finally {
+      setIsFetchingCurrentPrice(false);
+    }
+  }, [assets]);
 
-    updateAllPrices();
-  }, [user, assets, hasRefreshedPrices]);
+  // Background price updater for all assets on page load
+  useEffect(() => {
+    if (!user || assets.length === 0 || hasRefreshedPrices) return;
+    setHasRefreshedPrices(true);
+    updateAllPrices(false);
+  }, [user, assets, hasRefreshedPrices, updateAllPrices]);
+
+  // Event listener for manual price refresh from Ribbon
+  useEffect(() => {
+    const handleRefreshEvent = () => {
+      updateAllPrices(true);
+    };
+    window.addEventListener('rv-asset:refresh-prices', handleRefreshEvent);
+    return () => window.removeEventListener('rv-asset:refresh-prices', handleRefreshEvent);
+  }, [updateAllPrices]);
 
   // Fetch asset historical prices when opening the form
   useEffect(() => {
