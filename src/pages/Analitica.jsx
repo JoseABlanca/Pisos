@@ -3,6 +3,7 @@ import { db } from '../firebase/config';
 import { collection, query, where, onSnapshot, doc, setDoc, deleteDoc } from 'firebase/firestore';
 import { useAuth } from '../context/AuthContext';
 import { Search, X } from 'lucide-react';
+import Accounts from './Accounts';
 
 /* ═══════════════════════════════════════════════════════════════════════════════
    PGC DESCRIPTIONS
@@ -589,13 +590,31 @@ export default function Analitica() {
         </div>
       )}
 
-      {/* Account selector */}
+      {/* Account selector - Full Accounts modal (same as Plan de Cuentas) */}
       {showAccountSel && (
-        <AccountSelector
-          accounts={rawAccounts}
-          onSelect={acc => { setFormAccount(acc); setShowAccountSel(false); }}
-          onClose={() => setShowAccountSel(false)}
-        />
+        <div className="fixed inset-0 z-[200] flex flex-col" style={{ background: 'rgba(0,0,0,0.3)' }}>
+          <div className="flex flex-col w-full h-full max-w-[1000px] max-h-[700px] m-auto bg-white border border-[#888] shadow-[2px_3px_16px_rgba(0,0,0,0.4)]">
+            {/* Blue header bar */}
+            <div className="flex items-center justify-between px-3 py-[6px] bg-[#4472c4] shrink-0">
+              <span className="text-white text-[12px] font-bold tracking-wide uppercase">Selección de cuenta</span>
+              <button onClick={() => setShowAccountSel(false)}
+                      className="w-[22px] h-[22px] flex items-center justify-center hover:bg-red-500 text-white rounded-[2px]">
+                <X size={14} strokeWidth={2.5} />
+              </button>
+            </div>
+            {/* Accounts component in modal mode */}
+            <div className="flex-1 overflow-hidden">
+              <Accounts
+                isModal={true}
+                onAccountSelect={(code, name) => {
+                  const acc = rawAccounts.find(a => a.code === code) || { id: code, code, name };
+                  setFormAccount(acc);
+                  setShowAccountSel(false);
+                }}
+              />
+            </div>
+          </div>
+        </div>
       )}
     </div>
   );
