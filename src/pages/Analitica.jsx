@@ -37,33 +37,86 @@ const desc = (code, accounts=[]) => {
 const MONTHS_SHORT = ['ENE','FEB','MAR','ABR','MAY','JUN','JUL','AGO','SEP','OCT','NOV','DIC'];
 const YEARS = [2023,2024,2025,2026,2027,2028];
 
-// ── Windows Desktop Icons (Precise replicas) ──────────────────────────────
-const IcoNuevo    = ()=><img src="data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'><path d='M6 2v28h20V10L16 2H6z' fill='%23fff' stroke='%23444' stroke-width='1.5'/><path d='M16 2v8h10' fill='none' stroke='%23444' stroke-width='1.5'/><path d='M11 18h10M16 13v10' stroke='%2310b981' stroke-width='3'/></svg>" width="22" height="22" />;
-const IcoModif    = ()=><img src="data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'><path d='M6 2v28h20V10L16 2H6z' fill='%23fff' stroke='%23444' stroke-width='1.5'/><path d='M16 2v8h10' fill='none' stroke='%23444' stroke-width='1.5'/><path d='M10 24l8-8-2-2-8 8v2h2z' fill='%233b82f6' stroke='%232563eb' stroke-width='1'/></svg>" width="22" height="22" />;
-const IcoElim     = ()=><img src="data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'><path d='M6 2v28h20V10L16 2H6z' fill='%23fff' stroke='%23444' stroke-width='1.5'/><path d='M16 2v8h10' fill='none' stroke='%23444' stroke-width='1.5'/><path d='M11 14l10 10M21 14L11 24' stroke='%23ef4444' stroke-width='2.5'/></svg>" width="22" height="22" />;
-const IcoSubir    = ()=><img src="data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'><path d='M16 28V4M8 12l8-8 8 8' fill='none' stroke='%23555' stroke-width='2'/></svg>" width="20" height="20" />;
-const IcoBajar    = ()=><img src="data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'><path d='M16 4v24M8 20l8 8 8-8' fill='none' stroke='%23555' stroke-width='2'/></svg>" width="20" height="20" />;
-const IcoExp      = ()=><img src="data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'><path d='M4 10v16h24V12H14l-3-2H4z' fill='%23fef08a' stroke='%23ca8a04' stroke-width='1.5'/><path d='M12 18h8M16 14v8' stroke='%2310b981' stroke-width='2.5'/></svg>" width="22" height="22" />;
-const IcoCol      = ()=><img src="data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'><path d='M4 10v16h24V12H14l-3-2H4z' fill='%23fef08a' stroke='%23ca8a04' stroke-width='1.5'/><path d='M12 18h8' stroke='%23ef4444' stroke-width='2.5'/></svg>" width="22" height="22" />;
+// ── PERFECT PIXEL ICONS (Matched to Photo 1) ──────────────────────────────
+const IcoNuevo = () => (
+  <svg width="24" height="24" viewBox="0 0 24 24" fill="none">
+    <path d="M6 3h8l4 4v14H6V3z" fill="#fff" stroke="#666" strokeWidth="1.2"/>
+    <path d="M14 3v4h4" fill="none" stroke="#666" strokeWidth="1.2"/>
+    <path d="M12 14v6m-3-3h6" stroke="#4ade80" strokeWidth="2.5"/>
+  </svg>
+);
+const IcoModif = () => (
+  <svg width="24" height="24" viewBox="0 0 24 24" fill="none">
+    <path d="M6 3h8l4 4v14H6V3z" fill="#fff" stroke="#666" strokeWidth="1.2"/>
+    <path d="M14 3v4h4" fill="none" stroke="#666" strokeWidth="1.2"/>
+    <path d="M10 20l5-5-2-2-5 5v2h2z" fill="#60a5fa" stroke="#3b82f6" strokeWidth="1"/>
+    <path d="M14 14l2 2" stroke="#3b82f6" strokeWidth="1"/>
+  </svg>
+);
+const IcoElim = () => (
+  <svg width="24" height="24" viewBox="0 0 24 24" fill="none">
+    <path d="M6 3h8l4 4v14H6V3z" fill="#fff" stroke="#666" strokeWidth="1.2"/>
+    <path d="M14 3v4h4" fill="none" stroke="#666" strokeWidth="1.2"/>
+    <path d="M11 15l4 4m0-4l-4 4" stroke="#ef4444" strokeWidth="2"/>
+  </svg>
+);
+const IcoSubir = () => (
+  <svg width="24" height="24" viewBox="0 0 24 24" fill="none">
+    <path d="M12 20V4m-5 5l5-5 5 5" stroke="#4b5563" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round"/>
+  </svg>
+);
+const IcoBajar = () => (
+  <svg width="24" height="24" viewBox="0 0 24 24" fill="none">
+    <path d="M12 4v16m-5-5l5 5 5-5" stroke="#4b5563" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round"/>
+  </svg>
+);
+const IcoExp = () => (
+  <svg width="24" height="24" viewBox="0 0 24 24" fill="none">
+    <path d="M3 8v10h16V10H11l-2-2H3z" fill="#fcd34d" stroke="#d97706" strokeWidth="1.2"/>
+    <rect x="13" y="13" width="8" height="8" fill="#fff" stroke="#666" strokeWidth="1"/>
+    <path d="M14.5 17l1.5 1.5 2.5-3" stroke="#22c55e" strokeWidth="1.5" fill="none"/>
+  </svg>
+);
+const IcoCol = () => (
+  <svg width="24" height="24" viewBox="0 0 24 24" fill="none">
+    <path d="M3 8v10h16V10H11l-2-2H3z" fill="#fcd34d" stroke="#d97706" strokeWidth="1.2"/>
+    <rect x="13" y="13" width="8" height="8" fill="#fff" stroke="#666" strokeWidth="1"/>
+    <path d="M14.5 17h5" stroke="#ef4444" strokeWidth="1.5"/>
+  </svg>
+);
+
+const IcoSidebarToggle = () => (
+  <svg width="14" height="14" viewBox="0 0 14 14" fill="none">
+    <rect x="1" y="2" width="12" height="10" rx="1.5" stroke="#6b7280" strokeWidth="1.2"/>
+    <line x1="5" y1="2" x2="5" y2="12" stroke="#6b7280" strokeWidth="1.2"/>
+  </svg>
+);
 
 const WinCheckbox = ({ checked, onChange, label, isRadio, name }) => (
   <label className="flex items-center gap-2 cursor-pointer select-none mb-[2px]">
     <input type={isRadio?"radio":"checkbox"} name={name} checked={checked} onChange={onChange}
            className="m-0 p-0 w-[12px] h-[12px] accent-blue-600 outline-none" />
-    <span className={`text-[11px] font-[Segoe_UI,Tahoma,sans-serif] ${checked&&isRadio?'text-blue-700 font-semibold':'text-gray-600'}`}>{label}</span>
+    <span className={`text-[11px] font-[Segoe_UI,Tahoma,sans-serif] ${checked&&isRadio?'text-blue-700 font-semibold':'text-[#444]'}`}>{label}</span>
   </label>
 );
 
 // ── ToolbarBtn ────────────────────────────────────────────────────────────────
-function TBtn({ icon: Icon, label, onClick, disabled=false }) {
+function TBtn({ icon: Icon, label, hasDropdown, onClick, disabled=false }) {
   return (
     <button onClick={onClick} disabled={disabled}
-            className={`flex flex-col items-center justify-center px-1.5 py-1 border border-transparent rounded-[2px] disabled:opacity-40 min-w-[50px]
-                       hover:bg-[#e5f1fb] hover:border-[#a0c5e8]`}>
+            className={`flex flex-col items-center justify-center px-2 py-[2px] border border-transparent rounded-[2px] disabled:opacity-40 min-w-[50px]
+                       hover:bg-[#e5f1fb] hover:border-[#a0c5e8] group`}>
       <div className="h-[24px] flex items-center justify-center">
         <Icon/>
       </div>
-      <span className="text-[10px] text-[#333] font-[Segoe_UI] leading-none mt-1">{label}</span>
+      <div className="flex flex-col items-center mt-[2px]">
+        <span className="text-[11px] text-[#1c4980] font-[Segoe_UI] leading-none group-hover:text-[#0f2d54]">{label}</span>
+        {hasDropdown && (
+          <svg width="6" height="4" viewBox="0 0 6 4" fill="none" className="mt-[2px]">
+            <path d="M0 0l3 3 3-3" stroke="#1c4980" strokeWidth="1" strokeLinecap="round" strokeLinejoin="round"/>
+          </svg>
+        )}
+      </div>
     </button>
   );
 }
@@ -171,38 +224,38 @@ export default function Analitica() {
   return (
     <div className="w-full h-full flex flex-col bg-white font-[Segoe_UI,Tahoma,sans-serif] text-[12px] text-[#333]">
 
-      {/* ── PAGE TOOLBAR (Foto 1) ─────────────────────────────────────────── */}
-      <div className="bg-white border-b border-[#e5e5e5] flex items-center px-2 py-[4px] shrink-0 h-[60px]">
-        <TBtn icon={IcoNuevo}  label="Nuevo"     onClick={()=>{}}/>
-        <TBtn icon={IcoModif}  label="Modificar" onClick={()=>{}} disabled={!selectedCode}/>
-        <TBtn icon={IcoElim}   label="Eliminar"  onClick={()=>{}} disabled={!selectedCode}/>
-        <div className="w-[1px] h-8 bg-[#e5e5e5] mx-2"/>
-        <TBtn icon={IcoSubir}  label="Subir"     onClick={()=>{}} disabled={!selectedCode}/>
-        <TBtn icon={IcoBajar}  label="Bajar"     onClick={()=>{}} disabled={!selectedCode}/>
-        <div className="w-[1px] h-8 bg-[#e5e5e5] mx-2"/>
-        <TBtn icon={IcoExp}    label="Expandir"  onClick={()=>setCollapsed({})}/>
-        <TBtn icon={IcoCol}    label="Colapsar"  onClick={()=>{ const k={}; treeRows.forEach(r=>{ if(r.hasChildren) k[r.code]=true; }); setCollapsed(k); }}/>
+      {/* ── PAGE TOOLBAR (Foto 1 EXACT) ─────────────────────────────────────────── */}
+      <div className="bg-[#f5f6f7] flex items-center px-2 py-1 shrink-0 h-[68px]">
+        <TBtn icon={IcoNuevo}  label="Nuevo"     hasDropdown={true} onClick={()=>{}}/>
+        <TBtn icon={IcoModif}  label="Modificar" hasDropdown={true} onClick={()=>{}} disabled={!selectedCode}/>
+        <TBtn icon={IcoElim}   label="Eliminar"  hasDropdown={true} onClick={()=>{}} disabled={!selectedCode}/>
+        <div className="w-[1px] h-10 bg-[#e0e2e5] mx-3"/>
+        <TBtn icon={IcoSubir}  label="Subir"     hasDropdown={false} onClick={()=>{}} disabled={!selectedCode}/>
+        <TBtn icon={IcoBajar}  label="Bajar"     hasDropdown={false} onClick={()=>{}} disabled={!selectedCode}/>
+        <div className="w-[1px] h-10 bg-[#e0e2e5] mx-3"/>
+        <TBtn icon={IcoExp}    label="Expandir"  hasDropdown={false} onClick={()=>setCollapsed({})}/>
+        <TBtn icon={IcoCol}    label="Colapsar"  hasDropdown={false} onClick={()=>{ const k={}; treeRows.forEach(r=>{ if(r.hasChildren) k[r.code]=true; }); setCollapsed(k); }}/>
         
         <div className="flex-1"/>
         
         {/* Right aligned search bar exactly as in Foto 1 */}
-        <div className="relative flex items-center mr-2">
+        <div className="relative flex items-center mr-4 self-end mb-[6px]">
           <input type="text" placeholder="Buscar en el fichero (Alt+B)"
                  value={searchQuery} onChange={e=>setSearchQuery(e.target.value)}
-                 className="w-[260px] text-left pl-2 pr-6 py-[2px] text-[11px] border-b border-[#ccc] outline-none focus:border-b-blue-500 bg-transparent placeholder-gray-400"/>
-          <Search size={14} className="absolute right-1 text-gray-400 pointer-events-none"/>
+                 className="w-[220px] text-left pr-6 py-[2px] text-[11px] border-b border-[#a0a0a0] outline-none focus:border-b-blue-500 bg-transparent placeholder-gray-400 text-gray-700"/>
+          <Search size={12} className="absolute right-0 text-gray-400 pointer-events-none"/>
         </div>
       </div>
 
       {/* ── BODY ──────────────────────────────────────────────────────────── */}
       <div className="flex flex-1 overflow-hidden">
 
-        {/* LEFT SIDEBAR (Foto 1) */}
+        {/* LEFT SIDEBAR (Foto 1 EXACT) */}
         {sidebarVisible && (
-          <div className="w-[230px] bg-[#f8f9fa] border-r border-[#e5e5e5] flex flex-col shrink-0 overflow-hidden">
+          <div className="w-[230px] bg-[#f5f6f7] border-r border-[#e5e5e5] flex flex-col shrink-0 overflow-hidden">
             <div className="flex-1 flex flex-col overflow-y-auto">
               
-              <div className="bg-[#f0f2f5] border-b border-[#e5e5e5] text-[#333] text-[12px] px-3 py-1.5 mb-2 font-semibold">
+              <div className="bg-[#e9ebef] text-[#1c4980] text-[12.5px] px-3 py-1.5 font-bold mb-2">
                 Lista actual
               </div>
               <div className="px-4 flex flex-col gap-[3px]">
@@ -211,14 +264,14 @@ export default function Analitica() {
                 ))}
               </div>
 
-              <div className="border-t border-[#e5e5e5] mt-3 mb-3 mx-4"/>
+              <div className="mx-4 my-3"/>
               
               <div className="px-4 flex flex-col gap-[3px] pb-4">
                 <WinCheckbox checked={showPgc}      onChange={e=>setShowPgc(e.target.checked)}      label="Mostrar cuentas del PGC" />
                 <WinCheckbox checked={showAux}      onChange={e=>setShowAux(e.target.checked)}      label="Mostrar cuentas auxiliares" />
                 <WinCheckbox checked={showObsolete} onChange={e=>setShowObsolete(e.target.checked)} label="Mostrar cuentas obsoletas" />
                 
-                {/* As requested in the previous message, I am keeping these filters here but matching Foto 1 styling */}
+                {/* Extra filters requested previously, keeping them subtle */}
                 <div className="border-t border-[#e5e5e5] mt-2 mb-2"/>
                 <div className="flex flex-col gap-1 mt-1">
                   <span className="text-[11px] text-[#555]">Filtrar por fecha:</span>
@@ -232,8 +285,8 @@ export default function Analitica() {
 
             </div>
 
-            {/* Ver saldos del diario (Bottom of sidebar) */}
-            <div className="bg-[#f0f2f5] border-t border-[#e5e5e5] p-3 shrink-0">
+            {/* Ver saldos del diario */}
+            <div className="bg-[#e9ebef] border-t border-[#d5d7db] p-3 shrink-0">
               <div className="text-[11px] text-[#555] mb-1">Ver saldos del diario</div>
               <select className="w-full border border-[#ccc] bg-white text-[11px] px-1 py-[3px] outline-none">
                 <option>Todas</option>
@@ -244,16 +297,14 @@ export default function Analitica() {
 
         {/* MAIN TABLE AREA */}
         <div className="flex-1 flex flex-col overflow-hidden bg-white">
-          <div className="flex-1 overflow-auto" onClick={()=>setSelectedCode(null)}>
+          <div className="flex-1 overflow-auto border-t border-[#e5e5e5]" onClick={()=>setSelectedCode(null)}>
             <table className="w-full border-collapse" style={{tableLayout:'fixed'}}>
               <thead>
-                <tr className="sticky top-0 bg-white border-y border-[#e5e5e5] z-10 shadow-[0_1px_0_#e5e5e5]">
+                <tr className="sticky top-0 bg-white border-b border-[#e5e5e5] z-10 shadow-[0_1px_0_#e5e5e5]">
                   <th className="text-left font-normal text-[#555] text-[10px] uppercase py-[6px] px-2 w-[220px] flex items-center">
                     <button onClick={()=>setSidebarVisible(p=>!p)} title="Ocultar filtros"
-                            className="w-[14px] h-[14px] border border-[#ccc] bg-white mr-2 flex items-center justify-center hover:bg-gray-100">
-                      <svg width="8" height="8" viewBox="0 0 8 8" fill="none" stroke="#666" strokeWidth="1">
-                        <line x1="0" y1="4" x2="8" y2="4"/><line x1="4" y1="0" x2="4" y2="8"/>
-                      </svg>
+                            className="mr-2 hover:bg-gray-100 p-[2px] rounded flex items-center justify-center">
+                      <IcoSidebarToggle />
                     </button>
                     CUENTA
                   </th>
