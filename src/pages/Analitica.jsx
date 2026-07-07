@@ -82,8 +82,13 @@ export default function Analitica() {
   const [showForm, setShowForm] = useState(false);
   const [isEditing, setIsEditing] = useState(false);
 
+  // Desviación Modal States (Photo 3 design)
+  const [showDesviacionModal, setShowDesviacionModal] = useState(false);
+  const [desviacionAccount, setDesviacionAccount] = useState(null); // { id, code, name }
+
   // Selector Modal States (Photo 4 style)
   const [showAccountSelector, setShowAccountSelector] = useState(false);
+  const [accountSelectorTarget, setAccountSelectorTarget] = useState('budget'); // 'budget' | 'desviacion'
   const [selectorGroupFilter, setSelectorGroupFilter] = useState('ALL'); // 'ALL' or '0'..'9'
   const [showPgcAccounts, setShowPgcAccounts] = useState(true);
   const [showAuxAccounts, setShowAuxAccounts] = useState(true);
@@ -134,64 +139,28 @@ export default function Analitica() {
     };
   }, [user, queryUserIds]);
 
-  // Handle ribbon button triggers
+  // Handle ribbon and custom events
   useEffect(() => {
-    const onNew = () => handleNew();
-    const onEdit = () => {
+    const onOpenDesviacionModal = () => {
+      // If a code is selected in the main table, default to it
       if (selectedCode) {
-        // Find existing budget doc for selected code and year
-        const yearInt = parseInt(selectedYearFilter, 10);
-        const budget = budgets.find(b => b.accountCode === selectedCode && b.year === yearInt);
         const acc = rawAccounts.find(a => a.code === selectedCode);
-        if (budget) {
-          handleEdit(budget);
-        } else if (acc) {
-          setFormAccount(acc);
-          setFormYear(yearInt);
-          setFormTotal(0);
-          setFormMonths({
-            0: 0, 1: 0, 2: 0, 3: 0, 4: 0, 5: 0, 6: 0, 7: 0, 8: 0, 9: 0, 10: 0, 11: 0
-          });
-          setIsEditing(false);
-          setShowForm(true);
+        if (acc) {
+          setDesviacionAccount(acc);
         } else {
-          alert('Por favor, selecciona una cuenta contable de la lista para presupuestar.');
+          setDesviacionAccount({ id: selectedCode, code: selectedCode, name: getAccountDescription(selectedCode, rawAccounts) });
         }
       } else {
-        handleNew();
+        setDesviacionAccount(null);
       }
-    };
-    const onDelete = () => {
-      if (selectedCode) {
-        const yearInt = parseInt(selectedYearFilter, 10);
-        const budget = budgets.find(b => b.accountCode === selectedCode && b.year === yearInt);
-        if (budget) {
-          handleDelete(budget);
-        } else {
-          alert('No existe un presupuesto asignado para esta cuenta en el año seleccionado.');
-        }
-      } else {
-        alert('Selecciona una cuenta con presupuesto asignado para eliminar.');
-      }
+      setShowDesviacionModal(true);
     };
 
-    const onColumns = (e) => {
-      const { columnId } = e.detail || {};
-      if (columnId) toggleColumn(columnId);
-    };
-
-    window.addEventListener('analitica:new', onNew);
-    window.addEventListener('analitica:edit', onEdit);
-    window.addEventListener('analitica:delete', onDelete);
-    window.addEventListener('analitica:columns', onColumns);
-
+    window.addEventListener('analitica:open-desviacion-modal', onOpenDesviacionModal);
     return () => {
-      window.removeEventListener('analitica:new', onNew);
-      window.removeEventListener('analitica:edit', onEdit);
-      window.removeEventListener('analitica:delete', onDelete);
-      window.removeEventListener('analitica:columns', onColumns);
+      window.removeEventListener('analitica:open-desviacion-modal', onOpenDesviacionModal);
     };
-  }, [selectedCode, selectedYearFilter, budgets, rawAccounts, user]);
+  }, [selectedCode, rawAccounts]);
 
   // 2. Filter & Process Budgets for selected year
   const budgetsForYear = useMemo(() => {
@@ -374,6 +343,59 @@ export default function Analitica() {
     });
   }, [processedTreeRows, filterQuery, collapsedKeys]);
 
+  // Page level toolbar actions
+  const onEditSelected = () => {
+    if (!selectedCode) return;
+    const yearInt = parseInt(selectedYearFilter, 10);
+    const budget = budgets.find(b => b.accountCode === selectedCode && b.year === yearInt);
+    const acc = rawAccounts.find(a => a.code === selectedCode);
+    if (budget) {
+      handleEdit(budget);
+    } else if (acc) {
+      setFormAccount(acc);
+      setFormYear(yearInt);
+      setFormTotal(0);
+      setFormMonths({
+        0: 0, 1: 0, 2: 0, 3: 0, 4: 0, 5: 0, 6: 0, 7: 0, 8: 0, 9: 0, 10: 0, 11: 0
+      });
+      setIsEditing(false);
+      setShowForm(true);
+    }
+  };
+
+  const onDeleteSelected = () => {
+    if (!selectedCode) return;
+    const yearInt = parseInt(selectedYearFilter, 10);
+    const budget = budgets.find(b => b.accountCode === selectedCode && b.year === yearInt);
+    if (budget) {
+      handleDelete(budget);
+    } else {
+      alert('No existe un presupuesto asignado para esta cuenta en el año seleccionado.');
+    }
+  };
+
+  const onMoveUp = () => {
+    alert('El orden de las cuentas contables es automático y viene determinado por el código del Plan General Contable.');
+  };
+
+  const onMoveDown = () => {
+    alert('El orden de las cuentas contables es automático y viene determinado por el código del Plan General Contable.');
+  };
+
+  const onExpandAll = () => {
+    setCollapsedKeys({});
+  };
+
+  const onCollapseAll = () => {
+    const allParentKeys = {};
+    processedTreeRows.forEach(row => {
+      if (row.hasChildren) {
+        allParentKeys[row.code] = true;
+      }
+    });
+    setCollapsedKeys(allParentKeys);
+  };
+
   // Form modal triggers
   const handleNew = () => {
     setFormAccount(null);
@@ -466,13 +488,18 @@ export default function Analitica() {
     setSelectedGroupsFilter(newFilters);
   };
 
+  // Open Selector Modal for Form or Desviacion Modal
+  const openAccountSelectorFor = (target) => {
+    setAccountSelectorTarget(target);
+    setSelectedSelectorCode(null);
+    setShowAccountSelector(true);
+  };
+
   // Account Selector Modal Tree construction (Photo 4 style)
   const selectorTreeAccounts = useMemo(() => {
-    // Generate parent nodes that might not exist in database
     const allDatabaseCodes = new Set(rawAccounts.map(a => a.code).filter(Boolean));
     const codesList = Array.from(allDatabaseCodes);
     
-    // Add all proper prefixes
     const allGenerated = new Set();
     codesList.forEach(code => {
       allGenerated.add(code);
@@ -483,12 +510,10 @@ export default function Analitica() {
 
     let targetCodes = Array.from(allGenerated);
 
-    // Apply sidebar radios group filter (Photo 4 left group filter)
     if (selectorGroupFilter !== 'ALL') {
       targetCodes = targetCodes.filter(c => c.startsWith(selectorGroupFilter));
     }
 
-    // Apply sidebar checkboxes (Cuentas PGC / Cuentas auxiliares)
     targetCodes = targetCodes.filter(c => {
       const isPgc = c.length <= 4;
       const isAux = c.length > 4;
@@ -497,7 +522,6 @@ export default function Analitica() {
       return true;
     });
 
-    // Apply search filter
     if (accountSelectorQuery) {
       const q = accountSelectorQuery.toLowerCase();
       targetCodes = targetCodes.filter(c => {
@@ -544,37 +568,124 @@ export default function Analitica() {
     });
   }, [selectorTreeAccounts, collapsedSelectorKeys]);
 
-  const selectAccountForForm = (row) => {
-    setFormAccount({
+  const selectAccountForTarget = (row) => {
+    const acc = {
       id: row.id.startsWith('pgc_') ? row.code : row.id,
       code: row.code,
       name: row.name
-    });
+    };
+    if (accountSelectorTarget === 'budget') {
+      setFormAccount(acc);
+    } else {
+      setDesviacionAccount(acc);
+    }
     setShowAccountSelector(false);
   };
 
-  const formatCurrency = (val) => {
-    if (val === undefined || val === null || isNaN(val)) return '0,00 €';
-    return val.toLocaleString('es-ES', { minimumFractionDigits: 2, maximumFractionDigits: 2 }) + ' €';
-  };
+  // Compute values for the Desviación Pop-up modal (Photo 3 details)
+  const desviacionModalRows = useMemo(() => {
+    if (!desviacionAccount || !desviacionAccount.code) return [];
+    
+    const code = desviacionAccount.code;
+    const dbAcc = rawAccounts.find(x => x.code === code);
+    const accType = dbAcc?.type || (code.startsWith('7') ? 'Ingreso' : code.startsWith('6') ? 'Gasto' : 'Activo');
 
-  const formatDeviation = (val) => {
-    if (val === undefined || val === null || isNaN(val)) return '0,00 €';
-    const sign = val > 0 ? '+' : '';
-    return sign + val.toLocaleString('es-ES', { minimumFractionDigits: 2, maximumFractionDigits: 2 }) + ' €';
-  };
-
-  const getDeviationColor = (val, type) => {
-    if (Math.abs(val) < 0.01) return 'text-gray-700';
-    if (type === 'Gasto') {
-      return val < 0 ? 'text-green-700 font-bold' : 'text-red-700 font-bold';
-    } else {
-      return val > 0 ? 'text-green-700 font-bold' : 'text-red-700 font-bold';
+    // Get rolled up budgets for descendants
+    const directBuds = budgetsForYear.filter(b => b.accountCode.startsWith(code));
+    const budgetMonths = {};
+    for (let m = 0; m < 12; m++) {
+      budgetMonths[m] = directBuds.reduce((sum, b) => sum + (parseFloat(b.total) || 0), 0);
     }
-  };
 
-  const monthNames = ['Enero', 'Febrero', 'Marzo', 'Abril', 'Mayo', 'Junio', 'Julio', 'Agosto', 'Septiembre', 'Octubre', 'Noviembre', 'Diciembre'];
-  const monthAbbrs = ['ENE', 'FEB', 'MAR', 'ABR', 'MAY', 'JUN', 'JUL', 'AGO', 'SEP', 'OCT', 'NOV', 'DIC'];
+    // Get rolled up actuals
+    const actualMonths = {};
+    for (let m = 0; m < 12; m++) {
+      let sumDebit = 0;
+      let sumCredit = 0;
+      Object.keys(actualsForYear).forEach(actCode => {
+        if (actCode.startsWith(code)) {
+          sumDebit += actualsForYear[actCode].debitMonths[m];
+          sumCredit += actualsForYear[actCode].creditMonths[m];
+        }
+      });
+      if (accType === 'Ingreso' || accType === 'Pasivo' || accType === 'Patrimonio') {
+        actualMonths[m] = sumCredit - sumDebit;
+      } else {
+        actualMonths[m] = sumDebit - sumCredit;
+      }
+    }
+
+    // Generate monthly details + YTD calculations
+    const rows = [];
+    let cumBudget = 0;
+    let cumActual = 0;
+
+    for (let m = 0; m < 12; m++) {
+      const b = budgetMonths[m] || 0;
+      const a = actualMonths[m] || 0;
+      const dev = a - b;
+      
+      let pctDev = 0;
+      if (b !== 0) {
+        pctDev = (dev / b) * 100;
+      } else if (a !== 0) {
+        pctDev = dev > 0 ? 100 : -100;
+      }
+
+      cumBudget += b;
+      cumActual += a;
+      const cumDev = cumActual - cumBudget;
+      
+      let pctCumDev = 0;
+      if (cumBudget !== 0) {
+        pctCumDev = (cumDev / cumBudget) * 100;
+      } else if (cumActual !== 0) {
+        pctCumDev = cumDev > 0 ? 100 : -100;
+      }
+
+      rows.push({
+        monthName: monthNames[m],
+        budget: b,
+        actual: a,
+        deviation: dev,
+        pctDeviation: pctDev,
+        pctCumDeviation: pctCumDev
+      });
+    }
+    return rows;
+  }, [desviacionAccount, rawAccounts, budgetsForYear, actualsForYear]);
+
+  // YTD sum up to current date (July -> month index 6)
+  const desviacionModalTotals = useMemo(() => {
+    if (desviacionModalRows.length === 0) return { budget: 0, actual: 0, deviation: 0, pctDeviation: 0, pctCumDeviation: 0 };
+    
+    // We sum up to current month index (July = index 6)
+    const currentMonthIdx = new Date().getMonth(); // 6 for July
+    
+    const ytdRows = desviacionModalRows.slice(0, currentMonthIdx + 1);
+    const budgetSum = ytdRows.reduce((sum, r) => sum + r.budget, 0);
+    const actualSum = ytdRows.reduce((sum, r) => sum + r.actual, 0);
+    const devSum = actualSum - budgetSum;
+    
+    let pctDev = 0;
+    if (budgetSum !== 0) {
+      pctDev = (devSum / budgetSum) * 100;
+    } else if (actualSum !== 0) {
+      pctDev = devSum > 0 ? 100 : -100;
+    }
+
+    return {
+      budget: budgetSum,
+      actual: actualSum,
+      deviation: devSum,
+      pctDeviation: pctDev,
+      pctCumDeviation: pctDev
+    };
+  }, [desviacionModalRows]);
+
+  const selectSelectorAccount = (row) => {
+    setSelectedSelectorCode(row.code);
+  };
 
   return (
     <div className="w-full h-full bg-[#d4d0c8] flex flex-row p-1 overflow-hidden font-sans select-none relative">
@@ -666,22 +777,61 @@ export default function Analitica() {
       {/* RIGHT PANEL: Toolbar & Main Table */}
       <div className="flex-1 flex flex-col overflow-hidden bg-white">
         
-        {/* Main table top Toolbar */}
-        <div className="bg-[#d4d0c8] flex flex-row items-center justify-between px-3 py-1.5 border-b border-[#808080] shrink-0">
-          <div className="text-[12px] font-bold text-slate-700">
-            Vista: <span className="text-blue-700 capitalize font-extrabold">{viewMode}</span> ({selectedYearFilter})
+        {/* Photo 1 & 2 Style Page-Level Toolbar (Nuevo, Modificar, Eliminar, Subir, Bajar, Expandir, Colapsar) */}
+        <div className="bg-[#f0f0f0] border-b border-[#808080] p-1 flex flex-row items-center gap-4 shrink-0">
+          <div className="flex flex-row items-center gap-3">
+            <button onClick={handleNew} className="flex flex-col items-center p-1 hover:bg-[#c0c0c0] border border-transparent hover:border-[#808080] rounded">
+              <Plus className="w-5 h-5 text-green-700" />
+              <span className="text-[10px] text-slate-700 font-bold">Nuevo</span>
+            </button>
+            <button onClick={onEditSelected} disabled={!selectedCode} className="flex flex-col items-center p-1 hover:bg-[#c0c0c0] border border-transparent hover:border-[#808080] rounded disabled:opacity-50 disabled:pointer-events-none">
+              <Edit2 className="w-5 h-5 text-blue-600" />
+              <span className="text-[10px] text-slate-700 font-bold">Modificar</span>
+            </button>
+            <button onClick={onDeleteSelected} disabled={!selectedCode} className="flex flex-col items-center p-1 hover:bg-[#c0c0c0] border border-transparent hover:border-[#808080] rounded disabled:opacity-50 disabled:pointer-events-none">
+              <Trash2 className="w-5 h-5 text-red-600" />
+              <span className="text-[10px] text-slate-700 font-bold">Eliminar</span>
+            </button>
           </div>
           
-          <div className="relative flex items-center">
-            <input
-              ref={searchInputRef}
-              type="text"
-              placeholder="Buscar cuenta..."
-              value={filterQuery}
-              onChange={e => setFilterQuery(e.target.value)}
-              className="pl-2 pr-8 py-1 border-b border-gray-400 text-[12px] w-64 outline-none focus:border-blue-500 bg-white"
-            />
-            <Search className="w-4 h-4 absolute right-1 text-gray-500 pointer-events-none" />
+          <div className="h-8 border-l border-gray-400" />
+          
+          <div className="flex flex-row items-center gap-3">
+            <button onClick={onMoveUp} disabled={!selectedCode} className="flex flex-col items-center p-1 hover:bg-[#c0c0c0] border border-transparent hover:border-[#808080] rounded disabled:opacity-50 disabled:pointer-events-none">
+              <ArrowUp className="w-5 h-5 text-gray-700" />
+              <span className="text-[10px] text-slate-700 font-bold">Subir</span>
+            </button>
+            <button onClick={onMoveDown} disabled={!selectedCode} className="flex flex-col items-center p-1 hover:bg-[#c0c0c0] border border-transparent hover:border-[#808080] rounded disabled:opacity-50 disabled:pointer-events-none">
+              <ArrowDown className="w-5 h-5 text-gray-700" />
+              <span className="text-[10px] text-slate-700 font-bold">Bajar</span>
+            </button>
+          </div>
+          
+          <div className="h-8 border-l border-gray-400" />
+          
+          <div className="flex flex-row items-center gap-3">
+            <button onClick={onExpandAll} className="flex flex-col items-center p-1 hover:bg-[#c0c0c0] border border-transparent hover:border-[#808080] rounded">
+              <FolderOpen className="w-5 h-5 text-yellow-600" />
+              <span className="text-[10px] text-slate-700 font-bold">Expandir</span>
+            </button>
+            <button onClick={onCollapseAll} className="flex flex-col items-center p-1 hover:bg-[#c0c0c0] border border-transparent hover:border-[#808080] rounded">
+              <Folder className="w-5 h-5 text-yellow-700" />
+              <span className="text-[10px] text-slate-700 font-bold">Colapsar</span>
+            </button>
+          </div>
+
+          <div className="flex-1 flex justify-end pr-2">
+            <div className="relative flex items-center">
+              <input
+                ref={searchInputRef}
+                type="text"
+                placeholder="Buscar cuenta..."
+                value={filterQuery}
+                onChange={e => setFilterQuery(e.target.value)}
+                className="pl-2 pr-8 py-1 border-b border-gray-400 text-[12px] w-64 outline-none focus:border-blue-500 bg-white"
+              />
+              <Search className="w-4 h-4 absolute right-1 text-gray-500 pointer-events-none" />
+            </div>
           </div>
         </div>
 
@@ -813,6 +963,140 @@ export default function Analitica() {
 
       </div>
 
+      {/* DESVIACIÓN DIALOG MODAL (Photo 3 design) */}
+      {showDesviacionModal && (
+        <div className="fixed inset-0 bg-black/40 backdrop-blur-sm flex items-center justify-center z-50">
+          <Window
+            title="Desviación de presupuestos"
+            width="800px"
+            height="560px"
+            initialPos={{ x: 100, y: 40 }}
+            onClose={() => setShowDesviacionModal(false)}
+          >
+            <div className="flex-1 bg-[#d4d0c8] flex flex-col relative p-3 overflow-hidden">
+              
+              {/* Photo 3 Modal Header */}
+              <div className="flex items-center gap-4 bg-[#f0f0f0] border border-[#808080] p-3 mb-3 shrink-0">
+                <div className="w-14 h-14 border border-gray-400 bg-white flex items-center justify-center shrink-0">
+                  <svg width="28" height="28" viewBox="0 0 32 32" fill="none" xmlns="http://www.w3.org/2000/svg">
+                    <rect x="4" y="4" width="24" height="24" fill="white" stroke="#444" strokeWidth="1.5" />
+                    <line x1="8" y1="16" x2="24" y2="16" stroke="#444" strokeWidth="1.5" />
+                    <line x1="16" y1="8" x2="16" y2="24" stroke="#444" strokeWidth="1.5" />
+                  </svg>
+                </div>
+                <div className="text-[14px] font-bold text-slate-800 uppercase tracking-tight">Desviación de presupuestos</div>
+              </div>
+
+              {/* Cuenta Selection Section */}
+              <div className="bg-[#f0f0f0] border border-[#a0a0a0] p-3 mb-2.5 shrink-0 flex items-center gap-3">
+                <span className="text-[11px] font-bold text-slate-600 uppercase shrink-0 w-20">Cuenta:</span>
+                <input
+                  type="text"
+                  readOnly
+                  value={desviacionAccount ? desviacionAccount.code : ''}
+                  placeholder="100"
+                  onClick={() => openAccountSelectorFor('desviacion')}
+                  className="w-28 border border-gray-400 px-2 py-1 text-[12px] bg-white cursor-pointer outline-none"
+                />
+                <button
+                  onClick={() => openAccountSelectorFor('desviacion')}
+                  className="px-2 py-1 bg-[#e0dcd4] border border-gray-400 hover:bg-[#d0ccc4] shadow-sm text-[11px] font-bold uppercase shrink-0"
+                >
+                  ...
+                </button>
+                <span className="text-[12px] font-bold text-slate-700 truncate flex-1">
+                  {desviacionAccount ? desviacionAccount.name : '(Ninguna cuenta seleccionada)'}
+                </span>
+              </div>
+
+              {/* Deviation Details Table Grid */}
+              <div className="flex-1 overflow-auto bg-white border border-[#808080]">
+                <table className="clean-table border-collapse w-full">
+                  <thead>
+                    <tr className="sticky top-0 bg-[#e0dcd4]">
+                      <th className="text-left">MES</th>
+                      <th className="text-right">PRESUPUESTO</th>
+                      <th className="text-right">SALDO</th>
+                      <th className="text-right">DESVIACIÓN</th>
+                      <th className="text-right">% DESVIACIÓN</th>
+                      <th className="text-right">% DESV.ARRAST</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {desviacionModalRows.length === 0 ? (
+                      <tr>
+                        <td colSpan={6} className="text-center py-8 text-gray-400 text-[12px]">
+                          Selecciona una cuenta contable para ver el desglose de desviaciones.
+                        </td>
+                      </tr>
+                    ) : (
+                      <>
+                        {desviacionModalRows.map((r, idx) => {
+                          const displayType = desviacionAccount?.code?.startsWith('6') ? 'Gasto' : 'Ingreso';
+                          return (
+                            <tr key={idx} className="hover:bg-slate-50 text-[12px]">
+                              <td>{r.monthName}</td>
+                              <td className="text-right font-mono">{r.budget.toLocaleString('es-ES', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</td>
+                              <td className="text-right font-mono">{r.actual.toLocaleString('es-ES', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</td>
+                              <td className={`text-right font-mono ${getDeviationColor(r.deviation, displayType)}`}>
+                                {formatDeviation(r.deviation)}
+                              </td>
+                              <td className={`text-right font-mono ${getDeviationColor(r.pctDeviation, displayType)}`}>
+                                {r.pctDeviation.toFixed(2)} %
+                              </td>
+                              <td className={`text-right font-mono ${getDeviationColor(r.pctCumDeviation, displayType)}`}>
+                                {r.pctCumDeviation.toFixed(2)} %
+                              </td>
+                            </tr>
+                          );
+                        })}
+
+                        {/* YTD Cumulative Sum Row (Requested: sumatorio desde principio de año a hoy) */}
+                        <tr className="bg-slate-100 border-t-2 border-gray-400 text-[12px] font-extrabold sticky bottom-0">
+                          <td>Total YTD (Ene - {monthNames[new Date().getMonth()].substring(0, 3)})</td>
+                          <td className="text-right font-mono text-slate-800">
+                            {desviacionModalTotals.budget.toLocaleString('es-ES', { minimumFractionDigits: 2 })}
+                          </td>
+                          <td className="text-right font-mono text-slate-800">
+                            {desviacionModalTotals.actual.toLocaleString('es-ES', { minimumFractionDigits: 2 })}
+                          </td>
+                          <td className={`text-right font-mono ${getDeviationColor(desviacionModalTotals.deviation, desviacionAccount?.code?.startsWith('6') ? 'Gasto' : 'Ingreso')}`}>
+                            {formatDeviation(desviacionModalTotals.deviation)}
+                          </td>
+                          <td colSpan={2} className={`text-right font-mono ${getDeviationColor(desviacionModalTotals.pctDeviation, desviacionAccount?.code?.startsWith('6') ? 'Gasto' : 'Ingreso')}`}>
+                            {desviacionModalTotals.pctDeviation.toFixed(2)} %
+                          </td>
+                        </tr>
+                      </>
+                    )}
+                  </tbody>
+                </table>
+              </div>
+
+              {/* Footer buttons */}
+              <div className="flex justify-end gap-2 shrink-0 pt-3 pb-0.5 pr-1 bg-[#d4d0c8] border-t border-[#808080]">
+                <button
+                  className="px-6 py-1 border border-gray-400 bg-gray-100 hover:bg-gray-200 shadow-sm text-[11px] font-bold uppercase"
+                  onClick={() => {
+                    // Force refresh calculations
+                    alert('Recalculando desviaciones acumuladas para ' + (desviacionAccount?.name || 'la cuenta'));
+                  }}
+                >
+                  Proceder
+                </button>
+                <button
+                  className="px-6 py-1 border border-gray-400 bg-gray-100 hover:bg-gray-200 shadow-sm text-[11px] font-bold uppercase"
+                  onClick={() => setShowDesviacionModal(false)}
+                >
+                  Salir
+                </button>
+              </div>
+
+            </div>
+          </Window>
+        </div>
+      )}
+
       {/* ANNUAL BUDGET DIALOG MODAL (Photo 3 design) */}
       {showForm && (
         <div className="fixed inset-0 bg-black/40 backdrop-blur-sm flex items-center justify-center z-50">
@@ -849,11 +1133,11 @@ export default function Analitica() {
                       readOnly
                       value={formAccount ? formAccount.code : ''}
                       placeholder="666.6"
-                      onClick={() => setShowAccountSelector(true)}
+                      onClick={() => openAccountSelectorFor('budget')}
                       className="w-28 border border-gray-400 px-2 py-1 text-[12px] bg-white cursor-pointer outline-none"
                     />
                     <button
-                      onClick={() => setShowAccountSelector(true)}
+                      onClick={() => openAccountSelectorFor('budget')}
                       className="px-2.5 py-1 bg-[#e0dcd4] border border-gray-400 hover:bg-[#d0ccc4] shadow-sm text-[11px] font-bold uppercase shrink-0"
                     >
                       ...
@@ -899,7 +1183,7 @@ export default function Analitica() {
                   </div>
                 </div>
 
-                {/* 12 Months Columns Grid (Leaves semesters & quarters out!) */}
+                {/* 12 Months Columns Grid */}
                 <div className="border-t border-[#c0c0c0] pt-3 mt-1">
                   <div className="grid grid-cols-2 gap-x-6 gap-y-1.5">
                     {monthNames.map((m, idx) => (
@@ -1109,8 +1393,8 @@ export default function Analitica() {
                               <tr
                                 key={row.code}
                                 className={`cursor-pointer text-[12px] hover:bg-slate-100 ${isSelected ? 'bg-blue-100 text-blue-900 font-semibold' : ''}`}
-                                onClick={() => setSelectedSelectorCode(row.code)}
-                                onDoubleClick={() => selectAccountForForm(row)}
+                                onClick={() => selectSelectorAccount(row)}
+                                onDoubleClick={() => selectAccountForTarget(row)}
                               >
                                 <td
                                   className="font-mono flex flex-row items-center"
@@ -1151,7 +1435,7 @@ export default function Analitica() {
                   disabled={!selectedSelectorCode}
                   onClick={() => {
                     const row = visibleSelectorAccounts.find(r => r.code === selectedSelectorCode);
-                    if (row) selectAccountForForm(row);
+                    if (row) selectAccountForTarget(row);
                   }}
                 >
                   Aceptar

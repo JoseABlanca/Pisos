@@ -825,15 +825,7 @@ export default function Layout() {
         group: 'Presupuestos',
         items: [
           { name: 'Asignación', path: '/analitica?view=asignacion', customIcon: 'Asignacion' },
-          { name: 'Desviación', path: '/analitica?view=desviacion', customIcon: 'Desviacion' }
-        ]
-      },
-      {
-        group: 'Mantenimiento',
-        items: [
-          { name: 'Nuevo', action: 'analitica:new', path: '/analitica', customIcon: 'Nuevo' },
-          { name: 'Modificar', action: 'analitica:edit', path: '/analitica', customIcon: 'Modificar' },
-          { name: 'Eliminar', action: 'analitica:delete', path: '/analitica', customIcon: 'Eliminar' }
+          { name: 'Desviación', action: 'analitica:open-desviacion-modal', customIcon: 'Desviacion' }
         ]
       }
     ],
