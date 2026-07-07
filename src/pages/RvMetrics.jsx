@@ -140,11 +140,16 @@ export default function RvMetrics() {
       if (period1 >= period2 - 43200) continue;
       
       try {
-        const yahooUrl = `https://query1.finance.yahoo.com/v8/finance/chart/${asset.ticker || asset.id}?period1=${period1}&period2=${period2}&interval=1d&events=history&includeAdjustedClose=true`;
+        const yahooUrl1 = `https://query1.finance.yahoo.com/v8/finance/chart/${asset.ticker || asset.id}?period1=${period1}&period2=${period2}&interval=1d&events=history&includeAdjustedClose=true`;
+        const yahooUrl2 = `https://query2.finance.yahoo.com/v8/finance/chart/${asset.ticker || asset.id}?period1=${period1}&period2=${period2}&interval=1d&events=history&includeAdjustedClose=true`;
+        
         const proxies = [
-          { url: `https://corsproxy.io/?url=${encodeURIComponent(yahooUrl)}`, mode: 'direct' },
-          { url: `https://api.allorigins.win/raw?url=${encodeURIComponent(yahooUrl)}`, mode: 'direct' },
-          { url: `https://api.allorigins.win/get?url=${encodeURIComponent(yahooUrl)}`, mode: 'wrapped' },
+          { url: `https://api.allorigins.win/raw?url=${encodeURIComponent(yahooUrl1)}`, mode: 'direct' },
+          { url: `https://api.allorigins.win/raw?url=${encodeURIComponent(yahooUrl2)}`, mode: 'direct' },
+          { url: `https://api.codetabs.com/v1/proxy?quest=${encodeURIComponent(yahooUrl1)}`, mode: 'direct' },
+          { url: `https://api.codetabs.com/v1/proxy?quest=${encodeURIComponent(yahooUrl2)}`, mode: 'direct' },
+          { url: `https://api.allorigins.win/get?url=${encodeURIComponent(yahooUrl1)}`, mode: 'wrapped' },
+          { url: `https://api.allorigins.win/get?url=${encodeURIComponent(yahooUrl2)}`, mode: 'wrapped' },
         ];
         
         let json = null;
@@ -652,25 +657,36 @@ export default function RvMetrics() {
 
         
         if (isAccumulated) {
-           const mean = returns.reduce((a, b) => a + b, 0) / returns.length;
-           const stdDev = Math.sqrt(returns.reduce((a, b) => a + Math.pow(b - mean, 2), 0) / returns.length) || 1;
-           
+           const n = returns.length;
+           const h = Math.max(binSize * 0.4, 0.05);
+           const factor = binSize / (h * Math.sqrt(2 * Math.PI));
+
            histogramData.forEach(b => {
               const x = b.binStart + (binSize / 2);
-              const density = (1 / (stdDev * Math.sqrt(2 * Math.PI))) * Math.exp(-0.5 * Math.pow((x - mean) / stdDev, 2));
-              b.density = density * returns.length * binSize;
+              let sumK = 0;
+              for (let i = 0; i < n; i++) {
+                 const u = (x - returns[i]) / h;
+                 sumK += Math.exp(-0.5 * u * u);
+              }
+              b.density = factor * sumK;
            });
         } else {
            tickersToProcess.forEach(t => {
               if (t !== 'ALL') {
                  const tRets = histChartData.map(d => unit === 'EUR' ? d[`gains_${t}`] : d[`gainsPct_${t}`]).filter(r => !isNaN(r));
                  if (tRets.length > 0) {
-                    const mean = tRets.reduce((a, b) => a + b, 0) / tRets.length;
-                    const stdDev = Math.sqrt(tRets.reduce((a, b) => a + Math.pow(b - mean, 2), 0) / tRets.length) || 1;
+                    const n = tRets.length;
+                    const h = Math.max(binSize * 0.4, 0.05);
+                    const factor = binSize / (h * Math.sqrt(2 * Math.PI));
+
                     histogramData.forEach(b => {
                        const x = b.binStart + (binSize / 2);
-                       const density = (1 / (stdDev * Math.sqrt(2 * Math.PI))) * Math.exp(-0.5 * Math.pow((x - mean) / stdDev, 2));
-                       b[`density_${t}`] = density * tRets.length * binSize;
+                       let sumK = 0;
+                       for (let i = 0; i < n; i++) {
+                          const u = (x - tRets[i]) / h;
+                          sumK += Math.exp(-0.5 * u * u);
+                       }
+                       b[`density_${t}`] = factor * sumK;
                     });
                  }
               }
@@ -1227,7 +1243,7 @@ export default function RvMetrics() {
             </div>
             <div className="h-[300px]">
               <ResponsiveContainer width="100%" height="100%">
-                <LineChart data={lineData} margin={{ top: 5, right: 20, left: 20, bottom: 5 }}>
+                <AreaChart data={lineData} margin={{ top: 5, right: 20, left: 20, bottom: 5 }}>
                   <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="#e2e8f0" />
                   <XAxis 
                     dataKey="date" 
@@ -1245,17 +1261,17 @@ export default function RvMetrics() {
                     <>
                       {primaryMetric === 'VALOR' && (
                         <>
-                          <Line type="monotone" name="Capital Invertido" dataKey="capitalInvertido" stroke="#94a3b8" strokeWidth={2} dot={false} hide={hiddenLines['capitalInvertido']} />
-                          <Line type="monotone" name="Valor de Mercado" dataKey="valorMercado" stroke="#3b82f6" strokeWidth={2} dot={false} hide={hiddenLines['valorMercado']} />
+                          <Area type="monotone" name="Capital Invertido" dataKey="capitalInvertido" stroke="#94a3b8" strokeWidth={2} fill="#94a3b8" fillOpacity={0.05} dot={false} hide={hiddenLines['capitalInvertido']} />
+                          <Area type="monotone" name="Valor de Mercado" dataKey="valorMercado" stroke="#3b82f6" strokeWidth={2} fill="#3b82f6" fillOpacity={0.15} dot={false} hide={hiddenLines['valorMercado']} />
                         </>
                       )}
 
                       {primaryMetric === 'PLUSVALIA' && unit === 'EUR' && (
-                        <Line type="monotone" name="Plusvalía Latente (€)" dataKey="beneficioLatente" stroke="#10b981" strokeWidth={2} dot={false} hide={hiddenLines['beneficioLatente']} />
+                        <Area type="monotone" name="Plusvalía Latente (€)" dataKey="beneficioLatente" stroke="#3b82f6" strokeWidth={2} fill="#3b82f6" fillOpacity={0.15} dot={false} hide={hiddenLines['beneficioLatente']} />
                       )}
 
                       {primaryMetric === 'PLUSVALIA' && unit === 'PERCENT' && (
-                        <Line type="monotone" name="Plusvalía Latente (%)" dataKey="plusvaliaPct" stroke="#10b981" strokeWidth={2} dot={false} hide={hiddenLines['plusvaliaPct']} />
+                        <Area type="monotone" name="Plusvalía Latente (%)" dataKey="plusvaliaPct" stroke="#3b82f6" strokeWidth={2} fill="#3b82f6" fillOpacity={0.15} dot={false} hide={hiddenLines['plusvaliaPct']} />
                       )}
                     </>
                   ) : (
@@ -1266,19 +1282,19 @@ export default function RvMetrics() {
                          if (primaryMetric === 'VALOR') {
                             return (
                                <React.Fragment key={t}>
-                                 <Line type="monotone" name={`${t} (Invertido)`} dataKey={`capitalInvertido_${t}`} stroke={color} strokeWidth={2} strokeDasharray="3 3" opacity={0.6} dot={false} hide={hiddenLines[`capitalInvertido_${t}`]} />
-                                 <Line type="monotone" name={`${t} (Valor)`} dataKey={`valorMercado_${t}`} stroke={color} strokeWidth={2} dot={false} hide={hiddenLines[`valorMercado_${t}`]} />
+                                 <Area type="monotone" name={`${t} (Invertido)`} dataKey={`capitalInvertido_${t}`} stroke={color} strokeWidth={2} strokeDasharray="3 3" opacity={0.6} fill="none" dot={false} hide={hiddenLines[`capitalInvertido_${t}`]} />
+                                 <Area type="monotone" name={`${t} (Valor)`} dataKey={`valorMercado_${t}`} stroke={color} strokeWidth={2} fill={color} fillOpacity={0.05} dot={false} hide={hiddenLines[`valorMercado_${t}`]} />
                                </React.Fragment>
                             );
                          } else if (unit === 'EUR') {
-                            return <Line key={t} type="monotone" name={`${t} (Plusvalía €)`} dataKey={`beneficioLatente_${t}`} stroke={color} strokeWidth={2} dot={false} hide={hiddenLines[`beneficioLatente_${t}`]} />;
+                            return <Area key={t} type="monotone" name={`${t} (Plusvalía €)`} dataKey={`beneficioLatente_${t}`} stroke={color} strokeWidth={2} fill={color} fillOpacity={0.05} dot={false} hide={hiddenLines[`beneficioLatente_${t}`]} />;
                          } else {
-                            return <Line key={t} type="monotone" name={`${t} (Plusvalía %)`} dataKey={`plusvaliaPct_${t}`} stroke={color} strokeWidth={2} dot={false} hide={hiddenLines[`plusvaliaPct_${t}`]} />;
+                            return <Area key={t} type="monotone" name={`${t} (Plusvalía %)`} dataKey={`plusvaliaPct_${t}`} stroke={color} strokeWidth={2} fill={color} fillOpacity={0.05} dot={false} hide={hiddenLines[`plusvaliaPct_${t}`]} />;
                          }
                       })}
                     </>
                   )}
-                </LineChart>
+                </AreaChart>
               </ResponsiveContainer>
             </div>
           </div>
@@ -1355,7 +1371,7 @@ export default function RvMetrics() {
                   <Tooltip formatter={(value) => [`${Number(value).toFixed(2)}%`, 'Drawdown']} labelStyle={{ color: '#0f172a', fontWeight: 'bold' }} />
                   <Legend onClick={handleLegendClick} wrapperStyle={{ fontSize: '11px', cursor: 'pointer' }} />
                   {isAccumulated ? (
-                    <Area type="monotone" name="Drawdown Global" dataKey="drawdownPct" stroke="#ef4444" fill="#fecaca" hide={hiddenLines['drawdownPct']} />
+                    <Area type="monotone" name="Drawdown Global" dataKey="drawdownPct" stroke="#3b82f6" fill="#3b82f6" fillOpacity={0.15} hide={hiddenLines['drawdownPct']} />
                   ) : (
                     tickersToRender.map((t, idx) => {
                        const colors = ['#3b82f6', '#10b981', '#f59e0b', '#ef4444', '#8b5cf6', '#ec4899', '#06b6d4', '#14b8a6', '#f97316'];
@@ -1403,14 +1419,13 @@ export default function RvMetrics() {
                 <ComposedChart data={histogramData} margin={{ top: 5, right: 20, left: 20, bottom: 5 }} barCategoryGap={0} barGap={0}>
                   <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="#e2e8f0" />
                   <XAxis dataKey="label" tick={{ fontSize: 10, fill: '#64748b' }} />
-                  <YAxis yAxisId="left" tick={{ fontSize: 10, fill: '#64748b' }} />
-                  <YAxis yAxisId="right" orientation="right" hide={true} />
+                  <YAxis tick={{ fontSize: 10, fill: '#64748b' }} />
                   <Tooltip labelStyle={{ color: '#0f172a', fontWeight: 'bold' }} />
                   <Legend onClick={handleLegendClick} wrapperStyle={{ fontSize: '11px', cursor: 'pointer' }} />
                   {isAccumulated ? (
                     <>
-                      <Bar yAxisId="left" name="Frecuencia (Días/Meses)" dataKey="count" fill="#3b82f6" radius={[4, 4, 0, 0]} hide={hiddenLines['count']} />
-                      <Line yAxisId="right" type="monotone" name="Densidad Normal" dataKey="density" stroke="#3b82f6" strokeWidth={2} dot={false} hide={hiddenLines['density']} />
+                      <Bar name="Frecuencia (Días/Meses)" dataKey="count" fill="#3b82f6" radius={[4, 4, 0, 0]} hide={hiddenLines['count']} />
+                      <Line type="monotone" name="Densidad Normal" dataKey="density" stroke="#3b82f6" strokeWidth={2} dot={false} hide={hiddenLines['density']} />
                     </>
                   ) : (
                     tickersToRender.map((t, idx) => {
@@ -1418,8 +1433,8 @@ export default function RvMetrics() {
                        const color = colors[idx % colors.length];
                        return (
                          <React.Fragment key={t}>
-                           <Bar yAxisId="left" name={`Frecuencia ${t}`} dataKey={`count_${t}`} fill={color} fillOpacity={0.6} radius={[4, 4, 0, 0]} hide={hiddenLines[`count_${t}`]} />
-                           <Line yAxisId="right" type="monotone" name={`Densidad ${t}`} dataKey={`density_${t}`} stroke={color} strokeWidth={2} dot={false} hide={hiddenLines[`density_${t}`]} />
+                           <Bar name={`Frecuencia ${t}`} dataKey={`count_${t}`} fill={color} fillOpacity={0.6} radius={[4, 4, 0, 0]} hide={hiddenLines[`count_${t}`]} />
+                           <Line type="monotone" name={`Densidad ${t}`} dataKey={`density_${t}`} stroke={color} strokeWidth={2} dot={false} hide={hiddenLines[`density_${t}`]} />
                          </React.Fragment>
                        )
                     })

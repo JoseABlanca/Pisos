@@ -29,6 +29,7 @@ export default function RvAssets() {
   const [isGenerating, setIsGenerating] = useState(false);
   const [isFetchingCurrentPrice, setIsFetchingCurrentPrice] = useState(false);
   const [originalId, setOriginalId] = useState(null); // tracks original ticker when editing
+  const [hasRefreshedPrices, setHasRefreshedPrices] = useState(false);
 
   const [formData, setFormData] = useState({
     id: '', // Ticker symbol
@@ -95,6 +96,35 @@ export default function RvAssets() {
     return () => unsub();
   }, [user, queryUserIds]);
 
+  // Background price updater for all assets on page load
+  useEffect(() => {
+    if (!user || assets.length === 0 || hasRefreshedPrices) return;
+    setHasRefreshedPrices(true);
+
+    const updateAllPrices = async () => {
+      const assetsToUpdate = assets.filter(a => a.apiSource === 'Yahoo Finance' && (a.ticker || a.id));
+      for (const asset of assetsToUpdate) {
+        // Only update if not updated in the last 15 minutes
+        const lastUpdated = asset.updatedAt ? new Date(asset.updatedAt).getTime() : 0;
+        const fifteenMinutesAgo = Date.now() - 15 * 60 * 1000;
+        if (lastUpdated > fifteenMinutesAgo) continue;
+
+        try {
+          const ticker = asset.ticker || asset.id;
+          const price = await fetchCurrentPrice(ticker, asset.apiSource, asset.currency);
+          if (price !== null && parseFloat(asset.currentPrice) !== parseFloat(price)) {
+            const docRef = doc(db, 'rv_assets', asset.id);
+            await setDoc(docRef, { currentPrice: price, updatedAt: new Date().toISOString() }, { merge: true });
+          }
+        } catch (err) {
+          console.error(`Error updating price for ${asset.id}:`, err);
+        }
+      }
+    };
+
+    updateAllPrices();
+  }, [user, assets, hasRefreshedPrices]);
+
   // Fetch asset historical prices when opening the form
   useEffect(() => {
     if (showForm && isEditing && formData.id && user) {
@@ -122,17 +152,22 @@ export default function RvAssets() {
 
     try {
       if (cleanSource === 'Yahoo Finance') {
-        const yahooUrl = `https://query1.finance.yahoo.com/v8/finance/chart/${cleanTicker}?interval=1d&range=1d`;
+        const yahooUrl1 = `https://query1.finance.yahoo.com/v8/finance/chart/${cleanTicker}?interval=1d&range=1d`;
+        const yahooUrl2 = `https://query2.finance.yahoo.com/v8/finance/chart/${cleanTicker}?interval=1d&range=1d`;
+        
         const proxies = [
-          { url: `https://corsproxy.io/?url=${encodeURIComponent(yahooUrl)}`, mode: 'direct' },
-          { url: `https://api.allorigins.win/raw?url=${encodeURIComponent(yahooUrl)}`, mode: 'direct' },
-          { url: `https://api.allorigins.win/get?url=${encodeURIComponent(yahooUrl)}`, mode: 'wrapped' },
+          { url: `https://api.allorigins.win/raw?url=${encodeURIComponent(yahooUrl1)}`, mode: 'direct' },
+          { url: `https://api.allorigins.win/raw?url=${encodeURIComponent(yahooUrl2)}`, mode: 'direct' },
+          { url: `https://api.codetabs.com/v1/proxy?quest=${encodeURIComponent(yahooUrl1)}`, mode: 'direct' },
+          { url: `https://api.codetabs.com/v1/proxy?quest=${encodeURIComponent(yahooUrl2)}`, mode: 'direct' },
+          { url: `https://api.allorigins.win/get?url=${encodeURIComponent(yahooUrl1)}`, mode: 'wrapped' },
+          { url: `https://api.allorigins.win/get?url=${encodeURIComponent(yahooUrl2)}`, mode: 'wrapped' },
         ];
         
         let json = null;
         for (const proxy of proxies) {
           try {
-            const resp = await fetch(proxy.url, { signal: AbortSignal.timeout(5000) });
+            const resp = await fetch(proxy.url, { signal: AbortSignal.timeout(6000) });
             if (!resp.ok) continue;
             const text = await resp.text();
             if (proxy.mode === 'wrapped') {
@@ -441,13 +476,17 @@ export default function RvAssets() {
       let errorMsg = '';
 
       if (formData.apiSource === 'Yahoo Finance') {
-        const yahooUrl = `https://query1.finance.yahoo.com/v8/finance/chart/${ticker}?period1=${period1}&period2=${period2}&interval=1d&events=history&includeAdjustedClose=true`;
+        const yahooUrl1 = `https://query1.finance.yahoo.com/v8/finance/chart/${ticker}?period1=${period1}&period2=${period2}&interval=1d&events=history&includeAdjustedClose=true`;
+        const yahooUrl2 = `https://query2.finance.yahoo.com/v8/finance/chart/${ticker}?period1=${period1}&period2=${period2}&interval=1d&events=history&includeAdjustedClose=true`;
         
         // Try multiple CORS proxies in cascade
         const proxies = [
-          { url: `https://corsproxy.io/?url=${encodeURIComponent(yahooUrl)}`, mode: 'direct' },
-          { url: `https://api.allorigins.win/raw?url=${encodeURIComponent(yahooUrl)}`, mode: 'direct' },
-          { url: `https://api.allorigins.win/get?url=${encodeURIComponent(yahooUrl)}`, mode: 'wrapped' },
+          { url: `https://api.allorigins.win/raw?url=${encodeURIComponent(yahooUrl1)}`, mode: 'direct' },
+          { url: `https://api.allorigins.win/raw?url=${encodeURIComponent(yahooUrl2)}`, mode: 'direct' },
+          { url: `https://api.codetabs.com/v1/proxy?quest=${encodeURIComponent(yahooUrl1)}`, mode: 'direct' },
+          { url: `https://api.codetabs.com/v1/proxy?quest=${encodeURIComponent(yahooUrl2)}`, mode: 'direct' },
+          { url: `https://api.allorigins.win/get?url=${encodeURIComponent(yahooUrl1)}`, mode: 'wrapped' },
+          { url: `https://api.allorigins.win/get?url=${encodeURIComponent(yahooUrl2)}`, mode: 'wrapped' },
         ];
         
         let json = null;
