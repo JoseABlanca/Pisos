@@ -488,25 +488,40 @@ export default function Analitica() {
         <div className="fixed inset-0 z-[100]" style={{ background: 'rgba(0,0,0,0.08)' }}>
           <div style={{ position: 'absolute', left: Math.max(0, (window.innerWidth - 440) / 2), top: 120, width: 440 }}
                className="bg-[#f0f0f0] border border-[#888] shadow-[2px_3px_12px_rgba(0,0,0,0.35)] flex flex-col select-none">
-            {/* Title bar with image icons */}
-            <div className="flex items-center justify-between px-2 py-[5px] border-b border-[#ccc]">
-              <div className="flex items-center gap-[2px]">
-                {/* Multi-frame image icons (Foto 2 style) */}
-                <svg width="52" height="38" viewBox="0 0 52 38" fill="none">
-                  {/* Back frame */}
-                  <rect x="8" y="1" width="28" height="22" stroke="#999" fill="#fff" strokeWidth="1"/>
-                  {/* Front frame */}
-                  <rect x="1" y="5" width="28" height="22" stroke="#999" fill="#fff" strokeWidth="1"/>
-                  <circle cx="10" cy="13" r="2.5" stroke="#bbb" fill="none" strokeWidth="1"/>
-                  <polyline points="1,24 8,17 14,21 20,15 29,24" stroke="#bbb" fill="none" strokeWidth="1"/>
-                  {/* Color bars decoration */}
-                  <rect x="34" y="3" width="16" height="3" fill="#e74c3c" opacity="0.7"/>
-                  <rect x="34" y="7" width="16" height="3" fill="#f39c12" opacity="0.7"/>
-                  <rect x="34" y="11" width="16" height="3" fill="#3498db" opacity="0.7"/>
-                  <rect x="34" y="15" width="16" height="3" fill="#2ecc71" opacity="0.7"/>
-                  <line x1="34" y1="22" x2="50" y2="22" stroke="#999" strokeWidth="1"/>
-                  <line x1="34" y1="26" x2="50" y2="26" stroke="#999" strokeWidth="1"/>
-                  <line x1="34" y1="30" x2="50" y2="30" stroke="#999" strokeWidth="1"/>
+            {/* Title bar with image icons (Foto 2 exact) */}
+            <div className="flex items-center px-2 py-[5px] border-b border-[#ccc] gap-2">
+              <div className="flex items-center shrink-0">
+                {/* Two overlapping picture frames with diagonal hatching */}
+                <svg width="56" height="40" viewBox="0 0 56 40" fill="none">
+                  {/* Back frame (offset right+up) */}
+                  <rect x="10" y="1" width="24" height="18" stroke="#888" fill="#fff" strokeWidth="1"/>
+                  {/* Diagonal hatching on back frame */}
+                  <line x1="12" y1="1" x2="34" y2="19" stroke="#ccc" strokeWidth="0.5"/>
+                  <line x1="18" y1="1" x2="34" y2="13" stroke="#ccc" strokeWidth="0.5"/>
+                  <line x1="24" y1="1" x2="34" y2="7" stroke="#ccc" strokeWidth="0.5"/>
+                  <line x1="10" y1="7" x2="28" y2="19" stroke="#ccc" strokeWidth="0.5"/>
+                  <line x1="10" y1="13" x2="22" y2="19" stroke="#ccc" strokeWidth="0.5"/>
+
+                  {/* Front frame (main, offset left+down) */}
+                  <rect x="1" y="6" width="24" height="18" stroke="#888" fill="#fff" strokeWidth="1"/>
+                  {/* Landscape icon inside front frame */}
+                  <circle cx="9" cy="13" r="2" stroke="#999" fill="none" strokeWidth="0.8"/>
+                  <polyline points="1,22 7,16 12,19 18,13 25,22" stroke="#999" fill="none" strokeWidth="0.8"/>
+
+                  {/* Right-side icon: small document/list with colored bars */}
+                  <rect x="30" y="2" width="22" height="28" stroke="#888" fill="#fff" strokeWidth="1"/>
+                  {/* Diagonal hatching on right icon */}
+                  <line x1="32" y1="2" x2="52" y2="22" stroke="#ddd" strokeWidth="0.5"/>
+                  <line x1="38" y1="2" x2="52" y2="16" stroke="#ddd" strokeWidth="0.5"/>
+                  <line x1="44" y1="2" x2="52" y2="10" stroke="#ddd" strokeWidth="0.5"/>
+                  <line x1="30" y1="8" x2="50" y2="28" stroke="#ddd" strokeWidth="0.5"/>
+                  <line x1="30" y1="14" x2="44" y2="28" stroke="#ddd" strokeWidth="0.5"/>
+                  <line x1="30" y1="20" x2="38" y2="28" stroke="#ddd" strokeWidth="0.5"/>
+                  {/* Small colored rectangles (chart bars) */}
+                  <rect x="33" y="6" width="8" height="2.5" fill="#d63031" rx="0.5"/>
+                  <rect x="33" y="10" width="12" height="2.5" fill="#0984e3" rx="0.5"/>
+                  <rect x="33" y="14" width="6" height="2.5" fill="#00b894" rx="0.5"/>
+                  <rect x="33" y="18" width="14" height="2.5" fill="#fdcb6e" rx="0.5"/>
                 </svg>
               </div>
               <span className="text-[12px] text-[#333] font-normal flex-1 text-center">Ficha de presupuesto anual</span>
