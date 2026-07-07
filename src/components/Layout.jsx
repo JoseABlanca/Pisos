@@ -702,6 +702,27 @@ export default function Layout() {
         { id: 'tipoJornada', name: 'Tipo Jornada' },
         { id: 'referencia', name: 'Referencia' }
       ]}
+    ],
+    'Analítica': [
+      { group: 'CUENTA', items: [
+        { id: 'code', name: 'Cuenta' },
+        { id: 'description', name: 'Descripción' }
+      ]},
+      { group: 'PRESUPUESTO', items: [
+        { id: 'total', name: 'Presupuesto total' },
+        { id: 'ene', name: 'Enero' },
+        { id: 'feb', name: 'Febrero' },
+        { id: 'mar', name: 'Marzo' },
+        { id: 'abr', name: 'Abril' },
+        { id: 'may', name: 'Mayo' },
+        { id: 'jun', name: 'Junio' },
+        { id: 'jul', name: 'Julio' },
+        { id: 'ago', name: 'Agosto' },
+        { id: 'sep', name: 'Septiembre' },
+        { id: 'oct', name: 'Octubre' },
+        { id: 'nov', name: 'Noviembre' },
+        { id: 'dic', name: 'Diciembre' }
+      ]}
     ]
   };
 
@@ -718,7 +739,7 @@ export default function Layout() {
   ];
 
   const moduleTabs = {
-    'Contabilidad': ['Cuentas contables', 'Diario', 'Mayor', 'Sumas y saldos'],
+    'Contabilidad': ['Cuentas contables', 'Diario', 'Mayor', 'Sumas y saldos', 'Analítica'],
     'Inversiones inmobiliarias': ['Activos', 'Propietarios', 'Clientes', 'Alquileres'],
     'Renta variable': ['Portfolio', 'Broker', 'Activos RV', 'Transacciones', 'Histórico RV'],
     'Crowdfunding': ['CF Portfolio', 'Plataforma', 'CF Activos', 'Transacciones CF'],
@@ -731,6 +752,7 @@ export default function Layout() {
 
   const tabDefaultPaths = {
     'Cuentas contables': '/accounts',
+    'Analítica': '/analitica?view=asignacion',
     'Diario': '/journal-entry',
     'Mayor': '/account-statement',
     'Sumas y saldos': '/trial-balance',
@@ -774,6 +796,37 @@ export default function Layout() {
         items: [
           { name: 'CEBES', path: '/cebes', icon: BarChart },
           { name: 'CECOS', path: '/cecos', icon: LayoutGrid }
+        ]
+      }
+    ],
+    'Analítica': [
+      {
+        group: 'Presupuestos',
+        items: [
+          { name: 'Asignación', path: '/analitica?view=asignacion', icon: FileText },
+          { name: 'Desviación', path: '/analitica?view=desviacion', icon: BarChart3 }
+        ]
+      },
+      {
+        group: 'Mantenimiento',
+        items: [
+          { name: 'Nuevo', action: 'analitica:new', path: '/analitica', customIcon: 'Nuevo' },
+          { name: 'Modificar', action: 'analitica:edit', path: '/analitica', customIcon: 'Modificar' },
+          { name: 'Eliminar', action: 'analitica:delete', path: '/analitica', customIcon: 'Eliminar' }
+        ]
+      },
+      {
+        group: 'Acciones',
+        items: [
+          { name: 'Generación de\nniveles inferiores', action: 'analitica:gen-sublevels', path: '/analitica', icon: Layers },
+          { name: 'Añadir columna', action: 'analitica:columns', path: '/analitica', customIcon: 'AddColumn' },
+          { name: 'Buscar', action: 'analitica:search', path: '/analitica', icon: Search }
+        ]
+      },
+      {
+        group: 'Vista',
+        items: [
+          { name: 'Reiniciar\nColumnas', action: 'analitica:reset-columns', path: '/analitica', icon: Table }
         ]
       }
     ],

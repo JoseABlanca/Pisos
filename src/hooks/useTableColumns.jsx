@@ -59,6 +59,7 @@ export const useTableColumns = (tableId, defaultColumns) => {
       'cf-portfolio': 'cf-portfolio',
       'laboral-empresas': 'laboral-empresa',
       'laboral-contratos': 'laboral-contrato',
+      'Analítica': 'analitica',
     };
     const myAction = actionMap[tableId];
 
@@ -90,6 +91,7 @@ export const useTableColumns = (tableId, defaultColumns) => {
     if (tableId === 'cf-portfolio') tab = 'CF Portfolio';
     if (tableId === 'laboral-empresas') tab = 'Empresas';
     if (tableId === 'laboral-contratos') tab = 'Contratos';
+    if (tableId === 'Analítica') tab = 'Analítica';
     
     window.dispatchEvent(new CustomEvent('sync-columns', { detail: { tab, columns: visibleColumns } }));
   }, [visibleColumns, tableId]);

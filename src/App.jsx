@@ -35,6 +35,7 @@ import Importer from './pages/Importer';
 import CfTransactions from './pages/CfTransactions';
 import LaboralEmpresas from './pages/LaboralEmpresas';
 import LaboralContratos from './pages/LaboralContratos';
+import Analitica from './pages/Analitica';
 
 const ProtectedRoute = ({ children }) => {
   const { user, queryUserIds, loading } = useAuth();
@@ -85,6 +86,7 @@ function App() {
             <Route path="account-statement" element={<Ledger initialMode="detail" />} />
             <Route path="laboral-empresas" element={<LaboralEmpresas />} />
             <Route path="laboral-contratos" element={<LaboralContratos />} />
+            <Route path="analitica" element={<Analitica />} />
           </Route>
           </Routes>
         </Router>
