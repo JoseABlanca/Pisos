@@ -139,14 +139,16 @@ function SideCheck({ checked, onChange, label, bold }) {
 }
 
 /* ═══════════════════════════════════════════════════════════════════════════════
-   CLASSIC DIALOG (Foto 4 – "Ficha de presupuesto anual")
+   DRAGGABLE + RESIZABLE WINDOW HOOK
    ═══════════════════════════════════════════════════════════════════════════════ */
-function WinDialog({ title, children, onClose, width = 440 }) {
-  const ref = useRef(null);
+function useDragResize({ initW, initH, minW = 200, minH = 150 }) {
+  const [pos, setPos] = useState({ x: Math.max(0, (window.innerWidth - initW) / 2), y: Math.max(20, (window.innerHeight - initH) / 2 - 40) });
+  const [size, setSize] = useState({ w: initW, h: initH });
   const drag = useRef({ active: false, ox: 0, oy: 0 });
-  const [pos, setPos] = useState({ x: Math.max(0, (window.innerWidth - width) / 2), y: 120 });
+  const resize = useRef({ active: false, dir: '', sx: 0, sy: 0, sw: 0, sh: 0, sl: 0, st: 0 });
 
-  const onDown = e => {
+  const onDragDown = e => {
+    e.preventDefault();
     drag.current = { active: true, ox: e.clientX - pos.x, oy: e.clientY - pos.y };
     const up = () => { drag.current.active = false; window.removeEventListener('mouseup', up); window.removeEventListener('mousemove', mv); };
     const mv = e => { if (drag.current.active) setPos({ x: e.clientX - drag.current.ox, y: e.clientY - drag.current.oy }); };
@@ -154,25 +156,43 @@ function WinDialog({ title, children, onClose, width = 440 }) {
     window.addEventListener('mousemove', mv);
   };
 
-  return (
-    <div className="fixed inset-0 z-[100]" style={{ background: 'rgba(0,0,0,0.08)' }}>
-      <div ref={ref} style={{ position: 'absolute', left: pos.x, top: pos.y, width }}
-           className="bg-[#f0f0f0] border border-[#888] shadow-[2px_3px_12px_rgba(0,0,0,0.35)] flex flex-col select-none">
-        {/* Title bar */}
-        <div onMouseDown={onDown}
-             className="flex items-center justify-between px-2 py-[5px] cursor-move border-b border-[#ccc]">
-          <div className="flex-1" />
-          <span className="text-[12px] text-[#333] font-normal">{title}</span>
-          <div className="flex-1 flex justify-end">
-            <button onClick={onClose} className="w-[20px] h-[20px] flex items-center justify-center hover:bg-red-500 hover:text-white text-[#666] rounded-[2px]">
-              <X size={13} strokeWidth={2.5} />
-            </button>
-          </div>
-        </div>
-        {children}
-      </div>
-    </div>
+  const onResizeDown = (e, dir) => {
+    e.preventDefault(); e.stopPropagation();
+    resize.current = { active: true, dir, sx: e.clientX, sy: e.clientY, sw: size.w, sh: size.h, sl: pos.x, st: pos.y };
+    const up = () => { resize.current.active = false; window.removeEventListener('mouseup', up); window.removeEventListener('mousemove', mv); };
+    const mv = e => {
+      if (!resize.current.active) return;
+      const r = resize.current;
+      const dx = e.clientX - r.sx;
+      const dy = e.clientY - r.sy;
+      let nw = r.sw, nh = r.sh, nl = r.sl, nt = r.st;
+      if (r.dir.includes('e')) nw = Math.max(minW, r.sw + dx);
+      if (r.dir.includes('w')) { nw = Math.max(minW, r.sw - dx); nl = r.sl + (r.sw - nw); }
+      if (r.dir.includes('s')) nh = Math.max(minH, r.sh + dy);
+      if (r.dir.includes('n')) { nh = Math.max(minH, r.sh - dy); nt = r.st + (r.sh - nh); }
+      setSize({ w: nw, h: nh });
+      setPos({ x: nl, y: nt });
+    };
+    window.addEventListener('mouseup', up);
+    window.addEventListener('mousemove', mv);
+  };
+
+  const resizeHandles = (
+    <>
+      {/* Edges */}
+      <div onMouseDown={e => onResizeDown(e, 'n')} className="absolute top-0 left-[6px] right-[6px] h-[5px] cursor-n-resize" />
+      <div onMouseDown={e => onResizeDown(e, 's')} className="absolute bottom-0 left-[6px] right-[6px] h-[5px] cursor-s-resize" />
+      <div onMouseDown={e => onResizeDown(e, 'w')} className="absolute left-0 top-[6px] bottom-[6px] w-[5px] cursor-w-resize" />
+      <div onMouseDown={e => onResizeDown(e, 'e')} className="absolute right-0 top-[6px] bottom-[6px] w-[5px] cursor-e-resize" />
+      {/* Corners */}
+      <div onMouseDown={e => onResizeDown(e, 'nw')} className="absolute top-0 left-0 w-[6px] h-[6px] cursor-nw-resize" />
+      <div onMouseDown={e => onResizeDown(e, 'ne')} className="absolute top-0 right-0 w-[6px] h-[6px] cursor-ne-resize" />
+      <div onMouseDown={e => onResizeDown(e, 'sw')} className="absolute bottom-0 left-0 w-[6px] h-[6px] cursor-sw-resize" />
+      <div onMouseDown={e => onResizeDown(e, 'se')} className="absolute bottom-0 right-0 w-[6px] h-[6px] cursor-se-resize" />
+    </>
   );
+
+  return { pos, size, onDragDown, resizeHandles };
 }
 
 /* ═══════════════════════════════════════════════════════════════════════════════
@@ -249,6 +269,11 @@ export default function Analitica() {
   const [formAccount, setFormAccount] = useState(null);
   const [formMonths, setFormMonths] = useState(() => Object.fromEntries([...Array(12)].map((_, i) => [i, 0])));
   const [showAccountSel, setShowAccountSel] = useState(false);
+
+  // Drag+Resize state for budget modal
+  const budgetDR = useDragResize({ initW: 440, initH: 460, minW: 380, minH: 350 });
+  // Drag+Resize state for account selector modal
+  const accountDR = useDragResize({ initW: 900, initH: 650, minW: 500, minH: 400 });
 
   /* ── Firestore ────────────────────────────────────────────────────────────── */
   useEffect(() => {
@@ -487,10 +512,11 @@ export default function Analitica() {
       ═══════════════════════════════════════════════════════════════════════ */}
       {showForm && (
         <div className="fixed inset-0 z-[100]" style={{ background: 'rgba(0,0,0,0.08)' }}>
-          <div style={{ position: 'absolute', left: Math.max(0, (window.innerWidth - 440) / 2), top: 120, width: 440 }}
-               className="bg-[#f0f0f0] border border-[#888] shadow-[2px_3px_12px_rgba(0,0,0,0.35)] flex flex-col select-none">
+          <div style={{ position: 'absolute', left: budgetDR.pos.x, top: budgetDR.pos.y, width: budgetDR.size.w, height: budgetDR.size.h }}
+               className="bg-[#f0f0f0] border border-[#888] shadow-[2px_3px_12px_rgba(0,0,0,0.35)] flex flex-col select-none relative">
+            {budgetDR.resizeHandles}
             {/* Title bar with image icons (Foto 2 exact) */}
-            <div className="flex items-center px-2 py-[5px] border-b border-[#ccc] gap-2">
+            <div onMouseDown={budgetDR.onDragDown} className="flex items-center px-2 py-[5px] border-b border-[#ccc] gap-2 cursor-move shrink-0">
               <div className="flex items-center shrink-0">
                 {/* Two overlapping picture frames with diagonal hatching */}
                 <svg width="56" height="40" viewBox="0 0 56 40" fill="none">
@@ -592,10 +618,13 @@ export default function Analitica() {
 
       {/* Account selector - Full Accounts modal (same as Plan de Cuentas) */}
       {showAccountSel && (
-        <div className="fixed inset-0 z-[200] flex flex-col" style={{ background: 'rgba(0,0,0,0.3)' }}>
-          <div className="flex flex-col w-full h-full max-w-[1000px] max-h-[700px] m-auto bg-white border border-[#888] shadow-[2px_3px_16px_rgba(0,0,0,0.4)]">
-            {/* Blue header bar */}
-            <div className="flex items-center justify-between px-3 py-[6px] bg-[#4472c4] shrink-0">
+        <div className="fixed inset-0 z-[200]" style={{ background: 'rgba(0,0,0,0.3)' }}>
+          <div style={{ position: 'absolute', left: accountDR.pos.x, top: accountDR.pos.y, width: accountDR.size.w, height: accountDR.size.h }}
+               className="flex flex-col bg-white border border-[#888] shadow-[2px_3px_16px_rgba(0,0,0,0.4)] relative">
+            {accountDR.resizeHandles}
+            {/* Blue header bar - draggable */}
+            <div onMouseDown={accountDR.onDragDown}
+                 className="flex items-center justify-between px-3 py-[6px] bg-[#4472c4] shrink-0 cursor-move">
               <span className="text-white text-[12px] font-bold tracking-wide uppercase">Selección de cuenta</span>
               <button onClick={() => setShowAccountSel(false)}
                       className="w-[22px] h-[22px] flex items-center justify-center hover:bg-red-500 text-white rounded-[2px]">
