@@ -225,6 +225,27 @@ const RibbonCustomIcon = ({ type }) => {
           </g>
         </svg>
       );
+    case 'Asignacion':
+      return (
+        <svg width="32" height="32" viewBox="0 0 32 32" fill="none" xmlns="http://www.w3.org/2000/svg">
+          <path d="M 6 3 L 20 3 L 26 9 L 26 27 L 6 27 Z" fill="white" stroke="#444" strokeWidth="1.2"/>
+          <path d="M 20 3 L 20 9 L 26 9" fill="white" stroke="#444" strokeWidth="1.2"/>
+          <rect x="9" y="7" width="8" height="3" fill="#16a34a"/>
+          <line x1="9" y1="13" x2="23" y2="13" stroke="#aaa" strokeWidth="1.2"/>
+          <line x1="9" y1="17" x2="23" y2="17" stroke="#aaa" strokeWidth="1.2"/>
+          <line x1="9" y1="21" x2="19" y2="21" stroke="#aaa" strokeWidth="1.2"/>
+        </svg>
+      );
+    case 'Desviacion':
+      return (
+        <svg width="32" height="32" viewBox="0 0 32 32" fill="none" xmlns="http://www.w3.org/2000/svg">
+          <line x1="4" y1="16" x2="28" y2="16" stroke="#444" strokeWidth="1.2"/>
+          <rect x="7" y="8" width="4" height="8" fill="white" stroke="#2563eb" strokeWidth="1"/>
+          <rect x="19" y="6" width="4" height="10" fill="white" stroke="#2563eb" strokeWidth="1"/>
+          <rect x="13" y="16" width="4" height="9" fill="white" stroke="#dc2626" strokeWidth="1"/>
+          <rect x="25" y="16" width="4" height="6" fill="white" stroke="#dc2626" strokeWidth="1"/>
+        </svg>
+      );
     case 'Nuevo':
       return (
         <svg width="32" height="32" viewBox="0 0 32 32" fill="none" xmlns="http://www.w3.org/2000/svg">
@@ -803,8 +824,8 @@ export default function Layout() {
       {
         group: 'Presupuestos',
         items: [
-          { name: 'Asignación', path: '/analitica?view=asignacion', icon: FileText },
-          { name: 'Desviación', path: '/analitica?view=desviacion', icon: BarChart3 }
+          { name: 'Asignación', path: '/analitica?view=asignacion', customIcon: 'Asignacion' },
+          { name: 'Desviación', path: '/analitica?view=desviacion', customIcon: 'Desviacion' }
         ]
       },
       {
@@ -813,20 +834,6 @@ export default function Layout() {
           { name: 'Nuevo', action: 'analitica:new', path: '/analitica', customIcon: 'Nuevo' },
           { name: 'Modificar', action: 'analitica:edit', path: '/analitica', customIcon: 'Modificar' },
           { name: 'Eliminar', action: 'analitica:delete', path: '/analitica', customIcon: 'Eliminar' }
-        ]
-      },
-      {
-        group: 'Acciones',
-        items: [
-          { name: 'Generación de\nniveles inferiores', action: 'analitica:gen-sublevels', path: '/analitica', icon: Layers },
-          { name: 'Añadir columna', action: 'analitica:columns', path: '/analitica', customIcon: 'AddColumn' },
-          { name: 'Buscar', action: 'analitica:search', path: '/analitica', icon: Search }
-        ]
-      },
-      {
-        group: 'Vista',
-        items: [
-          { name: 'Reiniciar\nColumnas', action: 'analitica:reset-columns', path: '/analitica', icon: Table }
         ]
       }
     ],
