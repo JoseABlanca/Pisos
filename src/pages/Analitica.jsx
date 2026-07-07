@@ -1,345 +1,476 @@
-import { useState, useEffect, useMemo } from 'react';
-import { useSearchParams } from 'react-router-dom';
+import { useState, useEffect, useMemo, useRef } from 'react';
 import { db } from '../firebase/config';
 import { collection, query, where, onSnapshot, doc, setDoc, deleteDoc } from 'firebase/firestore';
 import { useAuth } from '../context/AuthContext';
-import { Search, ChevronRight, ChevronDown } from 'lucide-react';
+import { Search, X } from 'lucide-react';
 
-// ── PGC descriptions ──────────────────────────────────────────────────────────
+/* ═══════════════════════════════════════════════════════════════════════════════
+   PGC DESCRIPTIONS
+   ═══════════════════════════════════════════════════════════════════════════════ */
 const PGC = {
-  '1':'Financiación básica','10':'Capital','100':'Capital social',
-  '11':'Reservas','12':'Resultados pendientes de aplicación','129':'Resultado del ejercicio',
-  '2':'Activo no corriente','20':'Inmovilizado intangible','21':'Inmovilizado material',
-  '28':'Amortización acumulada del inmovilizado','3':'Existencias',
-  '4':'Acreedores y deudores por operaciones comerciales','40':'Proveedores',
-  '41':'Acreedores varios','43':'Clientes','47':'Administraciones públicas',
-  '472':'Hacienda Pública, IVA soportado','477':'Hacienda Pública, IVA repercutido',
-  '5':'Cuentas financieras','57':'Tesorería','570':'Caja',
-  '572':'Bancos e instituciones de crédito','6':'Compras y gastos',
-  '60':'Compras','62':'Servicios exteriores','621':'Arrendamientos y cánones',
-  '628':'Suministros','629':'Otros servicios','64':'Gastos de personal',
-  '640':'Sueldos y salarios','642':'Seguridad Social a cargo de la empresa',
-  '7':'Ventas e ingresos','70':'Ventas de mercaderías y servicios',
-  '700':'Ventas de mercaderías','705':'Prestación de servicios'
+  '1':'FINANCIACIÓN BÁSICA','10':'CAPITAL','100':'CAPITAL SOCIAL',
+  '11':'RESERVAS','12':'RESULTADOS PENDIENTES DE APLICACIÓN','129':'RESULTADO DEL EJERCICIO',
+  '2':'ACTIVO NO CORRIENTE','20':'INMOVILIZADO INTANGIBLE','21':'INMOVILIZADO MATERIAL',
+  '28':'AMORTIZACIÓN ACUMULADA DEL INMOVILIZADO','3':'EXISTENCIAS',
+  '4':'ACREEDORES Y DEUDORES POR OPERACIONES COMERCIALES','40':'PROVEEDORES',
+  '41':'ACREEDORES VARIOS','43':'CLIENTES','47':'ADMINISTRACIONES PÚBLICAS',
+  '472':'HACIENDA PÚBLICA, IVA SOPORTADO','477':'HACIENDA PÚBLICA, IVA REPERCUTIDO',
+  '5':'CUENTAS FINANCIERAS','57':'TESORERÍA','570':'CAJA',
+  '572':'BANCOS E INSTITUCIONES DE CRÉDITO','6':'COMPRAS Y GASTOS',
+  '60':'COMPRAS','62':'SERVICIOS EXTERIORES','621':'ARRENDAMIENTOS Y CÁNONES',
+  '628':'SUMINISTROS','629':'OTROS SERVICIOS','64':'GASTOS DE PERSONAL',
+  '640':'SUELDOS Y SALARIOS','642':'SEGURIDAD SOCIAL A CARGO DE LA EMPRESA',
+  '7':'VENTAS E INGRESOS','70':'VENTAS DE MERCADERÍAS Y SERVICIOS',
+  '700':'VENTAS DE MERCADERÍAS','705':'PRESTACIÓN DE SERVICIOS'
+};
+const descr = (code, accounts=[]) => {
+  const a = accounts.find(x => x.code === code);
+  if (a) return (a.name || '').toUpperCase();
+  if (PGC[code]) return PGC[code];
+  for (let l = code.length - 1; l > 0; l--) { if (PGC[code.slice(0, l)]) return PGC[code.slice(0, l)]; }
+  return `CUENTA ${code}`;
 };
 
-const desc = (code, accounts=[]) => {
-  const d = accounts.find(x=>x.code===code);
-  if(d) return d.name;
-  if(PGC[code]) return PGC[code];
-  for(let l=code.length-1;l>0;l--){
-    const p=code.slice(0,l);
-    if(PGC[p]) return PGC[p];
-  }
-  return `Cuenta ${code}`;
-};
+const MONTHS_LONG = ['Enero','Febrero','Marzo','Abril','Mayo','Junio','Julio','Agosto','Septiembre','Octubre','Noviembre','Diciembre'];
+const MONTHS_HDR  = ['ENE.','FEB.','MAR.','ABR.','MAY.','JUN.','JUL.','AGO.','SEP.','OCT.','NOV.','DIC.'];
 
-const MONTHS_SHORT = ['ENE','FEB','MAR','ABR','MAY','JUN','JUL','AGO','SEP','OCT','NOV','DIC'];
-const YEARS = [2023,2024,2025,2026,2027,2028];
-
-// ── PERFECT PIXEL ICONS (Matched to Photo 1) ──────────────────────────────
+/* ═══════════════════════════════════════════════════════════════════════════════
+   TOOLBAR ICONS  – Exact visual match to the user's desktop app (Foto 1)
+   ═══════════════════════════════════════════════════════════════════════════════ */
 const IcoNuevo = () => (
-  <svg width="24" height="24" viewBox="0 0 24 24" fill="none">
-    <path d="M6 3h8l4 4v14H6V3z" fill="#fff" stroke="#666" strokeWidth="1.2"/>
-    <path d="M14 3v4h4" fill="none" stroke="#666" strokeWidth="1.2"/>
-    <path d="M12 14v6m-3-3h6" stroke="#4ade80" strokeWidth="2.5"/>
+  <svg width="28" height="28" viewBox="0 0 32 32" fill="none">
+    <path d="M8 3h10l6 6v20H8V3z" fill="#fff" stroke="#888" strokeWidth="1"/>
+    <path d="M18 3v6h6" fill="none" stroke="#888" strokeWidth="1"/>
+    <line x1="12" y1="20" x2="20" y2="20" stroke="#22c55e" strokeWidth="2.5"/>
+    <line x1="16" y1="16" x2="16" y2="24" stroke="#22c55e" strokeWidth="2.5"/>
   </svg>
 );
 const IcoModif = () => (
-  <svg width="24" height="24" viewBox="0 0 24 24" fill="none">
-    <path d="M6 3h8l4 4v14H6V3z" fill="#fff" stroke="#666" strokeWidth="1.2"/>
-    <path d="M14 3v4h4" fill="none" stroke="#666" strokeWidth="1.2"/>
-    <path d="M10 20l5-5-2-2-5 5v2h2z" fill="#60a5fa" stroke="#3b82f6" strokeWidth="1"/>
-    <path d="M14 14l2 2" stroke="#3b82f6" strokeWidth="1"/>
+  <svg width="28" height="28" viewBox="0 0 32 32" fill="none">
+    <path d="M8 3h10l6 6v20H8V3z" fill="#fff" stroke="#888" strokeWidth="1"/>
+    <path d="M18 3v6h6" fill="none" stroke="#888" strokeWidth="1"/>
+    <path d="M12 25l7-7-2-2-7 7v2h2z" fill="#60a5fa" stroke="#3b82f6" strokeWidth="0.8"/>
   </svg>
 );
 const IcoElim = () => (
-  <svg width="24" height="24" viewBox="0 0 24 24" fill="none">
-    <path d="M6 3h8l4 4v14H6V3z" fill="#fff" stroke="#666" strokeWidth="1.2"/>
-    <path d="M14 3v4h4" fill="none" stroke="#666" strokeWidth="1.2"/>
-    <path d="M11 15l4 4m0-4l-4 4" stroke="#ef4444" strokeWidth="2"/>
+  <svg width="28" height="28" viewBox="0 0 32 32" fill="none">
+    <path d="M8 3h10l6 6v20H8V3z" fill="#fff" stroke="#888" strokeWidth="1"/>
+    <path d="M18 3v6h6" fill="none" stroke="#888" strokeWidth="1"/>
+    <line x1="13" y1="17" x2="19" y2="23" stroke="#ef4444" strokeWidth="2.2"/>
+    <line x1="19" y1="17" x2="13" y2="23" stroke="#ef4444" strokeWidth="2.2"/>
   </svg>
 );
 const IcoSubir = () => (
-  <svg width="24" height="24" viewBox="0 0 24 24" fill="none">
-    <path d="M12 20V4m-5 5l5-5 5 5" stroke="#4b5563" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round"/>
+  <svg width="22" height="22" viewBox="0 0 24 24" fill="none">
+    <path d="M12 20V6" stroke="#555" strokeWidth="1.5"/>
+    <path d="M7 11l5-5 5 5" stroke="#555" strokeWidth="1.5" fill="none"/>
   </svg>
 );
 const IcoBajar = () => (
-  <svg width="24" height="24" viewBox="0 0 24 24" fill="none">
-    <path d="M12 4v16m-5-5l5 5 5-5" stroke="#4b5563" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round"/>
+  <svg width="22" height="22" viewBox="0 0 24 24" fill="none">
+    <path d="M12 4v14" stroke="#555" strokeWidth="1.5"/>
+    <path d="M7 13l5 5 5-5" stroke="#555" strokeWidth="1.5" fill="none"/>
   </svg>
 );
-const IcoExp = () => (
-  <svg width="24" height="24" viewBox="0 0 24 24" fill="none">
-    <path d="M3 8v10h16V10H11l-2-2H3z" fill="#fcd34d" stroke="#d97706" strokeWidth="1.2"/>
-    <rect x="13" y="13" width="8" height="8" fill="#fff" stroke="#666" strokeWidth="1"/>
-    <path d="M14.5 17l1.5 1.5 2.5-3" stroke="#22c55e" strokeWidth="1.5" fill="none"/>
+const IcoExpandir = () => (
+  <svg width="28" height="28" viewBox="0 0 32 32" fill="none">
+    <path d="M4 12v14h22V14H14l-3-2H4z" fill="#fcd34d" stroke="#b8860b" strokeWidth="1"/>
+    <rect x="17" y="17" width="9" height="9" rx="1" fill="#fff" stroke="#666" strokeWidth="1"/>
+    <path d="M19 21.5l1.5 1.5 3-3.5" stroke="#22c55e" strokeWidth="1.8" fill="none" strokeLinecap="round" strokeLinejoin="round"/>
   </svg>
 );
-const IcoCol = () => (
-  <svg width="24" height="24" viewBox="0 0 24 24" fill="none">
-    <path d="M3 8v10h16V10H11l-2-2H3z" fill="#fcd34d" stroke="#d97706" strokeWidth="1.2"/>
-    <rect x="13" y="13" width="8" height="8" fill="#fff" stroke="#666" strokeWidth="1"/>
-    <path d="M14.5 17h5" stroke="#ef4444" strokeWidth="1.5"/>
+const IcoColapsar = () => (
+  <svg width="28" height="28" viewBox="0 0 32 32" fill="none">
+    <path d="M4 12v14h22V14H14l-3-2H4z" fill="#fcd34d" stroke="#b8860b" strokeWidth="1"/>
+    <rect x="17" y="17" width="9" height="9" rx="1" fill="#fff" stroke="#666" strokeWidth="1"/>
+    <line x1="19" y1="21.5" x2="24" y2="21.5" stroke="#ef4444" strokeWidth="1.8" strokeLinecap="round"/>
+  </svg>
+);
+const IcoPage = () => (
+  <svg width="16" height="16" viewBox="0 0 16 16" fill="none">
+    <path d="M3 1h7l3 3v11H3V1z" fill="#fff" stroke="#999" strokeWidth="1"/>
+    <path d="M10 1v3h3" fill="none" stroke="#999" strokeWidth="1"/>
   </svg>
 );
 
-const IcoSidebarToggle = () => (
-  <svg width="14" height="14" viewBox="0 0 14 14" fill="none">
-    <rect x="1" y="2" width="12" height="10" rx="1.5" stroke="#6b7280" strokeWidth="1.2"/>
-    <line x1="5" y1="2" x2="5" y2="12" stroke="#6b7280" strokeWidth="1.2"/>
-  </svg>
-);
-
-const WinCheckbox = ({ checked, onChange, label, isRadio, name }) => (
-  <label className="flex items-center gap-2 cursor-pointer select-none mb-[2px]">
-    <input type={isRadio?"radio":"checkbox"} name={name} checked={checked} onChange={onChange}
-           className="m-0 p-0 w-[12px] h-[12px] accent-blue-600 outline-none" />
-    <span className={`text-[11px] font-[Segoe_UI,Tahoma,sans-serif] ${checked&&isRadio?'text-blue-700 font-semibold':'text-[#444]'}`}>{label}</span>
-  </label>
-);
-
-// ── ToolbarBtn ────────────────────────────────────────────────────────────────
-function TBtn({ icon: Icon, label, hasDropdown, onClick, disabled=false }) {
+/* ═══════════════════════════════════════════════════════════════════════════════
+   TOOLBAR BUTTON
+   ═══════════════════════════════════════════════════════════════════════════════ */
+function TBtn({ icon: Icon, label, hasChevron, onClick, disabled }) {
   return (
     <button onClick={onClick} disabled={disabled}
-            className={`flex flex-col items-center justify-center px-2 py-[2px] border border-transparent rounded-[2px] disabled:opacity-40 min-w-[50px]
-                       hover:bg-[#e5f1fb] hover:border-[#a0c5e8] group`}>
-      <div className="h-[24px] flex items-center justify-center">
-        <Icon/>
-      </div>
-      <div className="flex flex-col items-center mt-[2px]">
-        <span className="text-[11px] text-[#1c4980] font-[Segoe_UI] leading-none group-hover:text-[#0f2d54]">{label}</span>
-        {hasDropdown && (
-          <svg width="6" height="4" viewBox="0 0 6 4" fill="none" className="mt-[2px]">
-            <path d="M0 0l3 3 3-3" stroke="#1c4980" strokeWidth="1" strokeLinecap="round" strokeLinejoin="round"/>
-          </svg>
-        )}
-      </div>
+      className="flex flex-col items-center justify-center px-[6px] py-[3px] min-w-[56px]
+                 border border-transparent rounded-[3px]
+                 hover:bg-[#dce9f7] hover:border-[#b0cde8]
+                 disabled:opacity-30 disabled:pointer-events-none
+                 select-none cursor-default">
+      <div className="h-[30px] flex items-center justify-center"><Icon /></div>
+      <span className="text-[11px] text-[#44546a] leading-tight mt-[1px]">{label}</span>
+      {hasChevron && (
+        <svg width="7" height="4" viewBox="0 0 7 4" className="mt-[1px]">
+          <path d="M0.5 0.5L3.5 3.5L6.5 0.5" stroke="#44546a" strokeWidth="1" fill="none"/>
+        </svg>
+      )}
     </button>
   );
 }
 
-// ── Main component ─────────────────────────────────────────────────────────────
+/* ═══════════════════════════════════════════════════════════════════════════════
+   SIDEBAR RADIO / CHECKBOX
+   ═══════════════════════════════════════════════════════════════════════════════ */
+function SideRadio({ checked, onChange, label }) {
+  return (
+    <label className="flex items-center gap-[6px] cursor-pointer select-none py-[1px]">
+      <input type="radio" checked={checked} onChange={onChange}
+             className="w-[13px] h-[13px] accent-[#4472c4] m-0" />
+      <span className={`text-[11.5px] ${checked ? 'text-[#2b579a] font-semibold' : 'text-[#333]'}`}>{label}</span>
+    </label>
+  );
+}
+function SideCheck({ checked, onChange, label, bold }) {
+  return (
+    <label className="flex items-center gap-[6px] cursor-pointer select-none py-[1px]">
+      <input type="checkbox" checked={checked} onChange={onChange}
+             className="w-[13px] h-[13px] accent-[#4472c4] m-0" />
+      <span className={`text-[11.5px] text-[#333] ${bold ? 'font-semibold text-[#2b579a]' : ''}`}>{label}</span>
+    </label>
+  );
+}
+
+/* ═══════════════════════════════════════════════════════════════════════════════
+   CLASSIC DIALOG (Foto 4 – "Ficha de presupuesto anual")
+   ═══════════════════════════════════════════════════════════════════════════════ */
+function WinDialog({ title, children, onClose, width = 440 }) {
+  const ref = useRef(null);
+  const drag = useRef({ active: false, ox: 0, oy: 0 });
+  const [pos, setPos] = useState({ x: Math.max(0, (window.innerWidth - width) / 2), y: 120 });
+
+  const onDown = e => {
+    drag.current = { active: true, ox: e.clientX - pos.x, oy: e.clientY - pos.y };
+    const up = () => { drag.current.active = false; window.removeEventListener('mouseup', up); window.removeEventListener('mousemove', mv); };
+    const mv = e => { if (drag.current.active) setPos({ x: e.clientX - drag.current.ox, y: e.clientY - drag.current.oy }); };
+    window.addEventListener('mouseup', up);
+    window.addEventListener('mousemove', mv);
+  };
+
+  return (
+    <div className="fixed inset-0 z-[100]" style={{ background: 'rgba(0,0,0,0.08)' }}>
+      <div ref={ref} style={{ position: 'absolute', left: pos.x, top: pos.y, width }}
+           className="bg-[#f0f0f0] border border-[#888] shadow-[2px_3px_12px_rgba(0,0,0,0.35)] flex flex-col select-none">
+        {/* Title bar */}
+        <div onMouseDown={onDown}
+             className="flex items-center justify-between px-2 py-[5px] cursor-move border-b border-[#ccc]">
+          <div className="flex-1" />
+          <span className="text-[12px] text-[#333] font-normal">{title}</span>
+          <div className="flex-1 flex justify-end">
+            <button onClick={onClose} className="w-[20px] h-[20px] flex items-center justify-center hover:bg-red-500 hover:text-white text-[#666] rounded-[2px]">
+              <X size={13} strokeWidth={2.5} />
+            </button>
+          </div>
+        </div>
+        {children}
+      </div>
+    </div>
+  );
+}
+
+/* ═══════════════════════════════════════════════════════════════════════════════
+   ACCOUNT SELECTOR (simple popup for choosing account)
+   ═══════════════════════════════════════════════════════════════════════════════ */
+function AccountSelector({ accounts, onSelect, onClose }) {
+  const [q, setQ] = useState('');
+  const filtered = useMemo(() => {
+    const list = accounts.filter(a => a.code);
+    if (!q) return list;
+    const lq = q.toLowerCase();
+    return list.filter(a => a.code.includes(lq) || (a.name || '').toLowerCase().includes(lq));
+  }, [accounts, q]);
+
+  return (
+    <WinDialog title="Selección de cuenta" onClose={onClose} width={500}>
+      <div className="p-2 border-b border-[#ccc] flex gap-2 items-center bg-[#f0f0f0]">
+        <input type="text" value={q} onChange={e => setQ(e.target.value)} placeholder="Buscar cuenta..."
+               className="flex-1 border border-[#999] px-2 py-[3px] text-[12px] outline-none bg-white" autoFocus />
+      </div>
+      <div className="bg-white overflow-auto" style={{ height: 300 }}>
+        <table className="w-full text-[12px] border-collapse">
+          <thead>
+            <tr className="bg-[#f0f0f0] border-b border-[#ccc] sticky top-0">
+              <th className="text-left px-2 py-[3px] font-normal text-[#555] w-[100px]">CUENTA</th>
+              <th className="text-left px-2 py-[3px] font-normal text-[#555]">DESCRIPCIÓN</th>
+            </tr>
+          </thead>
+          <tbody>
+            {filtered.map(a => (
+              <tr key={a.id} className="border-b border-[#eee] hover:bg-[#e5f1fb] cursor-pointer"
+                  onDoubleClick={() => onSelect(a)}
+                  onClick={() => onSelect(a)}>
+                <td className="px-2 py-[3px]">{a.code}</td>
+                <td className="px-2 py-[3px] uppercase">{a.name}</td>
+              </tr>
+            ))}
+          </tbody>
+        </table>
+      </div>
+      <div className="flex justify-end gap-2 p-2 bg-[#f0f0f0] border-t border-[#ccc]">
+        <button onClick={onClose}
+                className="px-4 py-[3px] border border-[#888] bg-[#e1e1e1] hover:bg-[#d5d5d5] text-[12px] active:bg-[#ccc]">
+          Cancelar
+        </button>
+      </div>
+    </WinDialog>
+  );
+}
+
+/* ═══════════════════════════════════════════════════════════════════════════════
+   MAIN COMPONENT
+   ═══════════════════════════════════════════════════════════════════════════════ */
 export default function Analitica() {
   const { user, queryUserIds } = useAuth();
-  const [searchParams] = useSearchParams();
 
-  // Data
   const [rawAccounts, setRawAccounts] = useState([]);
-  const [budgets,     setBudgets]     = useState([]);
-
-  // Layout
+  const [budgets, setBudgets] = useState([]);
   const [sidebarVisible, setSidebarVisible] = useState(true);
 
-  // Sidebar filters
-  const [groupFilter,      setGroupFilter]      = useState('ALL');
-  const [showPgc,          setShowPgc]          = useState(false);
-  const [showAux,          setShowAux]          = useState(true);
-  const [showObsolete,     setShowObsolete]     = useState(false);
-  const [hideZero,         setHideZero]         = useState(false);
-  const [searchQuery,      setSearchQuery]      = useState('');
-  const [selectedYear,     setSelectedYear]     = useState(2026);
-  const [collapsed,        setCollapsed]        = useState({});
-  const [selectedCode,     setSelectedCode]     = useState(null);
+  const [groupFilter, setGroupFilter] = useState('ALL');
+  const [showPgc, setShowPgc] = useState(false);
+  const [showAux, setShowAux] = useState(true);
+  const [showObsolete, setShowObsolete] = useState(false);
+  const [hideZero, setHideZero] = useState(false);
+  const [searchQuery, setSearchQuery] = useState('');
+  const [selectedYear, setSelectedYear] = useState(2026);
+  const [collapsed, setCollapsed] = useState({});
+  const [selectedCode, setSelectedCode] = useState(null);
 
-  // ── Firestore ──────────────────────────────────────────────────────────────
+  // Modal state
+  const [showForm, setShowForm] = useState(false);
+  const [isEditing, setIsEditing] = useState(false);
+  const [formAccount, setFormAccount] = useState(null);
+  const [formMonths, setFormMonths] = useState(() => Object.fromEntries([...Array(12)].map((_, i) => [i, 0])));
+  const [showAccountSel, setShowAccountSel] = useState(false);
+
+  /* ── Firestore ────────────────────────────────────────────────────────────── */
   useEffect(() => {
-    if(!user) return;
+    if (!user) return;
     const uids = queryUserIds?.length ? queryUserIds : [user.uid];
-    const uA = onSnapshot(query(collection(db,'accounts'),where('userId','in',uids)), s => setRawAccounts(s.docs.map(d=>({id:d.id,...d.data()}))));
-    const uB = onSnapshot(query(collection(db,'budgets'), where('userId','in',uids)), s => setBudgets(s.docs.map(d=>({id:d.id,...d.data()}))));
-    return ()=>{ uA(); uB(); };
-  },[user,queryUserIds]);
+    const uA = onSnapshot(query(collection(db, 'accounts'), where('userId', 'in', uids)), s => setRawAccounts(s.docs.map(d => ({ id: d.id, ...d.data() }))));
+    const uB = onSnapshot(query(collection(db, 'budgets'), where('userId', 'in', uids)), s => setBudgets(s.docs.map(d => ({ id: d.id, ...d.data() }))));
+    return () => { uA(); uB(); };
+  }, [user, queryUserIds]);
 
-  // ── Budget helpers ─────────────────────────────────────────────────────────
-  const budgetsForYear = useMemo(()=> budgets.filter(b=>b.year===selectedYear), [budgets,selectedYear]);
+  /* ── Budget data for selected year ────────────────────────────────────────── */
+  const budgetsForYear = useMemo(() => budgets.filter(b => b.year === selectedYear), [budgets, selectedYear]);
 
-  // ── Tree builder ───────────────────────────────────────────────────────────
-  const allCodes = useMemo(()=>{
-    const s = new Set(rawAccounts.map(a=>a.code).filter(Boolean));
+  /* ── Build tree ONLY from budgets (table starts empty if no budgets) ─────── */
+  const budgetCodes = useMemo(() => {
+    const codes = new Set(budgetsForYear.map(b => b.accountCode).filter(Boolean));
+    // Add parent codes so hierarchy shows
     const parents = new Set();
-    s.forEach(code=>{ for(let l=1;l<code.length;l++) parents.add(code.slice(0,l)); });
-    parents.forEach(p=>s.add(p));
-    return Array.from(s).sort();
-  },[rawAccounts]);
+    codes.forEach(c => { for (let l = 1; l < c.length; l++) parents.add(c.slice(0, l)); });
+    parents.forEach(p => codes.add(p));
+    return Array.from(codes).sort();
+  }, [budgetsForYear]);
 
-  const filteredCodes = useMemo(()=>{
-    let codes = allCodes;
-    if(groupFilter !== 'ALL') codes = codes.filter(c=>c.startsWith(groupFilter));
-    codes = codes.filter(c=>{
-      const isPgc = c.length<=4;
-      if(isPgc && !showPgc) return false;
-      if(!isPgc && !showAux) return false;
-      return true;
-    });
-    if(searchQuery){
-      const q=searchQuery.toLowerCase();
-      codes = codes.filter(c=>{
-        const n=desc(c,rawAccounts).toLowerCase();
-        const matchSelf = c.includes(q)||n.includes(q);
-        const matchChild = codes.some(o=>o!==c&&o.startsWith(c)&&(o.toLowerCase().includes(q)||desc(o,rawAccounts).toLowerCase().includes(q)));
-        return matchSelf||matchChild;
-      });
+  const treeRows = useMemo(() => {
+    let codes = budgetCodes;
+    if (groupFilter !== 'ALL') codes = codes.filter(c => c.startsWith(groupFilter));
+    if (searchQuery) {
+      const q = searchQuery.toLowerCase();
+      codes = codes.filter(c => c.includes(q) || descr(c, rawAccounts).toLowerCase().includes(q));
     }
-    return codes;
-  },[allCodes,groupFilter,showPgc,showAux,searchQuery,rawAccounts]);
-
-  const treeRows = useMemo(()=>{
-    return filteredCodes.map(code=>{
-      const budRecs = budgetsForYear.filter(b=>b.accountCode===code);
-      const total   = budRecs.reduce((s,b)=>s+(parseFloat(b.total)||0),0);
-      const months  = Object.fromEntries([...Array(12)].map((_,i)=>[i, budRecs.reduce((s,b)=>s+(parseFloat(b.months?.[i])||0),0)]));
-
-      let depth=0;
-      if(code.length===2) depth=1;
-      else if(code.length===3) depth=2;
-      else if(code.length===4) depth=3;
-      else if(code.length>4) depth=4;
-
-      const hasChildren = filteredCodes.some(o=>o!==code&&o.startsWith(code));
-      return { code, name:desc(code,rawAccounts), depth, hasChildren, total, months };
+    return codes.map(code => {
+      const buds = budgetsForYear.filter(b => b.accountCode === code);
+      const childBuds = budgetsForYear.filter(b => b.accountCode.startsWith(code));
+      const total = childBuds.reduce((s, b) => s + (parseFloat(b.total) || 0), 0);
+      const months = Object.fromEntries([...Array(12)].map((_, i) => [i,
+        childBuds.reduce((s, b) => s + (parseFloat(b.months?.[i]) || 0), 0)
+      ]));
+      let depth = 0;
+      if (code.length === 2) depth = 1;
+      else if (code.length === 3) depth = 2;
+      else if (code.length === 4) depth = 3;
+      else if (code.length > 4) depth = 4;
+      const hasChildren = codes.some(o => o !== code && o.startsWith(code));
+      return { code, name: descr(code, rawAccounts), depth, hasChildren, total, months, isLeaf: buds.length > 0 };
     });
-  },[filteredCodes,budgetsForYear,rawAccounts]);
+  }, [budgetCodes, budgetsForYear, rawAccounts, groupFilter, searchQuery]);
 
-  const visibleRows = useMemo(()=>{
+  const visibleRows = useMemo(() => {
     let rows = treeRows;
-    if(hideZero) rows = rows.filter(r=>r.total!==0);
-    return rows.filter(r=>{
-      for(let l=1;l<r.code.length;l++){
-        if(collapsed[r.code.slice(0,l)]) return false;
+    if (hideZero) rows = rows.filter(r => r.total !== 0);
+    return rows.filter(r => {
+      for (let l = 1; l < r.code.length; l++) {
+        if (collapsed[r.code.slice(0, l)]) return false;
       }
       return true;
     });
-  },[treeRows,collapsed,hideZero]);
+  }, [treeRows, collapsed, hideZero]);
 
-  const fmt  = v=>(v===0?'':(v||0).toLocaleString('es-ES',{minimumFractionDigits:2,maximumFractionDigits:2}));
-  const toggleCollapsed = (code,e)=>{
-    e.stopPropagation();
-    setCollapsed(p=>({...p,[code]:!p[code]}));
+  /* ── Helpers ──────────────────────────────────────────────────────────────── */
+  const fmt = v => v === 0 ? '' : (v || 0).toLocaleString('es-ES', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+  const formTotal = Object.values(formMonths).reduce((s, v) => s + (parseFloat(v) || 0), 0);
+
+  const openNew = () => {
+    setFormAccount(null);
+    setFormMonths(Object.fromEntries([...Array(12)].map((_, i) => [i, 0])));
+    setIsEditing(false);
+    setShowForm(true);
+  };
+  const openEdit = () => {
+    if (!selectedCode) return;
+    const bud = budgets.find(b => b.accountCode === selectedCode && b.year === selectedYear);
+    if (!bud) return;
+    const acc = rawAccounts.find(a => a.code === selectedCode) || { id: bud.accountId, code: bud.accountCode, name: bud.accountName };
+    setFormAccount(acc);
+    setFormMonths({ ...bud.months });
+    setIsEditing(true);
+    setShowForm(true);
+  };
+  const openDelete = async () => {
+    if (!selectedCode) return;
+    const bud = budgets.find(b => b.accountCode === selectedCode && b.year === selectedYear);
+    if (!bud) { alert('No hay presupuesto para esta cuenta/año.'); return; }
+    if (!window.confirm(`¿Eliminar presupuesto de ${selectedCode}?`)) return;
+    await deleteDoc(doc(db, 'budgets', bud.id));
+    setSelectedCode(null);
+  };
+  const saveBudget = async () => {
+    if (!formAccount) { alert('Selecciona una cuenta contable.'); return; }
+    const total = Object.values(formMonths).reduce((s, v) => s + (parseFloat(v) || 0), 0);
+    const id = `${user.uid}_${selectedYear}_${formAccount.code}`;
+    await setDoc(doc(db, 'budgets', id), {
+      id, accountId: formAccount.id, accountCode: formAccount.code, accountName: formAccount.name || '',
+      year: selectedYear, total: parseFloat(total.toFixed(2)), months: formMonths,
+      userId: user.uid, updatedAt: new Date().toISOString()
+    }, { merge: true });
+    setShowForm(false);
+  };
+  const distribute = () => {
+    const total = Object.values(formMonths).reduce((s, v) => s + (parseFloat(v) || 0), 0);
+    const each = parseFloat((total / 12).toFixed(2));
+    setFormMonths(Object.fromEntries([...Array(12)].map((_, i) => [i, each])));
   };
 
-  // ═════════════════════════════════════════════════════════════════════════════
+  /* ═══════════════════════════════════════════════════════════════════════════ */
   return (
-    <div className="w-full h-full flex flex-col bg-white font-[Segoe_UI,Tahoma,sans-serif] text-[12px] text-[#333]">
+    <div className="w-full h-full flex flex-col bg-white font-[Segoe_UI,Tahoma,sans-serif] text-[12px] text-[#333] select-none">
 
-      {/* ── PAGE TOOLBAR (Foto 1 EXACT) ─────────────────────────────────────────── */}
-      <div className="bg-[#f5f6f7] flex items-center px-2 py-1 shrink-0 h-[68px]">
-        <TBtn icon={IcoNuevo}  label="Nuevo"     hasDropdown={true} onClick={()=>{}}/>
-        <TBtn icon={IcoModif}  label="Modificar" hasDropdown={true} onClick={()=>{}} disabled={!selectedCode}/>
-        <TBtn icon={IcoElim}   label="Eliminar"  hasDropdown={true} onClick={()=>{}} disabled={!selectedCode}/>
-        <div className="w-[1px] h-10 bg-[#e0e2e5] mx-3"/>
-        <TBtn icon={IcoSubir}  label="Subir"     hasDropdown={false} onClick={()=>{}} disabled={!selectedCode}/>
-        <TBtn icon={IcoBajar}  label="Bajar"     hasDropdown={false} onClick={()=>{}} disabled={!selectedCode}/>
-        <div className="w-[1px] h-10 bg-[#e0e2e5] mx-3"/>
-        <TBtn icon={IcoExp}    label="Expandir"  hasDropdown={false} onClick={()=>setCollapsed({})}/>
-        <TBtn icon={IcoCol}    label="Colapsar"  hasDropdown={false} onClick={()=>{ const k={}; treeRows.forEach(r=>{ if(r.hasChildren) k[r.code]=true; }); setCollapsed(k); }}/>
-        
-        <div className="flex-1"/>
-        
-        {/* Right aligned search bar exactly as in Foto 1 */}
-        <div className="relative flex items-center mr-4 self-end mb-[6px]">
-          <input type="text" placeholder="Buscar en el fichero (Alt+B)"
-                 value={searchQuery} onChange={e=>setSearchQuery(e.target.value)}
-                 className="w-[220px] text-left pr-6 py-[2px] text-[11px] border-b border-[#a0a0a0] outline-none focus:border-b-blue-500 bg-transparent placeholder-gray-400 text-gray-700"/>
-          <Search size={12} className="absolute right-0 text-gray-400 pointer-events-none"/>
-        </div>
+      {/* ── TOOLBAR (Foto 1 exact) ──────────────────────────────────────────── */}
+      <div className="bg-[#f3f3f3] border-b border-[#d6d6d6] flex items-end px-[6px] pb-[2px] pt-[6px] shrink-0">
+        <TBtn icon={IcoNuevo}  label="Nuevo"     hasChevron onClick={openNew} />
+        <TBtn icon={IcoModif}  label="Modificar" hasChevron onClick={openEdit} disabled={!selectedCode} />
+        <TBtn icon={IcoElim}   label="Eliminar"  hasChevron onClick={openDelete} disabled={!selectedCode} />
+        <div className="w-[1px] self-stretch my-[6px] bg-[#d6d6d6] mx-[6px]" />
+        <TBtn icon={IcoSubir}  label="Subir"  onClick={() => {}} disabled={!selectedCode} />
+        <TBtn icon={IcoBajar}  label="Bajar"  onClick={() => {}} disabled={!selectedCode} />
+        <div className="w-[1px] self-stretch my-[6px] bg-[#d6d6d6] mx-[6px]" />
+        <TBtn icon={IcoExpandir}  label="Expandir"  onClick={() => setCollapsed({})} />
+        <TBtn icon={IcoColapsar}  label="Colapsar"  onClick={() => { const k = {}; treeRows.forEach(r => { if (r.hasChildren) k[r.code] = true; }); setCollapsed(k); }} />
       </div>
 
-      {/* ── BODY ──────────────────────────────────────────────────────────── */}
+      {/* ── BODY ────────────────────────────────────────────────────────────── */}
       <div className="flex flex-1 overflow-hidden">
 
-        {/* LEFT SIDEBAR (Foto 1 EXACT) */}
+        {/* ── LEFT SIDEBAR (Foto 1 exact) ───────────────────────────────────── */}
         {sidebarVisible && (
-          <div className="w-[230px] bg-[#f5f6f7] border-r border-[#e5e5e5] flex flex-col shrink-0 overflow-hidden">
-            <div className="flex-1 flex flex-col overflow-y-auto">
-              
-              <div className="bg-[#e9ebef] text-[#1c4980] text-[12.5px] px-3 py-1.5 font-bold mb-2">
+          <div className="w-[200px] bg-[#f3f3f3] border-r border-[#d6d6d6] flex flex-col shrink-0 overflow-hidden">
+            <div className="flex-1 overflow-y-auto">
+              {/* Header */}
+              <div className="bg-[#e6e8ec] text-[#333] text-[12px] font-bold px-3 py-[5px]">
                 Lista actual
               </div>
-              <div className="px-4 flex flex-col gap-[3px]">
-                {[{v:'ALL',l:'Todos los grupos'},...['0','1','2','3','4','5','6','7','8','9'].map(n=>({v:n,l:`Mostrar grupo ${n}`}))].map(({v,l})=>(
-                  <WinCheckbox key={v} name="main-grp" isRadio checked={groupFilter===v} onChange={()=>setGroupFilter(v)} label={l} />
+              {/* Radio buttons */}
+              <div className="px-3 pt-2 pb-1 flex flex-col">
+                <SideRadio checked={groupFilter === 'ALL'} onChange={() => setGroupFilter('ALL')} label="Todos los grupos" />
+                {['0','1','2','3','4','5','6','7','8','9'].map(n => (
+                  <SideRadio key={n} checked={groupFilter === n} onChange={() => setGroupFilter(n)} label={`Mostrar grupo ${n}`} />
                 ))}
               </div>
-
-              <div className="mx-4 my-3"/>
-              
-              <div className="px-4 flex flex-col gap-[3px] pb-4">
-                <WinCheckbox checked={showPgc}      onChange={e=>setShowPgc(e.target.checked)}      label="Mostrar cuentas del PGC" />
-                <WinCheckbox checked={showAux}      onChange={e=>setShowAux(e.target.checked)}      label="Mostrar cuentas auxiliares" />
-                <WinCheckbox checked={showObsolete} onChange={e=>setShowObsolete(e.target.checked)} label="Mostrar cuentas obsoletas" />
-                
-                {/* Extra filters requested previously, keeping them subtle */}
-                <div className="border-t border-[#e5e5e5] mt-2 mb-2"/>
-                <div className="flex flex-col gap-1 mt-1">
-                  <span className="text-[11px] text-[#555]">Filtrar por fecha:</span>
-                  <select value={selectedYear} onChange={e=>setSelectedYear(parseInt(e.target.value,10))}
-                          className="border border-[#ccc] bg-white text-[11px] px-1 py-[2px] outline-none">
-                    <option value={2026}>Año 2026</option>
-                  </select>
-                </div>
-                <WinCheckbox checked={hideZero} onChange={e=>setHideZero(e.target.checked)} label="Ocultar cuentas a 0" />
+              {/* Checkboxes */}
+              <div className="px-3 pt-1 pb-1 flex flex-col">
+                <SideCheck checked={showPgc} onChange={e => setShowPgc(e.target.checked)} label="Mostrar cuentas del PGC" />
+                <SideCheck checked={showAux} onChange={e => setShowAux(e.target.checked)} label="Mostrar cuentas auxiliares" bold />
+                <SideCheck checked={showObsolete} onChange={e => setShowObsolete(e.target.checked)} label="Mostrar cuentas obsoletas" />
               </div>
-
             </div>
-
-            {/* Ver saldos del diario */}
-            <div className="bg-[#e9ebef] border-t border-[#d5d7db] p-3 shrink-0">
+            {/* Bottom: Ver saldos */}
+            <div className="bg-[#e6e8ec] border-t border-[#d6d6d6] p-2 shrink-0">
               <div className="text-[11px] text-[#555] mb-1">Ver saldos del diario</div>
-              <select className="w-full border border-[#ccc] bg-white text-[11px] px-1 py-[3px] outline-none">
+              <select className="w-full border border-[#aaa] bg-white text-[11px] px-1 py-[3px] outline-none">
                 <option>Todas</option>
               </select>
             </div>
           </div>
         )}
 
-        {/* MAIN TABLE AREA */}
+        {/* ── TABLE AREA ────────────────────────────────────────────────────── */}
         <div className="flex-1 flex flex-col overflow-hidden bg-white">
-          <div className="flex-1 overflow-auto border-t border-[#e5e5e5]" onClick={()=>setSelectedCode(null)}>
-            <table className="w-full border-collapse" style={{tableLayout:'fixed'}}>
+
+          {/* Title bar (Foto 3: "Presupuestos de cuentas" + search) */}
+          <div className="flex items-center justify-between border-b border-[#e0e0e0] bg-white px-2 py-[3px] shrink-0">
+            <span className="text-[12px] text-[#333]">Presupuestos de cuentas</span>
+            <div className="relative flex items-center">
+              <input type="text" placeholder="Buscar en el fichero (Alt+B)"
+                     value={searchQuery} onChange={e => setSearchQuery(e.target.value)}
+                     className="w-[220px] pr-5 py-[2px] text-[11px] text-right border-b border-[#aaa] outline-none focus:border-b-[#4472c4] bg-transparent placeholder:text-[#aaa]" />
+              <Search size={13} className="absolute right-0 text-[#aaa] pointer-events-none" />
+            </div>
+          </div>
+
+          {/* Table */}
+          <div className="flex-1 overflow-auto" onClick={() => setSelectedCode(null)}>
+            <table className="w-full border-collapse text-[11px]" style={{ tableLayout: 'auto' }}>
+              <colgroup>
+                <col style={{ minWidth: 120 }} />
+                <col style={{ minWidth: 200 }} />
+                <col style={{ minWidth: 100 }} />
+                {MONTHS_HDR.map((_, i) => <col key={i} style={{ minWidth: 60 }} />)}
+              </colgroup>
               <thead>
-                <tr className="sticky top-0 bg-white border-b border-[#e5e5e5] z-10 shadow-[0_1px_0_#e5e5e5]">
-                  <th className="text-left font-normal text-[#555] text-[10px] uppercase py-[6px] px-2 w-[220px] flex items-center">
-                    <button onClick={()=>setSidebarVisible(p=>!p)} title="Ocultar filtros"
-                            className="mr-2 hover:bg-gray-100 p-[2px] rounded flex items-center justify-center">
-                      <IcoSidebarToggle />
-                    </button>
-                    CUENTA
+                <tr className="sticky top-0 bg-white border-b border-[#d6d6d6] z-10">
+                  <th className="text-left font-normal text-[#555] text-[10px] uppercase tracking-wider py-[5px] px-2">
+                    <div className="flex items-center gap-[6px]">
+                      <button onClick={() => setSidebarVisible(p => !p)} title="Ocultar/Mostrar filtros"
+                              className="hover:bg-[#e0e0e0] p-[1px] rounded-[2px]">
+                        <IcoPage />
+                      </button>
+                      <span>CUENTA</span>
+                    </div>
                   </th>
-                  <th className="text-left font-normal text-[#555] text-[10px] uppercase py-[6px] px-2 w-[260px]">DESCRIPCIÓN</th>
-                  <th className="text-right font-normal text-[#555] text-[10px] uppercase py-[6px] px-2 w-[110px]">PRESUPUESTO</th>
-                  {MONTHS_SHORT.map(m=>(
-                    <th key={m} className="text-right font-normal text-[#555] text-[10px] uppercase py-[6px] px-2 w-[70px]">{m}</th>
+                  <th className="text-left font-normal text-[#555] text-[10px] uppercase tracking-wider py-[5px] px-2">DESCRIPCIÓN</th>
+                  <th className="text-right font-normal text-[#555] text-[10px] uppercase tracking-wider py-[5px] px-2">PRESUPUESTO</th>
+                  {MONTHS_HDR.map(m => (
+                    <th key={m} className="text-right font-normal text-[#555] text-[10px] uppercase tracking-wider py-[5px] px-2">{m}</th>
                   ))}
                 </tr>
               </thead>
               <tbody>
-                {visibleRows.length===0 ? (
-                  <tr><td colSpan={15} className="text-center text-gray-400 py-10">No hay datos para mostrar.</td></tr>
-                ) : visibleRows.map(row=>{
-                  const isSel=selectedCode===row.code;
+                {visibleRows.map(row => {
+                  const sel = selectedCode === row.code;
                   return (
                     <tr key={row.code}
-                        className={`border-b border-[#f0f0f0] cursor-default ${isSel?'bg-[#e5f1fb]':'hover:bg-[#f9f9f9]'}`}
-                        onClick={e=>{ e.stopPropagation(); setSelectedCode(row.code); }}>
-                      <td className="py-[4px] px-2 whitespace-nowrap overflow-hidden text-ellipsis">
-                        <div className="flex items-center" style={{paddingLeft:`${row.depth*16}px`}}>
+                        className={`border-b border-[#f0f0f0] cursor-default ${sel ? 'bg-[#cce5ff]' : 'hover:bg-[#f5f7fa]'}`}
+                        onClick={e => { e.stopPropagation(); setSelectedCode(row.code); }}
+                        onDoubleClick={() => { setSelectedCode(row.code); setTimeout(openEdit, 0); }}>
+                      <td className="py-[3px] px-2 whitespace-nowrap">
+                        <div className="flex items-center" style={{ paddingLeft: row.depth * 16 }}>
                           {row.hasChildren ? (
-                            <button onClick={e=>toggleCollapsed(row.code,e)} className="mr-1.5 w-[14px] h-[14px] flex items-center justify-center text-gray-400 hover:text-gray-600">
-                              {collapsed[row.code] ? <ChevronRight size={14}/> : <ChevronDown size={14}/>}
+                            <button onClick={e => { e.stopPropagation(); setCollapsed(p => ({ ...p, [row.code]: !p[row.code] })); }}
+                                    className="mr-[5px] text-[#999] hover:text-[#333] flex items-center justify-center w-[14px] h-[14px]">
+                              <svg width="8" height="8" viewBox="0 0 8 8" fill="none">
+                                {collapsed[row.code]
+                                  ? <path d="M2 0l4 4-4 4" stroke="currentColor" strokeWidth="1.5" fill="none" />
+                                  : <path d="M0 2l4 4 4-4" stroke="currentColor" strokeWidth="1.5" fill="none" />}
+                              </svg>
                             </button>
-                          ) : <span className="w-[20px] shrink-0"/>}
-                          <span className={`text-[11px] ${row.total>0?'font-semibold text-blue-700':'text-[#333]'}`}>{row.code}</span>
+                          ) : <span className="w-[19px] shrink-0" />}
+                          <span className="text-[11px] text-[#333]">{row.code}</span>
                         </div>
                       </td>
-                      <td className={`py-[4px] px-2 text-[11px] uppercase whitespace-nowrap overflow-hidden text-ellipsis ${row.total>0?'font-semibold text-blue-700':'text-[#555]'}`}>{row.name}</td>
-                      <td className={`py-[4px] px-2 text-right text-[11px] ${row.total>0?'font-semibold text-[#333]':'text-transparent'}`}>{fmt(row.total)}</td>
-                      {[...Array(12)].map((_,i)=>(
-                        <td key={i} className={`py-[4px] px-2 text-right text-[11px] ${(row.months[i]||0)>0?'text-[#333]':'text-transparent'}`}>
-                          {(row.months[i]||0)>0 ? fmt(row.months[i]) : ''}
-                        </td>
+                      <td className="py-[3px] px-2 text-[11px] uppercase text-[#333] whitespace-nowrap overflow-hidden text-ellipsis">{row.name}</td>
+                      <td className="py-[3px] px-2 text-right text-[11px]">{fmt(row.total)}</td>
+                      {[...Array(12)].map((_, i) => (
+                        <td key={i} className="py-[3px] px-2 text-right text-[11px]">{fmt(row.months[i])}</td>
                       ))}
                     </tr>
                   );
@@ -349,6 +480,90 @@ export default function Analitica() {
           </div>
         </div>
       </div>
+
+      {/* ═══════════════════════════════════════════════════════════════════════
+          MODAL: Ficha de presupuesto anual  (Foto 4 EXACT)
+      ═══════════════════════════════════════════════════════════════════════ */}
+      {showForm && (
+        <WinDialog title="Ficha de presupuesto anual" onClose={() => setShowForm(false)} width={440}>
+          <div className="p-4 flex flex-col gap-3">
+
+            {/* Image placeholder */}
+            <div className="w-[90px] h-[65px] border border-[#999] bg-white flex items-center justify-center self-start">
+              <svg width="36" height="28" viewBox="0 0 36 28" fill="none">
+                <rect x="1" y="1" width="34" height="26" stroke="#bbb" fill="#fff" strokeWidth="1"/>
+                <circle cx="12" cy="10" r="3" stroke="#bbb" fill="none"/>
+                <polyline points="1,22 10,14 18,20 24,16 35,22" stroke="#bbb" fill="none" strokeWidth="1"/>
+              </svg>
+            </div>
+
+            {/* Cuenta */}
+            <div className="flex items-center gap-[6px]">
+              <span className="border border-[#999] bg-white px-2 py-[3px] text-[12px] text-[#333] w-[90px] text-center">Cuenta:</span>
+              <input type="text" readOnly value={formAccount?.code || ''}
+                     onClick={() => setShowAccountSel(true)}
+                     className="w-[80px] border border-[#999] px-2 py-[3px] text-[12px] bg-white cursor-pointer outline-none" />
+              <span className="text-[12px] text-[#333] uppercase truncate flex-1">{formAccount?.name || ''}</span>
+            </div>
+
+            {/* Presupuesto anual + Repartir */}
+            <div className="flex items-center gap-[6px]">
+              <span className="border border-[#999] bg-white px-2 py-[3px] text-[12px] font-semibold text-[#333] whitespace-nowrap">Presupuesto anual:</span>
+              <input type="text" readOnly value={formTotal.toLocaleString('es-ES', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+                     className="w-[80px] border border-[#999] px-2 py-[3px] text-[12px] text-right bg-white outline-none" />
+              <button onClick={distribute}
+                      className="border border-[#999] bg-[#e1e1e1] hover:bg-[#d0d0d0] px-3 py-[3px] text-[12px] whitespace-nowrap active:bg-[#c0c0c0]">
+                Repartir proporcionalmente
+              </button>
+            </div>
+
+            {/* Months grid: 2 columns, 6 rows */}
+            <div className="border border-[#bbb] bg-white p-3">
+              <div className="grid grid-cols-2 gap-x-6 gap-y-[4px]">
+                {[...Array(6)].map((_, i) => (
+                  <div key={i} className="contents">
+                    {/* Left column month */}
+                    <div className="flex items-center justify-between gap-2">
+                      <span className="text-[12px] text-[#333] font-semibold w-[85px]">{MONTHS_LONG[i]}</span>
+                      <input type="number" step="0.01" value={formMonths[i] ?? 0}
+                             onChange={e => setFormMonths(p => ({ ...p, [i]: parseFloat(e.target.value) || 0 }))}
+                             className="w-[70px] border border-[#999] px-2 py-[2px] text-[12px] text-right outline-none bg-white" />
+                    </div>
+                    {/* Right column month */}
+                    <div className="flex items-center justify-between gap-2">
+                      <span className="text-[12px] text-[#333] font-semibold w-[85px]">{MONTHS_LONG[i + 6]}</span>
+                      <input type="number" step="0.01" value={formMonths[i + 6] ?? 0}
+                             onChange={e => setFormMonths(p => ({ ...p, [i + 6]: parseFloat(e.target.value) || 0 }))}
+                             className="w-[70px] border border-[#999] px-2 py-[2px] text-[12px] text-right outline-none bg-white" />
+                    </div>
+                  </div>
+                ))}
+              </div>
+            </div>
+
+            {/* Buttons */}
+            <div className="flex justify-end gap-2 mt-2">
+              <button onClick={saveBudget}
+                      className="w-[80px] py-[4px] border border-[#888] bg-[#e1e1e1] hover:bg-[#d0d0d0] text-[12px] active:bg-[#c0c0c0]">
+                Aceptar
+              </button>
+              <button onClick={() => setShowForm(false)}
+                      className="w-[80px] py-[4px] border border-[#888] bg-[#e1e1e1] hover:bg-[#d0d0d0] text-[12px] active:bg-[#c0c0c0]">
+                Cancelar
+              </button>
+            </div>
+          </div>
+        </WinDialog>
+      )}
+
+      {/* Account selector */}
+      {showAccountSel && (
+        <AccountSelector
+          accounts={rawAccounts}
+          onSelect={acc => { setFormAccount(acc); setShowAccountSel(false); }}
+          onClose={() => setShowAccountSel(false)}
+        />
+      )}
     </div>
   );
 }
