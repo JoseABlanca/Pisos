@@ -258,6 +258,7 @@ export default function Analitica() {
   const [showAux, setShowAux] = useState(true);
   const [showObsolete, setShowObsolete] = useState(false);
   const [hideZero, setHideZero] = useState(false);
+  const [onlyAssigned, setOnlyAssigned] = useState(false);
   const [searchQuery, setSearchQuery] = useState('');
   const [selectedYear, setSelectedYear] = useState(2026);
   const [collapsed, setCollapsed] = useState({});
@@ -288,38 +289,57 @@ export default function Analitica() {
   const budgetsForYear = useMemo(() => budgets.filter(b => b.year === selectedYear), [budgets, selectedYear]);
 
   /* ── Build tree ONLY from budgets (table starts empty if no budgets) ─────── */
+  // Real account codes from the DB (the ones the user actually created)
+  const realAccountCodes = useMemo(() => new Set(rawAccounts.map(a => a.code).filter(Boolean)), [rawAccounts]);
+
   const budgetCodes = useMemo(() => {
-    const codes = new Set(budgetsForYear.map(b => b.accountCode).filter(Boolean));
-    // Add parent codes so hierarchy shows
-    const parents = new Set();
-    codes.forEach(c => { for (let l = 1; l < c.length; l++) parents.add(c.slice(0, l)); });
-    parents.forEach(p => codes.add(p));
+    // Start with the exact codes that have a budget
+    const leafCodes = new Set(budgetsForYear.map(b => b.accountCode).filter(Boolean));
+    const codes = new Set(leafCodes);
+    // Only add parent codes that actually exist in the user's account database
+    leafCodes.forEach(c => {
+      for (let l = 1; l < c.length; l++) {
+        const parent = c.slice(0, l);
+        if (realAccountCodes.has(parent)) codes.add(parent);
+      }
+    });
     return Array.from(codes).sort();
-  }, [budgetsForYear]);
+  }, [budgetsForYear, realAccountCodes]);
+
+  // Set of codes that have a direct budget entry
+  const leafBudgetCodes = useMemo(() => new Set(budgetsForYear.map(b => b.accountCode).filter(Boolean)), [budgetsForYear]);
 
   const treeRows = useMemo(() => {
-    let codes = budgetCodes;
+    // If onlyAssigned, show only the exact leaf codes with budgets (no parents, no hierarchy)
+    let codes = onlyAssigned
+      ? Array.from(leafBudgetCodes).sort()
+      : budgetCodes;
     if (groupFilter !== 'ALL') codes = codes.filter(c => c.startsWith(groupFilter));
     if (searchQuery) {
       const q = searchQuery.toLowerCase();
       codes = codes.filter(c => c.includes(q) || descr(c, rawAccounts).toLowerCase().includes(q));
     }
     return codes.map(code => {
+      const isLeaf = leafBudgetCodes.has(code);
       const buds = budgetsForYear.filter(b => b.accountCode === code);
-      const childBuds = budgetsForYear.filter(b => b.accountCode.startsWith(code));
-      const total = childBuds.reduce((s, b) => s + (parseFloat(b.total) || 0), 0);
+      const childBuds = onlyAssigned
+        ? buds   // in flat mode, no children aggregation
+        : budgetsForYear.filter(b => b.accountCode.startsWith(code));
+      const total = (onlyAssigned ? buds : childBuds).reduce((s, b) => s + (parseFloat(b.total) || 0), 0);
       const months = Object.fromEntries([...Array(12)].map((_, i) => [i,
-        childBuds.reduce((s, b) => s + (parseFloat(b.months?.[i]) || 0), 0)
+        (onlyAssigned ? buds : childBuds).reduce((s, b) => s + (parseFloat(b.months?.[i]) || 0), 0)
       ]));
       let depth = 0;
-      if (code.length === 2) depth = 1;
-      else if (code.length === 3) depth = 2;
-      else if (code.length === 4) depth = 3;
-      else if (code.length > 4) depth = 4;
-      const hasChildren = codes.some(o => o !== code && o.startsWith(code));
-      return { code, name: descr(code, rawAccounts), depth, hasChildren, total, months, isLeaf: buds.length > 0 };
+      if (!onlyAssigned) {
+        if (code.length === 2) depth = 1;
+        else if (code.length === 3) depth = 2;
+        else if (code.length === 4) depth = 3;
+        else if (code.length > 4) depth = 4;
+      }
+      const hasChildren = !onlyAssigned && codes.some(o => o !== code && o.startsWith(code));
+      return { code, name: descr(code, rawAccounts), depth, hasChildren, total, months, isLeaf };
     });
-  }, [budgetCodes, budgetsForYear, rawAccounts, groupFilter, searchQuery]);
+  }, [budgetCodes, leafBudgetCodes, budgetsForYear, rawAccounts, groupFilter, searchQuery, onlyAssigned]);
 
   const visibleRows = useMemo(() => {
     let rows = treeRows;
@@ -413,10 +433,12 @@ export default function Analitica() {
                 ))}
               </div>
               {/* Checkboxes */}
-              <div className="px-3 pt-1 pb-1 flex flex-col">
+              <div className="px-3 pt-1 pb-2 flex flex-col">
                 <SideCheck checked={showPgc} onChange={e => setShowPgc(e.target.checked)} label="Mostrar cuentas del PGC" />
                 <SideCheck checked={showAux} onChange={e => setShowAux(e.target.checked)} label="Mostrar cuentas auxiliares" bold />
                 <SideCheck checked={showObsolete} onChange={e => setShowObsolete(e.target.checked)} label="Mostrar cuentas obsoletas" />
+                <div className="border-t border-[#d6d6d6] my-[5px]" />
+                <SideCheck checked={onlyAssigned} onChange={e => { setOnlyAssigned(e.target.checked); setCollapsed({}); }} label="Mostrar solo asignadas" bold={onlyAssigned} />
               </div>
             </div>
             {/* Bottom: Ver saldos */}
