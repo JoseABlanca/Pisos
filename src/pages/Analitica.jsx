@@ -258,6 +258,70 @@ function AccountSelector({ accounts, onSelect, onClose }) {
   );
 }
 
+function SearchableSelect({ value, onChange, options, placeholder }) {
+  const [isOpen, setIsOpen] = useState(false);
+  const [search, setSearch] = useState('');
+  const containerRef = useRef(null);
+
+  useEffect(() => {
+    function handleClickOutside(event) {
+      if (containerRef.current && !containerRef.current.contains(event.target)) {
+        setIsOpen(false);
+      }
+    }
+    document.addEventListener("mousedown", handleClickOutside);
+    return () => document.removeEventListener("mousedown", handleClickOutside);
+  }, []);
+
+  const filtered = options.filter(opt =>
+    (opt.code || '').toLowerCase().includes(search.toLowerCase()) ||
+    (opt.name || '').toLowerCase().includes(search.toLowerCase())
+  );
+
+  return (
+    <div ref={containerRef} className="relative flex-grow flex items-center min-w-0">
+      <div onClick={() => setIsOpen(!isOpen)}
+           className="w-full border border-[#999] px-2 py-[3px] text-[12px] bg-white cursor-pointer flex items-center justify-between select-none min-w-0">
+        <span className="truncate">{value ? value : placeholder}</span>
+        <span className="text-[9px] text-gray-500 ml-1">▼</span>
+      </div>
+
+      {isOpen && (
+        <div className="absolute top-full left-0 right-0 z-[1000] mt-[1px] bg-white border border-[#999] shadow-[2px_3px_8px_rgba(0,0,0,0.2)] flex flex-col">
+          <input
+            type="text"
+            value={search}
+            onChange={e => setSearch(e.target.value)}
+            placeholder="Buscar..."
+            autoFocus
+            className="border-b border-[#ccc] p-1.5 text-[12px] outline-none w-full bg-white font-sans"
+          />
+          <div className="max-h-[140px] overflow-y-auto">
+            <div
+              onClick={() => { onChange(''); setIsOpen(false); setSearch(''); }}
+              className="px-2 py-1.5 hover:bg-[#cce5ff] cursor-pointer text-[12px] text-gray-500"
+            >
+              {placeholder}
+            </div>
+            {filtered.map(opt => (
+              <div
+                key={opt.id}
+                onClick={() => { onChange(opt.code); setIsOpen(false); setSearch(''); }}
+                className={`px-2 py-1.5 hover:bg-[#cce5ff] cursor-pointer text-[12px] ${value === opt.code ? 'bg-[#cce5ff] font-semibold' : ''}`}
+              >
+                {opt.code}
+              </div>
+            ))}
+            {filtered.length === 0 && (
+              <div className="px-2 py-1.5 text-gray-400 text-[12px]">No hay resultados</div>
+            )}
+          </div>
+        </div>
+      )}
+    </div>
+  );
+}
+
 /* ═══════════════════════════════════════════════════════════════════════════════
    MAIN COMPONENT
    ═══════════════════════════════════════════════════════════════════════════════ */
@@ -289,6 +353,7 @@ export default function Analitica() {
   const [isEditing, setIsEditing] = useState(false);
   const [formAccount, setFormAccount] = useState(null);
   const [formMonths, setFormMonths] = useState(() => Object.fromEntries([...Array(12)].map((_, i) => [i, 0])));
+  const [formInputValues, setFormInputValues] = useState(() => Object.fromEntries([...Array(12)].map((_, i) => [i, '0,00'])));
   const [formCebe, setFormCebe] = useState('');
   const [formCeco, setFormCeco] = useState('');
   const [showAccountSel, setShowAccountSel] = useState(false);
@@ -503,6 +568,7 @@ export default function Analitica() {
   const openNew = () => {
     setFormAccount(null);
     setFormMonths(Object.fromEntries([...Array(12)].map((_, i) => [i, 0])));
+    setFormInputValues(Object.fromEntries([...Array(12)].map((_, i) => [i, '0,00'])));
     setFormCebe('');
     setFormCeco('');
     setIsEditing(false);
@@ -528,6 +594,10 @@ export default function Analitica() {
     const acc = rawAccounts.find(a => a.code === bud.accountCode) || { id: bud.accountId, code: bud.accountCode, name: bud.accountName };
     setFormAccount(acc);
     setFormMonths({ ...bud.months });
+    setFormInputValues(Object.fromEntries([...Array(12)].map((_, i) => [
+      i,
+      (bud.months?.[i] || 0).toLocaleString('es-ES', { minimumFractionDigits: 2, maximumFractionDigits: 2 })
+    ])));
     setFormCebe(bud.cebe || '');
     setFormCeco(bud.ceco || '');
     setIsEditing(true);
@@ -584,6 +654,10 @@ export default function Analitica() {
     const total = Object.values(formMonths).reduce((s, v) => s + (parseFloat(v) || 0), 0);
     const each = parseFloat((total / 12).toFixed(2));
     setFormMonths(Object.fromEntries([...Array(12)].map((_, i) => [i, each])));
+    setFormInputValues(Object.fromEntries([...Array(12)].map((_, i) => [
+      i,
+      each.toLocaleString('es-ES', { minimumFractionDigits: 2, maximumFractionDigits: 2 })
+    ])));
   };
 
   /* ═══════════════════════════════════════════════════════════════════════════ */
@@ -823,19 +897,11 @@ export default function Analitica() {
               <div className="grid grid-cols-2 gap-2">
                 <div className="flex items-center gap-[6px]">
                   <span className="border border-[#999] bg-[#f8f9fa] px-2 py-[3px] text-[12px] text-[#333] w-[65px] text-center shrink-0">CEBE:</span>
-                  <select value={formCebe} onChange={e => setFormCebe(e.target.value)}
-                          className="flex-1 border border-[#999] px-2 py-[3px] text-[12px] bg-white outline-none">
-                    <option value="">-- Sin CEBE --</option>
-                    {cebes.map(c => <option key={c.id} value={c.code}>{c.code}</option>)}
-                  </select>
+                  <SearchableSelect value={formCebe} onChange={setFormCebe} options={cebes} placeholder="-- Sin CEBE --" />
                 </div>
                 <div className="flex items-center gap-[6px]">
                   <span className="border border-[#999] bg-[#f8f9fa] px-2 py-[3px] text-[12px] text-[#333] w-[65px] text-center shrink-0">CECO:</span>
-                  <select value={formCeco} onChange={e => setFormCeco(e.target.value)}
-                          className="flex-1 border border-[#999] px-2 py-[3px] text-[12px] bg-white outline-none">
-                    <option value="">-- Sin CECO --</option>
-                    {cecos.map(c => <option key={c.id} value={c.code}>{c.code}</option>)}
-                  </select>
+                  <SearchableSelect value={formCeco} onChange={setFormCeco} options={cecos} placeholder="-- Sin CECO --" />
                 </div>
               </div>
 
@@ -866,15 +932,57 @@ export default function Analitica() {
                     {/* Left column month */}
                     <div className="flex items-center justify-between gap-2">
                       <span className="text-[12px] text-[#333] font-semibold w-[85px]">{MONTHS_LONG[i]}</span>
-                      <input type="text" value={(parseFloat(formMonths[i]) || 0).toLocaleString('es-ES', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
-                             onChange={e => { const v = e.target.value.replace(/[^0-9,.-]/g, '').replace(',', '.'); setFormMonths(p => ({ ...p, [i]: parseFloat(v) || 0 })); }}
+                      <input type="text"
+                             value={formInputValues[i] || ''}
+                             onChange={e => {
+                               const valStr = e.target.value;
+                               if (/^[0-9.,-]*$/.test(valStr)) {
+                                 setFormInputValues(p => ({ ...p, [i]: valStr }));
+                                 const normalized = valStr.replace(',', '.');
+                                 const valNum = parseFloat(normalized) || 0;
+                                 setFormMonths(p => ({ ...p, [i]: valNum }));
+                               }
+                             }}
+                             onFocus={e => {
+                               const normalized = (formInputValues[i] || '').replace(/\./g, '').replace(',', '.');
+                               const valNum = parseFloat(normalized) || 0;
+                               setFormInputValues(p => ({ ...p, [i]: valNum === 0 ? '' : valNum.toString() }));
+                               e.target.select();
+                             }}
+                             onBlur={() => {
+                               const normalized = (formInputValues[i] || '').replace(/\./g, '').replace(',', '.');
+                               const valNum = parseFloat(normalized) || 0;
+                               setFormInputValues(p => ({ ...p, [i]: valNum.toLocaleString('es-ES', { minimumFractionDigits: 2, maximumFractionDigits: 2 }) }));
+                               setFormMonths(p => ({ ...p, [i]: valNum }));
+                             }}
                              className="w-[65px] border border-[#999] px-2 py-[2px] text-[12px] text-right outline-none bg-white font-mono" />
                     </div>
                     {/* Right column month */}
                     <div className="flex items-center justify-between gap-2">
                       <span className="text-[12px] text-[#333] font-semibold w-[85px]">{MONTHS_LONG[i + 6]}</span>
-                      <input type="text" value={(parseFloat(formMonths[i + 6]) || 0).toLocaleString('es-ES', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
-                             onChange={e => { const v = e.target.value.replace(/[^0-9,.-]/g, '').replace(',', '.'); setFormMonths(p => ({ ...p, [i + 6]: parseFloat(v) || 0 })); }}
+                      <input type="text"
+                             value={formInputValues[i + 6] || ''}
+                             onChange={e => {
+                               const valStr = e.target.value;
+                               if (/^[0-9.,-]*$/.test(valStr)) {
+                                 setFormInputValues(p => ({ ...p, [i + 6]: valStr }));
+                                 const normalized = valStr.replace(',', '.');
+                                 const valNum = parseFloat(normalized) || 0;
+                                 setFormMonths(p => ({ ...p, [i + 6]: valNum }));
+                               }
+                             }}
+                             onFocus={e => {
+                               const normalized = (formInputValues[i + 6] || '').replace(/\./g, '').replace(',', '.');
+                               const valNum = parseFloat(normalized) || 0;
+                               setFormInputValues(p => ({ ...p, [i + 6]: valNum === 0 ? '' : valNum.toString() }));
+                               e.target.select();
+                             }}
+                             onBlur={() => {
+                               const normalized = (formInputValues[i + 6] || '').replace(/\./g, '').replace(',', '.');
+                               const valNum = parseFloat(normalized) || 0;
+                               setFormInputValues(p => ({ ...p, [i + 6]: valNum.toLocaleString('es-ES', { minimumFractionDigits: 2, maximumFractionDigits: 2 }) }));
+                               setFormMonths(p => ({ ...p, [i + 6]: valNum }));
+                             }}
                              className="w-[65px] border border-[#999] px-2 py-[2px] text-[12px] text-right outline-none bg-white font-mono" />
                     </div>
                   </div>
