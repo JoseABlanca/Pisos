@@ -840,6 +840,7 @@ export default function RvMetrics() {
     }
 
     let maxDrawdownPct = 0;
+    let maxDrawdownEUR = 0;
     let peakValue = 0;
     let prevVal = null;
     const dailyReturns = [];
@@ -850,6 +851,8 @@ export default function RvMetrics() {
        if (peakValue > 0) {
           const ddPct = (peakValue - equity) / peakValue;
           if (ddPct > maxDrawdownPct) maxDrawdownPct = ddPct;
+          const ddEUR = equity - peakValue;
+          if (ddEUR < maxDrawdownEUR) maxDrawdownEUR = ddEUR;
        }
        if (prevVal !== null && prevVal > 0) {
           const ret = (equity - prevVal) / prevVal;
@@ -894,6 +897,7 @@ export default function RvMetrics() {
           totalCommissions,
           profitFactor,
           maxDrawdownPct: (maxDrawdownPct * 100).toFixed(2),
+          maxDrawdownEUR,
           sharpeRatio: sharpeRatio.toFixed(2),
           totalTrades,
           percentProfitable,
@@ -1085,115 +1089,212 @@ export default function RvMetrics() {
         {/* Scrollable Content */}
         <div className="p-4 flex-1 flex flex-col gap-6 overflow-y-auto">
           
-          {activeView === 'metricas' && (
-            <div className="bg-white p-6 rounded-xl border border-slate-200 shadow-sm max-w-4xl mx-auto w-full">
-              <h2 className="text-xl font-bold text-slate-800 mb-6">
-                Métricas de la Estrategia {kpiBenefitType === 'LATENTE' ? '(Solo Latente)' : '(Realizado + Latente)'}
-              </h2>
-              
-              <div className="flex flex-col gap-8">
-                
-                <table className="w-full text-sm text-left">
-                  <tbody>
-                    <tr className="border-b border-slate-200">
-                      <td className="py-2 text-slate-600">Beneficio {kpiBenefitType === 'LATENTE' ? 'latente' : 'neto total'} (Total profit)</td>
-                      <td className={`py-2 font-medium ${(kpiBenefitType === 'LATENTE' ? summary.latenteGains : summary.metrics?.totalNetProfit) >= 0 ? 'text-green-600' : 'text-red-600'}`}>
-                        {(kpiBenefitType === 'LATENTE' ? summary.latenteGains : summary.metrics?.totalNetProfit)?.toLocaleString('es-ES', { style: 'currency', currency: 'EUR' })}
-                      </td>
-                    </tr>
-                    
-                    {kpiBenefitType !== 'LATENTE' && (
-                      <>
-                        <tr className="border-b border-slate-200">
-                          <td className="py-2 text-slate-600">Beneficio bruto (Gross profit)</td>
-                          <td className="py-2 font-medium text-green-600">{summary.metrics?.grossProfit?.toLocaleString('es-ES', { style: 'currency', currency: 'EUR' })}</td>
-                        </tr>
-                        <tr className="border-b border-slate-200">
-                          <td className="py-2 text-slate-600">Pérdida bruta (Gross loss)</td>
-                          <td className="py-2 font-medium text-red-600">{summary.metrics?.grossLoss?.toLocaleString('es-ES', { style: 'currency', currency: 'EUR' })}</td>
-                        </tr>
-                        <tr className="border-b border-slate-200">
-                          <td className="py-2 text-slate-600">Comisiones pagadas (Commission)</td>
-                          <td className="py-2 font-medium text-slate-800">{summary.metrics?.totalCommissions?.toLocaleString('es-ES', { style: 'currency', currency: 'EUR' })}</td>
-                        </tr>
-                        <tr className="border-b border-slate-200">
-                          <td className="py-2 text-slate-600">Factor de beneficio (Profit factor)</td>
-                          <td className="py-2 font-medium text-slate-800">{summary.metrics?.profitFactor}</td>
-                        </tr>
-                        <tr className="border-b border-slate-200">
-                          <td className="py-2 text-slate-600">Drawdown Máximo (Max. drawdown)</td>
-                          <td className="py-2 font-medium text-red-600">{summary.metrics?.maxDrawdownPct} %</td>
-                        </tr>
-                        <tr className="border-b border-slate-200">
-                          <td className="py-2 text-slate-600">Ratio de Sharpe (Sharpe ratio)</td>
-                          <td className="py-2 font-medium text-slate-800">{summary.metrics?.sharpeRatio}</td>
-                        </tr>
-                      </>
-                    )}
-                  </tbody>
-                </table>
+          {activeView === 'metricas' && (() => {
+            const netProfit = kpiBenefitType === 'LATENTE' ? summary.latenteGains : summary.totalGains;
+            const netProfitPct = kpiBenefitType === 'LATENTE' ? summary.plusvaliaPct : summary.roiPct;
+            const capInv = summary.currentCapital;
+            
+            const grossProfit = parseFloat(summary.metrics?.grossProfit) || 0;
+            const grossLoss = parseFloat(summary.metrics?.grossLoss) || 0;
+            const totalCommissions = parseFloat(summary.metrics?.totalCommissions) || 0;
+            const profitFactor = summary.metrics?.profitFactor || '0.00';
+            const sharpeRatio = summary.metrics?.sharpeRatio || '0.00';
+            const maxDrawdownPct = summary.metrics?.maxDrawdownPct || '0.00';
+            const maxDrawdownEUR = Math.abs(parseFloat(summary.metrics?.maxDrawdownEUR) || 0) * -1; // always show negative/drawdown format
+            
+            const totalTrades = summary.metrics?.totalTrades || 0;
+            const percentProfitable = summary.metrics?.percentProfitable || '0.00';
+            const winningTrades = summary.metrics?.winningTrades || 0;
+            const losingTrades = summary.metrics?.losingTrades || 0;
+            const evenTrades = summary.metrics?.evenTrades || 0;
+            const maxConsecutiveLosses = summary.metrics?.maxConsecutiveLosses || 0;
+            
+            const avgTrade = parseFloat(summary.metrics?.avgTrade) || 0;
+            const avgWin = parseFloat(summary.metrics?.avgWin) || 0;
+            const avgLoss = parseFloat(summary.metrics?.avgLoss) || 0;
+            const ratioWinLoss = summary.metrics?.ratioWinLoss || '0.00';
 
-                {kpiBenefitType === 'LATENTE' ? (
-                  <div className="bg-amber-50 p-4 rounded-md text-amber-800 text-sm border border-amber-200">
+            return (
+              <div className="bg-white p-6 rounded border border-slate-200 shadow-sm max-w-4xl mx-auto w-full select-text">
+                <h2 className="text-sm font-bold text-slate-800 mb-4 border-b border-slate-200 pb-2">
+                  Métricas de la Estrategia {kpiBenefitType === 'LATENTE' ? '(Solo Latente)' : '(Realizado + Latente)'}
+                </h2>
+                
+                <div className="overflow-x-auto">
+                  <table className="w-full text-[12px] text-left border-collapse font-sans">
+                    <thead>
+                      <tr className="bg-[#f2f2f2] text-slate-700 font-bold border-b border-slate-300">
+                        <th className="py-2.5 px-4 font-bold">Métrica</th>
+                        <th className="py-2.5 px-4 text-right font-bold">Importe (€) / Valor</th>
+                        <th className="py-2.5 px-4 text-right font-bold">Porcentaje (%)</th>
+                      </tr>
+                    </thead>
+                    <tbody>
+                      {/* Rendimiento General */}
+                      <tr className="bg-slate-50 font-bold text-[#2b579a]">
+                        <td colSpan={3} className="py-2 px-4 border-b border-slate-200 text-[10px] tracking-wider uppercase">RENDIMIENTO GENERAL</td>
+                      </tr>
+                      <tr className="border-b border-slate-100 hover:bg-slate-50/50">
+                        <td className="py-2 px-4 text-slate-600 font-medium">Beneficio Neto {kpiBenefitType === 'LATENTE' ? 'Latente' : 'Total'}</td>
+                        <td className={`py-2 px-4 text-right font-bold ${netProfit >= 0 ? 'text-green-600' : 'text-red-600'}`}>
+                          {netProfit.toLocaleString('es-ES', { style: 'currency', currency: 'EUR', signDisplay: 'always' })}
+                        </td>
+                        <td className={`py-2 px-4 text-right font-bold ${netProfitPct >= 0 ? 'text-green-600' : 'text-red-600'}`}>
+                          {netProfitPct >= 0 ? '+' : ''}{netProfitPct.toFixed(2)} %
+                        </td>
+                      </tr>
+                      {kpiBenefitType !== 'LATENTE' && (
+                        <>
+                          <tr className="border-b border-slate-100 hover:bg-slate-50/50">
+                            <td className="py-2 px-4 text-slate-600">Beneficio Bruto (Gross Profit)</td>
+                            <td className="py-2 px-4 text-right font-medium text-green-600">
+                              {grossProfit.toLocaleString('es-ES', { style: 'currency', currency: 'EUR' })}
+                            </td>
+                            <td className="py-2 px-4 text-right text-slate-500 font-mono">
+                              {capInv > 0 ? `+${((grossProfit / capInv) * 100).toFixed(2)} %` : '-'}
+                            </td>
+                          </tr>
+                          <tr className="border-b border-slate-100 hover:bg-slate-50/50">
+                            <td className="py-2 px-4 text-slate-600">Pérdida Bruta (Gross Loss)</td>
+                            <td className="py-2 px-4 text-right font-medium text-red-600">
+                              {grossLoss.toLocaleString('es-ES', { style: 'currency', currency: 'EUR' })}
+                            </td>
+                            <td className="py-2 px-4 text-right text-slate-500 font-mono">
+                              {capInv > 0 ? `-${((grossLoss / capInv) * 100).toFixed(2)} %` : '-'}
+                            </td>
+                          </tr>
+                          <tr className="border-b border-slate-100 hover:bg-slate-50/50">
+                            <td className="py-2 px-4 text-slate-600">Comisiones Pagadas</td>
+                            <td className="py-2 px-4 text-right text-slate-800">
+                              {totalCommissions.toLocaleString('es-ES', { style: 'currency', currency: 'EUR' })}
+                            </td>
+                            <td className="py-2 px-4 text-right text-slate-500 font-mono">
+                              {capInv > 0 ? `-${((totalCommissions / capInv) * 100).toFixed(2)} %` : '-'}
+                            </td>
+                          </tr>
+                        </>
+                      )}
+
+                      {/* Análisis de Riesgo */}
+                      <tr className="bg-slate-50 font-bold text-[#2b579a]">
+                        <td colSpan={3} className="py-2 px-4 border-b border-slate-200 text-[10px] tracking-wider uppercase mt-4">ANÁLISIS DE RIESGO Y VOLATILIDAD</td>
+                      </tr>
+                      <tr className="border-b border-slate-100 hover:bg-slate-50/50">
+                        <td className="py-2 px-4 text-slate-600 font-medium">Drawdown Máximo (Max. Drawdown)</td>
+                        <td className="py-2 px-4 text-right font-bold text-red-600">
+                          {maxDrawdownEUR.toLocaleString('es-ES', { style: 'currency', currency: 'EUR' })}
+                        </td>
+                        <td className="py-2 px-4 text-right font-bold text-red-600">
+                          -{parseFloat(maxDrawdownPct).toFixed(2)} %
+                        </td>
+                      </tr>
+                      {kpiBenefitType !== 'LATENTE' && (
+                        <>
+                          <tr className="border-b border-slate-100 hover:bg-slate-50/50">
+                            <td className="py-2 px-4 text-slate-600">Ratio de Sharpe (Sharpe Ratio)</td>
+                            <td className="py-2 px-4 text-right text-slate-800 font-mono">{sharpeRatio}</td>
+                            <td className="py-2 px-4 text-right text-slate-500 font-mono">-</td>
+                          </tr>
+                          <tr className="border-b border-slate-100 hover:bg-slate-50/50">
+                            <td className="py-2 px-4 text-slate-600">Factor de Beneficio (Profit Factor)</td>
+                            <td className="py-2 px-4 text-right text-slate-800 font-mono">{profitFactor}</td>
+                            <td className="py-2 px-4 text-right text-slate-500 font-mono">-</td>
+                          </tr>
+                        </>
+                      )}
+
+                      {/* Estadísticas de Trading */}
+                      {kpiBenefitType !== 'LATENTE' && (
+                        <>
+                          <tr className="bg-slate-50 font-bold text-[#2b579a]">
+                            <td colSpan={3} className="py-2 px-4 border-b border-slate-200 text-[10px] tracking-wider uppercase">ESTADÍSTICAS DE OPERACIONES</td>
+                          </tr>
+                          <tr className="border-b border-slate-100 hover:bg-slate-50/50">
+                            <td className="py-2 px-4 text-slate-600">Total de Ventas Cerradas</td>
+                            <td className="py-2 px-4 text-right text-slate-800 font-mono">{totalTrades}</td>
+                            <td className="py-2 px-4 text-right text-slate-500 font-mono">-</td>
+                          </tr>
+                          <tr className="border-b border-slate-100 hover:bg-slate-50/50">
+                            <td className="py-2 px-4 text-slate-600">Porcentaje de Acierto (Win Rate)</td>
+                            <td className="py-2 px-4 text-right text-slate-500 font-mono">-</td>
+                            <td className="py-2 px-4 text-right font-bold text-slate-800 font-mono">{percentProfitable} %</td>
+                          </tr>
+                          <tr className="border-b border-slate-100 hover:bg-slate-50/50">
+                            <td className="py-2 px-4 text-slate-600">Ventas Ganadoras (#)</td>
+                            <td className="py-2 px-4 text-right font-medium text-green-600 font-mono">{winningTrades}</td>
+                            <td className="py-2 px-4 text-right text-slate-500 font-mono">
+                              {totalTrades > 0 ? `${((winningTrades / totalTrades) * 100).toFixed(1)} %` : '-'}
+                            </td>
+                          </tr>
+                          <tr className="border-b border-slate-100 hover:bg-slate-50/50">
+                            <td className="py-2 px-4 text-slate-600">Ventas Perdedoras (#)</td>
+                            <td className="py-2 px-4 text-right font-medium text-red-600 font-mono">{losingTrades}</td>
+                            <td className="py-2 px-4 text-right text-slate-500 font-mono">
+                              {totalTrades > 0 ? `${((losingTrades / totalTrades) * 100).toFixed(1)} %` : '-'}
+                            </td>
+                          </tr>
+                          <tr className="border-b border-slate-100 hover:bg-slate-50/50">
+                            <td className="py-2 px-4 text-slate-600">Ventas a Cero (#)</td>
+                            <td className="py-2 px-4 text-right text-slate-800 font-mono">{evenTrades}</td>
+                            <td className="py-2 px-4 text-right text-slate-500 font-mono">
+                              {totalTrades > 0 ? `${((evenTrades / totalTrades) * 100).toFixed(1)} %` : '-'}
+                            </td>
+                          </tr>
+                          <tr className="border-b border-slate-100 hover:bg-slate-50/50">
+                            <td className="py-2 px-4 text-slate-600">Racha de Pérdidas Máxima (Consecutive Losses)</td>
+                            <td className="py-2 px-4 text-right text-red-600 font-mono">{maxConsecutiveLosses}</td>
+                            <td className="py-2 px-4 text-right text-slate-500 font-mono">-</td>
+                          </tr>
+
+                          <tr className="bg-slate-50 font-bold text-[#2b579a]">
+                            <td colSpan={3} className="py-2 px-4 border-b border-slate-200 text-[10px] tracking-wider uppercase">MEDIAS DE OPERACIÓN</td>
+                          </tr>
+                          <tr className="border-b border-slate-100 hover:bg-slate-50/50">
+                            <td className="py-2 px-4 text-slate-600">Media por Venta (Avg. Trade)</td>
+                            <td className="py-2 px-4 text-right text-slate-800">
+                              {avgTrade.toLocaleString('es-ES', { style: 'currency', currency: 'EUR' })}
+                            </td>
+                            <td className="py-2 px-4 text-right text-slate-500 font-mono">
+                              {capInv > 0 ? `${((avgTrade / capInv) * 100).toFixed(2)} %` : '-'}
+                            </td>
+                          </tr>
+                          <tr className="border-b border-slate-100 hover:bg-slate-50/50">
+                            <td className="py-2 px-4 text-slate-600">Media de Ventas Ganadoras</td>
+                            <td className="py-2 px-4 text-right text-green-600">
+                              {avgWin.toLocaleString('es-ES', { style: 'currency', currency: 'EUR' })}
+                            </td>
+                            <td className="py-2 px-4 text-right text-slate-500 font-mono">
+                              {capInv > 0 ? `${((avgWin / capInv) * 100).toFixed(2)} %` : '-'}
+                            </td>
+                          </tr>
+                          <tr className="border-b border-slate-100 hover:bg-slate-50/50">
+                            <td className="py-2 px-4 text-slate-600">Media de Ventas Perdedoras</td>
+                            <td className="py-2 px-4 text-right text-red-600">
+                              {avgLoss.toLocaleString('es-ES', { style: 'currency', currency: 'EUR' })}
+                            </td>
+                            <td className="py-2 px-4 text-right text-slate-500 font-mono">
+                              {capInv > 0 ? `${((avgLoss / capInv) * 100).toFixed(2)} %` : '-'}
+                            </td>
+                          </tr>
+                          <tr className="border-b border-slate-100 hover:bg-slate-50/50">
+                            <td className="py-2 px-4 text-slate-600">Ratio Ganancia/Pérdida (Avg. Win / Avg. Loss)</td>
+                            <td className="py-2 px-4 text-right text-slate-800 font-mono">{ratioWinLoss}</td>
+                            <td className="py-2 px-4 text-right text-slate-500 font-mono">-</td>
+                          </tr>
+                        </>
+                      )}
+                    </tbody>
+                  </table>
+                </div>
+
+                {kpiBenefitType === 'LATENTE' && (
+                  <div className="bg-amber-50 p-4 rounded text-amber-800 text-sm border border-amber-200 mt-4 font-sans">
                     ⚠️ <strong>Modo Solo Latente:</strong> Las estadísticas de trading (aciertos, rachas, medias, drawdown) se calculan únicamente sobre el histórico de operaciones ya cerradas (Realizado) o curvas de capital consolidadas. Cambia el filtro lateral a "Realizado+Latente" para visualizar el desglose completo.
                   </div>
-                ) : (
-                  <>
-                    <table className="w-full text-sm text-left">
-                      <tbody>
-                        <tr className="border-b border-slate-200">
-                          <td className="py-2 text-slate-600">Total de ventas (Total # of trades)</td>
-                          <td className="py-2 font-medium text-slate-800">{summary.metrics?.totalTrades}</td>
-                        </tr>
-                    <tr className="border-b border-slate-200">
-                      <td className="py-2 text-slate-600">Porcentaje de acierto (Percent profitable)</td>
-                      <td className="py-2 font-medium text-slate-800">{summary.metrics?.percentProfitable} %</td>
-                    </tr>
-                    <tr className="border-b border-slate-200">
-                      <td className="py-2 text-slate-600">Ventas ganadoras (# of winning trades)</td>
-                      <td className="py-2 font-medium text-green-600">{summary.metrics?.winningTrades}</td>
-                    </tr>
-                    <tr className="border-b border-slate-200">
-                      <td className="py-2 text-slate-600">Ventas perdedoras (# of losing trades)</td>
-                      <td className="py-2 font-medium text-red-600">{summary.metrics?.losingTrades}</td>
-                    </tr>
-                    <tr className="border-b border-slate-200">
-                      <td className="py-2 text-slate-600">Ventas a cero (# of even trades)</td>
-                      <td className="py-2 font-medium text-slate-800">{summary.metrics?.evenTrades}</td>
-                    </tr>
-                    <tr className="border-b border-slate-200">
-                      <td className="py-2 text-slate-600">Racha de pérdidas (Max. consecutive losses)</td>
-                      <td className="py-2 font-medium text-red-600">{summary.metrics?.maxConsecutiveLosses}</td>
-                    </tr>
-                  </tbody>
-                </table>
-
-                <table className="w-full text-sm text-left">
-                  <tbody>
-                    <tr className="border-b border-slate-200">
-                      <td className="py-2 text-slate-600">Media por venta (Avg. trade)</td>
-                      <td className="py-2 font-medium text-slate-800">€ {summary.metrics?.avgTrade}</td>
-                    </tr>
-                    <tr className="border-b border-slate-200">
-                      <td className="py-2 text-slate-600">Media de ventas ganadoras (Avg. winning trade)</td>
-                      <td className="py-2 font-medium text-green-600">€ {summary.metrics?.avgWin}</td>
-                    </tr>
-                    <tr className="border-b border-slate-200">
-                      <td className="py-2 text-slate-600">Media de ventas perdedoras (Avg. losing trade)</td>
-                      <td className="py-2 font-medium text-red-600">€ {summary.metrics?.avgLoss}</td>
-                    </tr>
-                    <tr className="border-b border-slate-200">
-                      <td className="py-2 text-slate-600">Ratio Ganancia/Pérdida (Ratio avg. win / avg. loss)</td>
-                      <td className="py-2 font-medium text-slate-800">{summary.metrics?.ratioWinLoss}</td>
-                    </tr>
-                  </tbody>
-                </table>
-                </>
                 )}
-
               </div>
-            </div>
-          )}
+            );
+          })()}
 
           {activeView === 'graficos' && (
           <>
