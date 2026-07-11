@@ -437,13 +437,13 @@ export default function Portfolio() {
   // Recharts Chart Data Prep
   const chartsData = useMemo(() => {
     const assetTypeAlloc = {};
-    const sectorAlloc = {};
+    const assetAlloc = {};
     const brokerAlloc = {};
     const assetCostValueMap = {};
 
     filteredHoldings.forEach(h => {
       assetTypeAlloc[h.type] = (assetTypeAlloc[h.type] || 0) + h.currentValue;
-      sectorAlloc[h.sector] = (sectorAlloc[h.sector] || 0) + h.currentValue;
+      assetAlloc[h.symbol] = (assetAlloc[h.symbol] || 0) + h.currentValue;
       brokerAlloc[h.brokerName] = (brokerAlloc[h.brokerName] || 0) + h.currentValue;
 
       if (!assetCostValueMap[h.symbol]) {
@@ -469,7 +469,7 @@ export default function Portfolio() {
 
     return {
       types: formatPie(assetTypeAlloc),
-      sectors: formatPie(sectorAlloc),
+      assets: formatPie(assetAlloc),
       brokers: formatPie(brokerAlloc),
       bars: assetCostValue
     };
@@ -908,16 +908,16 @@ export default function Portfolio() {
                       </div>
                     </div>
 
-                    {/* Allocation by sector */}
+                    {/* Allocation by asset */}
                     <div className="bg-white p-4 border border-gray-200 shadow-sm rounded flex flex-col items-center">
                       <h4 className="text-[11px] font-bold uppercase tracking-wide text-gray-500 mb-4">
-                        Distribución por Sector
+                        Distribución por Acción
                       </h4>
                       <div className="w-full h-48">
                         <ResponsiveContainer width="100%" height="100%">
                           <PieChart>
                             <Pie
-                              data={chartsData.sectors}
+                              data={chartsData.assets}
                               cx="50%"
                               cy="50%"
                               outerRadius={65}
@@ -926,7 +926,7 @@ export default function Portfolio() {
                               label={({ name, percent }) => `${name} (${(percent * 100).toFixed(0)}%)`}
                               labelLine={false}
                             >
-                              {chartsData.sectors.map((entry, index) => (
+                              {chartsData.assets.map((entry, index) => (
                                 <Cell key={`cell-${index}`} fill={entry.color} />
                               ))}
                             </Pie>
