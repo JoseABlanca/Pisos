@@ -330,7 +330,7 @@ export default function AnalyticalCenters({ type, isModal = false, onSelect = nu
   };
 
   return (
-    <div className="w-full h-full relative p-4">
+    <div className={`w-full h-full relative ${isModal ? 'p-0' : 'p-4'}`}>
       {deleteConfirm && (
         <div className="fixed inset-0 bg-black/40 backdrop-blur-sm z-[9999] flex items-center justify-center" onClick={() => setDeleteConfirm(null)}>
           <div className="bg-[#ece9d8] border-2 border-[#0054e3] shadow-lg w-[420px]" onClick={e => e.stopPropagation()}>
@@ -434,7 +434,7 @@ export default function AnalyticalCenters({ type, isModal = false, onSelect = nu
           )}
         </div>
 
-        <div className="flex-1 flex bg-white border-x border-b border-[#718096] overflow-hidden min-h-[500px]">
+        <div className="flex-1 flex bg-white border-x border-b border-[#718096] overflow-hidden">
           <div className="flex-1 flex flex-col bg-white overflow-hidden relative">
             {/* Header with Title and Search */}
             <div className="flex justify-between items-center px-4 py-2 border-b border-[#d1d5db] shrink-0 bg-white">

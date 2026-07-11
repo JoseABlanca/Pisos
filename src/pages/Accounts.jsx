@@ -604,7 +604,7 @@ export default function Accounts({ isModal = false, onAccountSelect = null }) {
   const rootGroups = accounts.length;
 
   return (
-    <div className="w-full h-full relative p-4">
+    <div className={`w-full h-full relative ${isModal ? 'p-0' : 'p-4'}`}>
       {/* Delete Confirmation Dialog */}
       {deleteConfirm && (
         <div className="fixed inset-0 bg-black/40 backdrop-blur-sm z-[9999] flex items-center justify-center" onClick={() => setDeleteConfirm(null)}>
@@ -724,31 +724,10 @@ export default function Accounts({ isModal = false, onAccountSelect = null }) {
               <CustomIcon type="Colapsar" />
               <span className="text-[11px] text-gray-700 mt-1">Colapsar</span>
             </button>
-            
-            {isModal && (
-              <>
-                <div className="w-[1px] h-12 bg-gray-300 mx-2"></div>
-                <button 
-                  onClick={() => {
-                    if (selectedNode && onAccountSelect) {
-                      const sel = flatDocs.find(a => a.code === selectedNode);
-                      if (sel) {
-                        onAccountSelect(sel.code, sel.name);
-                      }
-                    }
-                  }}
-                  className={`flex flex-col items-center justify-center min-w-[70px] p-1 rounded border transition-transform ${selectedNode ? 'hover:bg-blue-100 cursor-pointer border-transparent hover:border-blue-300 hover:scale-105' : 'opacity-50 cursor-not-allowed border-transparent'}`}
-                  disabled={!selectedNode}
-                >
-                  <Check className={`w-6 h-6 mb-1 ${selectedNode ? 'text-green-600' : 'text-gray-400'}`} strokeWidth={2.5} />
-                  <span className={`text-[11px] font-bold ${selectedNode ? 'text-blue-800' : 'text-gray-500'}`}>Seleccionar</span>
-                </button>
-              </>
-            )}
           </div>
 
           {/* Main Content Area: Sidebar + Table */}
-          <div className="flex-1 flex bg-white border-x border-b border-[#718096] overflow-hidden min-h-[500px]">
+          <div className="flex-1 flex bg-white border-x border-b border-[#718096] overflow-hidden">
             
             {/* Left Sidebar */}
             {showSidebar && (
