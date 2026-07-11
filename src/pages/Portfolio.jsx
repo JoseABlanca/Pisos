@@ -626,7 +626,11 @@ export default function Portfolio() {
                 {groupQty}
               </td>
             )}
-            {visColsPortfolio.includes('pmc') && <td></td>}
+            {visColsPortfolio.includes('pmc') && (
+              <td className="font-mono text-right border-t border-gray-400">
+                {groupQty > 0 ? (groupCost / groupQty).toLocaleString('es-ES', { minimumFractionDigits: 2, maximumFractionDigits: 4 }) : '0,00'} €
+              </td>
+            )}
             {visColsPortfolio.includes('currentPrice') && <td></td>}
             {visColsPortfolio.includes('totalCost') && (
               <td className="font-mono text-right border-t border-gray-400">
