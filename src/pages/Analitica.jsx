@@ -2,7 +2,7 @@ import { useState, useEffect, useMemo, useRef } from 'react';
 import { db } from '../firebase/config';
 import { collection, query, where, onSnapshot, doc, setDoc, deleteDoc } from 'firebase/firestore';
 import { useAuth } from '../context/AuthContext';
-import { Search, X, FileText } from 'lucide-react';
+import { Search, X, FileText, Info } from 'lucide-react';
 import Accounts from './Accounts';
 import AnalyticalCenters from './AnalyticalCenters';
 import { useDragResize } from '../hooks/useDragResize';
@@ -328,7 +328,8 @@ export default function Analitica() {
   const [selectedYear, setSelectedYear] = useState(2026);
   const [selectedPeriods, setSelectedPeriods] = useState([]);
   const [collapsed, setCollapsed] = useState({});
-  const [selectedCode, setSelectedCode] = useState(null);
+  const [selectedRowId, setSelectedRowId] = useState(null);
+  const [desvYear, setDesvYear] = useState(2026);
  
   // Modal state
   const [showForm, setShowForm] = useState(false);
@@ -386,6 +387,13 @@ export default function Analitica() {
       window.removeEventListener('analitica:open-desviacion-modal', handleOpenDesviaciones);
     };
   }, []);
+
+  useEffect(() => {
+    if (showDesviacionModal) {
+      setDesvYear(selectedYear);
+      setDesvCalculatedData(null);
+    }
+  }, [showDesviacionModal, selectedYear]);
  
   /* ── Budget data for selected year ────────────────────────────────────────── */
   const budgetsForYear = useMemo(() => budgets.filter(b => b.year === selectedYear), [budgets, selectedYear]);
@@ -439,7 +447,7 @@ export default function Analitica() {
         else if (code.length > 4) depth = 4;
       }
       const hasChildren = !onlyAssigned && codes.some(o => o !== code && o.startsWith(code));
-      return { code, name: descr(code, rawAccounts), depth, hasChildren, total, months, isLeaf };
+      return { id: code, code, name: descr(code, rawAccounts), depth, hasChildren, total, months, isLeaf };
     });
   }, [budgetCodes, leafBudgetCodes, budgetsForYear, rawAccounts, groupFilter, searchQuery, onlyAssigned]);
 
@@ -465,6 +473,7 @@ export default function Analitica() {
       const hasChildren = cecoCodes.length > 0;
 
       rows.push({
+        id: cebeCode,
         code: cebeCode,
         name: cebeName.toUpperCase(),
         depth: 0,
@@ -489,6 +498,7 @@ export default function Analitica() {
           ]));
 
           rows.push({
+            id: `${cebeCode}_${cecoCode}`,
             code: cecoCode,
             name: cecoName.toUpperCase(),
             depth: 1,
@@ -591,8 +601,8 @@ export default function Analitica() {
     setShowForm(true);
   };
   const openEdit = () => {
-    if (!selectedCode) return;
-    const row = visibleRows.find(r => r.code === selectedCode);
+    if (!selectedRowId) return;
+    const row = visibleRows.find(r => r.id === selectedRowId);
     if (!row) return;
 
     let bud;
@@ -603,7 +613,7 @@ export default function Analitica() {
       }
       bud = budgets.find(b => b.cebe === row.cebeCode && b.ceco === row.cecoCode && b.year === selectedYear);
     } else {
-      bud = budgets.find(b => b.accountCode === selectedCode && b.year === selectedYear);
+      bud = budgets.find(b => b.accountCode === row.code && b.year === selectedYear);
     }
 
     if (!bud) return;
@@ -620,8 +630,8 @@ export default function Analitica() {
     setShowForm(true);
   };
   const openDelete = async () => {
-    if (!selectedCode) return;
-    const row = visibleRows.find(r => r.code === selectedCode);
+    if (!selectedRowId) return;
+    const row = visibleRows.find(r => r.id === selectedRowId);
     if (!row) return;
 
     let bud;
@@ -632,13 +642,13 @@ export default function Analitica() {
       }
       bud = budgets.find(b => b.cebe === row.cebeCode && b.ceco === row.cecoCode && b.year === selectedYear);
     } else {
-      bud = budgets.find(b => b.accountCode === selectedCode && b.year === selectedYear);
+      bud = budgets.find(b => b.accountCode === row.code && b.year === selectedYear);
     }
 
     if (!bud) { alert('No hay presupuesto para este registro/año.'); return; }
     if (!window.confirm(`¿Eliminar presupuesto seleccionado?`)) return;
     await deleteDoc(doc(db, 'budgets', bud.id));
-    setSelectedCode(null);
+    setSelectedRowId(null);
   };
 
   const handleProcederDesviaciones = () => {
@@ -651,8 +661,19 @@ export default function Analitica() {
     let cumulativePresupuesto = 0;
     let cumulativeSaldo = 0;
 
-    for (let m = 0; m < 12; m++) {
-      const buds = budgetsForYear.filter(b => {
+    const today = new Date();
+    const currentYear = today.getFullYear();
+    const currentMonth = today.getMonth(); // 0-11
+
+    let monthsToShow = 12;
+    if (desvYear === currentYear) {
+      monthsToShow = currentMonth + 1;
+    } else if (desvYear > currentYear) {
+      monthsToShow = 0;
+    }
+
+    for (let m = 0; m < monthsToShow; m++) {
+      const buds = budgets.filter(b => b.year === desvYear).filter(b => {
         if (desvFilterCuenta && (!b.accountCode || !b.accountCode.startsWith(desvFilterCuenta))) return false;
         if (desvFilterCebe && (!b.cebe || b.cebe.replace(/^(CEBE|CECO)/i, '').trim() !== desvFilterCebe.replace(/^(CEBE|CECO)/i, '').trim())) return false;
         if (desvFilterCeco && (!b.ceco || b.ceco.replace(/^(CEBE|CECO)/i, '').trim() !== desvFilterCeco.replace(/^(CEBE|CECO)/i, '').trim())) return false;
@@ -663,7 +684,7 @@ export default function Analitica() {
       const txsInMonth = rawTransactions.filter(tx => {
         if (!tx.date) return false;
         const txDate = new Date(tx.date);
-        if (txDate.getFullYear() !== selectedYear) return false;
+        if (txDate.getFullYear() !== desvYear) return false;
         if (txDate.getMonth() !== m) return false;
         
         if (desvFilterCuenta) {
@@ -740,13 +761,13 @@ export default function Analitica() {
     const total = Object.values(formMonths).reduce((s, v) => s + (parseFloat(v) || 0), 0);
     const id = `${user.uid}_${selectedYear}_${formAccount.code}${formCebe ? `_${formCebe}` : ''}${formCeco ? `_${formCeco}` : ''}`;
     
-    if (isEditing && selectedCode) {
-      const row = visibleRows.find(r => r.code === selectedCode);
+    if (isEditing && selectedRowId) {
+      const row = visibleRows.find(r => r.id === selectedRowId);
       let oldBud;
       if (viewMode === 'analitica' && row?.isCeco) {
         oldBud = budgets.find(b => b.cebe === row.cebeCode && b.ceco === row.cecoCode && b.year === selectedYear);
       } else if (viewMode === 'contable') {
-        oldBud = budgets.find(b => b.accountCode === selectedCode && b.year === selectedYear);
+        oldBud = budgets.find(b => b.accountCode === row?.code && b.year === selectedYear);
       }
       if (oldBud && oldBud.id !== id) {
         await deleteDoc(doc(db, 'budgets', oldBud.id));
@@ -788,11 +809,11 @@ export default function Analitica() {
       {/* ── TOOLBAR (Foto 1 exact) ──────────────────────────────────────────── */}
       <div className="bg-[#f3f3f3] border-b border-[#d6d6d6] flex items-end px-[6px] pb-[2px] pt-[6px] shrink-0">
         <TBtn icon={IcoNuevo}  label="Nuevo"     hasChevron onClick={openNew} />
-        <TBtn icon={IcoModif}  label="Modificar" hasChevron onClick={openEdit} disabled={!selectedCode} />
-        <TBtn icon={IcoElim}   label="Eliminar"  hasChevron onClick={openDelete} disabled={!selectedCode} />
+        <TBtn icon={IcoModif}  label="Modificar" hasChevron onClick={openEdit} disabled={!selectedRowId} />
+        <TBtn icon={IcoElim}   label="Eliminar"  hasChevron onClick={openDelete} disabled={!selectedRowId} />
         <div className="w-[1px] self-stretch my-[6px] bg-[#d6d6d6] mx-[6px]" />
-        <TBtn icon={IcoSubir}  label="Subir"  onClick={() => {}} disabled={!selectedCode} />
-        <TBtn icon={IcoBajar}  label="Bajar"  onClick={() => {}} disabled={!selectedCode} />
+        <TBtn icon={IcoSubir}  label="Subir"  onClick={() => {}} disabled={!selectedRowId} />
+        <TBtn icon={IcoBajar}  label="Bajar"  onClick={() => {}} disabled={!selectedRowId} />
         <div className="w-[1px] self-stretch my-[6px] bg-[#d6d6d6] mx-[6px]" />
         <TBtn icon={IcoExpandir}  label="Expandir"  onClick={() => setCollapsed({})} />
         <TBtn icon={IcoColapsar}  label="Colapsar"  onClick={() => { const k = {}; treeRows.forEach(r => { if (r.hasChildren) k[r.code] = true; }); setCollapsed(k); }} />
@@ -827,8 +848,8 @@ export default function Analitica() {
                 Vista
               </div>
               <div className="px-3 py-2 flex flex-col gap-1 border-b border-[#d6d6d6]">
-                <SideRadio checked={viewMode === 'contable'} onChange={() => { setViewMode('contable'); setSelectedCode(null); setCollapsed({}); }} label="Cuentas Contables" />
-                <SideRadio checked={viewMode === 'analitica'} onChange={() => { setViewMode('analitica'); setSelectedCode(null); setCollapsed({}); }} label="Cuenta Analítica" />
+                <SideRadio checked={viewMode === 'contable'} onChange={() => { setViewMode('contable'); setSelectedRowId(null); setCollapsed({}); }} label="Cuentas Contables" />
+                <SideRadio checked={viewMode === 'analitica'} onChange={() => { setViewMode('analitica'); setSelectedRowId(null); setCollapsed({}); }} label="Cuenta Analítica" />
               </div>
               
               {/* Bottom: Ver saldos */}
@@ -893,7 +914,7 @@ export default function Analitica() {
           </div>
 
           {/* Table */}
-          <div className="flex-1 flex flex-col overflow-hidden bg-white" onClick={() => setSelectedCode(null)}>
+          <div className="flex-1 flex flex-col overflow-hidden bg-white" onClick={() => setSelectedRowId(null)}>
             {/* Horizontal scroll wrapper for both tables */}
             <div className="flex-1 flex flex-col overflow-x-auto overflow-y-hidden">
               <div style={{ minWidth }} className="flex-1 flex flex-col overflow-hidden">
@@ -920,12 +941,12 @@ export default function Analitica() {
                     </thead>
                     <tbody>
                       {visibleRows.map(row => {
-                        const sel = selectedCode === row.code;
+                        const sel = selectedRowId === row.id;
                         return (
-                          <tr key={row.code}
+                          <tr key={row.id}
                               className={`border-b border-[#f0f0f0] cursor-default ${sel ? 'bg-[#cce5ff]' : 'hover:bg-[#f5f7fa]'}`}
-                              onClick={e => { e.stopPropagation(); setSelectedCode(row.code); }}
-                              onDoubleClick={() => { setSelectedCode(row.code); setTimeout(openEdit, 0); }}>
+                              onClick={e => { e.stopPropagation(); setSelectedRowId(row.id); }}
+                              onDoubleClick={() => { setSelectedRowId(row.id); setTimeout(openEdit, 0); }}>
                             <td className="py-[3px] px-2 whitespace-nowrap">
                               <div className="flex items-center" style={{ paddingLeft: row.depth * 16 }}>
                                 {row.hasChildren ? (
@@ -1045,6 +1066,16 @@ export default function Analitica() {
 
             {/* Scrollable form body */}
             <div className="flex-1 overflow-y-auto p-4 flex flex-col gap-3 min-h-0">
+              {/* Informative Year Note */}
+              <div className="bg-blue-50 border border-blue-200 text-blue-800 px-3 py-2 text-[11.5px] rounded-[3px] font-semibold flex items-center gap-1.5 shrink-0">
+                <Info size={14} className="text-blue-600 shrink-0" />
+                <span>
+                  {isEditing 
+                    ? `Modificando presupuesto para el año ${selectedYear}` 
+                    : `Creando nuevo presupuesto para el año ${selectedYear}`}
+                </span>
+              </div>
+
               {/* CEBE and CECO selection */}
               <div className="grid grid-cols-2 gap-2">
                 <div className="flex items-center gap-[6px]">
@@ -1265,6 +1296,17 @@ export default function Analitica() {
 
             {/* Filter and controls */}
             <div className="flex items-center gap-4 p-3 bg-[#f8f9fa] border-b border-[#ccc] shrink-0 flex-wrap">
+              {/* Año */}
+              <div className="flex items-center gap-1">
+                <span className="border border-[#999] bg-[#e9ecef] px-2 py-[3px] text-[11px] text-[#333] w-[50px] text-center shrink-0 font-bold">Año:</span>
+                <select value={desvYear} onChange={e => { setDesvYear(parseInt(e.target.value)); setDesvCalculatedData(null); }}
+                        className="w-[70px] border border-[#999] px-2 py-[3px] text-[11px] bg-white outline-none font-bold">
+                  {[2024, 2025, 2026, 2027].map(y => (
+                    <option key={y} value={y}>{y}</option>
+                  ))}
+                </select>
+              </div>
+
               {/* Cuenta */}
               <div className="flex items-center gap-1">
                 <span className="border border-[#999] bg-[#e9ecef] px-2 py-[3px] text-[11px] text-[#333] w-[60px] text-center shrink-0 font-bold">Cuenta:</span>
