@@ -2,8 +2,10 @@ import { useState, useEffect, useMemo, useRef } from 'react';
 import { db } from '../firebase/config';
 import { collection, query, where, onSnapshot, doc, setDoc, deleteDoc } from 'firebase/firestore';
 import { useAuth } from '../context/AuthContext';
-import { Search, X } from 'lucide-react';
+import { Search, X, FileText } from 'lucide-react';
 import Accounts from './Accounts';
+import AnalyticalCenters from './AnalyticalCenters';
+import { useDragResize } from '../hooks/useDragResize';
 
 /* ═══════════════════════════════════════════════════════════════════════════════
    PGC DESCRIPTIONS
@@ -49,6 +51,18 @@ const getTransactionNet = (tx, account) => {
   const debit = parseFloat(tx.debit) || 0;
   const credit = parseFloat(tx.credit) || 0;
   return isAssetOrExpense ? (debit - credit) : (credit - debit);
+};
+
+const cleanNumericInput = (valStr) => {
+  if (!valStr) return '';
+  if (valStr.includes('.') && valStr.includes(',')) {
+    if (valStr.lastIndexOf('.') < valStr.lastIndexOf(',')) {
+      return valStr.replace(/\./g, '');
+    } else {
+      return valStr.replace(/,/g, '').replace('.', ',');
+    }
+  }
+  return valStr.replace(/\./g, ',');
 };
 
 const MONTHS_LONG = ['Enero','Febrero','Marzo','Abril','Mayo','Junio','Julio','Agosto','Septiembre','Octubre','Noviembre','Diciembre'];
@@ -172,144 +186,9 @@ function SideCheck({ checked, onChange, label, bold }) {
   );
 }
 
-/* ═══════════════════════════════════════════════════════════════════════════════
-   DRAGGABLE + RESIZABLE WINDOW HOOK
-   ═══════════════════════════════════════════════════════════════════════════════ */
-function useDragResize({ initW, initH, minW = 200, minH = 150 }) {
-  const [pos, setPos] = useState({ x: Math.max(0, (window.innerWidth - initW) / 2), y: Math.max(20, (window.innerHeight - initH) / 2 - 40) });
-  const [size, setSize] = useState({ w: initW, h: initH });
-  const drag = useRef({ active: false, ox: 0, oy: 0 });
-  const resize = useRef({ active: false, dir: '', sx: 0, sy: 0, sw: 0, sh: 0, sl: 0, st: 0 });
 
-  const onDragDown = e => {
-    e.preventDefault();
-    drag.current = { active: true, ox: e.clientX - pos.x, oy: e.clientY - pos.y };
-    const up = () => { drag.current.active = false; window.removeEventListener('mouseup', up); window.removeEventListener('mousemove', mv); };
-    const mv = e => { if (drag.current.active) setPos({ x: e.clientX - drag.current.ox, y: e.clientY - drag.current.oy }); };
-    window.addEventListener('mouseup', up);
-    window.addEventListener('mousemove', mv);
-  };
 
-  const onResizeDown = (e, dir) => {
-    e.preventDefault(); e.stopPropagation();
-    resize.current = { active: true, dir, sx: e.clientX, sy: e.clientY, sw: size.w, sh: size.h, sl: pos.x, st: pos.y };
-    const up = () => { resize.current.active = false; window.removeEventListener('mouseup', up); window.removeEventListener('mousemove', mv); };
-    const mv = e => {
-      if (!resize.current.active) return;
-      const r = resize.current;
-      const dx = e.clientX - r.sx;
-      const dy = e.clientY - r.sy;
-      let nw = r.sw, nh = r.sh, nl = r.sl, nt = r.st;
-      if (r.dir.includes('e')) nw = Math.max(minW, r.sw + dx);
-      if (r.dir.includes('w')) { nw = Math.max(minW, r.sw - dx); nl = r.sl + (r.sw - nw); }
-      if (r.dir.includes('s')) nh = Math.max(minH, r.sh + dy);
-      if (r.dir.includes('n')) { nh = Math.max(minH, r.sh - dy); nt = r.st + (r.sh - nh); }
-      setSize({ w: nw, h: nh });
-      setPos({ x: nl, y: nt });
-    };
-    window.addEventListener('mouseup', up);
-    window.addEventListener('mousemove', mv);
-  };
 
-  const resizeHandles = (
-    <>
-      {/* Edges */}
-      <div onMouseDown={e => onResizeDown(e, 'n')} className="absolute top-0 left-[6px] right-[6px] h-[5px] cursor-n-resize" />
-      <div onMouseDown={e => onResizeDown(e, 's')} className="absolute bottom-0 left-[6px] right-[6px] h-[5px] cursor-s-resize" />
-      <div onMouseDown={e => onResizeDown(e, 'w')} className="absolute left-0 top-[6px] bottom-[6px] w-[5px] cursor-w-resize" />
-      <div onMouseDown={e => onResizeDown(e, 'e')} className="absolute right-0 top-[6px] bottom-[6px] w-[5px] cursor-e-resize" />
-      {/* Corners */}
-      <div onMouseDown={e => onResizeDown(e, 'nw')} className="absolute top-0 left-0 w-[6px] h-[6px] cursor-nw-resize" />
-      <div onMouseDown={e => onResizeDown(e, 'ne')} className="absolute top-0 right-0 w-[6px] h-[6px] cursor-ne-resize" />
-      <div onMouseDown={e => onResizeDown(e, 'sw')} className="absolute bottom-0 left-0 w-[6px] h-[6px] cursor-sw-resize" />
-      <div onMouseDown={e => onResizeDown(e, 'se')} className="absolute bottom-0 right-0 w-[6px] h-[6px] cursor-se-resize" />
-    </>
-  );
-
-  return { pos, size, onDragDown, resizeHandles };
-}
-
-function useDrag(initX, initY) {
-  const [pos, setPos] = useState({ x: initX, y: initY });
-  const onDragDown = e => {
-    e.preventDefault();
-    const ox = e.clientX - pos.x, oy = e.clientY - pos.y;
-    const mv = e => setPos({ x: e.clientX - ox, y: e.clientY - oy });
-    const up = () => { window.removeEventListener('mousemove', mv); window.removeEventListener('mouseup', up); };
-    window.addEventListener('mousemove', mv);
-    window.addEventListener('mouseup', up);
-  };
-  return [pos, onDragDown];
-}
-
-function CenterSelectorModal({ type, items, onSelect, onClose }) {
-  const [pos, onDragDown] = useDrag(Math.max(0, (window.innerWidth - 500) / 2), 120);
-  const [searchQ, setSearchQ] = useState('');
-
-  const filtered = useMemo(() => {
-    if (!searchQ) return items;
-    const q = searchQ.toLowerCase();
-    return items.filter(x =>
-      (x.code || '').toLowerCase().includes(q) ||
-      (x.name || '').toLowerCase().includes(q)
-    );
-  }, [items, searchQ]);
-
-  return (
-    <div className="fixed inset-0 z-[3000]" style={{ background: 'rgba(0,0,0,0.3)' }}>
-      <div style={{ position: 'absolute', left: pos.x, top: pos.y, width: 500, height: 420 }}
-           className="flex flex-col bg-white border border-[#888] shadow-xl relative select-none">
-        <div onMouseDown={onDragDown}
-             className="flex items-center justify-between px-3 py-[6px] bg-[#4472c4] shrink-0 cursor-move">
-          <span className="text-white text-[12px] font-bold tracking-wide uppercase">Selección de {type.toUpperCase()}</span>
-          <button onClick={onClose} className="w-[22px] h-[22px] flex items-center justify-center hover:bg-red-500 text-white rounded-[2px]">
-            <X size={14} strokeWidth={2.5} />
-          </button>
-        </div>
-        
-        {/* Search bar inside selector */}
-        <div className="flex justify-end items-center px-3 py-2 border-b border-[#d1d5db] bg-slate-50 shrink-0">
-          <div className="relative flex items-center">
-            <input type="text" placeholder="Buscar en el fichero (Alt+B)"
-                   value={searchQ} onChange={e => setSearchQ(e.target.value)}
-                   className="w-[250px] pr-5 py-[2px] text-[11px] text-right border-b border-[#aaa] outline-none focus:border-b-[#4472c4] bg-transparent placeholder:text-[#aaa]" />
-            <Search size={13} className="absolute right-0 text-[#aaa] pointer-events-none" />
-          </div>
-        </div>
-
-        <div className="flex-1 overflow-auto p-1">
-          <table className="w-full border-collapse text-[11px] text-left">
-            <thead>
-              <tr className="sticky top-0 bg-[#f2f2f2] border-b border-slate-300 font-bold text-slate-700">
-                <th className="py-2 px-3 font-bold">Código</th>
-                <th className="py-2 px-3 font-bold">Descripción</th>
-              </tr>
-            </thead>
-            <tbody>
-              <tr className="border-b border-slate-100 hover:bg-slate-100 cursor-pointer"
-                  onClick={() => { onSelect(''); onClose(); }}>
-                <td colSpan={2} className="py-2 px-3 text-slate-500 italic">-- Sin {type.toUpperCase()} --</td>
-              </tr>
-              {filtered.length === 0 ? (
-                <tr>
-                  <td colSpan={2} className="text-center py-6 text-slate-400">No se encontraron resultados</td>
-                </tr>
-              ) : (
-                filtered.map(x => (
-                  <tr key={x.id} className="border-b border-slate-100 hover:bg-slate-100 cursor-pointer"
-                      onClick={() => { onSelect(x.code); onClose(); }}>
-                    <td className="py-2 px-3 font-mono font-bold text-slate-700">{x.code}</td>
-                    <td className="py-2 px-3 text-slate-600 uppercase">{x.name}</td>
-                  </tr>
-                ))
-              )}
-            </tbody>
-          </table>
-        </div>
-      </div>
-    </div>
-  );
-}
 
 /* ═══════════════════════════════════════════════════════════════════════════════
    ACCOUNT SELECTOR (simple popup for choosing account)
@@ -447,7 +326,7 @@ export default function Analitica() {
   const [onlyAssigned, setOnlyAssigned] = useState(false);
   const [searchQuery, setSearchQuery] = useState('');
   const [selectedYear, setSelectedYear] = useState(2026);
-  const [selectedPeriod, setSelectedPeriod] = useState('ALL');
+  const [selectedPeriods, setSelectedPeriods] = useState([]);
   const [collapsed, setCollapsed] = useState({});
   const [selectedCode, setSelectedCode] = useState(null);
  
@@ -465,20 +344,22 @@ export default function Analitica() {
  
   // Desviacion modal states
   const [showDesviacionModal, setShowDesviacionModal] = useState(false);
-  const [desvFilterType, setDesvFilterType] = useState('cuenta'); // 'cuenta' | 'cebe' | 'ceco'
-  const [desvFilterCode, setDesvFilterCode] = useState('');
-  const [desvFilterName, setDesvFilterName] = useState('');
+  const [desvFilterCuenta, setDesvFilterCuenta] = useState('');
+  const [desvFilterCebe, setDesvFilterCebe] = useState('');
+  const [desvFilterCeco, setDesvFilterCeco] = useState('');
   const [desvCalculatedData, setDesvCalculatedData] = useState(null);
   const [showDesvAccountSel, setShowDesvAccountSel] = useState(false);
   const [showDesvCebeSel, setShowDesvCebeSel] = useState(false);
   const [showDesvCecoSel, setShowDesvCecoSel] = useState(false);
  
   // Drag+Resize state for budget modal
-  const budgetDR = useDragResize({ initW: 440, initH: 520, minW: 380, minH: 400 });
+  const budgetDR = useDragResize({ initW: 440, initH: 520, minW: 380, minH: 400, storageKey: 'analitica_budgetModal' });
   // Drag+Resize state for deviations modal
-  const desvDR = useDragResize({ initW: 800, initH: 550, minW: 600, minH: 400 });
+  const desvDR = useDragResize({ initW: 800, initH: 550, minW: 600, minH: 400, storageKey: 'analitica_desvModal' });
   // Drag+Resize state for account selector modal
-  const accountDR = useDragResize({ initW: 900, initH: 650, minW: 500, minH: 400 });
+  const accountDR = useDragResize({ initW: 900, initH: 650, minW: 500, minH: 400, storageKey: 'analitica_accountModal' });
+  // Drag+Resize state for analytical center selector modal
+  const centerDR = useDragResize({ initW: 700, initH: 500, minW: 400, minH: 300, storageKey: 'analitica_centerModal' });
  
   /* ── Firestore ────────────────────────────────────────────────────────────── */
   useEffect(() => {
@@ -692,13 +573,11 @@ export default function Analitica() {
   /* ── Helpers ──────────────────────────────────────────────────────────────── */
   const fmt = v => v === 0 ? '' : (v || 0).toLocaleString('es-ES', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
   const shouldRenderMonth = (idx) => {
-    if (selectedPeriod === 'ALL') return true;
-    if (['1T','2T','3T','4T'].includes(selectedPeriod)) {
-      const q = parseInt(selectedPeriod[0]);
-      const startMonth = (q - 1) * 3;
-      return idx >= startMonth && idx < startMonth + 3;
-    }
-    return idx === parseInt(selectedPeriod);
+    if (selectedPeriods.length === 0) return true; // ALL
+    if (selectedPeriods.includes(String(idx))) return true;
+    const q = Math.floor(idx / 3) + 1;
+    if (selectedPeriods.includes(`${q}T`)) return true;
+    return false;
   };
   const formTotal = Object.values(formMonths).reduce((s, v) => s + (parseFloat(v) || 0), 0);
 
@@ -763,8 +642,8 @@ export default function Analitica() {
   };
 
   const handleProcederDesviaciones = () => {
-    if (!desvFilterCode) {
-      alert('Por favor, seleccione un elemento para analizar.');
+    if (!desvFilterCuenta && !desvFilterCebe && !desvFilterCeco) {
+      alert('Por favor, seleccione al menos un elemento para analizar.');
       return;
     }
 
@@ -773,37 +652,30 @@ export default function Analitica() {
     let cumulativeSaldo = 0;
 
     for (let m = 0; m < 12; m++) {
-      let presupuesto_m = 0;
-      if (desvFilterType === 'cuenta') {
-        const buds = budgetsForYear.filter(b => b.accountCode && b.accountCode.startsWith(desvFilterCode));
-        presupuesto_m = buds.reduce((s, b) => s + (parseFloat(b.months?.[m]) || 0), 0);
-      } else if (desvFilterType === 'cebe') {
-        const buds = budgetsForYear.filter(b => b.cebe && b.cebe.replace(/^(CEBE|CECO)/i, '').trim() === desvFilterCode.replace(/^(CEBE|CECO)/i, '').trim());
-        presupuesto_m = buds.reduce((s, b) => s + (parseFloat(b.months?.[m]) || 0), 0);
-      } else if (desvFilterType === 'ceco') {
-        const buds = budgetsForYear.filter(b => b.ceco && b.ceco.replace(/^(CEBE|CECO)/i, '').trim() === desvFilterCode.replace(/^(CEBE|CECO)/i, '').trim());
-        presupuesto_m = buds.reduce((s, b) => s + (parseFloat(b.months?.[m]) || 0), 0);
-      }
+      const buds = budgetsForYear.filter(b => {
+        if (desvFilterCuenta && (!b.accountCode || !b.accountCode.startsWith(desvFilterCuenta))) return false;
+        if (desvFilterCebe && (!b.cebe || b.cebe.replace(/^(CEBE|CECO)/i, '').trim() !== desvFilterCebe.replace(/^(CEBE|CECO)/i, '').trim())) return false;
+        if (desvFilterCeco && (!b.ceco || b.ceco.replace(/^(CEBE|CECO)/i, '').trim() !== desvFilterCeco.replace(/^(CEBE|CECO)/i, '').trim())) return false;
+        return true;
+      });
+      const presupuesto_m = buds.reduce((s, b) => s + (parseFloat(b.months?.[m]) || 0), 0);
 
-      let saldo_m = 0;
       const txsInMonth = rawTransactions.filter(tx => {
         if (!tx.date) return false;
         const txDate = new Date(tx.date);
         if (txDate.getFullYear() !== selectedYear) return false;
         if (txDate.getMonth() !== m) return false;
         
-        if (desvFilterType === 'cuenta') {
+        if (desvFilterCuenta) {
           const account = rawAccounts.find(a => a.id === tx.accountId || a.code === tx.accountId);
-          return account && account.code && account.code.startsWith(desvFilterCode);
-        } else if (desvFilterType === 'cebe') {
-          return tx.cebe && tx.cebe.replace(/^(CEBE|CECO)/i, '').trim() === desvFilterCode.replace(/^(CEBE|CECO)/i, '').trim();
-        } else if (desvFilterType === 'ceco') {
-          return tx.ceco && tx.ceco.replace(/^(CEBE|CECO)/i, '').trim() === desvFilterCode.replace(/^(CEBE|CECO)/i, '').trim();
+          if (!account || !account.code || !account.code.startsWith(desvFilterCuenta)) return false;
         }
-        return false;
+        if (desvFilterCebe && (!tx.cebe || tx.cebe.replace(/^(CEBE|CECO)/i, '').trim() !== desvFilterCebe.replace(/^(CEBE|CECO)/i, '').trim())) return false;
+        if (desvFilterCeco && (!tx.ceco || tx.ceco.replace(/^(CEBE|CECO)/i, '').trim() !== desvFilterCeco.replace(/^(CEBE|CECO)/i, '').trim())) return false;
+        return true;
       });
 
-      saldo_m = txsInMonth.reduce((sum, tx) => {
+      const saldo_m = txsInMonth.reduce((sum, tx) => {
         const account = rawAccounts.find(a => a.id === tx.accountId || a.code === tx.accountId);
         return sum + getTransactionNet(tx, account);
       }, 0);
@@ -900,13 +772,16 @@ export default function Analitica() {
   };
 
   const visibleMonthsCount = useMemo(() => {
-    if (selectedPeriod === 'ALL') return 12;
-    if (['1T','2T','3T','4T'].includes(selectedPeriod)) return 3;
-    return 1;
-  }, [selectedPeriod]);
+    if (selectedPeriods.length === 0) return 12;
+    let count = 0;
+    for (let i = 0; i < 12; i++) {
+      if (shouldRenderMonth(i)) count++;
+    }
+    return count;
+  }, [selectedPeriods]);
   const minWidth = 180 + 320 + 120 + visibleMonthsCount * 80;
 
-  /* ═══════════════════════════════════════════════════════════════════════════ */
+  /* ═══════════════════════════════════════════════════════════════════════ */
   return (
     <div className="w-full h-full flex flex-col bg-white font-[Segoe_UI,Tahoma,sans-serif] text-[12px] text-[#333] select-none">
 
@@ -931,17 +806,8 @@ export default function Analitica() {
           <div className="flex shrink-0 border-r border-[#d6d6d6]">
             {/* The main sidebar */}
             <div className="w-[150px] bg-[#f3f3f3] flex flex-col overflow-y-auto select-none border-r border-slate-300">
-              {/* Vista selector */}
+              {/* Lista actual */}
               <div className="bg-[#e6e8ec] text-[#333] text-[12px] font-bold px-3 py-[5px] border-b border-[#d6d6d6]">
-                Vista
-              </div>
-              <div className="px-3 py-2 flex flex-col gap-1 border-b border-[#d6d6d6]">
-                <SideRadio checked={viewMode === 'contable'} onChange={() => { setViewMode('contable'); setSelectedCode(null); setCollapsed({}); }} label="Cuentas Contables" />
-                <SideRadio checked={viewMode === 'analitica'} onChange={() => { setViewMode('analitica'); setSelectedCode(null); setCollapsed({}); }} label="Cuenta Analítica" />
-              </div>
-
-              {/* Header */}
-              <div className="bg-[#e6e8ec] text-[#333] text-[12px] font-bold px-3 py-[5px]">
                 Lista actual
               </div>
               {/* Radio buttons */}
@@ -952,8 +818,17 @@ export default function Analitica() {
                 ))}
               </div>
               {/* Checkboxes */}
-              <div className="px-3 pt-1 pb-2 flex flex-col">
+              <div className="px-3 pt-1 pb-2 flex flex-col border-b border-[#d6d6d6]">
                 <SideCheck checked={onlyAssigned} onChange={e => { setOnlyAssigned(e.target.checked); setCollapsed({}); }} label="Mostrar solo asignadas" bold={onlyAssigned} />
+              </div>
+
+              {/* Vista selector */}
+              <div className="bg-[#e6e8ec] text-[#333] text-[12px] font-bold px-3 py-[5px] border-b border-[#d6d6d6]">
+                Vista
+              </div>
+              <div className="px-3 py-2 flex flex-col gap-1 border-b border-[#d6d6d6]">
+                <SideRadio checked={viewMode === 'contable'} onChange={() => { setViewMode('contable'); setSelectedCode(null); setCollapsed({}); }} label="Cuentas Contables" />
+                <SideRadio checked={viewMode === 'analitica'} onChange={() => { setViewMode('analitica'); setSelectedCode(null); setCollapsed({}); }} label="Cuenta Analítica" />
               </div>
               
               {/* Bottom: Ver saldos */}
@@ -968,9 +843,9 @@ export default function Analitica() {
             {/* The date strip */}
             <div className="w-[50px] bg-white flex flex-col items-center py-2 gap-1.5 shrink-0 overflow-y-auto">
               {['ENE', 'FEB', 'MAR', 'ABR', 'MAY', 'JUN', 'JUL', 'AGO', 'SEP', 'OCT', 'NOV', 'DIC'].map((m, idx) => {
-                const active = selectedPeriod === String(idx);
+                const active = selectedPeriods.includes(String(idx));
                 return (
-                  <button key={m} onClick={() => setSelectedPeriod(String(idx))}
+                  <button key={m} onClick={() => setSelectedPeriods(prev => prev.includes(String(idx)) ? prev.filter(p => p !== String(idx)) : [...prev, String(idx)])}
                           className={`text-[9px] font-bold py-[3px] w-full text-center hover:bg-slate-100 ${active ? 'bg-blue-100 text-blue-700 border-r-2 border-blue-600' : 'text-slate-600'}`}>
                     {m}
                   </button>
@@ -978,9 +853,9 @@ export default function Analitica() {
               })}
               <div className="w-full border-t border-slate-200 my-1" />
               {['1T', '2T', '3T', '4T'].map(q => {
-                const active = selectedPeriod === q;
+                const active = selectedPeriods.includes(q);
                 return (
-                  <button key={q} onClick={() => setSelectedPeriod(q)}
+                  <button key={q} onClick={() => setSelectedPeriods(prev => prev.includes(q) ? prev.filter(p => p !== q) : [...prev, q])}
                           className={`text-[9px] font-bold py-[3px] w-full text-center hover:bg-slate-100 ${active ? 'bg-blue-100 text-blue-700 border-r-2 border-blue-600' : 'text-slate-600'}`}>
                     {q}
                   </button>
@@ -990,7 +865,7 @@ export default function Analitica() {
               {[2024, 2025, 2026, 2027].map(y => {
                 const active = selectedYear === y;
                 return (
-                  <button key={y} onClick={() => { setSelectedYear(y); setSelectedPeriod('ALL'); }}
+                  <button key={y} onClick={() => { setSelectedYear(y); setSelectedPeriods([]); }}
                           className={`text-[9px] font-bold py-[3px] w-full text-center hover:bg-slate-100 ${active ? 'bg-blue-100 text-blue-700 border-r-2 border-blue-600' : 'text-slate-600'}`}>
                     {y}
                   </button>
@@ -1218,8 +1093,9 @@ export default function Analitica() {
                       <input type="text"
                              value={formInputValues[i] || ''}
                              onChange={e => {
-                               const valStr = e.target.value;
-                               if (/^[0-9.,-]*$/.test(valStr)) {
+                               let valStr = e.target.value;
+                               valStr = cleanNumericInput(valStr);
+                               if (/^-?[0-9]*([,][0-9]*)?$/.test(valStr)) {
                                  setFormInputValues(p => ({ ...p, [i]: valStr }));
                                  const normalized = valStr.replace(',', '.');
                                  const valNum = parseFloat(normalized) || 0;
@@ -1229,7 +1105,7 @@ export default function Analitica() {
                              onFocus={e => {
                                const normalized = (formInputValues[i] || '').replace(/\./g, '').replace(',', '.');
                                const valNum = parseFloat(normalized) || 0;
-                               setFormInputValues(p => ({ ...p, [i]: valNum === 0 ? '' : valNum.toString() }));
+                               setFormInputValues(p => ({ ...p, [i]: valNum === 0 ? '' : valNum.toString().replace('.', ',') }));
                                e.target.select();
                              }}
                              onBlur={() => {
@@ -1246,8 +1122,9 @@ export default function Analitica() {
                       <input type="text"
                              value={formInputValues[i + 6] || ''}
                              onChange={e => {
-                               const valStr = e.target.value;
-                               if (/^[0-9.,-]*$/.test(valStr)) {
+                               let valStr = e.target.value;
+                               valStr = cleanNumericInput(valStr);
+                               if (/^-?[0-9]*([,][0-9]*)?$/.test(valStr)) {
                                  setFormInputValues(p => ({ ...p, [i + 6]: valStr }));
                                  const normalized = valStr.replace(',', '.');
                                  const valNum = parseFloat(normalized) || 0;
@@ -1257,7 +1134,7 @@ export default function Analitica() {
                              onFocus={e => {
                                const normalized = (formInputValues[i + 6] || '').replace(/\./g, '').replace(',', '.');
                                const valNum = parseFloat(normalized) || 0;
-                               setFormInputValues(p => ({ ...p, [i + 6]: valNum === 0 ? '' : valNum.toString() }));
+                               setFormInputValues(p => ({ ...p, [i + 6]: valNum === 0 ? '' : valNum.toString().replace('.', ',') }));
                                e.target.select();
                              }}
                              onBlur={() => {
@@ -1319,21 +1196,41 @@ export default function Analitica() {
       )}
 
       {showCebeSel && (
-        <CenterSelectorModal
-          type="cebe"
-          items={cebes}
-          onSelect={val => setFormCebe(val)}
-          onClose={() => setShowCebeSel(false)}
-        />
+        <div className="fixed inset-0 z-[2000] flex items-center justify-center pointer-events-none">
+          <div className="pointer-events-auto shadow-2xl relative" style={{ width: centerDR.size.w, height: centerDR.size.h, left: centerDR.pos.x, top: centerDR.pos.y, position: 'absolute' }}>
+            <div onMouseDown={e => centerDR.onDragDown(e)} className="h-[30px] bg-[#4472c4] flex items-center justify-between px-3 cursor-move shrink-0">
+              <span className="text-white text-[12px] font-bold">Selección de CEBE</span>
+              <button onClick={() => setShowCebeSel(false)} className="w-[22px] h-[22px] flex items-center justify-center hover:bg-red-500 text-white"><X size={14} strokeWidth={2.5} /></button>
+            </div>
+            <div className="bg-white" style={{ height: 'calc(100% - 30px)' }}>
+              <AnalyticalCenters type="cebe" isModal={true} onSelect={(val) => { setFormCebe(val); setShowCebeSel(false); }} />
+            </div>
+            
+            {/* Resize Handles */}
+            <div onMouseDown={e => centerDR.onResizeDown(e, 'e')} className="absolute top-0 right-0 w-2 h-full cursor-e-resize" />
+            <div onMouseDown={e => centerDR.onResizeDown(e, 's')} className="absolute bottom-0 left-0 w-full h-2 cursor-s-resize" />
+            <div onMouseDown={e => centerDR.onResizeDown(e, 'se')} className="absolute bottom-0 right-0 w-3 h-3 cursor-se-resize z-10" />
+          </div>
+        </div>
       )}
 
       {showCecoSel && (
-        <CenterSelectorModal
-          type="ceco"
-          items={cecos}
-          onSelect={val => setFormCeco(val)}
-          onClose={() => setShowCecoSel(false)}
-        />
+        <div className="fixed inset-0 z-[2000] flex items-center justify-center pointer-events-none">
+          <div className="pointer-events-auto shadow-2xl relative" style={{ width: centerDR.size.w, height: centerDR.size.h, left: centerDR.pos.x, top: centerDR.pos.y, position: 'absolute' }}>
+            <div onMouseDown={e => centerDR.onDragDown(e)} className="h-[30px] bg-[#4472c4] flex items-center justify-between px-3 cursor-move shrink-0">
+              <span className="text-white text-[12px] font-bold">Selección de CECO</span>
+              <button onClick={() => setShowCecoSel(false)} className="w-[22px] h-[22px] flex items-center justify-center hover:bg-red-500 text-white"><X size={14} strokeWidth={2.5} /></button>
+            </div>
+            <div className="bg-white" style={{ height: 'calc(100% - 30px)' }}>
+              <AnalyticalCenters type="ceco" isModal={true} onSelect={(val) => { setFormCeco(val); setShowCecoSel(false); }} />
+            </div>
+            
+            {/* Resize Handles */}
+            <div onMouseDown={e => centerDR.onResizeDown(e, 'e')} className="absolute top-0 right-0 w-2 h-full cursor-e-resize" />
+            <div onMouseDown={e => centerDR.onResizeDown(e, 's')} className="absolute bottom-0 left-0 w-full h-2 cursor-s-resize" />
+            <div onMouseDown={e => centerDR.onResizeDown(e, 'se')} className="absolute bottom-0 right-0 w-3 h-3 cursor-se-resize z-10" />
+          </div>
+        </div>
       )}
 
       {/* ═══════════════════════════════════════════════════════════════════════
@@ -1367,34 +1264,36 @@ export default function Analitica() {
             </div>
 
             {/* Filter and controls */}
-            <div className="flex items-center gap-2 p-3 bg-[#f8f9fa] border-b border-[#ccc] shrink-0">
-              <span className="text-[12px] font-semibold text-[#333]">Filtrar por:</span>
-              <select value={desvFilterType} onChange={e => { setDesvFilterType(e.target.value); setDesvFilterCode(''); setDesvFilterName(''); setDesvCalculatedData(null); }}
-                      className="border border-[#999] px-2 py-[3px] text-[12px] bg-white outline-none">
-                <option value="cuenta">Cuenta Contable</option>
-                <option value="cebe">CEBE</option>
-                <option value="ceco">CECO</option>
-              </select>
-
-              <span className="border border-[#999] bg-[#e9ecef] px-2 py-[3px] text-[12px] text-[#333] w-[60px] text-center shrink-0 ml-2 font-bold">
-                {desvFilterType === 'cuenta' ? 'Cuenta:' : desvFilterType === 'cebe' ? 'CEBE:' : 'CECO:'}
-              </span>
-              <input type="text" readOnly value={desvFilterCode}
-                     onClick={() => {
-                       if (desvFilterType === 'cuenta') setShowDesvAccountSel(true);
-                       else if (desvFilterType === 'cebe') setShowDesvCebeSel(true);
-                       else if (desvFilterType === 'ceco') setShowDesvCecoSel(true);
-                     }}
-                     className="w-[80px] border border-[#999] px-2 py-[3px] text-[12px] bg-white cursor-pointer outline-none font-mono font-bold" />
-              <span className="text-[12px] text-[#333] uppercase truncate flex-1 font-semibold">{desvFilterName || '(Seleccione un elemento)'}</span>
-              <button onClick={() => {
-                       if (desvFilterType === 'cuenta') setShowDesvAccountSel(true);
-                       else if (desvFilterType === 'cebe') setShowDesvCebeSel(true);
-                       else if (desvFilterType === 'ceco') setShowDesvCecoSel(true);
-                     }} 
-                     className="border border-[#999] bg-[#e1e1e1] hover:bg-[#d0d0d0] p-[3px] rounded-[2px] shadow-sm flex items-center justify-center shrink-0 w-6 h-6">
-                <FileText size={14} />
-              </button>
+            <div className="flex items-center gap-4 p-3 bg-[#f8f9fa] border-b border-[#ccc] shrink-0 flex-wrap">
+              {/* Cuenta */}
+              <div className="flex items-center gap-1">
+                <span className="border border-[#999] bg-[#e9ecef] px-2 py-[3px] text-[11px] text-[#333] w-[60px] text-center shrink-0 font-bold">Cuenta:</span>
+                <input type="text" readOnly value={desvFilterCuenta || ''}
+                    onClick={() => setShowDesvAccountSel(true)}
+                    className="w-[70px] border border-[#999] px-2 py-[3px] text-[11px] bg-white cursor-pointer outline-none font-mono" placeholder="Todas" />
+                <button onClick={() => setShowDesvAccountSel(true)} className="border border-[#999] bg-[#e1e1e1] hover:bg-[#d0d0d0] p-[2px] rounded-[2px] shadow-sm flex items-center justify-center shrink-0 w-6 h-6"><FileText size={13} /></button>
+                {desvFilterCuenta && <button onClick={() => { setDesvFilterCuenta(''); setDesvCalculatedData(null); }} className="border border-[#999] bg-[#e1e1e1] hover:bg-[#d0d0d0] p-[2px] rounded-[2px] shadow-sm flex items-center justify-center shrink-0 w-6 h-6 text-red-600 font-bold">X</button>}
+              </div>
+              
+              {/* CEBE */}
+              <div className="flex items-center gap-1">
+                <span className="border border-[#999] bg-[#e9ecef] px-2 py-[3px] text-[11px] text-[#333] w-[50px] text-center shrink-0 font-bold">CEBE:</span>
+                <input type="text" readOnly value={desvFilterCebe || ''}
+                    onClick={() => setShowDesvCebeSel(true)}
+                    className="w-[70px] border border-[#999] px-2 py-[3px] text-[11px] bg-white cursor-pointer outline-none font-mono" placeholder="Todos" />
+                <button onClick={() => setShowDesvCebeSel(true)} className="border border-[#999] bg-[#e1e1e1] hover:bg-[#d0d0d0] p-[2px] rounded-[2px] shadow-sm flex items-center justify-center shrink-0 w-6 h-6"><FileText size={13} /></button>
+                {desvFilterCebe && <button onClick={() => { setDesvFilterCebe(''); setDesvCalculatedData(null); }} className="border border-[#999] bg-[#e1e1e1] hover:bg-[#d0d0d0] p-[2px] rounded-[2px] shadow-sm flex items-center justify-center shrink-0 w-6 h-6 text-red-600 font-bold">X</button>}
+              </div>
+              
+              {/* CECO */}
+              <div className="flex items-center gap-1">
+                <span className="border border-[#999] bg-[#e9ecef] px-2 py-[3px] text-[11px] text-[#333] w-[50px] text-center shrink-0 font-bold">CECO:</span>
+                <input type="text" readOnly value={desvFilterCeco || ''}
+                    onClick={() => setShowDesvCecoSel(true)}
+                    className="w-[70px] border border-[#999] px-2 py-[3px] text-[11px] bg-white cursor-pointer outline-none font-mono" placeholder="Todos" />
+                <button onClick={() => setShowDesvCecoSel(true)} className="border border-[#999] bg-[#e1e1e1] hover:bg-[#d0d0d0] p-[2px] rounded-[2px] shadow-sm flex items-center justify-center shrink-0 w-6 h-6"><FileText size={13} /></button>
+                {desvFilterCeco && <button onClick={() => { setDesvFilterCeco(''); setDesvCalculatedData(null); }} className="border border-[#999] bg-[#e1e1e1] hover:bg-[#d0d0d0] p-[2px] rounded-[2px] shadow-sm flex items-center justify-center shrink-0 w-6 h-6 text-red-600 font-bold">X</button>}
+              </div>
             </div>
 
             {/* Table */}
@@ -1416,13 +1315,13 @@ export default function Analitica() {
                       <td className="py-1 px-2 font-semibold border-r border-[#eee]">{row.mes}</td>
                       <td className="py-1 px-2 text-right font-mono border-r border-[#eee]">{row.presupuesto.toLocaleString('es-ES', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</td>
                       <td className="py-1 px-2 text-right font-mono border-r border-[#eee]">{row.saldo.toLocaleString('es-ES', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</td>
-                      <td className={`py-1 px-2 text-right font-mono border-r border-[#eee] ${row.desviacion < 0 ? 'text-red-600' : 'text-green-600'}`}>
+                      <td className="py-1 px-2 text-right font-mono border-r border-[#eee]">
                         {row.desviacion.toLocaleString('es-ES', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
                       </td>
-                      <td className={`py-1 px-2 text-right font-mono border-r border-[#eee] ${row.pctDesviacion < 0 ? 'text-red-600' : 'text-green-600'}`}>
+                      <td className="py-1 px-2 text-right font-mono border-r border-[#eee]">
                         {row.pctDesviacion.toLocaleString('es-ES', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}%
                       </td>
-                      <td className={`py-1 px-2 text-right font-mono ${row.pctDesvArrast < 0 ? 'text-red-600' : 'text-green-600'}`}>
+                      <td className="py-1 px-2 text-right font-mono">
                         {row.pctDesvArrast.toLocaleString('es-ES', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}%
                       </td>
                     </tr>
@@ -1432,13 +1331,13 @@ export default function Analitica() {
                     <td className="py-1 px-2 text-right border-r border-[#ccc] text-[#2b579a]">TOTALES</td>
                     <td className="py-1 px-2 text-right font-mono border-r border-[#ccc]">{(desvCalculatedData?.totals?.presupuesto || 0).toLocaleString('es-ES', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</td>
                     <td className="py-1 px-2 text-right font-mono border-r border-[#ccc]">{(desvCalculatedData?.totals?.saldo || 0).toLocaleString('es-ES', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</td>
-                    <td className={`py-1 px-2 text-right font-mono border-r border-[#ccc] ${(desvCalculatedData?.totals?.desviacion || 0) < 0 ? 'text-red-600' : 'text-green-600'}`}>
+                    <td className="py-1 px-2 text-right font-mono border-r border-[#ccc]">
                       {(desvCalculatedData?.totals?.desviacion || 0).toLocaleString('es-ES', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
                     </td>
-                    <td className={`py-1 px-2 text-right font-mono border-r border-[#ccc] ${(desvCalculatedData?.totals?.pctDesviacion || 0) < 0 ? 'text-red-600' : 'text-green-600'}`}>
+                    <td className="py-1 px-2 text-right font-mono border-r border-[#ccc]">
                       {(desvCalculatedData?.totals?.pctDesviacion || 0).toLocaleString('es-ES', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}%
                     </td>
-                    <td className={`py-1 px-2 text-right font-mono ${(desvCalculatedData?.totals?.pctDesvArrast || 0) < 0 ? 'text-red-600' : 'text-green-600'}`}>
+                    <td className="py-1 px-2 text-right font-mono">
                       {(desvCalculatedData?.totals?.pctDesvArrast || 0).toLocaleString('es-ES', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}%
                     </td>
                   </tr>
@@ -1491,31 +1390,41 @@ export default function Analitica() {
       )}
 
       {showDesvCebeSel && (
-        <CenterSelectorModal
-          type="cebe"
-          items={cebes}
-          onSelect={val => {
-            setDesvFilterCode(val);
-            const center = cebes.find(c => c.code === val);
-            setDesvFilterName(center ? center.name : val);
-            setDesvCalculatedData(null);
-          }}
-          onClose={() => setShowDesvCebeSel(false)}
-        />
+        <div className="fixed inset-0 z-[4000] flex items-center justify-center pointer-events-none">
+          <div className="pointer-events-auto shadow-2xl relative" style={{ width: centerDR.size.w, height: centerDR.size.h, left: centerDR.pos.x, top: centerDR.pos.y, position: 'absolute' }}>
+            <div onMouseDown={e => centerDR.onDragDown(e)} className="h-[30px] bg-[#4472c4] flex items-center justify-between px-3 cursor-move shrink-0">
+              <span className="text-white text-[12px] font-bold">Selección de CEBE</span>
+              <button onClick={() => setShowDesvCebeSel(false)} className="w-[22px] h-[22px] flex items-center justify-center hover:bg-red-500 text-white"><X size={14} strokeWidth={2.5} /></button>
+            </div>
+            <div className="bg-white" style={{ height: 'calc(100% - 30px)' }}>
+              <AnalyticalCenters type="cebe" isModal={true} onSelect={(val) => { setDesvFilterCebe(val); setDesvCalculatedData(null); setShowDesvCebeSel(false); }} />
+            </div>
+            
+            {/* Resize Handles */}
+            <div onMouseDown={e => centerDR.onResizeDown(e, 'e')} className="absolute top-0 right-0 w-2 h-full cursor-e-resize" />
+            <div onMouseDown={e => centerDR.onResizeDown(e, 's')} className="absolute bottom-0 left-0 w-full h-2 cursor-s-resize" />
+            <div onMouseDown={e => centerDR.onResizeDown(e, 'se')} className="absolute bottom-0 right-0 w-3 h-3 cursor-se-resize z-10" />
+          </div>
+        </div>
       )}
 
       {showDesvCecoSel && (
-        <CenterSelectorModal
-          type="ceco"
-          items={cecos}
-          onSelect={val => {
-            setDesvFilterCode(val);
-            const center = cecos.find(c => c.code === val);
-            setDesvFilterName(center ? center.name : val);
-            setDesvCalculatedData(null);
-          }}
-          onClose={() => setShowDesvCecoSel(false)}
-        />
+        <div className="fixed inset-0 z-[4000] flex items-center justify-center pointer-events-none">
+          <div className="pointer-events-auto shadow-2xl relative" style={{ width: centerDR.size.w, height: centerDR.size.h, left: centerDR.pos.x, top: centerDR.pos.y, position: 'absolute' }}>
+            <div onMouseDown={e => centerDR.onDragDown(e)} className="h-[30px] bg-[#4472c4] flex items-center justify-between px-3 cursor-move shrink-0">
+              <span className="text-white text-[12px] font-bold">Selección de CECO</span>
+              <button onClick={() => setShowDesvCecoSel(false)} className="w-[22px] h-[22px] flex items-center justify-center hover:bg-red-500 text-white"><X size={14} strokeWidth={2.5} /></button>
+            </div>
+            <div className="bg-white" style={{ height: 'calc(100% - 30px)' }}>
+              <AnalyticalCenters type="ceco" isModal={true} onSelect={(val) => { setDesvFilterCeco(val); setDesvCalculatedData(null); setShowDesvCecoSel(false); }} />
+            </div>
+            
+            {/* Resize Handles */}
+            <div onMouseDown={e => centerDR.onResizeDown(e, 'e')} className="absolute top-0 right-0 w-2 h-full cursor-e-resize" />
+            <div onMouseDown={e => centerDR.onResizeDown(e, 's')} className="absolute bottom-0 left-0 w-full h-2 cursor-s-resize" />
+            <div onMouseDown={e => centerDR.onResizeDown(e, 'se')} className="absolute bottom-0 right-0 w-3 h-3 cursor-se-resize z-10" />
+          </div>
+        </div>
       )}
     </div>
   );

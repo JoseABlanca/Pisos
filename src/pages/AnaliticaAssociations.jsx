@@ -83,6 +83,76 @@ function AccountSelectorModal({ onSelect, onClose }) {
   );
 }
 
+/* ── CEBE/CECO selector modal ────────────────────────────────────────────────── */
+function CenterSelectorModal({ type, items, onSelect, onClose }) {
+  const [pos, onDragDown] = useDrag(Math.max(0, (window.innerWidth - 500) / 2), 100);
+  const [searchQ, setSearchQ] = useState('');
+
+  const filtered = useMemo(() => {
+    if (!searchQ) return items;
+    const q = searchQ.toLowerCase();
+    return items.filter(x =>
+      (x.code || '').toLowerCase().includes(q) ||
+      (x.name || '').toLowerCase().includes(q)
+    );
+  }, [items, searchQ]);
+
+  return (
+    <div className="fixed inset-0 z-[300]" style={{ background: 'rgba(0,0,0,0.3)' }}>
+      <div style={{ position: 'absolute', left: pos.x, top: pos.y, width: 500, height: 420 }}
+           className="flex flex-col bg-white border border-[#888] shadow-xl relative select-none">
+        <div onMouseDown={onDragDown}
+             className="flex items-center justify-between px-3 py-[6px] bg-[#4472c4] shrink-0 cursor-move">
+          <span className="text-white text-[12px] font-bold tracking-wide uppercase">Selección de {type.toUpperCase()}</span>
+          <button onClick={onClose} className="w-[22px] h-[22px] flex items-center justify-center hover:bg-red-500 text-white rounded-[2px]">
+            <X size={14} strokeWidth={2.5} />
+          </button>
+        </div>
+        
+        {/* Search bar inside selector */}
+        <div className="flex justify-end items-center px-3 py-2 border-b border-[#d1d5db] bg-slate-50 shrink-0">
+          <div className="relative flex items-center">
+            <input type="text" placeholder="Buscar en el fichero (Alt+B)"
+                   value={searchQ} onChange={e => setSearchQ(e.target.value)}
+                   className="w-[250px] pr-5 py-[2px] text-[11px] text-right border-b border-[#aaa] outline-none focus:border-b-[#4472c4] bg-transparent placeholder:text-[#aaa]" />
+            <Search size={13} className="absolute right-0 text-[#aaa] pointer-events-none" />
+          </div>
+        </div>
+
+        <div className="flex-1 overflow-auto p-1">
+          <table className="w-full border-collapse text-[11px] text-left">
+            <thead>
+              <tr className="sticky top-0 bg-[#f2f2f2] border-b border-slate-300 font-bold text-slate-700">
+                <th className="py-2 px-3 font-bold">Código</th>
+                <th className="py-2 px-3 font-bold">Descripción</th>
+              </tr>
+            </thead>
+            <tbody>
+              <tr className="border-b border-slate-100 hover:bg-slate-100 cursor-pointer"
+                  onClick={() => { onSelect(''); onClose(); }}>
+                <td colSpan={2} className="py-2 px-3 text-slate-500 italic">-- Sin {type.toUpperCase()} --</td>
+              </tr>
+              {filtered.length === 0 ? (
+                <tr>
+                  <td colSpan={2} className="text-center py-6 text-slate-400">No se encontraron resultados</td>
+                </tr>
+              ) : (
+                filtered.map(x => (
+                  <tr key={x.id} className="border-b border-slate-100 hover:bg-slate-100 cursor-pointer"
+                      onClick={() => { onSelect(x.code); onClose(); }}>
+                    <td className="py-2 px-3 font-mono font-bold text-slate-700">{x.code}</td>
+                    <td className="py-2 px-3 text-slate-600 uppercase">{x.name}</td>
+                  </tr>
+                ))
+              )}
+            </tbody>
+          </table>
+        </div>
+      </div>
+    </div>
+  );
+}
+
 /* ── Edit/New modal ─────────────────────────────────────────────────────────── */
 function AssocModal({ initial, cebes, cecos, onSave, onClose }) {
   const [accountCode, setAccountCode] = useState(initial?.accountCode || '');
@@ -90,6 +160,8 @@ function AssocModal({ initial, cebes, cecos, onSave, onClose }) {
   const [cebe, setCebe] = useState(initial?.cebe || '');
   const [ceco, setCeco] = useState(initial?.ceco || '');
   const [showAccSel, setShowAccSel] = useState(false);
+  const [showCebeSel, setShowCebeSel] = useState(false);
+  const [showCecoSel, setShowCecoSel] = useState(false);
   const [pos, onDragDown] = useDrag(
     Math.max(0, (window.innerWidth - 420) / 2),
     Math.max(20, (window.innerHeight - 300) / 2)
@@ -130,32 +202,28 @@ function AssocModal({ initial, cebes, cecos, onSave, onClose }) {
             {/* CEBE */}
             <div className="flex items-center gap-2">
               <span className="text-[12px] text-[#333] font-semibold w-[130px] shrink-0">CEBE:</span>
-              {cebes.length > 0 ? (
-                <select value={cebe} onChange={e => setCebe(e.target.value)}
-                        className="flex-1 border border-[#999] px-2 py-[3px] text-[12px] bg-white outline-none">
-                  <option value="">-- Sin CEBE --</option>
-                  {cebes.map(c => <option key={c.id} value={c.code}>{c.code} - {c.name}</option>)}
-                </select>
-              ) : (
-                <input type="text" value={cebe} onChange={e => setCebe(e.target.value)}
-                       placeholder="Código CEBE"
-                       className="flex-1 border border-[#999] px-2 py-[3px] text-[12px] bg-white outline-none" />
+              <input type="text" readOnly value={cebe}
+                     onClick={() => setShowCebeSel(true)}
+                     placeholder="(Sin CEBE)"
+                     className="flex-1 border border-[#999] px-2 py-[3px] text-[12px] bg-white cursor-pointer outline-none placeholder:text-slate-400 font-mono font-bold" />
+              {cebe && (
+                <span className="text-[11px] text-[#555] uppercase truncate max-w-[120px]">
+                  {cebes.find(c => c.code === cebe)?.name || ''}
+                </span>
               )}
             </div>
 
             {/* CECO */}
             <div className="flex items-center gap-2">
               <span className="text-[12px] text-[#333] font-semibold w-[130px] shrink-0">CECO:</span>
-              {cecos.length > 0 ? (
-                <select value={ceco} onChange={e => setCeco(e.target.value)}
-                        className="flex-1 border border-[#999] px-2 py-[3px] text-[12px] bg-white outline-none">
-                  <option value="">-- Sin CECO --</option>
-                  {cecos.map(c => <option key={c.id} value={c.code}>{c.code} - {c.name}</option>)}
-                </select>
-              ) : (
-                <input type="text" value={ceco} onChange={e => setCeco(e.target.value)}
-                       placeholder="Código CECO"
-                       className="flex-1 border border-[#999] px-2 py-[3px] text-[12px] bg-white outline-none" />
+              <input type="text" readOnly value={ceco}
+                     onClick={() => setShowCecoSel(true)}
+                     placeholder="(Sin CECO)"
+                     className="flex-1 border border-[#999] px-2 py-[3px] text-[12px] bg-white cursor-pointer outline-none placeholder:text-slate-400 font-mono font-bold" />
+              {ceco && (
+                <span className="text-[11px] text-[#555] uppercase truncate max-w-[120px]">
+                  {cecos.find(c => c.code === ceco)?.name || ''}
+                </span>
               )}
             </div>
 
@@ -178,6 +246,24 @@ function AssocModal({ initial, cebes, cecos, onSave, onClose }) {
         <AccountSelectorModal
           onSelect={acc => { setAccountCode(acc.code); setAccountName(acc.name || ''); }}
           onClose={() => setShowAccSel(false)}
+        />
+      )}
+
+      {showCebeSel && (
+        <CenterSelectorModal
+          type="cebe"
+          items={cebes}
+          onSelect={val => setCebe(val)}
+          onClose={() => setShowCebeSel(false)}
+        />
+      )}
+
+      {showCecoSel && (
+        <CenterSelectorModal
+          type="ceco"
+          items={cecos}
+          onSelect={val => setCeco(val)}
+          onClose={() => setShowCecoSel(false)}
         />
       )}
     </>
@@ -269,8 +355,8 @@ export default function AnaliticaAssociations() {
       <div className="flex items-center justify-between border-b border-[#e0e0e0] bg-white px-2 py-[3px] shrink-0">
         <span className="text-[12px] text-[#333]">Asociaciones cuenta analítica (CEBE / CECO)</span>
         <div className="relative flex items-center">
-          <input type="text" placeholder="Buscar..." value={searchQ} onChange={e => setSearchQ(e.target.value)}
-                 className="w-[200px] pr-5 py-[2px] text-[11px] border-b border-[#aaa] outline-none focus:border-b-[#4472c4] bg-transparent placeholder:text-[#aaa]" />
+          <input type="text" placeholder="Buscar en el fichero (Alt+B)" value={searchQ} onChange={e => setSearchQ(e.target.value)}
+                 className="w-[220px] pr-5 py-[2px] text-[11px] text-right border-b border-[#aaa] outline-none focus:border-b-[#4472c4] bg-transparent placeholder:text-[#aaa]" />
           <Search size={13} className="absolute right-0 text-[#aaa] pointer-events-none" />
         </div>
       </div>

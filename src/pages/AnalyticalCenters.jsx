@@ -2,10 +2,10 @@ import React, { useState, useEffect } from 'react';
 import { db } from '../firebase/config';
 import { collection, query, where, onSnapshot, addDoc, updateDoc, deleteDoc, doc } from 'firebase/firestore';
 import { useAuth } from '../context/AuthContext';
-import { ChevronRight, ChevronDown, Check, Plus, AlertTriangle, ArrowUp, ArrowDown } from 'lucide-react';
+import { ChevronRight, ChevronDown, Check, Plus, AlertTriangle, ArrowUp, ArrowDown, Search } from 'lucide-react';
 import { CustomIcon } from '../components/CustomIcons';
 
-export default function AnalyticalCenters({ type }) { // type = 'ceco' | 'cebe'
+export default function AnalyticalCenters({ type, isModal = false, onSelect = null }) {
   const { user, queryUserIds } = useAuth();
   const [centers, setCenters] = useState([]);
   const [flatDocs, setFlatDocs] = useState([]);
@@ -15,6 +15,7 @@ export default function AnalyticalCenters({ type }) { // type = 'ceco' | 'cebe'
   const [editValue, setEditValue] = useState({ code: '', name: '' });
   const [deleteConfirm, setDeleteConfirm] = useState(null);
   const [isMobile, setIsMobile] = useState(window.innerWidth < 768);
+  const [searchQuery, setSearchQuery] = useState('');
 
   const title = type === 'ceco' ? 'Centros de Coste (CECOS)' : 'Centros de Beneficio (CEBES)';
   const collectionName = 'analytical_centers';
@@ -194,11 +195,21 @@ export default function AnalyticalCenters({ type }) { // type = 'ceco' | 'cebe'
     }
   };
 
+  const nodeMatchesSearch = (node, query) => {
+    if (!query) return true;
+    const q = query.toLowerCase();
+    if (node.name.toLowerCase().includes(q) || node.code.toLowerCase().includes(q)) return true;
+    if (node.children) return node.children.some(child => nodeMatchesSearch(child, query));
+    return false;
+  };
+
   const renderTreeRows = (nodes, depth = 0) => {
     let rows = [];
     const indentSize = 16;
 
-    nodes.forEach(node => {
+    const filteredNodes = nodes.filter(node => nodeMatchesSearch(node, searchQuery));
+
+    filteredNodes.forEach(node => {
       const hasChildren = node.children && node.children.length > 0;
       const isExpanded = expandedNodes[node.code];
       const isSelected = selectedNode === node.code;
@@ -245,6 +256,10 @@ export default function AnalyticalCenters({ type }) { // type = 'ceco' | 'cebe'
             key={node.id} 
             onClick={() => setSelectedNode(node.code)}
             onDoubleClick={() => {
+              if (isModal && onSelect) {
+                onSelect(node.code, node.name);
+                return;
+              }
               toggleExpand(node.code);
               setEditingNode({ id: node.id, parentId: node.parentId, isNew: false });
               setEditValue({ code: node.code, name: node.name });
@@ -396,11 +411,48 @@ export default function AnalyticalCenters({ type }) { // type = 'ceco' | 'cebe'
             <CustomIcon type="Colapsar" />
             <span className="text-[11px] text-gray-700 mt-1">Colapsar</span>
           </button>
+          
+          {isModal && (
+            <>
+              <div className="w-[1px] h-12 bg-gray-300 mx-2"></div>
+              <button 
+                onClick={() => {
+                  if (selectedNode && onSelect) {
+                    const sel = flatDocs.find(a => a.code === selectedNode);
+                    if (sel) {
+                      onSelect(sel.code, sel.name);
+                    }
+                  }
+                }}
+                className={`flex flex-col items-center justify-center min-w-[70px] p-1 rounded border transition-transform ${selectedNode ? 'hover:bg-blue-100 cursor-pointer border-transparent hover:border-blue-300 hover:scale-105' : 'opacity-50 cursor-not-allowed border-transparent'}`}
+                disabled={!selectedNode}
+              >
+                <Check className={`w-6 h-6 mb-1 ${selectedNode ? 'text-green-600' : 'text-gray-400'}`} strokeWidth={2.5} />
+                <span className={`text-[11px] font-bold ${selectedNode ? 'text-blue-800' : 'text-gray-500'}`}>Seleccionar</span>
+              </button>
+            </>
+          )}
         </div>
 
         <div className="flex-1 flex bg-white border-x border-b border-[#718096] overflow-hidden min-h-[500px]">
-          <div className="flex-1 overflow-auto bg-white border-t border-[#718096] relative">
-            <table className="w-full border-collapse">
+          <div className="flex-1 flex flex-col bg-white overflow-hidden relative">
+            {/* Header with Title and Search */}
+            <div className="flex justify-between items-center px-4 py-2 border-b border-[#d1d5db] shrink-0 bg-white">
+              <span className="text-[12px] text-gray-700 font-semibold uppercase">{title}</span>
+              <div className="relative flex items-center">
+                <input 
+                  type="text" 
+                  placeholder="Buscar en el fichero (Alt+B)"
+                  value={searchQuery}
+                  onChange={(e) => setSearchQuery(e.target.value)}
+                  className="w-[220px] pr-5 py-[2px] text-[11px] text-right border-b border-[#aaa] outline-none focus:border-b-[#4472c4] bg-transparent placeholder:text-[#aaa]"
+                />
+                <Search size={13} className="absolute right-0 text-[#aaa] pointer-events-none" />
+              </div>
+            </div>
+            {/* Table wrapper */}
+            <div className="flex-1 overflow-auto bg-white relative">
+              <table className="w-full border-collapse">
               <thead className="sticky top-0 bg-white shadow-[0_1px_0_#d1d5db] z-10">
                 <tr className="text-gray-700">
                   <th className="px-3 py-2 text-left text-[11px] font-normal border-r border-[#d1d5db] uppercase w-48">CÓDIGO</th>
@@ -454,6 +506,7 @@ export default function AnalyticalCenters({ type }) { // type = 'ceco' | 'cebe'
               </tbody>
             </table>
           </div>
+        </div>
         </div>
       </div>
     </div>

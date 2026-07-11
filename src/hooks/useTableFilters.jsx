@@ -1,10 +1,31 @@
 import React, { useState, useEffect } from 'react';
 import { Filter, X } from 'lucide-react';
+import { useAuth } from '../context/AuthContext';
 
 export const useTableFilters = ({ columnWidths = {}, updateColumnWidth = null } = {}) => {
+  const { userPreferences, updatePreferences } = useAuth() || {};
   const [activeTableFilters, setActiveTableFilters] = useState({});
   const [openFilterMenu, setOpenFilterMenu] = useState(null);
   const [filterSearch, setFilterSearch] = useState('');
+  const [isLoaded, setIsLoaded] = useState(false);
+
+  useEffect(() => {
+    if (userPreferences && !isLoaded) {
+      if (userPreferences.tableFilters) {
+        setActiveTableFilters(userPreferences.tableFilters);
+      }
+      setIsLoaded(true);
+    }
+  }, [userPreferences, isLoaded]);
+
+  const persistFilters = (newFilters) => {
+    if (updatePreferences && userPreferences) {
+      updatePreferences({
+        ...userPreferences,
+        tableFilters: newFilters
+      });
+    }
+  };
   
   // Custom hook to close menu when clicking outside
   useEffect(() => {
@@ -60,42 +81,49 @@ export const useTableFilters = ({ columnWidths = {}, updateColumnWidth = null } 
         ? columnFilters.filter(v => v !== value)
         : [...columnFilters, value];
         
-      // If it has all values, we can reset to undefined
-      if (newColumnFilters.length === allValues.length) {
+      const newState = (() => {
+        // If it has all values, we can reset to undefined
+        if (newColumnFilters.length === allValues.length) {
+          return {
+            ...prev,
+            [tableId]: {
+              ...tableFilters,
+              [columnKey]: undefined
+            }
+          };
+        }
+        
         return {
           ...prev,
           [tableId]: {
             ...tableFilters,
-            [columnKey]: undefined
+            [columnKey]: newColumnFilters
           }
         };
-      }
-      
-      return {
-        ...prev,
-        [tableId]: {
-          ...tableFilters,
-          [columnKey]: newColumnFilters
-        }
-      };
+      })();
+      persistFilters(newState);
+      return newState;
     });
   };
 
   const handleSelectAllFilters = (tableId, columnKey, select) => {
     setActiveTableFilters(prev => {
       const tableFilters = prev[tableId] || {};
-      return {
+      const newState = {
         ...prev,
         [tableId]: {
           ...tableFilters,
           [columnKey]: select ? undefined : []
         }
       };
+      persistFilters(newState);
+      return newState;
     });
   };
 
   const clearAllFilters = () => {
     setActiveTableFilters({});
+    persistFilters({});
   };
 
   const TableHeaderWithFilter = ({ label, columnKey, data, tableId, className = "" }) => {

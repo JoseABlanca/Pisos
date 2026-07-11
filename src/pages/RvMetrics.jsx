@@ -839,21 +839,42 @@ export default function RvMetrics() {
       });
     }
 
+    // Peak, Drawdown, and Duration calculations
     let maxDrawdownPct = 0;
     let maxDrawdownEUR = 0;
     let peakValue = 0;
+    let peakDate = null;
+    let maxDDDurationDays = 0;
+    const drawdowns = [];
+    const ddDurations = [];
+    let currentDDStart = null;
     let prevVal = null;
     const dailyReturns = [];
 
     lineChartData.forEach(day => {
        const equity = day.valorMercado + (day.beneficioTotal - day.beneficioLatente); 
-       if (equity > peakValue) peakValue = equity;
-       if (peakValue > 0) {
+       
+       if (equity >= peakValue) {
+          if (peakValue > 0 && currentDDStart) {
+             const duration = (new Date(day.date) - new Date(currentDDStart)) / (1000 * 60 * 60 * 24);
+             ddDurations.push(duration);
+             if (duration > maxDDDurationDays) maxDDDurationDays = duration;
+          }
+          peakValue = equity;
+          peakDate = day.date;
+          currentDDStart = null;
+       } else {
+          if (!currentDDStart) {
+             currentDDStart = peakDate || day.date;
+          }
           const ddPct = (peakValue - equity) / peakValue;
           if (ddPct > maxDrawdownPct) maxDrawdownPct = ddPct;
+          drawdowns.push(ddPct);
+          
           const ddEUR = equity - peakValue;
           if (ddEUR < maxDrawdownEUR) maxDrawdownEUR = ddEUR;
        }
+
        if (prevVal !== null && prevVal > 0) {
           const ret = (equity - prevVal) / prevVal;
           dailyReturns.push(ret);
@@ -861,25 +882,348 @@ export default function RvMetrics() {
        prevVal = equity;
     });
 
+    if (currentDDStart && lineChartData.length > 0) {
+       const duration = (new Date(lineChartData[lineChartData.length - 1].date) - new Date(currentDDStart)) / (1000 * 60 * 60 * 24);
+       ddDurations.push(duration);
+       if (duration > maxDDDurationDays) maxDDDurationDays = duration;
+    }
+
+    const lastEquity = lineChartData.length > 0 ? (lineChartData[lineChartData.length - 1].valorMercado + (lineChartData[lineChartData.length - 1].beneficioTotal - lineChartData[lineChartData.length - 1].beneficioLatente)) : 0;
+
+    // Basic stats
+    const N = dailyReturns.length;
     let avgReturn = 0;
     let stdDev = 0;
     let sharpeRatio = 0;
-    if (dailyReturns.length > 0) {
-       avgReturn = dailyReturns.reduce((a, b) => a + b, 0) / dailyReturns.length;
-       const variance = dailyReturns.reduce((a, b) => a + Math.pow(b - avgReturn, 2), 0) / dailyReturns.length;
+    let downsideStdDev = 0;
+    let sortino = 0;
+    let sortinoDivRoot2 = 0;
+    let skew = 0;
+    let kurtosis = 0;
+    
+    if (N > 0) {
+       avgReturn = dailyReturns.reduce((a, b) => a + b, 0) / N;
+       const variance = dailyReturns.reduce((a, b) => a + Math.pow(b - avgReturn, 2), 0) / N;
        stdDev = Math.sqrt(variance);
        sharpeRatio = stdDev > 0 ? (avgReturn / stdDev) * Math.sqrt(252) : 0;
+       
+       const negativeReturns = dailyReturns.map(r => Math.min(0, r));
+       const downsideVariance = negativeReturns.reduce((a, b) => a + b * b, 0) / N;
+       downsideStdDev = Math.sqrt(downsideVariance);
+       sortino = downsideStdDev > 0 ? (avgReturn / downsideStdDev) * Math.sqrt(252) : 0;
+       sortinoDivRoot2 = sortino / Math.sqrt(2);
+       
+       if (N > 2 && stdDev > 0) {
+          const sumCubed = dailyReturns.reduce((a, b) => a + Math.pow(b - avgReturn, 3), 0);
+          skew = (N * sumCubed) / ((N - 1) * (N - 2) * Math.pow(stdDev, 3));
+       }
+       if (N > 3 && stdDev > 0) {
+          const sumFourth = dailyReturns.reduce((a, b) => a + Math.pow(b - avgReturn, 4), 0);
+          const term1 = (N * (N + 1)) / ((N - 1) * (N - 2) * (N - 3));
+          const term2 = sumFourth / Math.pow(stdDev, 4);
+          const term3 = (3 * Math.pow(N - 1, 2)) / ((N - 2) * (N - 3));
+          kurtosis = term1 * term2 - term3;
+       }
     }
 
-    const profitFactor = grossLoss > 0 ? (grossProfit / grossLoss).toFixed(2) : (grossProfit > 0 ? '99.00' : '0.00');
-    const percentProfitable = totalTrades > 0 ? ((winningTrades / totalTrades) * 100).toFixed(2) : '0.00';
-    const avgTrade = totalTrades > 0 ? ((grossProfit - grossLoss) / totalTrades).toFixed(2) : '0.00';
-    const avgWin = winningTrades > 0 ? (grossProfit / winningTrades).toFixed(2) : '0.00';
-    const avgLoss = losingTrades > 0 ? (grossLoss / losingTrades).toFixed(2) : '0.00';
-    const ratioWinLoss = avgLoss > 0 ? (avgWin / avgLoss).toFixed(2) : (avgWin > 0 ? '99.00' : '0.00');
+     // Cumulative Return & CAGR
+     const activeGainsEUR = kpiBenefitType === 'LATENTE' ? exactLatente : exactTotalGains;
+     const activeReturnPct = kpiBenefitType === 'LATENTE' ? exactPlusvaliaPct : exactRoiPct;
+     const cumulativeReturn = activeReturnPct / 100;
+     const cumulativeGainsEUR = activeGainsEUR;
+ 
+     let cagr = 0;
+     if (lineChartData.length >= 2 && cumulativeReturn > -1) {
+        const days = (new Date(lineChartData[lineChartData.length - 1].date) - new Date(lineChartData[0].date)) / (1000 * 60 * 60 * 24);
+        const years = days / 365.25;
+        if (years > 0) {
+           cagr = Math.pow(1 + cumulativeReturn, 1 / years) - 1;
+        }
+     }
+ 
+     const calmar = maxDrawdownPct > 0 ? (cagr / maxDrawdownPct) : 0;
+ 
+     // Time in market
+     const timeInMarket = N > 0 ? dailyReturns.filter(r => r !== 0).length / N : 0;
+ 
+     // Volatility EUR (annualized standard deviation of daily EUR equity changes)
+     const dailyEURChanges = [];
+     let prevEqTemp = null;
+     lineChartData.forEach(day => {
+        const equity = day.valorMercado + (day.beneficioTotal - day.beneficioLatente);
+        if (prevEqTemp !== null) {
+           dailyEURChanges.push(equity - prevEqTemp);
+        }
+        prevEqTemp = equity;
+     });
+     let volatilityEUR = 0;
+     if (dailyEURChanges.length > 0) {
+        const avgEURChange = dailyEURChanges.reduce((a,b)=>a+b,0) / dailyEURChanges.length;
+        const varEUR = dailyEURChanges.reduce((a,b)=>a+Math.pow(b-avgEURChange,2),0) / dailyEURChanges.length;
+        volatilityEUR = Math.sqrt(varEUR) * Math.sqrt(252);
+     }
+ 
+     // Expected daily/monthly/yearly
+     const expectedDaily = avgReturn;
+     const expectedMonthly = avgReturn * 21;
+     const expectedYearly = avgReturn * 252;
+ 
+     // Win/Loss ratio and stats
+     const posReturns = dailyReturns.filter(r => r > 0);
+     const negReturns = dailyReturns.filter(r => r < 0);
+     const winRate = N > 0 ? posReturns.length / N : 0;
+     const lossRate = 1 - winRate;
+     const avgWinRet = posReturns.length > 0 ? posReturns.reduce((a,b)=>a+b,0) / posReturns.length : 0;
+     const avgLossRet = negReturns.length > 0 ? Math.abs(negReturns.reduce((a,b)=>a+b,0) / negReturns.length) : 0;
+     const winLossRatio = avgLossRet > 0 ? avgWinRet / avgLossRet : 0;
+     
+     // Kelly criterion
+     const kelly = winLossRatio > 0 ? winRate - (lossRate / winLossRatio) : 0;
+ 
+     // Risk of Ruin
+     const edge = winRate - lossRate;
+     const riskOfRuin = edge > 0 ? Math.pow((1 - edge) / (1 + edge), 10) : 1.0;
+ 
+     // Daily Value-at-Risk
+     const dailyVaR = -(avgReturn - 1.645 * stdDev);
+ 
+     // Expected Shortfall (cVaR)
+     const varThreshold = avgReturn - 1.645 * stdDev;
+     const worstReturns = dailyReturns.filter(r => r <= varThreshold);
+     const expectedShortfall = worstReturns.length > 0 ? -(worstReturns.reduce((a,b)=>a+b,0) / worstReturns.length) : dailyVaR;
+ 
+     // Gain/Pain ratio
+     const sumPos = posReturns.reduce((a,b)=>a+b,0);
+     const sumNeg = Math.abs(negReturns.reduce((a,b)=>a+b,0));
+     const gainPainRatio = sumNeg > 0 ? sumPos / sumNeg : 0;
+ 
+     // Monthly returns and Gain/Pain (1M)
+     const monthlyMap = {};
+     lineChartData.forEach(day => {
+        const mKey = day.date.substring(0, 7); // YYYY-MM
+        const equity = day.valorMercado + (day.beneficioTotal - day.beneficioLatente);
+        if (!monthlyMap[mKey]) monthlyMap[mKey] = [];
+        monthlyMap[mKey].push(equity);
+     });
+     const monthlyReturns = [];
+     const sortedMKeys = Object.keys(monthlyMap).sort();
+     for (let i = 0; i < sortedMKeys.length; i++) {
+        const equities = monthlyMap[sortedMKeys[i]];
+        const startEq = equities[0];
+        const endEq = equities[equities.length - 1];
+        if (i > 0) {
+           const prevMKeys = monthlyMap[sortedMKeys[i - 1]];
+           const prevEq = prevMKeys[prevMKeys.length - 1];
+           if (prevEq > 0) {
+              monthlyReturns.push((endEq - prevEq) / prevEq);
+           }
+        } else {
+           if (startEq > 0) {
+              monthlyReturns.push((endEq - startEq) / startEq);
+           }
+        }
+     }
+     const posMonthly = monthlyReturns.filter(r => r > 0);
+     const negMonthly = monthlyReturns.filter(r => r < 0);
+     const sumMPos = posMonthly.reduce((a,b)=>a+b,0);
+     const sumMNeg = Math.abs(negMonthly.reduce((a,b)=>a+b,0));
+     const gainPain1M = sumMNeg > 0 ? sumMPos / sumMNeg : 0;
+ 
+     // Common Sense Ratio, CPC Index, Tail Ratio
+     const sortedReturns = [...dailyReturns].sort((a,b) => a - b);
+     const p5Idx = Math.floor(sortedReturns.length * 0.05);
+     const p95Idx = Math.floor(sortedReturns.length * 0.95);
+     const p5 = sortedReturns[p5Idx] || 0;
+     const p95 = sortedReturns[p95Idx] || 0;
+     const tailRatio = Math.abs(p5) > 0 ? p95 / Math.abs(p5) : 0;
+     const commonSenseRatio = gainPainRatio * tailRatio;
+     const cpcIndex = gainPainRatio * winLossRatio * winRate;
+ 
+     // Outlier Win/Loss Ratios
+     let outlierWinRatio = 0;
+     if (posReturns.length > 0) {
+        const sortedPos = [...posReturns].sort((a,b) => a - b);
+        const q1 = sortedPos[Math.floor(sortedPos.length * 0.25)];
+        const q3 = sortedPos[Math.floor(sortedPos.length * 0.75)];
+        const iqr = q3 - q1;
+        const cutoff = q3 + 1.5 * iqr;
+        const outliers = posReturns.filter(r => r > cutoff);
+        outlierWinRatio = outliers.length > 0 ? outliers.reduce((a,b)=>a+b,0) / outliers.length : avgWinRet;
+     }
+     let outlierLossRatio = 0;
+     if (negReturns.length > 0) {
+        const sortedNeg = [...negReturns].sort((a,b) => a - b);
+        const q1 = sortedNeg[Math.floor(sortedNeg.length * 0.25)];
+        const q3 = sortedNeg[Math.floor(sortedNeg.length * 0.75)];
+        const iqr = q3 - q1;
+        const cutoff = q1 - 1.5 * iqr;
+        const outliers = negReturns.filter(r => r < cutoff);
+        outlierLossRatio = outliers.length > 0 ? outliers.reduce((a,b)=>a+b,0) / outliers.length : avgLossRet;
+     }
+ 
+     // Lookback returns (MTD, 3M, 6M, YTD, 1Y, 3Y, 5Y, 10Y, All-time)
+     const getReturnForLookback = (monthsLookback, annualize = false) => {
+        if (lineChartData.length < 2) return null;
+        const totalDaysOfHistory = (new Date(lineChartData[lineChartData.length - 1].date) - new Date(lineChartData[0].date)) / (1000 * 60 * 60 * 24);
+        if (totalDaysOfHistory < monthsLookback * 30.4375) {
+           return null;
+        }
+        const lastDate = new Date(lineChartData[lineChartData.length - 1].date);
+        const targetDate = new Date(lastDate);
+        targetDate.setMonth(targetDate.getMonth() - monthsLookback);
+        
+        let closestDay = lineChartData[0];
+        let minDiff = Math.abs(new Date(closestDay.date) - targetDate);
+        for (let d of lineChartData) {
+           const diff = Math.abs(new Date(d.date) - targetDate);
+           if (diff < minDiff) {
+              minDiff = diff;
+              closestDay = d;
+           }
+        }
+        const startEq = closestDay.valorMercado + (closestDay.beneficioTotal - closestDay.beneficioLatente);
+        const endEq = lastEquity;
+        if (startEq <= 0) return null;
+        const ret = (endEq - startEq) / startEq;
+        if (annualize && monthsLookback > 12) {
+           const years = monthsLookback / 12;
+           return Math.pow(1 + ret, 1 / years) - 1;
+        }
+        return ret;
+     };
+ 
+     const getMTDReturn = () => {
+        if (lineChartData.length < 2) return null;
+        const lastDate = new Date(lineChartData[lineChartData.length - 1].date);
+        const mStart = new Date(lastDate.getFullYear(), lastDate.getMonth(), 1);
+        if (new Date(lineChartData[0].date) > lastDate) return null;
+        
+        let closestDay = lineChartData[0];
+        let minDiff = Math.abs(new Date(closestDay.date) - mStart);
+        for (let d of lineChartData) {
+           const diff = Math.abs(new Date(d.date) - mStart);
+           if (diff < minDiff) {
+              minDiff = diff;
+              closestDay = d;
+           }
+        }
+        const startEq = closestDay.valorMercado + (closestDay.beneficioTotal - closestDay.beneficioLatente);
+        const endEq = lastEquity;
+        return startEq > 0 ? (endEq - startEq) / startEq : null;
+     };
+ 
+     const getYTDReturn = () => {
+        if (lineChartData.length < 2) return null;
+        const lastDate = new Date(lineChartData[lineChartData.length - 1].date);
+        const yStart = new Date(lastDate.getFullYear(), 0, 1);
+        if (new Date(lineChartData[0].date) > lastDate) return null;
+        
+        let closestDay = lineChartData[0];
+        let minDiff = Math.abs(new Date(closestDay.date) - yStart);
+        for (let d of lineChartData) {
+           const diff = Math.abs(new Date(d.date) - yStart);
+           if (diff < minDiff) {
+              minDiff = diff;
+              closestDay = d;
+           }
+        }
+        const startEq = closestDay.valorMercado + (closestDay.beneficioTotal - closestDay.beneficioLatente);
+        const endEq = lastEquity;
+        return startEq > 0 ? (endEq - startEq) / startEq : null;
+     };
+ 
+     const mtd = getMTDReturn();
+     const threeM = getReturnForLookback(3);
+     const sixM = getReturnForLookback(6);
+     const ytd = getYTDReturn();
+     const oneY = getReturnForLookback(12);
+     const threeY = getReturnForLookback(36, true);
+     const fiveY = getReturnForLookback(60, true);
+     const tenY = getReturnForLookback(120, true);
 
-    return { 
-      lineData: lineChartData, 
+    // Best/Worst Day, Month, Year
+    const bestDay = N > 0 ? Math.max(...dailyReturns) : 0;
+    const worstDay = N > 0 ? Math.min(...dailyReturns) : 0;
+    const bestMonth = monthlyReturns.length > 0 ? Math.max(...monthlyReturns) : 0;
+    const worstMonth = monthlyReturns.length > 0 ? Math.min(...monthlyReturns) : 0;
+
+    const yearlyMap = {};
+    lineChartData.forEach(day => {
+       const yKey = day.date.substring(0, 4); // YYYY
+       const equity = day.valorMercado + (day.beneficioTotal - day.beneficioLatente);
+       if (!yearlyMap[yKey]) yearlyMap[yKey] = [];
+       yearlyMap[yKey].push(equity);
+    });
+    const yearlyReturns = [];
+    const sortedYKeys = Object.keys(yearlyMap).sort();
+    for (let i = 0; i < sortedYKeys.length; i++) {
+       const equities = yearlyMap[sortedYKeys[i]];
+       const startEq = equities[0];
+       const endEq = equities[equities.length - 1];
+       if (i > 0) {
+          const prevYKeys = yearlyMap[sortedYKeys[i - 1]];
+          const prevEq = prevYKeys[prevYKeys.length - 1];
+          if (prevEq > 0) {
+             yearlyReturns.push((endEq - prevEq) / prevEq);
+          }
+       } else {
+          if (startEq > 0) {
+             yearlyReturns.push((endEq - startEq) / startEq);
+          }
+       }
+    }
+    const bestYear = yearlyReturns.length > 0 ? Math.max(...yearlyReturns) : 0;
+    const worstYear = yearlyReturns.length > 0 ? Math.min(...yearlyReturns) : 0;
+
+    // Drawdowns stats
+    const avgDrawdown = drawdowns.length > 0 ? drawdowns.reduce((a,b)=>a+b,0) / drawdowns.length : 0;
+    const avgDrawdownDays = ddDurations.length > 0 ? ddDurations.reduce((a,b)=>a+b,0) / ddDurations.length : 0;
+    const recoveryFactor = maxDrawdownPct > 0 ? cumulativeReturn / maxDrawdownPct : 0;
+    const ulcerIndex = drawdowns.length > 0 ? Math.sqrt(drawdowns.reduce((a,b)=>a+b*b, 0) / drawdowns.length) : 0;
+
+    // Monthly positive/negative avgs and Win Pcts
+    const avgUpMonth = posMonthly.length > 0 ? posMonthly.reduce((a,b)=>a+b,0) / posMonthly.length : 0;
+    const avgDownMonth = negMonthly.length > 0 ? negMonthly.reduce((a,b)=>a+b,0) / negMonthly.length : 0;
+    const winDaysPct = N > 0 ? (dailyReturns.filter(r => r > 0).length / N) * 100 : 0;
+    const winMonthPct = monthlyReturns.length > 0 ? (monthlyReturns.filter(r => r > 0).length / monthlyReturns.length) * 100 : 0;
+    
+    const quarterMap = {};
+    lineChartData.forEach(day => {
+       const dateObj = new Date(day.date);
+       const qKey = `${dateObj.getFullYear()}-Q${Math.floor(dateObj.getMonth() / 3) + 1}`;
+       const equity = day.valorMercado + (day.beneficioTotal - day.beneficioLatente);
+       if (!quarterMap[qKey]) quarterMap[qKey] = [];
+       quarterMap[qKey].push(equity);
+    });
+    const quarterReturns = [];
+    const sortedQKeys = Object.keys(quarterMap).sort();
+    for (let i = 0; i < sortedQKeys.length; i++) {
+       const equities = quarterMap[sortedQKeys[i]];
+       const startEq = equities[0];
+       const endEq = equities[equities.length - 1];
+       if (i > 0) {
+          const prevQKeys = quarterMap[sortedQKeys[i - 1]];
+          const prevEq = prevQKeys[prevQKeys.length - 1];
+          if (prevEq > 0) {
+             quarterReturns.push((endEq - prevEq) / prevEq);
+          }
+       } else {
+          if (startEq > 0) {
+             quarterReturns.push((endEq - startEq) / startEq);
+          }
+       }
+    }
+     const winQuarterPct = quarterReturns.length > 0 ? (quarterReturns.filter(r => r > 0).length / quarterReturns.length) * 100 : 0;
+     const winYearPct = yearlyReturns.length > 0 ? (yearlyReturns.filter(r => r > 0).length / yearlyReturns.length) * 100 : 0;
+ 
+     const percentProfitable = totalTrades > 0 ? ((winningTrades / totalTrades) * 100).toFixed(2) : '0.00';
+     const avgTrade = totalTrades > 0 ? ((grossProfit - grossLoss) / totalTrades).toFixed(2) : '0.00';
+     const avgWin = winningTrades > 0 ? (grossProfit / winningTrades).toFixed(2) : '0.00';
+     const avgLoss = losingTrades > 0 ? (grossLoss / losingTrades).toFixed(2) : '0.00';
+     const ratioWinLoss = avgLoss > 0 ? (avgWin / avgLoss).toFixed(2) : (avgWin > 0 ? '99.00' : '0.00');
+ 
+     return { 
+       lineData: lineChartData,
       barData: barChartData,
       histogramData: histogramData,
       drawdownData: drawdownChartData,
@@ -891,14 +1235,66 @@ export default function RvMetrics() {
         roiPct: exactRoiPct,
         plusvaliaPct: exactPlusvaliaPct,
         metrics: {
-          totalNetProfit: exactTotalGains,
-          grossProfit,
-          grossLoss,
-          totalCommissions,
-          profitFactor,
+          riskFreeRate: 0,
+          timeInMarket,
+          cumulativeReturn,
+          cumulativeGainsEUR,
+          cagr,
+          sharpeRatio: sharpeRatio.toFixed(2),
+          sortino,
+          sortinoDivRoot2,
           maxDrawdownPct: (maxDrawdownPct * 100).toFixed(2),
           maxDrawdownEUR,
-          sharpeRatio: sharpeRatio.toFixed(2),
+          longestDDDays: maxDDDurationDays,
+           volatilityAnn: stdDev * Math.sqrt(252),
+           volatilityEUR,
+           totalCommissions,
+           r2: 0,
+           calmar,
+           skew,
+           kurtosis,
+           expectedDaily,
+           expectedMonthly,
+           expectedYearly,
+           kelly,
+          riskOfRuin,
+          dailyVaR,
+          expectedShortfall,
+          gainPainRatio,
+          gainPain1M,
+          payoffRatio: winLossRatio,
+          profitFactor: gainPainRatio,
+          commonSenseRatio,
+          cpcIndex,
+          tailRatio,
+          outlierWinRatio,
+          outlierLossRatio,
+          mtd,
+          threeM,
+          sixM,
+          ytd,
+          oneY,
+          threeY,
+          fiveY,
+          tenY,
+          bestDay,
+          worstDay,
+          bestMonth,
+          worstMonth,
+          bestYear,
+          worstYear,
+          avgDrawdown,
+          avgDrawdownDays,
+          recoveryFactor,
+          ulcerIndex,
+          avgUpMonth,
+          avgDownMonth,
+          winDaysPct,
+          winMonthPct,
+          winQuarterPct,
+          winYearPct,
+          beta: 0,
+          alpha: 0,
           totalTrades,
           percentProfitable,
           winningTrades,
@@ -1094,34 +1490,32 @@ export default function RvMetrics() {
             const netProfitPct = kpiBenefitType === 'LATENTE' ? summary.plusvaliaPct : summary.roiPct;
             const capInv = summary.currentCapital;
             
-            const grossProfit = parseFloat(summary.metrics?.grossProfit) || 0;
-            const grossLoss = parseFloat(summary.metrics?.grossLoss) || 0;
-            const totalCommissions = parseFloat(summary.metrics?.totalCommissions) || 0;
-            const profitFactor = summary.metrics?.profitFactor || '0.00';
-            const sharpeRatio = summary.metrics?.sharpeRatio || '0.00';
-            const maxDrawdownPct = summary.metrics?.maxDrawdownPct || '0.00';
-            const maxDrawdownEUR = Math.abs(parseFloat(summary.metrics?.maxDrawdownEUR) || 0) * -1; // always show negative/drawdown format
+            const fmtEUR = val => typeof val === 'number' && !isNaN(val) ? val.toLocaleString('es-ES', { style: 'currency', currency: 'EUR' }) : '-';
+            const fmtEURSigned = val => typeof val === 'number' && !isNaN(val) ? val.toLocaleString('es-ES', { style: 'currency', currency: 'EUR', signDisplay: 'always' }) : '-';
+            const fmtNum = val => typeof val === 'number' && !isNaN(val) ? val.toFixed(2) : '-';
+            const fmtPct = val => typeof val === 'number' && !isNaN(val) ? `${val >= 0 ? '+' : ''}${(val * 100).toFixed(2)} %` : '-';
+            const fmtPctRaw = val => typeof val === 'number' && !isNaN(val) ? `${val >= 0 ? '+' : ''}${val.toFixed(2)} %` : '-';
             
+            const maxDrawdownEUR = Math.abs(parseFloat(summary.metrics?.maxDrawdownEUR) || 0) * -1; // always show negative
+            const maxDrawdownPct = summary.metrics?.maxDrawdownPct || 0;
+            const longestDDDays = summary.metrics?.longestDDDays || 0;
+            const avgDrawdown = summary.metrics?.avgDrawdown || 0;
+            const avgDrawdownDays = summary.metrics?.avgDrawdownDays || 0;
             const totalTrades = summary.metrics?.totalTrades || 0;
             const percentProfitable = summary.metrics?.percentProfitable || '0.00';
-            const winningTrades = summary.metrics?.winningTrades || 0;
-            const losingTrades = summary.metrics?.losingTrades || 0;
-            const evenTrades = summary.metrics?.evenTrades || 0;
-            const maxConsecutiveLosses = summary.metrics?.maxConsecutiveLosses || 0;
-            
             const avgTrade = parseFloat(summary.metrics?.avgTrade) || 0;
             const avgWin = parseFloat(summary.metrics?.avgWin) || 0;
             const avgLoss = parseFloat(summary.metrics?.avgLoss) || 0;
             const ratioWinLoss = summary.metrics?.ratioWinLoss || '0.00';
-
+            
             return (
               <div className="bg-white p-6 rounded border border-slate-200 shadow-sm max-w-4xl mx-auto w-full select-text">
                 <h2 className="text-sm font-bold text-slate-800 mb-4 border-b border-slate-200 pb-2">
                   Métricas de la Estrategia {kpiBenefitType === 'LATENTE' ? '(Solo Latente)' : '(Realizado + Latente)'}
                 </h2>
                 
-                <div className="overflow-x-auto">
-                  <table className="w-full text-[12px] text-left border-collapse font-sans">
+                <div className="overflow-x-auto font-sans">
+                  <table className="w-full text-[12px] text-left border-collapse">
                     <thead>
                       <tr className="bg-[#f2f2f2] text-slate-700 font-bold border-b border-slate-300">
                         <th className="py-2.5 px-4 font-bold">Métrica</th>
@@ -1132,154 +1526,402 @@ export default function RvMetrics() {
                     <tbody>
                       {/* Rendimiento General */}
                       <tr className="bg-slate-50 font-bold text-[#2b579a]">
-                        <td colSpan={3} className="py-2 px-4 border-b border-slate-200 text-[10px] tracking-wider uppercase">RENDIMIENTO GENERAL</td>
+                        <td colSpan={3} className="py-2 px-4 border-b border-slate-200 text-[10px] tracking-wider uppercase font-bold">RENDIMIENTO GENERAL</td>
                       </tr>
                       <tr className="border-b border-slate-100 hover:bg-slate-50/50">
                         <td className="py-2 px-4 text-slate-600 font-medium">Beneficio Neto {kpiBenefitType === 'LATENTE' ? 'Latente' : 'Total'}</td>
-                        <td className={`py-2 px-4 text-right font-bold ${netProfit >= 0 ? 'text-green-600' : 'text-red-600'}`}>
-                          {netProfit.toLocaleString('es-ES', { style: 'currency', currency: 'EUR', signDisplay: 'always' })}
+                        <td className="py-2 px-4 text-right font-bold text-slate-800 font-mono">
+                          {fmtEURSigned(netProfit)}
                         </td>
-                        <td className={`py-2 px-4 text-right font-bold ${netProfitPct >= 0 ? 'text-green-600' : 'text-red-600'}`}>
-                          {netProfitPct >= 0 ? '+' : ''}{netProfitPct.toFixed(2)} %
+                        <td className="py-2 px-4 text-right font-bold text-slate-800 font-mono">
+                          {fmtPctRaw(netProfitPct)}
                         </td>
-                      </tr>
-                      {kpiBenefitType !== 'LATENTE' && (
-                        <>
-                          <tr className="border-b border-slate-100 hover:bg-slate-50/50">
-                            <td className="py-2 px-4 text-slate-600">Beneficio Bruto (Gross Profit)</td>
-                            <td className="py-2 px-4 text-right font-medium text-green-600">
-                              {grossProfit.toLocaleString('es-ES', { style: 'currency', currency: 'EUR' })}
-                            </td>
-                            <td className="py-2 px-4 text-right text-slate-500 font-mono">
-                              {capInv > 0 ? `+${((grossProfit / capInv) * 100).toFixed(2)} %` : '-'}
-                            </td>
-                          </tr>
-                          <tr className="border-b border-slate-100 hover:bg-slate-50/50">
-                            <td className="py-2 px-4 text-slate-600">Pérdida Bruta (Gross Loss)</td>
-                            <td className="py-2 px-4 text-right font-medium text-red-600">
-                              {grossLoss.toLocaleString('es-ES', { style: 'currency', currency: 'EUR' })}
-                            </td>
-                            <td className="py-2 px-4 text-right text-slate-500 font-mono">
-                              {capInv > 0 ? `-${((grossLoss / capInv) * 100).toFixed(2)} %` : '-'}
-                            </td>
-                          </tr>
-                          <tr className="border-b border-slate-100 hover:bg-slate-50/50">
-                            <td className="py-2 px-4 text-slate-600">Comisiones Pagadas</td>
-                            <td className="py-2 px-4 text-right text-slate-800">
-                              {totalCommissions.toLocaleString('es-ES', { style: 'currency', currency: 'EUR' })}
-                            </td>
-                            <td className="py-2 px-4 text-right text-slate-500 font-mono">
-                              {capInv > 0 ? `-${((totalCommissions / capInv) * 100).toFixed(2)} %` : '-'}
-                            </td>
-                          </tr>
-                        </>
-                      )}
-
-                      {/* Análisis de Riesgo */}
-                      <tr className="bg-slate-50 font-bold text-[#2b579a]">
-                        <td colSpan={3} className="py-2 px-4 border-b border-slate-200 text-[10px] tracking-wider uppercase mt-4">ANÁLISIS DE RIESGO Y VOLATILIDAD</td>
                       </tr>
                       <tr className="border-b border-slate-100 hover:bg-slate-50/50">
-                        <td className="py-2 px-4 text-slate-600 font-medium">Drawdown Máximo (Max. Drawdown)</td>
-                        <td className="py-2 px-4 text-right font-bold text-red-600">
-                          {maxDrawdownEUR.toLocaleString('es-ES', { style: 'currency', currency: 'EUR' })}
-                        </td>
-                        <td className="py-2 px-4 text-right font-bold text-red-600">
-                          -{parseFloat(maxDrawdownPct).toFixed(2)} %
+                        <td className="py-2 px-4 text-slate-600">Comisiones Pagadas</td>
+                        <td className="py-2 px-4 text-right text-slate-800 font-mono">{fmtEUR(summary.metrics?.totalCommissions)}</td>
+                        <td className="py-2 px-4 text-right text-slate-500 font-mono">
+                          {capInv > 0 ? `-${((summary.metrics?.totalCommissions / capInv) * 100).toFixed(2)} %` : '-'}
                         </td>
                       </tr>
-                      {kpiBenefitType !== 'LATENTE' && (
-                        <>
-                          <tr className="border-b border-slate-100 hover:bg-slate-50/50">
-                            <td className="py-2 px-4 text-slate-600">Ratio de Sharpe (Sharpe Ratio)</td>
-                            <td className="py-2 px-4 text-right text-slate-800 font-mono">{sharpeRatio}</td>
-                            <td className="py-2 px-4 text-right text-slate-500 font-mono">-</td>
-                          </tr>
-                          <tr className="border-b border-slate-100 hover:bg-slate-50/50">
-                            <td className="py-2 px-4 text-slate-600">Factor de Beneficio (Profit Factor)</td>
-                            <td className="py-2 px-4 text-right text-slate-800 font-mono">{profitFactor}</td>
-                            <td className="py-2 px-4 text-right text-slate-500 font-mono">-</td>
-                          </tr>
-                        </>
-                      )}
 
-                      {/* Estadísticas de Trading */}
-                      {kpiBenefitType !== 'LATENTE' && (
+                      {/* RETORNOS Y RIESGO BÁSICO */}
+                      <tr className="bg-slate-50 font-bold text-[#2b579a]">
+                        <td colSpan={3} className="py-2 px-4 border-b border-slate-200 text-[10px] tracking-wider uppercase font-bold">Retornos y Riesgo Básico</td>
+                      </tr>
+                      <tr className="border-b border-slate-100 hover:bg-slate-50/50">
+                        <td className="py-2 px-4 text-slate-600">Risk-Free Rate</td>
+                        <td className="py-2 px-4 text-right text-slate-800 font-mono">0.00</td>
+                        <td className="py-2 px-4 text-right text-slate-500 font-mono">0.00 %</td>
+                      </tr>
+                      <tr className="border-b border-slate-100 hover:bg-slate-50/50">
+                        <td className="py-2 px-4 text-slate-600">Time in Market</td>
+                        <td className="py-2 px-4 text-right text-slate-800 font-mono">-</td>
+                        <td className="py-2 px-4 text-right text-slate-500 font-mono">{fmtPct(summary.metrics?.timeInMarket)}</td>
+                      </tr>
+                      <tr className="border-b border-slate-100 hover:bg-slate-50/50">
+                        <td className="py-2 px-4 text-slate-600">Cumulative Return</td>
+                        <td className="py-2 px-4 text-right text-slate-800 font-mono">{fmtEUR(summary.metrics?.cumulativeGainsEUR)}</td>
+                        <td className="py-2 px-4 text-right font-bold font-mono text-slate-800">
+                          {fmtPct(summary.metrics?.cumulativeReturn)}
+                        </td>
+                      </tr>
+                      <tr className="border-b border-slate-100 hover:bg-slate-50/50">
+                        <td className="py-2 px-4 text-slate-600">CAGR%</td>
+                        <td className="py-2 px-4 text-right text-slate-800 font-mono">-</td>
+                        <td className="py-2 px-4 text-right font-bold font-mono text-slate-800">
+                          {fmtPct(summary.metrics?.cagr)}
+                        </td>
+                      </tr>
+
+                      {/* RATIOS DE RENDIMIENTO */}
+                      <tr className="bg-slate-50 font-bold text-[#2b579a]">
+                        <td colSpan={3} className="py-2 px-4 border-b border-slate-200 text-[10px] tracking-wider uppercase font-bold">Ratios de Rendimiento</td>
+                      </tr>
+                      <tr className="border-b border-slate-100 hover:bg-slate-50/50">
+                        <td className="py-2 px-4 text-slate-600">Sharpe</td>
+                        <td className="py-2 px-4 text-right text-slate-800 font-mono">{summary.metrics?.sharpeRatio}</td>
+                        <td className="py-2 px-4 text-right text-slate-500 font-mono">-</td>
+                      </tr>
+                      <tr className="border-b border-slate-100 hover:bg-slate-50/50">
+                        <td className="py-2 px-4 text-slate-600">Sortino</td>
+                        <td className="py-2 px-4 text-right text-slate-800 font-mono">{fmtNum(summary.metrics?.sortino)}</td>
+                        <td className="py-2 px-4 text-right text-slate-500 font-mono">-</td>
+                      </tr>
+                      <tr className="border-b border-slate-100 hover:bg-slate-50/50">
+                        <td className="py-2 px-4 text-slate-600">Sortino/√2</td>
+                        <td className="py-2 px-4 text-right text-slate-800 font-mono">{fmtNum(summary.metrics?.sortinoDivRoot2)}</td>
+                        <td className="py-2 px-4 text-right text-slate-500 font-mono">-</td>
+                      </tr>
+
+                      {/* DOWNSIDE Y DRAWDOWN */}
+                      <tr className="bg-slate-50 font-bold text-[#2b579a]">
+                        <td colSpan={3} className="py-2 px-4 border-b border-slate-200 text-[10px] tracking-wider uppercase font-bold">Downside y Drawdown</td>
+                      </tr>
+                      <tr className="border-b border-slate-100 hover:bg-slate-50/50">
+                        <td className="py-2 px-4 text-slate-600">Max Drawdown</td>
+                        <td className="py-2 px-4 text-right font-medium text-slate-800 font-mono">{fmtEUR(maxDrawdownEUR)}</td>
+                        <td className="py-2 px-4 text-right font-bold text-slate-800 font-mono">-{parseFloat(maxDrawdownPct * 100).toFixed(2)} %</td>
+                      </tr>
+                      <tr className="border-b border-slate-100 hover:bg-slate-50/50">
+                        <td className="py-2 px-4 text-slate-600">Longest DD Days</td>
+                        <td className="py-2 px-4 text-right text-slate-800 font-mono">{longestDDDays} días</td>
+                        <td className="py-2 px-4 text-right text-slate-500 font-mono">-</td>
+                      </tr>
+                      <tr className="border-b border-slate-100 hover:bg-slate-50/50">
+                        <td className="py-2 px-4 text-slate-600">Volatility (ann.)</td>
+                        <td className="py-2 px-4 text-right text-slate-800 font-mono">{fmtEUR(summary.metrics?.volatilityEUR)}</td>
+                        <td className="py-2 px-4 text-right text-slate-800 font-mono">{fmtPct(summary.metrics?.volatilityAnn)}</td>
+                      </tr>
+                      <tr className="border-b border-slate-100 hover:bg-slate-50/50">
+                        <td className="py-2 px-4 text-slate-600">R^2</td>
+                        <td className="py-2 px-4 text-right text-slate-800 font-mono">{fmtNum(summary.metrics?.r2)}</td>
+                        <td className="py-2 px-4 text-right text-slate-500 font-mono">-</td>
+                      </tr>
+                      <tr className="border-b border-slate-100 hover:bg-slate-50/50">
+                        <td className="py-2 px-4 text-slate-600">Calmar</td>
+                        <td className="py-2 px-4 text-right text-slate-800 font-mono">{fmtNum(summary.metrics?.calmar)}</td>
+                        <td className="py-2 px-4 text-right text-slate-500 font-mono">-</td>
+                      </tr>
+                      <tr className="border-b border-slate-100 hover:bg-slate-50/50">
+                        <td className="py-2 px-4 text-slate-600">Skew</td>
+                        <td className="py-2 px-4 text-right text-slate-800 font-mono">{fmtNum(summary.metrics?.skew)}</td>
+                        <td className="py-2 px-4 text-right text-slate-500 font-mono">-</td>
+                      </tr>
+                      <tr className="border-b border-slate-100 hover:bg-slate-50/50">
+                        <td className="py-2 px-4 text-slate-600">Kurtosis</td>
+                        <td className="py-2 px-4 text-right text-slate-800 font-mono">{fmtNum(summary.metrics?.kurtosis)}</td>
+                        <td className="py-2 px-4 text-right text-slate-500 font-mono">-</td>
+                      </tr>
+
+                      {/* EXPECTATIVAS DE RETORNO */}
+                      <tr className="bg-slate-50 font-bold text-[#2b579a]">
+                        <td colSpan={3} className="py-2 px-4 border-b border-slate-200 text-[10px] tracking-wider uppercase font-bold">Expectativas de Retorno</td>
+                      </tr>
+                      <tr className="border-b border-slate-100 hover:bg-slate-50/50">
+                        <td className="py-2 px-4 text-slate-600">Expected Daily %</td>
+                        <td className="py-2 px-4 text-right text-slate-800 font-mono">-</td>
+                        <td className="py-2 px-4 text-right text-slate-800 font-mono">{fmtPct(summary.metrics?.expectedDaily)}</td>
+                      </tr>
+                      <tr className="border-b border-slate-100 hover:bg-slate-50/50">
+                        <td className="py-2 px-4 text-slate-600">Expected Monthly %</td>
+                        <td className="py-2 px-4 text-right text-slate-800 font-mono">-</td>
+                        <td className="py-2 px-4 text-right text-slate-800 font-mono">{fmtPct(summary.metrics?.expectedMonthly)}</td>
+                      </tr>
+                      <tr className="border-b border-slate-100 hover:bg-slate-50/50">
+                        <td className="py-2 px-4 text-slate-600">Expected Yearly %</td>
+                        <td className="py-2 px-4 text-right text-slate-800 font-mono">-</td>
+                        <td className="py-2 px-4 text-right text-slate-800 font-mono">{fmtPct(summary.metrics?.expectedYearly)}</td>
+                      </tr>
+                      <tr className="border-b border-slate-100 hover:bg-slate-50/50">
+                        <td className="py-2 px-4 text-slate-600">Kelly Criterion</td>
+                        <td className="py-2 px-4 text-right text-slate-800 font-mono">-</td>
+                        <td className="py-2 px-4 text-right text-slate-800 font-mono">{fmtPct(summary.metrics?.kelly)}</td>
+                      </tr>
+                      <tr className="border-b border-slate-100 hover:bg-slate-50/50">
+                        <td className="py-2 px-4 text-slate-600">Risk of Ruin</td>
+                        <td className="py-2 px-4 text-right text-slate-800 font-mono">-</td>
+                        <td className="py-2 px-4 text-right text-slate-800 font-mono">{fmtPctRaw(summary.metrics?.riskOfRuin)}</td>
+                      </tr>
+                      <tr className="border-b border-slate-100 hover:bg-slate-50/50">
+                        <td className="py-2 px-4 text-slate-600">Daily Value-at-Risk</td>
+                        <td className="py-2 px-4 text-right text-slate-800 font-mono">-</td>
+                        <td className="py-2 px-4 text-right text-slate-800 font-mono">{fmtPct(summary.metrics?.dailyVaR)}</td>
+                      </tr>
+                      <tr className="border-b border-slate-100 hover:bg-slate-50/50">
+                        <td className="py-2 px-4 text-slate-600">Expected Shortfall (cVaR)</td>
+                        <td className="py-2 px-4 text-right text-slate-800 font-mono">-</td>
+                        <td className="py-2 px-4 text-right text-slate-800 font-mono">{fmtPct(summary.metrics?.expectedShortfall)}</td>
+                      </tr>
+
+                      {/* RATIOS GANANCIA/PÉRDIDA */}
+                      <tr className="bg-slate-50 font-bold text-[#2b579a]">
+                        <td colSpan={3} className="py-2 px-4 border-b border-slate-200 text-[10px] tracking-wider uppercase font-bold">Ratios Ganancia/Pérdida</td>
+                      </tr>
+                      <tr className="border-b border-slate-100 hover:bg-slate-50/50">
+                        <td className="py-2 px-4 text-slate-600">Gain/Pain Ratio</td>
+                        <td className="py-2 px-4 text-right text-slate-800 font-mono">{fmtNum(summary.metrics?.gainPainRatio)}</td>
+                        <td className="py-2 px-4 text-right text-slate-500 font-mono">-</td>
+                      </tr>
+                      <tr className="border-b border-slate-100 hover:bg-slate-50/50">
+                        <td className="py-2 px-4 text-slate-600">Gain/Pain (1M)</td>
+                        <td className="py-2 px-4 text-right text-slate-800 font-mono">{fmtNum(summary.metrics?.gainPain1M)}</td>
+                        <td className="py-2 px-4 text-right text-slate-500 font-mono">-</td>
+                      </tr>
+                      <tr className="border-b border-slate-100 hover:bg-slate-50/50">
+                        <td className="py-2 px-4 text-slate-600">Payoff Ratio</td>
+                        <td className="py-2 px-4 text-right text-slate-800 font-mono">{fmtNum(summary.metrics?.payoffRatio)}</td>
+                        <td className="py-2 px-4 text-right text-slate-500 font-mono">-</td>
+                      </tr>
+                      <tr className="border-b border-slate-100 hover:bg-slate-50/50">
+                        <td className="py-2 px-4 text-slate-600">Profit Factor</td>
+                        <td className="py-2 px-4 text-right text-slate-800 font-mono">{fmtNum(summary.metrics?.profitFactor)}</td>
+                        <td className="py-2 px-4 text-right text-slate-500 font-mono">-</td>
+                      </tr>
+                      <tr className="border-b border-slate-100 hover:bg-slate-50/50">
+                        <td className="py-2 px-4 text-slate-600">Common Sense Ratio</td>
+                        <td className="py-2 px-4 text-right text-slate-800 font-mono">{fmtNum(summary.metrics?.commonSenseRatio)}</td>
+                        <td className="py-2 px-4 text-right text-slate-500 font-mono">-</td>
+                      </tr>
+                      <tr className="border-b border-slate-100 hover:bg-slate-50/50">
+                        <td className="py-2 px-4 text-slate-600">CPC Index</td>
+                        <td className="py-2 px-4 text-right text-slate-800 font-mono">{fmtNum(summary.metrics?.cpcIndex)}</td>
+                        <td className="py-2 px-4 text-right text-slate-500 font-mono">-</td>
+                      </tr>
+                      <tr className="border-b border-slate-100 hover:bg-slate-50/50">
+                        <td className="py-2 px-4 text-slate-600">Tail Ratio</td>
+                        <td className="py-2 px-4 text-right text-slate-800 font-mono">{fmtNum(summary.metrics?.tailRatio)}</td>
+                        <td className="py-2 px-4 text-right text-slate-500 font-mono">-</td>
+                      </tr>
+                      <tr className="border-b border-slate-100 hover:bg-slate-50/50">
+                        <td className="py-2 px-4 text-slate-600">Outlier Win Ratio</td>
+                        <td className="py-2 px-4 text-right text-slate-800 font-mono">-</td>
+                        <td className="py-2 px-4 text-right text-slate-800 font-mono">{fmtPct(summary.metrics?.outlierWinRatio)}</td>
+                      </tr>
+                      <tr className="border-b border-slate-100 hover:bg-slate-50/50">
+                        <td className="py-2 px-4 text-slate-600">Outlier Loss Ratio</td>
+                        <td className="py-2 px-4 text-right text-slate-800 font-mono">-</td>
+                        <td className="py-2 px-4 text-right text-slate-800 font-mono">{fmtPct(summary.metrics?.outlierLossRatio)}</td>
+                      </tr>
+
+                      {/* RETORNOS PERIÓDICOS */}
+                      <tr className="bg-slate-50 font-bold text-[#2b579a]">
+                        <td colSpan={3} className="py-2 px-4 border-b border-slate-200 text-[10px] tracking-wider uppercase font-bold">Retornos Periódicos</td>
+                      </tr>
+                      <tr className="border-b border-slate-100 hover:bg-slate-50/50">
+                        <td className="py-2 px-4 text-slate-600">MTD</td>
+                        <td className="py-2 px-4 text-right text-slate-800 font-mono">-</td>
+                        <td className="py-2 px-4 text-right font-mono text-slate-800">
+                          {fmtPct(summary.metrics?.mtd)}
+                        </td>
+                      </tr>
+                      <tr className="border-b border-slate-100 hover:bg-slate-50/50">
+                        <td className="py-2 px-4 text-slate-600">3M</td>
+                        <td className="py-2 px-4 text-right text-slate-800 font-mono">-</td>
+                        <td className="py-2 px-4 text-right font-mono text-slate-800">
+                          {fmtPct(summary.metrics?.threeM)}
+                        </td>
+                      </tr>
+                      <tr className="border-b border-slate-100 hover:bg-slate-50/50">
+                        <td className="py-2 px-4 text-slate-600">6M</td>
+                        <td className="py-2 px-4 text-right text-slate-800 font-mono">-</td>
+                        <td className="py-2 px-4 text-right font-mono text-slate-800">
+                          {fmtPct(summary.metrics?.sixM)}
+                        </td>
+                      </tr>
+                      <tr className="border-b border-slate-100 hover:bg-slate-50/50">
+                        <td className="py-2 px-4 text-slate-600">YTD</td>
+                        <td className="py-2 px-4 text-right text-slate-800 font-mono">-</td>
+                        <td className="py-2 px-4 text-right font-mono text-slate-800">
+                          {fmtPct(summary.metrics?.ytd)}
+                        </td>
+                      </tr>
+                      <tr className="border-b border-slate-100 hover:bg-slate-50/50">
+                        <td className="py-2 px-4 text-slate-600">1Y</td>
+                        <td className="py-2 px-4 text-right text-slate-800 font-mono">-</td>
+                        <td className="py-2 px-4 text-right font-mono text-slate-800">
+                          {fmtPct(summary.metrics?.oneY)}
+                        </td>
+                      </tr>
+                      <tr className="border-b border-slate-100 hover:bg-slate-50/50">
+                        <td className="py-2 px-4 text-slate-600">3Y (ann.)</td>
+                        <td className="py-2 px-4 text-right text-slate-800 font-mono">-</td>
+                        <td className="py-2 px-4 text-right font-mono text-slate-800">
+                          {fmtPct(summary.metrics?.threeY)}
+                        </td>
+                      </tr>
+                      <tr className="border-b border-slate-100 hover:bg-slate-50/50">
+                        <td className="py-2 px-4 text-slate-600">5Y (ann.)</td>
+                        <td className="py-2 px-4 text-right text-slate-800 font-mono">-</td>
+                        <td className="py-2 px-4 text-right font-mono text-slate-800">
+                          {fmtPct(summary.metrics?.fiveY)}
+                        </td>
+                      </tr>
+                      <tr className="border-b border-slate-100 hover:bg-slate-50/50">
+                        <td className="py-2 px-4 text-slate-600">10Y (ann.)</td>
+                        <td className="py-2 px-4 text-right text-slate-800 font-mono">-</td>
+                        <td className="py-2 px-4 text-right font-mono text-slate-800">
+                          {fmtPct(summary.metrics?.tenY)}
+                        </td>
+                      </tr>
+                      <tr className="border-b border-slate-100 hover:bg-slate-50/50">
+                        <td className="py-2 px-4 text-slate-600">All-time (ann.)</td>
+                        <td className="py-2 px-4 text-right text-slate-800 font-mono">-</td>
+                        <td className="py-2 px-4 text-right font-mono text-slate-800">
+                          {fmtPct(summary.metrics?.cagr)}
+                        </td>
+                      </tr>
+
+                      {/* EXTREMOS Y MEDIAS */}
+                      <tr className="bg-slate-50 font-bold text-[#2b579a]">
+                        <td colSpan={3} className="py-2 px-4 border-b border-slate-200 text-[10px] tracking-wider uppercase font-bold">Extremos y Medias</td>
+                      </tr>
+                      <tr className="border-b border-slate-100 hover:bg-slate-50/50">
+                        <td className="py-2 px-4 text-slate-600">Best Day</td>
+                        <td className="py-2 px-4 text-right text-slate-800 font-mono">-</td>
+                        <td className="py-2 px-4 text-right text-slate-800 font-mono">{fmtPct(summary.metrics?.bestDay)}</td>
+                      </tr>
+                      <tr className="border-b border-slate-100 hover:bg-slate-50/50">
+                        <td className="py-2 px-4 text-slate-600">Worst Day</td>
+                        <td className="py-2 px-4 text-right text-slate-800 font-mono">-</td>
+                        <td className="py-2 px-4 text-right text-slate-800 font-mono">{fmtPct(summary.metrics?.worstDay)}</td>
+                      </tr>
+                      <tr className="border-b border-slate-100 hover:bg-slate-50/50">
+                        <td className="py-2 px-4 text-slate-600">Best Month</td>
+                        <td className="py-2 px-4 text-right text-slate-800 font-mono">-</td>
+                        <td className="py-2 px-4 text-right text-slate-800 font-mono">{fmtPct(summary.metrics?.bestMonth)}</td>
+                      </tr>
+                      <tr className="border-b border-slate-100 hover:bg-slate-50/50">
+                        <td className="py-2 px-4 text-slate-600">Worst Month</td>
+                        <td className="py-2 px-4 text-right text-slate-800 font-mono">-</td>
+                        <td className="py-2 px-4 text-right text-slate-800 font-mono">{fmtPct(summary.metrics?.worstMonth)}</td>
+                      </tr>
+                      <tr className="border-b border-slate-100 hover:bg-slate-50/50">
+                        <td className="py-2 px-4 text-slate-600">Best Year</td>
+                        <td className="py-2 px-4 text-right text-slate-800 font-mono">-</td>
+                        <td className="py-2 px-4 text-right text-slate-800 font-mono">{fmtPct(summary.metrics?.bestYear)}</td>
+                      </tr>
+                      <tr className="border-b border-slate-100 hover:bg-slate-50/50">
+                        <td className="py-2 px-4 text-slate-600">Worst Year</td>
+                        <td className="py-2 px-4 text-right text-slate-800 font-mono">-</td>
+                        <td className="py-2 px-4 text-right text-slate-800 font-mono">{fmtPct(summary.metrics?.worstYear)}</td>
+                      </tr>
+                      <tr className="border-b border-slate-100 hover:bg-slate-50/50">
+                        <td className="py-2 px-4 text-slate-600">Avg. Drawdown</td>
+                        <td className="py-2 px-4 text-right text-slate-800 font-mono">-</td>
+                        <td className="py-2 px-4 text-right text-slate-800 font-mono">-{parseFloat(avgDrawdown * 100).toFixed(2)} %</td>
+                      </tr>
+                      <tr className="border-b border-slate-100 hover:bg-slate-50/50">
+                        <td className="py-2 px-4 text-slate-600">Avg. Drawdown Days</td>
+                        <td className="py-2 px-4 text-right text-slate-800 font-mono">{avgDrawdownDays.toFixed(1)} días</td>
+                        <td className="py-2 px-4 text-right text-slate-500 font-mono">-</td>
+                      </tr>
+                      <tr className="border-b border-slate-100 hover:bg-slate-50/50">
+                        <td className="py-2 px-4 text-slate-600">Recovery Factor</td>
+                        <td className="py-2 px-4 text-right text-slate-800 font-mono">{fmtNum(summary.metrics?.recoveryFactor)}</td>
+                        <td className="py-2 px-4 text-right text-slate-500 font-mono">-</td>
+                      </tr>
+                      <tr className="border-b border-slate-100 hover:bg-slate-50/50">
+                        <td className="py-2 px-4 text-slate-600">Ulcer Index</td>
+                        <td className="py-2 px-4 text-right text-slate-800 font-mono">-</td>
+                        <td className="py-2 px-4 text-right text-slate-500 font-mono">{fmtPctRaw(summary.metrics?.ulcerIndex)}</td>
+                      </tr>
+
+                      {/* DESGLOSE MENSUAL Y DE ACIERTOS */}
+                      <tr className="bg-slate-50 font-bold text-[#2b579a]">
+                        <td colSpan={3} className="py-2 px-4 border-b border-slate-200 text-[10px] tracking-wider uppercase font-bold">Desglose Mensual y de Aciertos</td>
+                      </tr>
+                      <tr className="border-b border-slate-100 hover:bg-slate-50/50">
+                        <td className="py-2 px-4 text-slate-600">Avg. Up Month</td>
+                        <td className="py-2 px-4 text-right text-slate-800 font-mono">-</td>
+                        <td className="py-2 px-4 text-right text-slate-800 font-mono">{fmtPct(summary.metrics?.avgUpMonth)}</td>
+                      </tr>
+                      <tr className="border-b border-slate-100 hover:bg-slate-50/50">
+                        <td className="py-2 px-4 text-slate-600">Avg. Down Month</td>
+                        <td className="py-2 px-4 text-right text-slate-800 font-mono">-</td>
+                        <td className="py-2 px-4 text-right text-slate-800 font-mono">{fmtPct(summary.metrics?.avgDownMonth)}</td>
+                      </tr>
+                      <tr className="border-b border-slate-100 hover:bg-slate-50/50">
+                        <td className="py-2 px-4 text-slate-600">Win Days %</td>
+                        <td className="py-2 px-4 text-right text-slate-800 font-mono">-</td>
+                        <td className="py-2 px-4 text-right font-medium text-slate-800 font-mono">{fmtPctRaw(summary.metrics?.winDaysPct)}</td>
+                      </tr>
+                      <tr className="border-b border-slate-100 hover:bg-slate-50/50">
+                        <td className="py-2 px-4 text-slate-600">Win Month %</td>
+                        <td className="py-2 px-4 text-right text-slate-800 font-mono">-</td>
+                        <td className="py-2 px-4 text-right font-medium text-slate-800 font-mono">{fmtPctRaw(summary.metrics?.winMonthPct)}</td>
+                      </tr>
+                      <tr className="border-b border-slate-100 hover:bg-slate-50/50">
+                        <td className="py-2 px-4 text-slate-600">Win Quarter %</td>
+                        <td className="py-2 px-4 text-right text-slate-800 font-mono">-</td>
+                        <td className="py-2 px-4 text-right font-medium text-slate-800 font-mono">{fmtPctRaw(summary.metrics?.winQuarterPct)}</td>
+                      </tr>
+                      <tr className="border-b border-slate-100 hover:bg-slate-50/50">
+                        <td className="py-2 px-4 text-slate-600">Win Year %</td>
+                        <td className="py-2 px-4 text-right text-slate-800 font-mono">-</td>
+                        <td className="py-2 px-4 text-right font-medium text-slate-800 font-mono">{fmtPctRaw(summary.metrics?.winYearPct)}</td>
+                      </tr>
+                      <tr className="border-b border-slate-100 hover:bg-slate-50/50">
+                        <td className="py-2 px-4 text-slate-600">Beta</td>
+                        <td className="py-2 px-4 text-right text-slate-800 font-mono">0.00</td>
+                        <td className="py-2 px-4 text-right text-slate-500 font-mono">-</td>
+                      </tr>
+                      <tr className="border-b border-slate-100 hover:bg-slate-50/50">
+                        <td className="py-2 px-4 text-slate-600">Alpha</td>
+                        <td className="py-2 px-4 text-right text-slate-800 font-mono">0.00</td>
+                        <td className="py-2 px-4 text-right text-slate-500 font-mono">-</td>
+                      </tr>
+
+                      {/* ESTADÍSTICAS DE TRANSACCIONES CERRADAS */}
+                      {totalTrades > 0 && (
                         <>
                           <tr className="bg-slate-50 font-bold text-[#2b579a]">
-                            <td colSpan={3} className="py-2 px-4 border-b border-slate-200 text-[10px] tracking-wider uppercase">ESTADÍSTICAS DE OPERACIONES</td>
+                            <td colSpan={3} className="py-2 px-4 border-b border-slate-200 text-[10px] tracking-wider uppercase font-bold">Estadísticas de Transacciones Cerradas (Solo Realizado)</td>
                           </tr>
                           <tr className="border-b border-slate-100 hover:bg-slate-50/50">
-                            <td className="py-2 px-4 text-slate-600">Total de Ventas Cerradas</td>
+                            <td className="py-2 px-4 text-slate-600">Total de Operaciones Cerradas</td>
                             <td className="py-2 px-4 text-right text-slate-800 font-mono">{totalTrades}</td>
                             <td className="py-2 px-4 text-right text-slate-500 font-mono">-</td>
                           </tr>
                           <tr className="border-b border-slate-100 hover:bg-slate-50/50">
-                            <td className="py-2 px-4 text-slate-600">Porcentaje de Acierto (Win Rate)</td>
+                            <td className="py-2 px-4 text-slate-600">Porcentaje de Operaciones Ganadoras</td>
                             <td className="py-2 px-4 text-right text-slate-500 font-mono">-</td>
-                            <td className="py-2 px-4 text-right font-bold text-slate-800 font-mono">{percentProfitable} %</td>
+                            <td className="py-2 px-4 text-right font-medium text-slate-800 font-mono">{percentProfitable} %</td>
                           </tr>
                           <tr className="border-b border-slate-100 hover:bg-slate-50/50">
-                            <td className="py-2 px-4 text-slate-600">Ventas Ganadoras (#)</td>
-                            <td className="py-2 px-4 text-right font-medium text-green-600 font-mono">{winningTrades}</td>
-                            <td className="py-2 px-4 text-right text-slate-500 font-mono">
-                              {totalTrades > 0 ? `${((winningTrades / totalTrades) * 100).toFixed(1)} %` : '-'}
-                            </td>
+                            <td className="py-2 px-4 text-slate-600">Media por Operación (Avg. Trade)</td>
+                            <td className="py-2 px-4 text-right text-slate-800 font-mono">{fmtEUR(avgTrade)}</td>
+                            <td className="py-2 px-4 text-right text-slate-500 font-mono">{capInv > 0 ? `${((avgTrade / capInv) * 100).toFixed(2)} %` : '-'}</td>
                           </tr>
                           <tr className="border-b border-slate-100 hover:bg-slate-50/50">
-                            <td className="py-2 px-4 text-slate-600">Ventas Perdedoras (#)</td>
-                            <td className="py-2 px-4 text-right font-medium text-red-600 font-mono">{losingTrades}</td>
-                            <td className="py-2 px-4 text-right text-slate-500 font-mono">
-                              {totalTrades > 0 ? `${((losingTrades / totalTrades) * 100).toFixed(1)} %` : '-'}
-                            </td>
+                            <td className="py-2 px-4 text-slate-600">Media de Operaciones Ganadoras</td>
+                            <td className="py-2 px-4 text-right text-slate-800 font-mono">{fmtEUR(avgWin)}</td>
+                            <td className="py-2 px-4 text-right text-slate-500 font-mono">{capInv > 0 ? `${((avgWin / capInv) * 100).toFixed(2)} %` : '-'}</td>
                           </tr>
                           <tr className="border-b border-slate-100 hover:bg-slate-50/50">
-                            <td className="py-2 px-4 text-slate-600">Ventas a Cero (#)</td>
-                            <td className="py-2 px-4 text-right text-slate-800 font-mono">{evenTrades}</td>
-                            <td className="py-2 px-4 text-right text-slate-500 font-mono">
-                              {totalTrades > 0 ? `${((evenTrades / totalTrades) * 100).toFixed(1)} %` : '-'}
-                            </td>
-                          </tr>
-                          <tr className="border-b border-slate-100 hover:bg-slate-50/50">
-                            <td className="py-2 px-4 text-slate-600">Racha de Pérdidas Máxima (Consecutive Losses)</td>
-                            <td className="py-2 px-4 text-right text-red-600 font-mono">{maxConsecutiveLosses}</td>
-                            <td className="py-2 px-4 text-right text-slate-500 font-mono">-</td>
-                          </tr>
-
-                          <tr className="bg-slate-50 font-bold text-[#2b579a]">
-                            <td colSpan={3} className="py-2 px-4 border-b border-slate-200 text-[10px] tracking-wider uppercase">MEDIAS DE OPERACIÓN</td>
-                          </tr>
-                          <tr className="border-b border-slate-100 hover:bg-slate-50/50">
-                            <td className="py-2 px-4 text-slate-600">Media por Venta (Avg. Trade)</td>
-                            <td className="py-2 px-4 text-right text-slate-800">
-                              {avgTrade.toLocaleString('es-ES', { style: 'currency', currency: 'EUR' })}
-                            </td>
-                            <td className="py-2 px-4 text-right text-slate-500 font-mono">
-                              {capInv > 0 ? `${((avgTrade / capInv) * 100).toFixed(2)} %` : '-'}
-                            </td>
-                          </tr>
-                          <tr className="border-b border-slate-100 hover:bg-slate-50/50">
-                            <td className="py-2 px-4 text-slate-600">Media de Ventas Ganadoras</td>
-                            <td className="py-2 px-4 text-right text-green-600">
-                              {avgWin.toLocaleString('es-ES', { style: 'currency', currency: 'EUR' })}
-                            </td>
-                            <td className="py-2 px-4 text-right text-slate-500 font-mono">
-                              {capInv > 0 ? `${((avgWin / capInv) * 100).toFixed(2)} %` : '-'}
-                            </td>
-                          </tr>
-                          <tr className="border-b border-slate-100 hover:bg-slate-50/50">
-                            <td className="py-2 px-4 text-slate-600">Media de Ventas Perdedoras</td>
-                            <td className="py-2 px-4 text-right text-red-600">
-                              {avgLoss.toLocaleString('es-ES', { style: 'currency', currency: 'EUR' })}
-                            </td>
-                            <td className="py-2 px-4 text-right text-slate-500 font-mono">
-                              {capInv > 0 ? `${((avgLoss / capInv) * 100).toFixed(2)} %` : '-'}
-                            </td>
-                          </tr>
-                          <tr className="border-b border-slate-100 hover:bg-slate-50/50">
-                            <td className="py-2 px-4 text-slate-600">Ratio Ganancia/Pérdida (Avg. Win / Avg. Loss)</td>
-                            <td className="py-2 px-4 text-right text-slate-800 font-mono">{ratioWinLoss}</td>
-                            <td className="py-2 px-4 text-right text-slate-500 font-mono">-</td>
+                            <td className="py-2 px-4 text-slate-600">Media de Operaciones Perdedoras</td>
+                            <td className="py-2 px-4 text-right text-slate-800 font-mono">{fmtEUR(avgLoss)}</td>
+                            <td className="py-2 px-4 text-right text-slate-500 font-mono">{capInv > 0 ? `${((avgLoss / capInv) * 100).toFixed(2)} %` : '-'}</td>
                           </tr>
                         </>
                       )}
@@ -1362,17 +2004,17 @@ export default function RvMetrics() {
                     <>
                       {primaryMetric === 'VALOR' && (
                         <>
-                          <Area type="monotone" name="Capital Invertido" dataKey="capitalInvertido" stroke="#94a3b8" strokeWidth={2} fill="#94a3b8" fillOpacity={0.05} dot={false} hide={hiddenLines['capitalInvertido']} />
-                          <Area type="monotone" name="Valor de Mercado" dataKey="valorMercado" stroke="#3b82f6" strokeWidth={2} fill="#3b82f6" fillOpacity={0.15} dot={false} hide={hiddenLines['valorMercado']} />
+                          <Area type="monotone" name="Capital Invertido" dataKey="capitalInvertido" stroke="#94a3b8" strokeWidth={1} fill="#94a3b8" fillOpacity={0.05} dot={false} hide={hiddenLines['capitalInvertido']} />
+                          <Area type="monotone" name="Valor de Mercado" dataKey="valorMercado" stroke="#3b82f6" strokeWidth={1} fill="#3b82f6" fillOpacity={0.15} dot={false} hide={hiddenLines['valorMercado']} />
                         </>
                       )}
 
                       {primaryMetric === 'PLUSVALIA' && unit === 'EUR' && (
-                        <Area type="monotone" name="Plusvalía Latente (€)" dataKey="beneficioLatente" stroke="#3b82f6" strokeWidth={2} fill="#3b82f6" fillOpacity={0.15} dot={false} hide={hiddenLines['beneficioLatente']} />
+                        <Area type="monotone" name="Plusvalía Latente (€)" dataKey="beneficioLatente" stroke="#3b82f6" strokeWidth={1} fill="#3b82f6" fillOpacity={0.15} dot={false} hide={hiddenLines['beneficioLatente']} />
                       )}
 
                       {primaryMetric === 'PLUSVALIA' && unit === 'PERCENT' && (
-                        <Area type="monotone" name="Plusvalía Latente (%)" dataKey="plusvaliaPct" stroke="#3b82f6" strokeWidth={2} fill="#3b82f6" fillOpacity={0.15} dot={false} hide={hiddenLines['plusvaliaPct']} />
+                        <Area type="monotone" name="Plusvalía Latente (%)" dataKey="plusvaliaPct" stroke="#3b82f6" strokeWidth={1} fill="#3b82f6" fillOpacity={0.15} dot={false} hide={hiddenLines['plusvaliaPct']} />
                       )}
                     </>
                   ) : (
@@ -1383,14 +2025,14 @@ export default function RvMetrics() {
                          if (primaryMetric === 'VALOR') {
                             return (
                                <React.Fragment key={t}>
-                                 <Area type="monotone" name={`${t} (Invertido)`} dataKey={`capitalInvertido_${t}`} stroke={color} strokeWidth={2} strokeDasharray="3 3" opacity={0.6} fill="none" dot={false} hide={hiddenLines[`capitalInvertido_${t}`]} />
-                                 <Area type="monotone" name={`${t} (Valor)`} dataKey={`valorMercado_${t}`} stroke={color} strokeWidth={2} fill={color} fillOpacity={0.05} dot={false} hide={hiddenLines[`valorMercado_${t}`]} />
+                                 <Area type="monotone" name={`${t} (Invertido)`} dataKey={`capitalInvertido_${t}`} stroke={color} strokeWidth={1} strokeDasharray="3 3" opacity={0.6} fill="none" dot={false} hide={hiddenLines[`capitalInvertido_${t}`]} />
+                                 <Area type="monotone" name={`${t} (Valor)`} dataKey={`valorMercado_${t}`} stroke={color} strokeWidth={1} fill={color} fillOpacity={0.05} dot={false} hide={hiddenLines[`valorMercado_${t}`]} />
                                </React.Fragment>
                             );
                          } else if (unit === 'EUR') {
-                            return <Area key={t} type="monotone" name={`${t} (Plusvalía €)`} dataKey={`beneficioLatente_${t}`} stroke={color} strokeWidth={2} fill={color} fillOpacity={0.05} dot={false} hide={hiddenLines[`beneficioLatente_${t}`]} />;
+                            return <Area key={t} type="monotone" name={`${t} (Plusvalía €)`} dataKey={`beneficioLatente_${t}`} stroke={color} strokeWidth={1} fill={color} fillOpacity={0.05} dot={false} hide={hiddenLines[`beneficioLatente_${t}`]} />;
                          } else {
-                            return <Area key={t} type="monotone" name={`${t} (Plusvalía %)`} dataKey={`plusvaliaPct_${t}`} stroke={color} strokeWidth={2} fill={color} fillOpacity={0.05} dot={false} hide={hiddenLines[`plusvaliaPct_${t}`]} />;
+                            return <Area key={t} type="monotone" name={`${t} (Plusvalía %)`} dataKey={`plusvaliaPct_${t}`} stroke={color} strokeWidth={1} fill={color} fillOpacity={0.05} dot={false} hide={hiddenLines[`plusvaliaPct_${t}`]} />;
                          }
                       })}
                     </>
