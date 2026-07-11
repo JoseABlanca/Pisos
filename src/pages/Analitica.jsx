@@ -39,52 +39,61 @@ const MONTHS_HDR  = ['ENE.','FEB.','MAR.','ABR.','MAY.','JUN.','JUL.','AGO.','SE
    TOOLBAR ICONS  – Exact visual match to the user's desktop app (Foto 1)
    ═══════════════════════════════════════════════════════════════════════════════ */
 const IcoNuevo = () => (
-  <svg width="28" height="28" viewBox="0 0 32 32" fill="none">
-    <path d="M8 3h10l6 6v20H8V3z" fill="#fff" stroke="#888" strokeWidth="1"/>
-    <path d="M18 3v6h6" fill="none" stroke="#888" strokeWidth="1"/>
-    <line x1="12" y1="20" x2="20" y2="20" stroke="#22c55e" strokeWidth="2.5"/>
-    <line x1="16" y1="16" x2="16" y2="24" stroke="#22c55e" strokeWidth="2.5"/>
+  <svg width="28" height="28" viewBox="0 0 24 24" fill="none">
+    <path d="M5 2h9l5 5v14H5V2z" fill="#fff" stroke="#555" strokeWidth="1.5"/>
+    <path d="M14 2v5h5" fill="none" stroke="#555" strokeWidth="1.5"/>
+    {/* Green plus sign at bottom right */}
+    <rect x="12" y="12" width="9" height="9" fill="#fff" stroke="#22c55e" strokeWidth="1.5" rx="1"/>
+    <line x1="16.5" y1="14" x2="16.5" y2="19" stroke="#22c55e" strokeWidth="2"/>
+    <line x1="14" y1="16.5" x2="19" y2="16.5" stroke="#22c55e" strokeWidth="2"/>
   </svg>
 );
 const IcoModif = () => (
-  <svg width="28" height="28" viewBox="0 0 32 32" fill="none">
-    <path d="M8 3h10l6 6v20H8V3z" fill="#fff" stroke="#888" strokeWidth="1"/>
-    <path d="M18 3v6h6" fill="none" stroke="#888" strokeWidth="1"/>
-    <path d="M12 25l7-7-2-2-7 7v2h2z" fill="#60a5fa" stroke="#3b82f6" strokeWidth="0.8"/>
+  <svg width="28" height="28" viewBox="0 0 24 24" fill="none">
+    <path d="M5 2h9l5 5v14H5V2z" fill="#fff" stroke="#555" strokeWidth="1.5"/>
+    <path d="M14 2v5h5" fill="none" stroke="#555" strokeWidth="1.5"/>
+    {/* Blue pencil drawing on the document */}
+    <path d="M9 17l6-6-2-2-6 6v2h2z" fill="#3b82f6" stroke="#1d4ed8" strokeWidth="1"/>
   </svg>
 );
 const IcoElim = () => (
-  <svg width="28" height="28" viewBox="0 0 32 32" fill="none">
-    <path d="M8 3h10l6 6v20H8V3z" fill="#fff" stroke="#888" strokeWidth="1"/>
-    <path d="M18 3v6h6" fill="none" stroke="#888" strokeWidth="1"/>
-    <line x1="13" y1="17" x2="19" y2="23" stroke="#ef4444" strokeWidth="2.2"/>
-    <line x1="19" y1="17" x2="13" y2="23" stroke="#ef4444" strokeWidth="2.2"/>
+  <svg width="28" height="28" viewBox="0 0 24 24" fill="none">
+    <path d="M5 2h9l5 5v14H5V2z" fill="#fff" stroke="#555" strokeWidth="1.5"/>
+    <path d="M14 2v5h5" fill="none" stroke="#555" strokeWidth="1.5"/>
+    {/* Red box with white minus at bottom right */}
+    <rect x="12" y="12" width="9" height="9" fill="#ef4444" rx="1"/>
+    <line x1="14" y1="16.5" x2="19" y2="16.5" stroke="#fff" strokeWidth="2"/>
   </svg>
 );
 const IcoSubir = () => (
   <svg width="22" height="22" viewBox="0 0 24 24" fill="none">
-    <path d="M12 20V6" stroke="#555" strokeWidth="1.5"/>
-    <path d="M7 11l5-5 5 5" stroke="#555" strokeWidth="1.5" fill="none"/>
+    <path d="M12 20V4" stroke="#555" strokeWidth="2" strokeLinecap="round"/>
+    <path d="M6 10l6-6 6 6" stroke="#555" strokeWidth="2" fill="none" strokeLinecap="round" strokeLinejoin="round"/>
   </svg>
 );
 const IcoBajar = () => (
   <svg width="22" height="22" viewBox="0 0 24 24" fill="none">
-    <path d="M12 4v14" stroke="#555" strokeWidth="1.5"/>
-    <path d="M7 13l5 5 5-5" stroke="#555" strokeWidth="1.5" fill="none"/>
+    <path d="M12 4v16" stroke="#555" strokeWidth="2" strokeLinecap="round"/>
+    <path d="M6 14l6 6 6-6" stroke="#555" strokeWidth="2" fill="none" strokeLinecap="round" strokeLinejoin="round"/>
   </svg>
 );
 const IcoExpandir = () => (
-  <svg width="28" height="28" viewBox="0 0 32 32" fill="none">
-    <path d="M4 12v14h22V14H14l-3-2H4z" fill="#fcd34d" stroke="#b8860b" strokeWidth="1"/>
-    <rect x="17" y="17" width="9" height="9" rx="1" fill="#fff" stroke="#666" strokeWidth="1"/>
-    <path d="M19 21.5l1.5 1.5 3-3.5" stroke="#22c55e" strokeWidth="1.8" fill="none" strokeLinecap="round" strokeLinejoin="round"/>
+  <svg width="28" height="28" viewBox="0 0 24 24" fill="none">
+    {/* Yellow folder */}
+    <path d="M2 6a2 2 0 0 1 2-2h4l2 2h8a2 2 0 0 1 2 2v10a2 2 0 0 1-2 2H4a2 2 0 0 1-2-2V6z" fill="#fcd34d" stroke="#b8860b" strokeWidth="1.5"/>
+    {/* Green plus box at bottom right */}
+    <rect x="12" y="11" width="9" height="9" fill="#fff" stroke="#22c55e" strokeWidth="1.5" rx="1"/>
+    <line x1="16.5" y1="13" x2="16.5" y2="18" stroke="#22c55e" strokeWidth="1.5"/>
+    <line x1="14" y1="15.5" x2="19" y2="15.5" stroke="#22c55e" strokeWidth="1.5"/>
   </svg>
 );
 const IcoColapsar = () => (
-  <svg width="28" height="28" viewBox="0 0 32 32" fill="none">
-    <path d="M4 12v14h22V14H14l-3-2H4z" fill="#fcd34d" stroke="#b8860b" strokeWidth="1"/>
-    <rect x="17" y="17" width="9" height="9" rx="1" fill="#fff" stroke="#666" strokeWidth="1"/>
-    <line x1="19" y1="21.5" x2="24" y2="21.5" stroke="#ef4444" strokeWidth="1.8" strokeLinecap="round"/>
+  <svg width="28" height="28" viewBox="0 0 24 24" fill="none">
+    {/* Yellow folder */}
+    <path d="M2 6a2 2 0 0 1 2-2h4l2 2h8a2 2 0 0 1 2 2v10a2 2 0 0 1-2 2H4a2 2 0 0 1-2-2V6z" fill="#fcd34d" stroke="#b8860b" strokeWidth="1.5"/>
+    {/* Red minus box at bottom right */}
+    <rect x="12" y="11" width="9" height="9" fill="#fff" stroke="#ef4444" strokeWidth="1.5" rx="1"/>
+    <line x1="14" y1="15.5" x2="19" y2="15.5" stroke="#ef4444" strokeWidth="1.5"/>
   </svg>
 );
 const IcoPage = () => (
@@ -643,11 +652,12 @@ export default function Analitica() {
         {/* ── TABLE AREA ────────────────────────────────────────────────────── */}
         <div className="flex-1 flex flex-col overflow-hidden bg-white">
 
-          {/* Title bar (Foto 3: "Presupuestos de cuentas" + search) */}
-          <div className="flex items-center justify-between border-b border-[#e0e0e0] bg-white px-2 py-[3px] shrink-0">
-            <span className="text-[12px] text-[#333] font-bold">
-              {viewMode === 'analitica' ? 'Presupuestos por Cuenta Analítica (CEBE / CECO)' : 'Presupuestos de cuentas'}
-            </span>
+          {/* Thin bar above table with sidebar toggle and search */}
+          <div className="flex items-center justify-between border-b border-[#e0e0e0] bg-[#f8f9fa] px-2 py-[4px] shrink-0">
+            <button onClick={() => setSidebarVisible(p => !p)} title="Ocultar/Mostrar filtros"
+                    className="hover:bg-[#e0e0e0] p-[2px] rounded-[2px] text-[#333] flex items-center justify-center border border-[#bbb] bg-white shadow-sm active:bg-[#ccc]">
+              <IcoSidebarToggle />
+            </button>
             <div className="relative flex items-center">
               <input type="text" placeholder="Buscar en el fichero (Alt+B)"
                      value={searchQuery} onChange={e => setSearchQuery(e.target.value)}
@@ -673,13 +683,7 @@ export default function Analitica() {
                     <thead>
                       <tr className="sticky top-0 bg-white border-b border-[#d6d6d6] z-10">
                         <th className="text-left font-normal text-[#555] text-[10px] uppercase tracking-wider py-[5px] px-2">
-                          <div className="flex items-center gap-[6px]">
-                            <button onClick={() => setSidebarVisible(p => !p)} title="Ocultar/Mostrar filtros"
-                                    className="hover:bg-[#e0e0e0] p-[1px] rounded-[2px] text-[#333] flex items-center justify-center">
-                              <IcoSidebarToggle />
-                            </button>
-                            <span>{viewMode === 'analitica' ? 'CEBE / CECO' : 'CUENTA'}</span>
-                          </div>
+                          <span>{viewMode === 'analitica' ? 'CEBE / CECO' : 'CUENTA'}</span>
                         </th>
                         <th className="text-left font-normal text-[#555] text-[10px] uppercase tracking-wider py-[5px] px-2">DESCRIPCIÓN</th>
                         <th className="text-right font-normal text-[#555] text-[10px] uppercase tracking-wider py-[5px] px-2">PRESUPUESTO</th>
