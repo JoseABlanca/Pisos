@@ -745,10 +745,10 @@ export default function Analitica() {
       {showForm && (
         <div className="fixed inset-0 z-[100]" style={{ background: 'rgba(0,0,0,0.08)' }}>
           <div style={{ position: 'absolute', left: budgetDR.pos.x, top: budgetDR.pos.y, width: budgetDR.size.w, height: budgetDR.size.h }}
-               className="bg-[#f0f0f0] border border-[#888] shadow-[2px_3px_12px_rgba(0,0,0,0.35)] flex flex-col select-none relative">
+               className="bg-[#f0f0f0] border border-[#888] shadow-[2px_3px_12px_rgba(0,0,0,0.35)] flex flex-col select-none relative overflow-hidden">
             {budgetDR.resizeHandles}
             {/* Title bar with image icons (Foto 2 exact) */}
-            <div onMouseDown={budgetDR.onDragDown} className="flex items-center px-2 py-[5px] border-b border-[#ccc] gap-2 cursor-move shrink-0">
+            <div onMouseDown={budgetDR.onDragDown} className="flex items-center px-2 py-[5px] border-b border-[#ccc] gap-2 cursor-move shrink-0 bg-[#e1e1e1]">
               <div className="flex items-center shrink-0">
                 {/* Two overlapping picture frames with diagonal hatching */}
                 <svg width="56" height="40" viewBox="0 0 56 40" fill="none">
@@ -783,17 +783,18 @@ export default function Analitica() {
                   <rect x="33" y="18" width="14" height="2.5" fill="#fdcb6e" rx="0.5"/>
                 </svg>
               </div>
-              <span className="text-[12px] text-[#333] font-normal flex-1 text-center">Ficha de presupuesto anual</span>
-              <button onClick={() => setShowForm(false)} className="w-[20px] h-[20px] flex items-center justify-center hover:bg-red-500 hover:text-white text-[#666] rounded-[2px]">
+              <span className="text-[12px] text-[#333] font-normal flex-1 text-center font-bold">Ficha de presupuesto anual</span>
+              <button onClick={() => setShowForm(false)} className="w-[20px] h-[20px] flex items-center justify-center hover:bg-red-500 hover:text-white text-[#666] rounded-[2px] shrink-0">
                 <X size={13} strokeWidth={2.5} />
               </button>
             </div>
 
-            <div className="p-4 flex flex-col gap-3">
+            {/* Scrollable form body */}
+            <div className="flex-1 overflow-y-auto p-4 flex flex-col gap-3 min-h-0">
               {/* CEBE and CECO selection */}
               <div className="grid grid-cols-2 gap-2">
                 <div className="flex items-center gap-[6px]">
-                  <span className="border border-[#999] bg-white px-2 py-[3px] text-[12px] text-[#333] w-[65px] text-center shrink-0">CEBE:</span>
+                  <span className="border border-[#999] bg-[#f8f9fa] px-2 py-[3px] text-[12px] text-[#333] w-[65px] text-center shrink-0">CEBE:</span>
                   <select value={formCebe} onChange={e => setFormCebe(e.target.value)}
                           className="flex-1 border border-[#999] px-2 py-[3px] text-[12px] bg-white outline-none">
                     <option value="">-- Sin CEBE --</option>
@@ -801,7 +802,7 @@ export default function Analitica() {
                   </select>
                 </div>
                 <div className="flex items-center gap-[6px]">
-                  <span className="border border-[#999] bg-white px-2 py-[3px] text-[12px] text-[#333] w-[65px] text-center shrink-0">CECO:</span>
+                  <span className="border border-[#999] bg-[#f8f9fa] px-2 py-[3px] text-[12px] text-[#333] w-[65px] text-center shrink-0">CECO:</span>
                   <select value={formCeco} onChange={e => setFormCeco(e.target.value)}
                           className="flex-1 border border-[#999] px-2 py-[3px] text-[12px] bg-white outline-none">
                     <option value="">-- Sin CECO --</option>
@@ -812,7 +813,7 @@ export default function Analitica() {
 
               {/* Cuenta */}
               <div className="flex items-center gap-[6px]">
-                <span className="border border-[#999] bg-white px-2 py-[3px] text-[12px] text-[#333] w-[65px] text-center shrink-0 font-bold">Cuenta:</span>
+                <span className="border border-[#999] bg-[#f8f9fa] px-2 py-[3px] text-[12px] text-[#333] w-[65px] text-center shrink-0 font-bold">Cuenta:</span>
                 <input type="text" readOnly value={formAccount?.code || ''}
                        onClick={() => setShowAccountSel(true)}
                        className="w-[80px] border border-[#999] px-2 py-[3px] text-[12px] bg-white cursor-pointer outline-none font-mono" />
@@ -821,7 +822,7 @@ export default function Analitica() {
 
               {/* Presupuesto anual + Repartir */}
               <div className="flex items-center gap-[6px]">
-                <span className="border border-[#999] bg-white px-2 py-[3px] text-[12px] font-semibold text-[#333] whitespace-nowrap">Presupuesto anual:</span>
+                <span className="border border-[#999] bg-[#f8f9fa] px-2 py-[3px] text-[12px] font-semibold text-[#333] whitespace-nowrap">Presupuesto anual:</span>
                 <input type="text" readOnly value={formTotal.toLocaleString('es-ES', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
                        className="w-[80px] border border-[#999] px-2 py-[3px] text-[12px] text-right bg-white outline-none font-bold" />
                 <button onClick={distribute}
@@ -831,7 +832,7 @@ export default function Analitica() {
               </div>
 
               {/* Months grid: 2 columns, 6 rows with separators */}
-              <div className="border border-[#bbb] bg-white">
+              <div className="border border-[#bbb] bg-white shrink-0">
                 {[...Array(6)].map((_, i) => (
                   <div key={i} className={`grid grid-cols-2 gap-x-4 px-3 py-[5px] ${i < 5 ? 'border-b border-[#e0e0e0]' : ''}`}>
                     {/* Left column month */}
@@ -839,30 +840,30 @@ export default function Analitica() {
                       <span className="text-[12px] text-[#333] font-semibold w-[85px]">{MONTHS_LONG[i]}</span>
                       <input type="text" value={(parseFloat(formMonths[i]) || 0).toLocaleString('es-ES', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
                              onChange={e => { const v = e.target.value.replace(/[^0-9,.-]/g, '').replace(',', '.'); setFormMonths(p => ({ ...p, [i]: parseFloat(v) || 0 })); }}
-                             className="w-[65px] border border-[#999] px-2 py-[2px] text-[12px] text-right outline-none bg-white" />
+                             className="w-[65px] border border-[#999] px-2 py-[2px] text-[12px] text-right outline-none bg-white font-mono" />
                     </div>
                     {/* Right column month */}
                     <div className="flex items-center justify-between gap-2">
                       <span className="text-[12px] text-[#333] font-semibold w-[85px]">{MONTHS_LONG[i + 6]}</span>
                       <input type="text" value={(parseFloat(formMonths[i + 6]) || 0).toLocaleString('es-ES', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
                              onChange={e => { const v = e.target.value.replace(/[^0-9,.-]/g, '').replace(',', '.'); setFormMonths(p => ({ ...p, [i + 6]: parseFloat(v) || 0 })); }}
-                             className="w-[65px] border border-[#999] px-2 py-[2px] text-[12px] text-right outline-none bg-white" />
+                             className="w-[65px] border border-[#999] px-2 py-[2px] text-[12px] text-right outline-none bg-white font-mono" />
                     </div>
                   </div>
                 ))}
               </div>
+            </div>
 
-              {/* Buttons */}
-              <div className="flex justify-end gap-2 mt-2">
-                <button onClick={saveBudget}
-                        className="w-[80px] py-[4px] border border-[#888] bg-[#e1e1e1] hover:bg-[#d0d0d0] text-[12px] active:bg-[#c0c0c0]">
-                  Aceptar
-                </button>
-                <button onClick={() => setShowForm(false)}
-                        className="w-[80px] py-[4px] border border-[#888] bg-[#e1e1e1] hover:bg-[#d0d0d0] text-[12px] active:bg-[#c0c0c0]">
-                  Cancelar
-                </button>
-              </div>
+            {/* Sticky footer buttons at the very bottom of the window box */}
+            <div className="flex justify-end gap-2 p-3 bg-[#e1e1e1] border-t border-[#ccc] shrink-0">
+              <button onClick={saveBudget}
+                      className="w-[80px] py-[4px] border border-[#888] bg-[#e1e1e1] hover:bg-[#d0d0d0] text-[12px] active:bg-[#c0c0c0]">
+                Aceptar
+              </button>
+              <button onClick={() => setShowForm(false)}
+                      className="w-[80px] py-[4px] border border-[#888] bg-[#e1e1e1] hover:bg-[#d0d0d0] text-[12px] active:bg-[#c0c0c0]">
+                Cancelar
+              </button>
             </div>
           </div>
         </div>
