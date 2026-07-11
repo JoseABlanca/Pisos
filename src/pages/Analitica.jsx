@@ -253,6 +253,11 @@ export default function Analitica() {
   const [budgets, setBudgets] = useState([]);
   const [sidebarVisible, setSidebarVisible] = useState(true);
 
+  const [viewMode, setViewMode] = useState('contable'); // 'contable' | 'analitica'
+  const [associations, setAssociations] = useState([]);
+  const [cebes, setCebes] = useState([]);
+  const [cecos, setCecos] = useState([]);
+
   const [groupFilter, setGroupFilter] = useState('ALL');
   const [showPgc, setShowPgc] = useState(false);
   const [showAux, setShowAux] = useState(true);
@@ -269,10 +274,12 @@ export default function Analitica() {
   const [isEditing, setIsEditing] = useState(false);
   const [formAccount, setFormAccount] = useState(null);
   const [formMonths, setFormMonths] = useState(() => Object.fromEntries([...Array(12)].map((_, i) => [i, 0])));
+  const [formCebe, setFormCebe] = useState('');
+  const [formCeco, setFormCeco] = useState('');
   const [showAccountSel, setShowAccountSel] = useState(false);
 
   // Drag+Resize state for budget modal
-  const budgetDR = useDragResize({ initW: 440, initH: 460, minW: 380, minH: 350 });
+  const budgetDR = useDragResize({ initW: 440, initH: 520, minW: 380, minH: 400 });
   // Drag+Resize state for account selector modal
   const accountDR = useDragResize({ initW: 900, initH: 650, minW: 500, minH: 400 });
 
@@ -282,7 +289,13 @@ export default function Analitica() {
     const uids = queryUserIds?.length ? queryUserIds : [user.uid];
     const uA = onSnapshot(query(collection(db, 'accounts'), where('userId', 'in', uids)), s => setRawAccounts(s.docs.map(d => ({ id: d.id, ...d.data() }))));
     const uB = onSnapshot(query(collection(db, 'budgets'), where('userId', 'in', uids)), s => setBudgets(s.docs.map(d => ({ id: d.id, ...d.data() }))));
-    return () => { uA(); uB(); };
+    const uAssoc = onSnapshot(query(collection(db, 'analitica_associations'), where('userId', 'in', uids)), s => setAssociations(s.docs.map(d => ({ id: d.id, ...d.data() }))));
+    const uCenters = onSnapshot(query(collection(db, 'analytical_centers'), where('userId', 'in', uids)), s => {
+      const docs = s.docs.map(d => ({ id: d.id, ...d.data() }));
+      setCebes(docs.filter(c => c.type === 'cebe'));
+      setCecos(docs.filter(c => c.type === 'ceco'));
+    });
+    return () => { uA(); uB(); uAssoc(); uCenters(); };
   }, [user, queryUserIds]);
 
   /* ── Budget data for selected year ────────────────────────────────────────── */
@@ -341,7 +354,76 @@ export default function Analitica() {
     });
   }, [budgetCodes, leafBudgetCodes, budgetsForYear, rawAccounts, groupFilter, searchQuery, onlyAssigned]);
 
+  const analyticalTreeRows = useMemo(() => {
+    if (viewMode !== 'analitica') return [];
+
+    // Find all unique CEBE codes present in budgetsForYear
+    const cebeCodes = Array.from(new Set(budgetsForYear.map(b => b.cebe).filter(Boolean))).sort();
+    
+    const rows = [];
+    cebeCodes.forEach(cebeCode => {
+      const cebeCenter = cebes.find(c => c.code === cebeCode);
+      const cebeName = cebeCenter ? cebeCenter.name : `CEBE ${cebeCode}`;
+      
+      const budsForCebe = budgetsForYear.filter(b => b.cebe === cebeCode);
+      const cebeTotal = budsForCebe.reduce((s, b) => s + (parseFloat(b.total) || 0), 0);
+      const cebeMonths = Object.fromEntries([...Array(12)].map((_, i) => [
+        i,
+        budsForCebe.reduce((s, b) => s + (parseFloat(b.months?.[i]) || 0), 0)
+      ]));
+
+      const cecoCodes = Array.from(new Set(budsForCebe.map(b => b.ceco).filter(Boolean))).sort();
+      const hasChildren = cecoCodes.length > 0;
+
+      rows.push({
+        code: cebeCode,
+        name: cebeName.toUpperCase(),
+        depth: 0,
+        hasChildren,
+        total: cebeTotal,
+        months: cebeMonths,
+        isCebe: true,
+        isCeco: false,
+        cebeCode
+      });
+
+      if (hasChildren && !collapsed[cebeCode]) {
+        cecoCodes.forEach(cecoCode => {
+          const cecoCenter = cecos.find(c => c.code === cecoCode);
+          const cecoName = cecoCenter ? cecoCenter.name : `CECO ${cecoCode}`;
+
+          const budsForCeco = budsForCebe.filter(b => b.ceco === cecoCode);
+          const cecoTotal = budsForCeco.reduce((s, b) => s + (parseFloat(b.total) || 0), 0);
+          const cecoMonths = Object.fromEntries([...Array(12)].map((_, i) => [
+            i,
+            budsForCeco.reduce((s, b) => s + (parseFloat(b.months?.[i]) || 0), 0)
+          ]));
+
+          rows.push({
+            code: cecoCode,
+            name: cecoName.toUpperCase(),
+            depth: 1,
+            hasChildren: false,
+            total: cecoTotal,
+            months: cecoMonths,
+            isCebe: false,
+            isCeco: true,
+            cebeCode,
+            cecoCode
+          });
+        });
+      }
+    });
+
+    return rows;
+  }, [viewMode, budgetsForYear, cebes, cecos, collapsed]);
+
   const visibleRows = useMemo(() => {
+    if (viewMode === 'analitica') {
+      let rows = analyticalTreeRows;
+      if (hideZero) rows = rows.filter(r => r.total !== 0);
+      return rows;
+    }
     let rows = treeRows;
     if (hideZero) rows = rows.filter(r => r.total !== 0);
     return rows.filter(r => {
@@ -350,7 +432,54 @@ export default function Analitica() {
       }
       return true;
     });
-  }, [treeRows, collapsed, hideZero]);
+  }, [treeRows, analyticalTreeRows, collapsed, hideZero, viewMode]);
+
+  const performanceTotals = useMemo(() => {
+    const monthsDiff = Array(12).fill(0);
+    const monthsHaber = Array(12).fill(0);
+    const monthsDebe = Array(12).fill(0);
+
+    let totalHaber = 0;
+    let totalDebe = 0;
+
+    budgetsForYear.forEach(b => {
+      const code = b.accountCode || '';
+      const isHaber = code.startsWith('7');
+      const isDebe = code.startsWith('6');
+
+      if (isHaber) {
+        totalHaber += parseFloat(b.total) || 0;
+        for (let i = 0; i < 12; i++) {
+          monthsHaber[i] += parseFloat(b.months?.[i]) || 0;
+        }
+      } else if (isDebe) {
+        totalDebe += parseFloat(b.total) || 0;
+        for (let i = 0; i < 12; i++) {
+          monthsDebe[i] += parseFloat(b.months?.[i]) || 0;
+        }
+      }
+    });
+
+    for (let i = 0; i < 12; i++) {
+      monthsDiff[i] = monthsHaber[i] - monthsDebe[i];
+    }
+    const totalDiff = totalHaber - totalDebe;
+
+    return {
+      monthsDiff,
+      totalDiff
+    };
+  }, [budgetsForYear]);
+
+  // Auto-fill account when CEBE and CECO are selected based on associations
+  useEffect(() => {
+    if (!formCebe || !formCeco) return;
+    const assoc = associations.find(a => a.cebe === formCebe && a.ceco === formCeco);
+    if (assoc) {
+      const acc = rawAccounts.find(a => a.code === assoc.accountCode) || { id: assoc.accountCode, code: assoc.accountCode, name: assoc.accountName };
+      setFormAccount(acc);
+    }
+  }, [formCebe, formCeco, associations, rawAccounts]);
 
   /* ── Helpers ──────────────────────────────────────────────────────────────── */
   const fmt = v => v === 0 ? '' : (v || 0).toLocaleString('es-ES', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
@@ -359,34 +488,79 @@ export default function Analitica() {
   const openNew = () => {
     setFormAccount(null);
     setFormMonths(Object.fromEntries([...Array(12)].map((_, i) => [i, 0])));
+    setFormCebe('');
+    setFormCeco('');
     setIsEditing(false);
     setShowForm(true);
   };
   const openEdit = () => {
     if (!selectedCode) return;
-    const bud = budgets.find(b => b.accountCode === selectedCode && b.year === selectedYear);
+    const row = visibleRows.find(r => r.code === selectedCode);
+    if (!row) return;
+
+    let bud;
+    if (viewMode === 'analitica') {
+      if (row.isCebe) {
+        alert('Selecciona un CECO para modificar su presupuesto.');
+        return;
+      }
+      bud = budgets.find(b => b.cebe === row.cebeCode && b.ceco === row.cecoCode && b.year === selectedYear);
+    } else {
+      bud = budgets.find(b => b.accountCode === selectedCode && b.year === selectedYear);
+    }
+
     if (!bud) return;
-    const acc = rawAccounts.find(a => a.code === selectedCode) || { id: bud.accountId, code: bud.accountCode, name: bud.accountName };
+    const acc = rawAccounts.find(a => a.code === bud.accountCode) || { id: bud.accountId, code: bud.accountCode, name: bud.accountName };
     setFormAccount(acc);
     setFormMonths({ ...bud.months });
+    setFormCebe(bud.cebe || '');
+    setFormCeco(bud.ceco || '');
     setIsEditing(true);
     setShowForm(true);
   };
   const openDelete = async () => {
     if (!selectedCode) return;
-    const bud = budgets.find(b => b.accountCode === selectedCode && b.year === selectedYear);
-    if (!bud) { alert('No hay presupuesto para esta cuenta/año.'); return; }
-    if (!window.confirm(`¿Eliminar presupuesto de ${selectedCode}?`)) return;
+    const row = visibleRows.find(r => r.code === selectedCode);
+    if (!row) return;
+
+    let bud;
+    if (viewMode === 'analitica') {
+      if (row.isCebe) {
+        alert('Selecciona un CECO para eliminar su presupuesto.');
+        return;
+      }
+      bud = budgets.find(b => b.cebe === row.cebeCode && b.ceco === row.cecoCode && b.year === selectedYear);
+    } else {
+      bud = budgets.find(b => b.accountCode === selectedCode && b.year === selectedYear);
+    }
+
+    if (!bud) { alert('No hay presupuesto para este registro/año.'); return; }
+    if (!window.confirm(`¿Eliminar presupuesto seleccionado?`)) return;
     await deleteDoc(doc(db, 'budgets', bud.id));
     setSelectedCode(null);
   };
   const saveBudget = async () => {
     if (!formAccount) { alert('Selecciona una cuenta contable.'); return; }
     const total = Object.values(formMonths).reduce((s, v) => s + (parseFloat(v) || 0), 0);
-    const id = `${user.uid}_${selectedYear}_${formAccount.code}`;
+    const id = `${user.uid}_${selectedYear}_${formAccount.code}${formCebe ? `_${formCebe}` : ''}${formCeco ? `_${formCeco}` : ''}`;
+    
+    if (isEditing && selectedCode) {
+      const row = visibleRows.find(r => r.code === selectedCode);
+      let oldBud;
+      if (viewMode === 'analitica' && row?.isCeco) {
+        oldBud = budgets.find(b => b.cebe === row.cebeCode && b.ceco === row.cecoCode && b.year === selectedYear);
+      } else if (viewMode === 'contable') {
+        oldBud = budgets.find(b => b.accountCode === selectedCode && b.year === selectedYear);
+      }
+      if (oldBud && oldBud.id !== id) {
+        await deleteDoc(doc(db, 'budgets', oldBud.id));
+      }
+    }
+
     await setDoc(doc(db, 'budgets', id), {
       id, accountId: formAccount.id, accountCode: formAccount.code, accountName: formAccount.name || '',
       year: selectedYear, total: parseFloat(total.toFixed(2)), months: formMonths,
+      cebe: formCebe || '', ceco: formCeco || '',
       userId: user.uid, updatedAt: new Date().toISOString()
     }, { merge: true });
     setShowForm(false);
@@ -421,6 +595,15 @@ export default function Analitica() {
         {sidebarVisible && (
           <div className="w-[200px] bg-[#f3f3f3] border-r border-[#d6d6d6] flex flex-col shrink-0 overflow-hidden">
             <div className="flex-1 overflow-y-auto">
+              {/* Vista selector */}
+              <div className="bg-[#e6e8ec] text-[#333] text-[12px] font-bold px-3 py-[5px] border-b border-[#d6d6d6]">
+                Vista
+              </div>
+              <div className="px-3 py-2 flex flex-col gap-1 border-b border-[#d6d6d6]">
+                <SideRadio checked={viewMode === 'contable'} onChange={() => { setViewMode('contable'); setSelectedCode(null); setCollapsed({}); }} label="Cuentas Contables" />
+                <SideRadio checked={viewMode === 'analitica'} onChange={() => { setViewMode('analitica'); setSelectedCode(null); setCollapsed({}); }} label="Cuenta Analítica (CEBE / CECO)" />
+              </div>
+
               {/* Header */}
               <div className="bg-[#e6e8ec] text-[#333] text-[12px] font-bold px-3 py-[5px]">
                 Lista actual
@@ -456,7 +639,9 @@ export default function Analitica() {
 
           {/* Title bar (Foto 3: "Presupuestos de cuentas" + search) */}
           <div className="flex items-center justify-between border-b border-[#e0e0e0] bg-white px-2 py-[3px] shrink-0">
-            <span className="text-[12px] text-[#333]">Presupuestos de cuentas</span>
+            <span className="text-[12px] text-[#333] font-bold">
+              {viewMode === 'analitica' ? 'Presupuestos por Cuenta Analítica (CEBE / CECO)' : 'Presupuestos de cuentas'}
+            </span>
             <div className="relative flex items-center">
               <input type="text" placeholder="Buscar en el fichero (Alt+B)"
                      value={searchQuery} onChange={e => setSearchQuery(e.target.value)}
@@ -466,65 +651,90 @@ export default function Analitica() {
           </div>
 
           {/* Table */}
-          <div className="flex-1 overflow-auto" onClick={() => setSelectedCode(null)}>
-            <table className="w-full border-collapse text-[11px]" style={{ tableLayout: 'auto' }}>
-              <colgroup>
-                <col style={{ minWidth: 120 }} />
-                <col style={{ minWidth: 200 }} />
-                <col style={{ minWidth: 100 }} />
-                {MONTHS_HDR.map((_, i) => <col key={i} style={{ minWidth: 60 }} />)}
-              </colgroup>
-              <thead>
-                <tr className="sticky top-0 bg-white border-b border-[#d6d6d6] z-10">
-                  <th className="text-left font-normal text-[#555] text-[10px] uppercase tracking-wider py-[5px] px-2">
-                    <div className="flex items-center gap-[6px]">
-                      <button onClick={() => setSidebarVisible(p => !p)} title="Ocultar/Mostrar filtros"
-                              className="hover:bg-[#e0e0e0] p-[1px] rounded-[2px]">
-                        <IcoPage />
-                      </button>
-                      <span>CUENTA</span>
-                    </div>
-                  </th>
-                  <th className="text-left font-normal text-[#555] text-[10px] uppercase tracking-wider py-[5px] px-2">DESCRIPCIÓN</th>
-                  <th className="text-right font-normal text-[#555] text-[10px] uppercase tracking-wider py-[5px] px-2">PRESUPUESTO</th>
-                  {MONTHS_HDR.map(m => (
-                    <th key={m} className="text-right font-normal text-[#555] text-[10px] uppercase tracking-wider py-[5px] px-2">{m}</th>
-                  ))}
-                </tr>
-              </thead>
-              <tbody>
-                {visibleRows.map(row => {
-                  const sel = selectedCode === row.code;
-                  return (
-                    <tr key={row.code}
-                        className={`border-b border-[#f0f0f0] cursor-default ${sel ? 'bg-[#cce5ff]' : 'hover:bg-[#f5f7fa]'}`}
-                        onClick={e => { e.stopPropagation(); setSelectedCode(row.code); }}
-                        onDoubleClick={() => { setSelectedCode(row.code); setTimeout(openEdit, 0); }}>
-                      <td className="py-[3px] px-2 whitespace-nowrap">
-                        <div className="flex items-center" style={{ paddingLeft: row.depth * 16 }}>
-                          {row.hasChildren ? (
-                            <button onClick={e => { e.stopPropagation(); setCollapsed(p => ({ ...p, [row.code]: !p[row.code] })); }}
-                                    className="mr-[5px] text-[#999] hover:text-[#333] flex items-center justify-center w-[14px] h-[14px]">
-                              <svg width="8" height="8" viewBox="0 0 8 8" fill="none">
-                                {collapsed[row.code]
-                                  ? <path d="M2 0l4 4-4 4" stroke="currentColor" strokeWidth="1.5" fill="none" />
-                                  : <path d="M0 2l4 4 4-4" stroke="currentColor" strokeWidth="1.5" fill="none" />}
-                              </svg>
-                            </button>
-                          ) : <span className="w-[19px] shrink-0" />}
-                          <span className="text-[11px] text-[#333]">{row.code}</span>
-                        </div>
-                      </td>
-                      <td className="py-[3px] px-2 text-[11px] uppercase text-[#333] whitespace-nowrap overflow-hidden text-ellipsis">{row.name}</td>
-                      <td className="py-[3px] px-2 text-right text-[11px]">{fmt(row.total)}</td>
-                      {[...Array(12)].map((_, i) => (
-                        <td key={i} className="py-[3px] px-2 text-right text-[11px]">{fmt(row.months[i])}</td>
-                      ))}
-                    </tr>
-                  );
-                })}
-              </tbody>
-            </table>
+          <div className="flex-1 flex flex-col overflow-hidden" onClick={() => setSelectedCode(null)}>
+            <div className="flex-1 overflow-auto">
+              <table className="w-full border-collapse text-[11px]" style={{ tableLayout: 'auto' }}>
+                <colgroup>
+                  <col style={{ minWidth: 120 }} />
+                  <col style={{ minWidth: 200 }} />
+                  <col style={{ minWidth: 100 }} />
+                  {MONTHS_HDR.map((_, i) => <col key={i} style={{ minWidth: 60 }} />)}
+                </colgroup>
+                <thead>
+                  <tr className="sticky top-0 bg-white border-b border-[#d6d6d6] z-10">
+                    <th className="text-left font-normal text-[#555] text-[10px] uppercase tracking-wider py-[5px] px-2">
+                      <div className="flex items-center gap-[6px]">
+                        <button onClick={() => setSidebarVisible(p => !p)} title="Ocultar/Mostrar filtros"
+                                className="hover:bg-[#e0e0e0] p-[1px] rounded-[2px]">
+                          <IcoPage />
+                        </button>
+                        <span>{viewMode === 'analitica' ? 'CEBE / CECO' : 'CUENTA'}</span>
+                      </div>
+                    </th>
+                    <th className="text-left font-normal text-[#555] text-[10px] uppercase tracking-wider py-[5px] px-2">DESCRIPCIÓN</th>
+                    <th className="text-right font-normal text-[#555] text-[10px] uppercase tracking-wider py-[5px] px-2">PRESUPUESTO</th>
+                    {MONTHS_HDR.map(m => (
+                      <th key={m} className="text-right font-normal text-[#555] text-[10px] uppercase tracking-wider py-[5px] px-2">{m}</th>
+                    ))}
+                  </tr>
+                </thead>
+                <tbody>
+                  {visibleRows.map(row => {
+                    const sel = selectedCode === row.code;
+                    return (
+                      <tr key={row.code}
+                          className={`border-b border-[#f0f0f0] cursor-default ${sel ? 'bg-[#cce5ff]' : 'hover:bg-[#f5f7fa]'}`}
+                          onClick={e => { e.stopPropagation(); setSelectedCode(row.code); }}
+                          onDoubleClick={() => { setSelectedCode(row.code); setTimeout(openEdit, 0); }}>
+                        <td className="py-[3px] px-2 whitespace-nowrap">
+                          <div className="flex items-center" style={{ paddingLeft: row.depth * 16 }}>
+                            {row.hasChildren ? (
+                              <button onClick={e => { e.stopPropagation(); setCollapsed(p => ({ ...p, [row.code]: !p[row.code] })); }}
+                                      className="mr-[5px] text-[#999] hover:text-[#333] flex items-center justify-center w-[14px] h-[14px]">
+                                <svg width="8" height="8" viewBox="0 0 8 8" fill="none">
+                                  {collapsed[row.code]
+                                    ? <path d="M2 0l4 4-4 4" stroke="currentColor" strokeWidth="1.5" fill="none" />
+                                    : <path d="M0 2l4 4 4-4" stroke="currentColor" strokeWidth="1.5" fill="none" />}
+                                </svg>
+                              </button>
+                            ) : <span className="w-[19px] shrink-0" />}
+                            <span className="text-[11px] text-[#333]">{row.code}</span>
+                          </div>
+                        </td>
+                        <td className="py-[3px] px-2 text-[11px] uppercase text-[#333] whitespace-nowrap overflow-hidden text-ellipsis">{row.name}</td>
+                        <td className="py-[3px] px-2 text-right text-[11px]">{fmt(row.total)}</td>
+                        {[...Array(12)].map((_, i) => (
+                          <td key={i} className="py-[3px] px-2 text-right text-[11px]">{fmt(row.months[i])}</td>
+                        ))}
+                      </tr>
+                    );
+                  })}
+                </tbody>
+                <tfoot>
+                  <tr className="bg-[#fcfbf9] border-t-2 border-[#d6d6d6] font-bold text-[11px]">
+                    <td colSpan={2} className="text-right pr-4 py-1.5 text-[#2b579a]">TOTAL:</td>
+                    <td className="text-right px-2 py-1.5 text-[#a51d24]">{fmt(performanceTotals.totalDiff)}</td>
+                    {performanceTotals.monthsDiff.map((diff, i) => (
+                      <td key={i} className="text-right px-2 py-1.5 text-[#a51d24]">{fmt(diff)}</td>
+                    ))}
+                  </tr>
+                  <tr className="bg-[#fcfbf9] font-bold text-[11px]">
+                    <td colSpan={2} className="text-right pr-4 py-1.5 text-[#2b579a]">SALDO PUNTEADO:</td>
+                    <td className="text-right px-2 py-1.5 text-[#a51d24]">{fmt(0)}</td>
+                    {[...Array(12)].map((_, i) => (
+                      <td key={i} className="text-right px-2 py-1.5 text-[#a51d24]">{fmt(0)}</td>
+                    ))}
+                  </tr>
+                  <tr className="bg-[#fcfbf9] font-bold text-[11px] border-b border-[#d6d6d6]">
+                    <td colSpan={2} className="text-right pr-4 py-1.5 text-[#2b579a]">SALDO SIN PUNTEAR:</td>
+                    <td className="text-right px-2 py-1.5 text-[#a51d24]">{fmt(performanceTotals.totalDiff)}</td>
+                    {performanceTotals.monthsDiff.map((diff, i) => (
+                      <td key={i} className="text-right px-2 py-1.5 text-[#a51d24]">{fmt(diff)}</td>
+                    ))}
+                  </tr>
+                </tfoot>
+              </table>
+            </div>
           </div>
         </div>
       </div>
@@ -580,20 +790,40 @@ export default function Analitica() {
             </div>
 
             <div className="p-4 flex flex-col gap-3">
+              {/* CEBE and CECO selection */}
+              <div className="grid grid-cols-2 gap-2">
+                <div className="flex items-center gap-[6px]">
+                  <span className="border border-[#999] bg-white px-2 py-[3px] text-[12px] text-[#333] w-[65px] text-center shrink-0">CEBE:</span>
+                  <select value={formCebe} onChange={e => setFormCebe(e.target.value)}
+                          className="flex-1 border border-[#999] px-2 py-[3px] text-[12px] bg-white outline-none">
+                    <option value="">-- Sin CEBE --</option>
+                    {cebes.map(c => <option key={c.id} value={c.code}>{c.code}</option>)}
+                  </select>
+                </div>
+                <div className="flex items-center gap-[6px]">
+                  <span className="border border-[#999] bg-white px-2 py-[3px] text-[12px] text-[#333] w-[65px] text-center shrink-0">CECO:</span>
+                  <select value={formCeco} onChange={e => setFormCeco(e.target.value)}
+                          className="flex-1 border border-[#999] px-2 py-[3px] text-[12px] bg-white outline-none">
+                    <option value="">-- Sin CECO --</option>
+                    {cecos.map(c => <option key={c.id} value={c.code}>{c.code}</option>)}
+                  </select>
+                </div>
+              </div>
+
               {/* Cuenta */}
               <div className="flex items-center gap-[6px]">
-                <span className="border border-[#999] bg-white px-2 py-[3px] text-[12px] text-[#333] text-center">Cuenta:</span>
+                <span className="border border-[#999] bg-white px-2 py-[3px] text-[12px] text-[#333] w-[65px] text-center shrink-0 font-bold">Cuenta:</span>
                 <input type="text" readOnly value={formAccount?.code || ''}
                        onClick={() => setShowAccountSel(true)}
-                       className="w-[70px] border border-[#999] px-2 py-[3px] text-[12px] bg-white cursor-pointer outline-none" />
-                <span className="text-[12px] text-[#333] uppercase truncate flex-1">{formAccount?.name || ''}</span>
+                       className="w-[80px] border border-[#999] px-2 py-[3px] text-[12px] bg-white cursor-pointer outline-none font-mono" />
+                <span className="text-[12px] text-[#333] uppercase truncate flex-1 font-semibold">{formAccount?.name || ''}</span>
               </div>
 
               {/* Presupuesto anual + Repartir */}
               <div className="flex items-center gap-[6px]">
                 <span className="border border-[#999] bg-white px-2 py-[3px] text-[12px] font-semibold text-[#333] whitespace-nowrap">Presupuesto anual:</span>
                 <input type="text" readOnly value={formTotal.toLocaleString('es-ES', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
-                       className="w-[70px] border border-[#999] px-2 py-[3px] text-[12px] text-right bg-white outline-none" />
+                       className="w-[80px] border border-[#999] px-2 py-[3px] text-[12px] text-right bg-white outline-none font-bold" />
                 <button onClick={distribute}
                         className="border border-[#999] bg-[#e1e1e1] hover:bg-[#d0d0d0] px-3 py-[3px] text-[12px] whitespace-nowrap active:bg-[#c0c0c0]">
                   Repartir proporcionalmente
