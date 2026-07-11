@@ -1420,8 +1420,7 @@ export default function Analitica() {
               <Accounts
                 isModal={true}
                 onAccountSelect={(code, name) => {
-                  setDesvFilterCode(code);
-                  setDesvFilterName(name);
+                  setDesvFilterCuenta(code);
                   setShowDesvAccountSel(false);
                   setDesvCalculatedData(null);
                 }}
