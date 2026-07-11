@@ -32,6 +32,25 @@ const descr = (code, accounts=[]) => {
   return `CUENTA ${code}`;
 };
 
+const inferAccountType = (code, providedType) => {
+  if (providedType) return providedType;
+  if (!code) return 'Pasivo';
+  const first = code.toString().charAt(0);
+  if (['2', '3', '4', '5'].includes(first)) return 'Activo'; 
+  if (first === '6' || first === '8') return 'Gasto';
+  if (first === '7' || first === '9') return 'Ingreso';
+  if (first === '1') return 'Pasivo';
+  return 'Pasivo';
+};
+
+const getTransactionNet = (tx, account) => {
+  const type = inferAccountType(account?.code, account?.type);
+  const isAssetOrExpense = ['Activo', 'Gasto'].includes(type);
+  const debit = parseFloat(tx.debit) || 0;
+  const credit = parseFloat(tx.credit) || 0;
+  return isAssetOrExpense ? (debit - credit) : (credit - debit);
+};
+
 const MONTHS_LONG = ['Enero','Febrero','Marzo','Abril','Mayo','Junio','Julio','Agosto','Septiembre','Octubre','Noviembre','Diciembre'];
 const MONTHS_HDR  = ['ENE.','FEB.','MAR.','ABR.','MAY.','JUN.','JUL.','AGO.','SEP.','OCT.','NOV.','DIC.'];
 
@@ -210,6 +229,88 @@ function useDragResize({ initW, initH, minW = 200, minH = 150 }) {
   return { pos, size, onDragDown, resizeHandles };
 }
 
+function useDrag(initX, initY) {
+  const [pos, setPos] = useState({ x: initX, y: initY });
+  const onDragDown = e => {
+    e.preventDefault();
+    const ox = e.clientX - pos.x, oy = e.clientY - pos.y;
+    const mv = e => setPos({ x: e.clientX - ox, y: e.clientY - oy });
+    const up = () => { window.removeEventListener('mousemove', mv); window.removeEventListener('mouseup', up); };
+    window.addEventListener('mousemove', mv);
+    window.addEventListener('mouseup', up);
+  };
+  return [pos, onDragDown];
+}
+
+function CenterSelectorModal({ type, items, onSelect, onClose }) {
+  const [pos, onDragDown] = useDrag(Math.max(0, (window.innerWidth - 500) / 2), 120);
+  const [searchQ, setSearchQ] = useState('');
+
+  const filtered = useMemo(() => {
+    if (!searchQ) return items;
+    const q = searchQ.toLowerCase();
+    return items.filter(x =>
+      (x.code || '').toLowerCase().includes(q) ||
+      (x.name || '').toLowerCase().includes(q)
+    );
+  }, [items, searchQ]);
+
+  return (
+    <div className="fixed inset-0 z-[3000]" style={{ background: 'rgba(0,0,0,0.3)' }}>
+      <div style={{ position: 'absolute', left: pos.x, top: pos.y, width: 500, height: 420 }}
+           className="flex flex-col bg-white border border-[#888] shadow-xl relative select-none">
+        <div onMouseDown={onDragDown}
+             className="flex items-center justify-between px-3 py-[6px] bg-[#4472c4] shrink-0 cursor-move">
+          <span className="text-white text-[12px] font-bold tracking-wide uppercase">Selección de {type.toUpperCase()}</span>
+          <button onClick={onClose} className="w-[22px] h-[22px] flex items-center justify-center hover:bg-red-500 text-white rounded-[2px]">
+            <X size={14} strokeWidth={2.5} />
+          </button>
+        </div>
+        
+        {/* Search bar inside selector */}
+        <div className="flex justify-end items-center px-3 py-2 border-b border-[#d1d5db] bg-slate-50 shrink-0">
+          <div className="relative flex items-center">
+            <input type="text" placeholder="Buscar en el fichero (Alt+B)"
+                   value={searchQ} onChange={e => setSearchQ(e.target.value)}
+                   className="w-[250px] pr-5 py-[2px] text-[11px] text-right border-b border-[#aaa] outline-none focus:border-b-[#4472c4] bg-transparent placeholder:text-[#aaa]" />
+            <Search size={13} className="absolute right-0 text-[#aaa] pointer-events-none" />
+          </div>
+        </div>
+
+        <div className="flex-1 overflow-auto p-1">
+          <table className="w-full border-collapse text-[11px] text-left">
+            <thead>
+              <tr className="sticky top-0 bg-[#f2f2f2] border-b border-slate-300 font-bold text-slate-700">
+                <th className="py-2 px-3 font-bold">Código</th>
+                <th className="py-2 px-3 font-bold">Descripción</th>
+              </tr>
+            </thead>
+            <tbody>
+              <tr className="border-b border-slate-100 hover:bg-slate-100 cursor-pointer"
+                  onClick={() => { onSelect(''); onClose(); }}>
+                <td colSpan={2} className="py-2 px-3 text-slate-500 italic">-- Sin {type.toUpperCase()} --</td>
+              </tr>
+              {filtered.length === 0 ? (
+                <tr>
+                  <td colSpan={2} className="text-center py-6 text-slate-400">No se encontraron resultados</td>
+                </tr>
+              ) : (
+                filtered.map(x => (
+                  <tr key={x.id} className="border-b border-slate-100 hover:bg-slate-100 cursor-pointer"
+                      onClick={() => { onSelect(x.code); onClose(); }}>
+                    <td className="py-2 px-3 font-mono font-bold text-slate-700">{x.code}</td>
+                    <td className="py-2 px-3 text-slate-600 uppercase">{x.name}</td>
+                  </tr>
+                ))
+              )}
+            </tbody>
+          </table>
+        </div>
+      </div>
+    </div>
+  );
+}
+
 /* ═══════════════════════════════════════════════════════════════════════════════
    ACCOUNT SELECTOR (simple popup for choosing account)
    ═══════════════════════════════════════════════════════════════════════════════ */
@@ -329,14 +430,15 @@ export default function Analitica() {
   const { user, queryUserIds } = useAuth();
 
   const [rawAccounts, setRawAccounts] = useState([]);
+  const [rawTransactions, setRawTransactions] = useState([]);
   const [budgets, setBudgets] = useState([]);
   const [sidebarVisible, setSidebarVisible] = useState(true);
-
+ 
   const [viewMode, setViewMode] = useState('contable'); // 'contable' | 'analitica'
   const [associations, setAssociations] = useState([]);
   const [cebes, setCebes] = useState([]);
   const [cecos, setCecos] = useState([]);
-
+ 
   const [groupFilter, setGroupFilter] = useState('ALL');
   const [showPgc, setShowPgc] = useState(false);
   const [showAux, setShowAux] = useState(true);
@@ -345,9 +447,10 @@ export default function Analitica() {
   const [onlyAssigned, setOnlyAssigned] = useState(false);
   const [searchQuery, setSearchQuery] = useState('');
   const [selectedYear, setSelectedYear] = useState(2026);
+  const [selectedPeriod, setSelectedPeriod] = useState('ALL');
   const [collapsed, setCollapsed] = useState({});
   const [selectedCode, setSelectedCode] = useState(null);
-
+ 
   // Modal state
   const [showForm, setShowForm] = useState(false);
   const [isEditing, setIsEditing] = useState(false);
@@ -357,17 +460,32 @@ export default function Analitica() {
   const [formCebe, setFormCebe] = useState('');
   const [formCeco, setFormCeco] = useState('');
   const [showAccountSel, setShowAccountSel] = useState(false);
-
+  const [showCebeSel, setShowCebeSel] = useState(false);
+  const [showCecoSel, setShowCecoSel] = useState(false);
+ 
+  // Desviacion modal states
+  const [showDesviacionModal, setShowDesviacionModal] = useState(false);
+  const [desvFilterType, setDesvFilterType] = useState('cuenta'); // 'cuenta' | 'cebe' | 'ceco'
+  const [desvFilterCode, setDesvFilterCode] = useState('');
+  const [desvFilterName, setDesvFilterName] = useState('');
+  const [desvCalculatedData, setDesvCalculatedData] = useState(null);
+  const [showDesvAccountSel, setShowDesvAccountSel] = useState(false);
+  const [showDesvCebeSel, setShowDesvCebeSel] = useState(false);
+  const [showDesvCecoSel, setShowDesvCecoSel] = useState(false);
+ 
   // Drag+Resize state for budget modal
   const budgetDR = useDragResize({ initW: 440, initH: 520, minW: 380, minH: 400 });
+  // Drag+Resize state for deviations modal
+  const desvDR = useDragResize({ initW: 800, initH: 550, minW: 600, minH: 400 });
   // Drag+Resize state for account selector modal
   const accountDR = useDragResize({ initW: 900, initH: 650, minW: 500, minH: 400 });
-
+ 
   /* ── Firestore ────────────────────────────────────────────────────────────── */
   useEffect(() => {
     if (!user) return;
     const uids = queryUserIds?.length ? queryUserIds : [user.uid];
     const uA = onSnapshot(query(collection(db, 'accounts'), where('userId', 'in', uids)), s => setRawAccounts(s.docs.map(d => ({ id: d.id, ...d.data() }))));
+    const uTx = onSnapshot(query(collection(db, 'transactions'), where('userId', 'in', uids)), s => setRawTransactions(s.docs.map(d => ({ id: d.id, ...d.data() }))));
     const uB = onSnapshot(query(collection(db, 'budgets'), where('userId', 'in', uids)), s => setBudgets(s.docs.map(d => ({ id: d.id, ...d.data() }))));
     const uAssoc = onSnapshot(query(collection(db, 'analitica_associations'), where('userId', 'in', uids)), s => setAssociations(s.docs.map(d => ({ id: d.id, ...d.data() }))));
     const uCenters = onSnapshot(query(collection(db, 'analytical_centers'), where('userId', 'in', uids)), s => {
@@ -375,9 +493,19 @@ export default function Analitica() {
       setCebes(docs.filter(c => c.type === 'cebe'));
       setCecos(docs.filter(c => c.type === 'ceco'));
     });
-    return () => { uA(); uB(); uAssoc(); uCenters(); };
+    return () => { uA(); uTx(); uB(); uAssoc(); uCenters(); };
   }, [user, queryUserIds]);
-
+ 
+  useEffect(() => {
+    const handleOpenDesviaciones = () => {
+      setShowDesviacionModal(true);
+    };
+    window.addEventListener('analitica:open-desviacion-modal', handleOpenDesviaciones);
+    return () => {
+      window.removeEventListener('analitica:open-desviacion-modal', handleOpenDesviaciones);
+    };
+  }, []);
+ 
   /* ── Budget data for selected year ────────────────────────────────────────── */
   const budgetsForYear = useMemo(() => budgets.filter(b => b.year === selectedYear), [budgets, selectedYear]);
 
@@ -563,6 +691,15 @@ export default function Analitica() {
 
   /* ── Helpers ──────────────────────────────────────────────────────────────── */
   const fmt = v => v === 0 ? '' : (v || 0).toLocaleString('es-ES', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+  const shouldRenderMonth = (idx) => {
+    if (selectedPeriod === 'ALL') return true;
+    if (['1T','2T','3T','4T'].includes(selectedPeriod)) {
+      const q = parseInt(selectedPeriod[0]);
+      const startMonth = (q - 1) * 3;
+      return idx >= startMonth && idx < startMonth + 3;
+    }
+    return idx === parseInt(selectedPeriod);
+  };
   const formTotal = Object.values(formMonths).reduce((s, v) => s + (parseFloat(v) || 0), 0);
 
   const openNew = () => {
@@ -624,6 +761,108 @@ export default function Analitica() {
     await deleteDoc(doc(db, 'budgets', bud.id));
     setSelectedCode(null);
   };
+
+  const handleProcederDesviaciones = () => {
+    if (!desvFilterCode) {
+      alert('Por favor, seleccione un elemento para analizar.');
+      return;
+    }
+
+    const calculatedMonths = [];
+    let cumulativePresupuesto = 0;
+    let cumulativeSaldo = 0;
+
+    for (let m = 0; m < 12; m++) {
+      let presupuesto_m = 0;
+      if (desvFilterType === 'cuenta') {
+        const buds = budgetsForYear.filter(b => b.accountCode && b.accountCode.startsWith(desvFilterCode));
+        presupuesto_m = buds.reduce((s, b) => s + (parseFloat(b.months?.[m]) || 0), 0);
+      } else if (desvFilterType === 'cebe') {
+        const buds = budgetsForYear.filter(b => b.cebe && b.cebe.replace(/^(CEBE|CECO)/i, '').trim() === desvFilterCode.replace(/^(CEBE|CECO)/i, '').trim());
+        presupuesto_m = buds.reduce((s, b) => s + (parseFloat(b.months?.[m]) || 0), 0);
+      } else if (desvFilterType === 'ceco') {
+        const buds = budgetsForYear.filter(b => b.ceco && b.ceco.replace(/^(CEBE|CECO)/i, '').trim() === desvFilterCode.replace(/^(CEBE|CECO)/i, '').trim());
+        presupuesto_m = buds.reduce((s, b) => s + (parseFloat(b.months?.[m]) || 0), 0);
+      }
+
+      let saldo_m = 0;
+      const txsInMonth = rawTransactions.filter(tx => {
+        if (!tx.date) return false;
+        const txDate = new Date(tx.date);
+        if (txDate.getFullYear() !== selectedYear) return false;
+        if (txDate.getMonth() !== m) return false;
+        
+        if (desvFilterType === 'cuenta') {
+          const account = rawAccounts.find(a => a.id === tx.accountId || a.code === tx.accountId);
+          return account && account.code && account.code.startsWith(desvFilterCode);
+        } else if (desvFilterType === 'cebe') {
+          return tx.cebe && tx.cebe.replace(/^(CEBE|CECO)/i, '').trim() === desvFilterCode.replace(/^(CEBE|CECO)/i, '').trim();
+        } else if (desvFilterType === 'ceco') {
+          return tx.ceco && tx.ceco.replace(/^(CEBE|CECO)/i, '').trim() === desvFilterCode.replace(/^(CEBE|CECO)/i, '').trim();
+        }
+        return false;
+      });
+
+      saldo_m = txsInMonth.reduce((sum, tx) => {
+        const account = rawAccounts.find(a => a.id === tx.accountId || a.code === tx.accountId);
+        return sum + getTransactionNet(tx, account);
+      }, 0);
+
+      const desviacion_m = saldo_m - presupuesto_m;
+
+      let pctDesviacion_m = 0;
+      if (presupuesto_m === 0) {
+        if (saldo_m === 0) pctDesviacion_m = 0;
+        else pctDesviacion_m = saldo_m > 0 ? 100 : -100;
+      } else {
+        pctDesviacion_m = (desviacion_m / presupuesto_m) * 100;
+      }
+
+      cumulativePresupuesto += presupuesto_m;
+      cumulativeSaldo += saldo_m;
+      const cumulativeDesviacion = cumulativeSaldo - cumulativePresupuesto;
+      
+      let pctDesvArrast_m = 0;
+      if (cumulativePresupuesto === 0) {
+        if (cumulativeSaldo === 0) pctDesvArrast_m = 0;
+        else pctDesvArrast_m = cumulativeSaldo > 0 ? 100 : -100;
+      } else {
+        pctDesvArrast_m = (cumulativeDesviacion / cumulativePresupuesto) * 100;
+      }
+
+      calculatedMonths.push({
+        mes: MONTHS_LONG[m],
+        presupuesto: presupuesto_m,
+        saldo: saldo_m,
+        desviacion: desviacion_m,
+        pctDesviacion: pctDesviacion_m,
+        pctDesvArrast: pctDesvArrast_m
+      });
+    }
+
+    const totalPresupuesto = calculatedMonths.reduce((s, x) => s + x.presupuesto, 0);
+    const totalSaldo = calculatedMonths.reduce((s, x) => s + x.saldo, 0);
+    const totalDesviacion = totalSaldo - totalPresupuesto;
+    let totalPctDesviacion = 0;
+    if (totalPresupuesto === 0) {
+      if (totalSaldo === 0) totalPctDesviacion = 0;
+      else totalPctDesviacion = totalSaldo > 0 ? 100 : -100;
+    } else {
+      totalPctDesviacion = (totalDesviacion / totalPresupuesto) * 100;
+    }
+
+    setDesvCalculatedData({
+      months: calculatedMonths,
+      totals: {
+        presupuesto: totalPresupuesto,
+        saldo: totalSaldo,
+        desviacion: totalDesviacion,
+        pctDesviacion: totalPctDesviacion,
+        pctDesvArrast: totalPctDesviacion
+      }
+    });
+  };
+
   const saveBudget = async () => {
     if (!formAccount) { alert('Selecciona una cuenta contable.'); return; }
     const total = Object.values(formMonths).reduce((s, v) => s + (parseFloat(v) || 0), 0);
@@ -660,6 +899,13 @@ export default function Analitica() {
     ])));
   };
 
+  const visibleMonthsCount = useMemo(() => {
+    if (selectedPeriod === 'ALL') return 12;
+    if (['1T','2T','3T','4T'].includes(selectedPeriod)) return 3;
+    return 1;
+  }, [selectedPeriod]);
+  const minWidth = 180 + 320 + 120 + visibleMonthsCount * 80;
+
   /* ═══════════════════════════════════════════════════════════════════════════ */
   return (
     <div className="w-full h-full flex flex-col bg-white font-[Segoe_UI,Tahoma,sans-serif] text-[12px] text-[#333] select-none">
@@ -682,15 +928,16 @@ export default function Analitica() {
 
         {/* ── LEFT SIDEBAR (Foto 1 exact) ───────────────────────────────────── */}
         {sidebarVisible && (
-          <div className="w-[200px] bg-[#f3f3f3] border-r border-[#d6d6d6] flex flex-col shrink-0 overflow-hidden">
-            <div className="flex-1 overflow-y-auto">
+          <div className="flex shrink-0 border-r border-[#d6d6d6]">
+            {/* The main sidebar */}
+            <div className="w-[150px] bg-[#f3f3f3] flex flex-col overflow-y-auto select-none border-r border-slate-300">
               {/* Vista selector */}
               <div className="bg-[#e6e8ec] text-[#333] text-[12px] font-bold px-3 py-[5px] border-b border-[#d6d6d6]">
                 Vista
               </div>
               <div className="px-3 py-2 flex flex-col gap-1 border-b border-[#d6d6d6]">
                 <SideRadio checked={viewMode === 'contable'} onChange={() => { setViewMode('contable'); setSelectedCode(null); setCollapsed({}); }} label="Cuentas Contables" />
-                <SideRadio checked={viewMode === 'analitica'} onChange={() => { setViewMode('analitica'); setSelectedCode(null); setCollapsed({}); }} label="Cuenta Analítica (CEBE / CECO)" />
+                <SideRadio checked={viewMode === 'analitica'} onChange={() => { setViewMode('analitica'); setSelectedCode(null); setCollapsed({}); }} label="Cuenta Analítica" />
               </div>
 
               {/* Header */}
@@ -706,19 +953,49 @@ export default function Analitica() {
               </div>
               {/* Checkboxes */}
               <div className="px-3 pt-1 pb-2 flex flex-col">
-                <SideCheck checked={showPgc} onChange={e => setShowPgc(e.target.checked)} label="Mostrar cuentas del PGC" />
-                <SideCheck checked={showAux} onChange={e => setShowAux(e.target.checked)} label="Mostrar cuentas auxiliares" bold />
-                <SideCheck checked={showObsolete} onChange={e => setShowObsolete(e.target.checked)} label="Mostrar cuentas obsoletas" />
-                <div className="border-t border-[#d6d6d6] my-[5px]" />
                 <SideCheck checked={onlyAssigned} onChange={e => { setOnlyAssigned(e.target.checked); setCollapsed({}); }} label="Mostrar solo asignadas" bold={onlyAssigned} />
               </div>
+              
+              {/* Bottom: Ver saldos */}
+              <div className="bg-[#e6e8ec] border-t border-[#d6d6d6] p-2 mt-auto shrink-0">
+                <div className="text-[11px] text-[#555] mb-1">Ver saldos del diario</div>
+                <select className="w-full border border-[#aaa] bg-white text-[11px] px-1 py-[3px] outline-none">
+                  <option>Todas</option>
+                </select>
+              </div>
             </div>
-            {/* Bottom: Ver saldos */}
-            <div className="bg-[#e6e8ec] border-t border-[#d6d6d6] p-2 shrink-0">
-              <div className="text-[11px] text-[#555] mb-1">Ver saldos del diario</div>
-              <select className="w-full border border-[#aaa] bg-white text-[11px] px-1 py-[3px] outline-none">
-                <option>Todas</option>
-              </select>
+
+            {/* The date strip */}
+            <div className="w-[50px] bg-white flex flex-col items-center py-2 gap-1.5 shrink-0 overflow-y-auto">
+              {['ENE', 'FEB', 'MAR', 'ABR', 'MAY', 'JUN', 'JUL', 'AGO', 'SEP', 'OCT', 'NOV', 'DIC'].map((m, idx) => {
+                const active = selectedPeriod === String(idx);
+                return (
+                  <button key={m} onClick={() => setSelectedPeriod(String(idx))}
+                          className={`text-[9px] font-bold py-[3px] w-full text-center hover:bg-slate-100 ${active ? 'bg-blue-100 text-blue-700 border-r-2 border-blue-600' : 'text-slate-600'}`}>
+                    {m}
+                  </button>
+                );
+              })}
+              <div className="w-full border-t border-slate-200 my-1" />
+              {['1T', '2T', '3T', '4T'].map(q => {
+                const active = selectedPeriod === q;
+                return (
+                  <button key={q} onClick={() => setSelectedPeriod(q)}
+                          className={`text-[9px] font-bold py-[3px] w-full text-center hover:bg-slate-100 ${active ? 'bg-blue-100 text-blue-700 border-r-2 border-blue-600' : 'text-slate-600'}`}>
+                    {q}
+                  </button>
+                );
+              })}
+              <div className="w-full border-t border-slate-200 my-1" />
+              {[2024, 2025, 2026, 2027].map(y => {
+                const active = selectedYear === y;
+                return (
+                  <button key={y} onClick={() => { setSelectedYear(y); setSelectedPeriod('ALL'); }}
+                          className={`text-[9px] font-bold py-[3px] w-full text-center hover:bg-slate-100 ${active ? 'bg-blue-100 text-blue-700 border-r-2 border-blue-600' : 'text-slate-600'}`}>
+                    {y}
+                  </button>
+                );
+              })}
             </div>
           </div>
         )}
@@ -744,7 +1021,7 @@ export default function Analitica() {
           <div className="flex-1 flex flex-col overflow-hidden bg-white" onClick={() => setSelectedCode(null)}>
             {/* Horizontal scroll wrapper for both tables */}
             <div className="flex-1 flex flex-col overflow-x-auto overflow-y-hidden">
-              <div className="min-w-[1460px] flex-1 flex flex-col overflow-hidden">
+              <div style={{ minWidth }} className="flex-1 flex flex-col overflow-hidden">
                 {/* Body Table */}
                 <div className="flex-1 overflow-y-auto">
                   <table className="w-full border-collapse text-[11px]" style={{ tableLayout: 'fixed' }}>
@@ -752,7 +1029,7 @@ export default function Analitica() {
                       <col style={{ width: 180 }} />
                       <col style={{ width: 320 }} />
                       <col style={{ width: 120 }} />
-                      {MONTHS_HDR.map((_, i) => <col key={i} style={{ width: 80 }} />)}
+                      {MONTHS_HDR.map((_, i) => shouldRenderMonth(i) && <col key={i} style={{ width: 80 }} />)}
                     </colgroup>
                     <thead>
                       <tr className="sticky top-0 bg-white border-b border-[#d6d6d6] z-10">
@@ -761,7 +1038,7 @@ export default function Analitica() {
                         </th>
                         <th className="text-left font-normal text-[#555] text-[10px] uppercase tracking-wider py-[5px] px-2">DESCRIPCIÓN</th>
                         <th className="text-right font-normal text-[#555] text-[10px] uppercase tracking-wider py-[5px] px-2">PRESUPUESTO</th>
-                        {MONTHS_HDR.map(m => (
+                        {MONTHS_HDR.map((m, i) => shouldRenderMonth(i) && (
                           <th key={m} className="text-right font-normal text-[#555] text-[10px] uppercase tracking-wider py-[5px] px-2">{m}</th>
                         ))}
                       </tr>
@@ -791,7 +1068,7 @@ export default function Analitica() {
                             </td>
                             <td className="py-[3px] px-2 text-[11px] uppercase text-[#333] whitespace-nowrap overflow-hidden text-ellipsis">{row.name}</td>
                             <td className="py-[3px] px-2 text-right text-[11px]">{fmt(row.total)}</td>
-                            {[...Array(12)].map((_, i) => (
+                            {[...Array(12)].map((_, i) => shouldRenderMonth(i) && (
                               <td key={i} className="py-[3px] px-2 text-right text-[11px]">{fmt(row.months[i])}</td>
                             ))}
                           </tr>
@@ -808,27 +1085,27 @@ export default function Analitica() {
                       <col style={{ width: 180 }} />
                       <col style={{ width: 320 }} />
                       <col style={{ width: 120 }} />
-                      {MONTHS_HDR.map((_, i) => <col key={i} style={{ width: 80 }} />)}
+                      {MONTHS_HDR.map((_, i) => shouldRenderMonth(i) && <col key={i} style={{ width: 80 }} />)}
                     </colgroup>
                     <tbody>
                       <tr className="font-bold text-[11px]">
                         <td colSpan={2} className="text-right pr-4 py-1 text-[#2b579a]">TOTAL:</td>
                         <td className="text-right px-2 py-1 text-[#a51d24]">{fmt(performanceTotals.totalDiff)}</td>
-                        {performanceTotals.monthsDiff.map((diff, i) => (
+                        {performanceTotals.monthsDiff.map((diff, i) => shouldRenderMonth(i) && (
                           <td key={i} className="text-right px-2 py-1 text-[#a51d24]">{fmt(diff)}</td>
                         ))}
                       </tr>
                       <tr className="font-bold text-[11px]">
                         <td colSpan={2} className="text-right pr-4 py-1 text-[#2b579a]">SALDO PUNTEADO:</td>
                         <td className="text-right px-2 py-1 text-[#a51d24]">{fmt(0)}</td>
-                        {[...Array(12)].map((_, i) => (
+                        {[...Array(12)].map((_, i) => shouldRenderMonth(i) && (
                           <td key={i} className="text-right px-2 py-1 text-[#a51d24]">{fmt(0)}</td>
                         ))}
                       </tr>
                       <tr className="font-bold text-[11px] border-b border-[#d6d6d6]">
                         <td colSpan={2} className="text-right pr-4 py-1 text-[#2b579a]">SALDO SIN PUNTEAR:</td>
                         <td className="text-right px-2 py-1 text-[#a51d24]">{fmt(performanceTotals.totalDiff)}</td>
-                        {performanceTotals.monthsDiff.map((diff, i) => (
+                        {performanceTotals.monthsDiff.map((diff, i) => shouldRenderMonth(i) && (
                           <td key={i} className="text-right px-2 py-1 text-[#a51d24]">{fmt(diff)}</td>
                         ))}
                       </tr>
@@ -897,11 +1174,17 @@ export default function Analitica() {
               <div className="grid grid-cols-2 gap-2">
                 <div className="flex items-center gap-[6px]">
                   <span className="border border-[#999] bg-[#f8f9fa] px-2 py-[3px] text-[12px] text-[#333] w-[65px] text-center shrink-0">CEBE:</span>
-                  <SearchableSelect value={formCebe} onChange={setFormCebe} options={cebes} placeholder="-- Sin CEBE --" />
+                  <input type="text" readOnly value={formCebe}
+                         onClick={() => setShowCebeSel(true)}
+                         placeholder="(Sin CEBE)"
+                         className="flex-1 border border-[#999] px-2 py-[3px] text-[12px] bg-white cursor-pointer outline-none placeholder:text-slate-400 font-mono font-bold" />
                 </div>
                 <div className="flex items-center gap-[6px]">
                   <span className="border border-[#999] bg-[#f8f9fa] px-2 py-[3px] text-[12px] text-[#333] w-[65px] text-center shrink-0">CECO:</span>
-                  <SearchableSelect value={formCeco} onChange={setFormCeco} options={cecos} placeholder="-- Sin CECO --" />
+                  <input type="text" readOnly value={formCeco}
+                         onClick={() => setShowCecoSel(true)}
+                         placeholder="(Sin CECO)"
+                         className="flex-1 border border-[#999] px-2 py-[3px] text-[12px] bg-white cursor-pointer outline-none placeholder:text-slate-400 font-mono font-bold" />
                 </div>
               </div>
 
@@ -1033,6 +1316,206 @@ export default function Analitica() {
             </div>
           </div>
         </div>
+      )}
+
+      {showCebeSel && (
+        <CenterSelectorModal
+          type="cebe"
+          items={cebes}
+          onSelect={val => setFormCebe(val)}
+          onClose={() => setShowCebeSel(false)}
+        />
+      )}
+
+      {showCecoSel && (
+        <CenterSelectorModal
+          type="ceco"
+          items={cecos}
+          onSelect={val => setFormCeco(val)}
+          onClose={() => setShowCecoSel(false)}
+        />
+      )}
+
+      {/* ═══════════════════════════════════════════════════════════════════════
+          MODAL: Desviación de presupuestos
+      ═══════════════════════════════════════════════════════════════════════ */}
+      {showDesviacionModal && (
+        <div className="fixed inset-0 z-[3000]" style={{ background: 'rgba(0,0,0,0.08)' }}>
+          <div style={{ position: 'absolute', left: desvDR.pos.x, top: desvDR.pos.y, width: desvDR.size.w, height: desvDR.size.h }}
+               className="bg-[#f0f0f0] border border-[#888] shadow-[2px_3px_12px_rgba(0,0,0,0.35)] flex flex-col select-none relative overflow-hidden">
+            {desvDR.resizeHandles}
+            {/* Title bar */}
+            <div onMouseDown={desvDR.onDragDown} className="flex items-center px-2 py-[5px] border-b border-[#ccc] gap-2 cursor-move shrink-0 bg-[#e1e1e1]">
+              <div className="flex items-center shrink-0">
+                <svg width="48" height="40" viewBox="0 0 48 40" fill="none">
+                  <rect x="8" y="2" width="22" height="28" stroke="#999" fill="#fff" strokeWidth="1"/>
+                  <line x1="12" y1="8" x2="26" y2="8" stroke="#ccc" strokeWidth="1"/>
+                  <line x1="12" y1="13" x2="26" y2="13" stroke="#ccc" strokeWidth="1"/>
+                  <rect x="2" y="8" width="22" height="28" stroke="#666" fill="#fff" strokeWidth="1"/>
+                  <line x1="6" y1="14" x2="20" y2="14" stroke="#aaa" strokeWidth="1"/>
+                  <line x1="6" y1="19" x2="20" y2="19" stroke="#aaa" strokeWidth="1"/>
+                  <line x1="6" y1="24" x2="20" y2="24" stroke="#aaa" strokeWidth="1"/>
+                  <circle cx="28" cy="24" r="8" stroke="#333" fill="#fff" strokeWidth="1.5"/>
+                  <line x1="33.5" y1="29.5" x2="42" y2="38" stroke="#333" strokeWidth="2.5" strokeLinecap="round"/>
+                  <circle cx="26" cy="22" r="2" fill="#999" fillOpacity="0.3"/>
+                </svg>
+              </div>
+              <span className="text-[12px] text-[#333] font-normal flex-1 text-center font-bold">Desviación de presupuestos</span>
+              <button onClick={() => setShowDesviacionModal(false)} className="w-[20px] h-[20px] flex items-center justify-center hover:bg-red-500 hover:text-white text-[#666] rounded-[2px] shrink-0">
+                <X size={13} strokeWidth={2.5} />
+              </button>
+            </div>
+
+            {/* Filter and controls */}
+            <div className="flex items-center gap-2 p-3 bg-[#f8f9fa] border-b border-[#ccc] shrink-0">
+              <span className="text-[12px] font-semibold text-[#333]">Filtrar por:</span>
+              <select value={desvFilterType} onChange={e => { setDesvFilterType(e.target.value); setDesvFilterCode(''); setDesvFilterName(''); setDesvCalculatedData(null); }}
+                      className="border border-[#999] px-2 py-[3px] text-[12px] bg-white outline-none">
+                <option value="cuenta">Cuenta Contable</option>
+                <option value="cebe">CEBE</option>
+                <option value="ceco">CECO</option>
+              </select>
+
+              <span className="border border-[#999] bg-[#e9ecef] px-2 py-[3px] text-[12px] text-[#333] w-[60px] text-center shrink-0 ml-2 font-bold">
+                {desvFilterType === 'cuenta' ? 'Cuenta:' : desvFilterType === 'cebe' ? 'CEBE:' : 'CECO:'}
+              </span>
+              <input type="text" readOnly value={desvFilterCode}
+                     onClick={() => {
+                       if (desvFilterType === 'cuenta') setShowDesvAccountSel(true);
+                       else if (desvFilterType === 'cebe') setShowDesvCebeSel(true);
+                       else if (desvFilterType === 'ceco') setShowDesvCecoSel(true);
+                     }}
+                     className="w-[80px] border border-[#999] px-2 py-[3px] text-[12px] bg-white cursor-pointer outline-none font-mono font-bold" />
+              <span className="text-[12px] text-[#333] uppercase truncate flex-1 font-semibold">{desvFilterName || '(Seleccione un elemento)'}</span>
+              <button onClick={() => {
+                       if (desvFilterType === 'cuenta') setShowDesvAccountSel(true);
+                       else if (desvFilterType === 'cebe') setShowDesvCebeSel(true);
+                       else if (desvFilterType === 'ceco') setShowDesvCecoSel(true);
+                     }} 
+                     className="border border-[#999] bg-[#e1e1e1] hover:bg-[#d0d0d0] p-[3px] rounded-[2px] shadow-sm flex items-center justify-center shrink-0 w-6 h-6">
+                <FileText size={14} />
+              </button>
+            </div>
+
+            {/* Table */}
+            <div className="flex-1 overflow-auto bg-white p-2">
+              <table className="w-full border-collapse text-[11px] border border-[#ccc]">
+                <thead>
+                  <tr className="bg-[#f0f0f0] border-b border-[#ccc] text-[#333]">
+                    <th className="py-1 px-2 text-left font-bold border-r border-[#ccc]">MES</th>
+                    <th className="py-1 px-2 text-right font-bold border-r border-[#ccc]">PRESUPUESTO</th>
+                    <th className="py-1 px-2 text-right font-bold border-r border-[#ccc]">SALDO</th>
+                    <th className="py-1 px-2 text-right font-bold border-r border-[#ccc]">DESVIACIÓN</th>
+                    <th className="py-1 px-2 text-right font-bold border-r border-[#ccc]">% DESVIACIÓN</th>
+                    <th className="py-1 px-2 text-right font-bold">% DESV.ARRAST</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {(desvCalculatedData?.months || [...Array(12)].map((_, i) => ({ mes: MONTHS_LONG[i], presupuesto: 0, saldo: 0, desviacion: 0, pctDesviacion: 0, pctDesvArrast: 0 }))).map((row, idx) => (
+                    <tr key={idx} className="border-b border-[#eee] hover:bg-[#f5f7fa]">
+                      <td className="py-1 px-2 font-semibold border-r border-[#eee]">{row.mes}</td>
+                      <td className="py-1 px-2 text-right font-mono border-r border-[#eee]">{row.presupuesto.toLocaleString('es-ES', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</td>
+                      <td className="py-1 px-2 text-right font-mono border-r border-[#eee]">{row.saldo.toLocaleString('es-ES', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</td>
+                      <td className={`py-1 px-2 text-right font-mono border-r border-[#eee] ${row.desviacion < 0 ? 'text-red-600' : 'text-green-600'}`}>
+                        {row.desviacion.toLocaleString('es-ES', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+                      </td>
+                      <td className={`py-1 px-2 text-right font-mono border-r border-[#eee] ${row.pctDesviacion < 0 ? 'text-red-600' : 'text-green-600'}`}>
+                        {row.pctDesviacion.toLocaleString('es-ES', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}%
+                      </td>
+                      <td className={`py-1 px-2 text-right font-mono ${row.pctDesvArrast < 0 ? 'text-red-600' : 'text-green-600'}`}>
+                        {row.pctDesvArrast.toLocaleString('es-ES', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}%
+                      </td>
+                    </tr>
+                  ))}
+                  {/* Totals Row */}
+                  <tr className="bg-[#fcfbf9] border-t-2 border-[#ccc] font-bold">
+                    <td className="py-1 px-2 text-right border-r border-[#ccc] text-[#2b579a]">TOTALES</td>
+                    <td className="py-1 px-2 text-right font-mono border-r border-[#ccc]">{(desvCalculatedData?.totals?.presupuesto || 0).toLocaleString('es-ES', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</td>
+                    <td className="py-1 px-2 text-right font-mono border-r border-[#ccc]">{(desvCalculatedData?.totals?.saldo || 0).toLocaleString('es-ES', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</td>
+                    <td className={`py-1 px-2 text-right font-mono border-r border-[#ccc] ${(desvCalculatedData?.totals?.desviacion || 0) < 0 ? 'text-red-600' : 'text-green-600'}`}>
+                      {(desvCalculatedData?.totals?.desviacion || 0).toLocaleString('es-ES', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+                    </td>
+                    <td className={`py-1 px-2 text-right font-mono border-r border-[#ccc] ${(desvCalculatedData?.totals?.pctDesviacion || 0) < 0 ? 'text-red-600' : 'text-green-600'}`}>
+                      {(desvCalculatedData?.totals?.pctDesviacion || 0).toLocaleString('es-ES', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}%
+                    </td>
+                    <td className={`py-1 px-2 text-right font-mono ${(desvCalculatedData?.totals?.pctDesvArrast || 0) < 0 ? 'text-red-600' : 'text-green-600'}`}>
+                      {(desvCalculatedData?.totals?.pctDesvArrast || 0).toLocaleString('es-ES', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}%
+                    </td>
+                  </tr>
+                </tbody>
+              </table>
+            </div>
+
+            {/* Footer Buttons */}
+            <div className="flex justify-end gap-2 p-3 bg-[#e1e1e1] border-t border-[#ccc] shrink-0">
+              <button onClick={handleProcederDesviaciones}
+                      className="w-[80px] py-[4px] border border-[#888] bg-[#e1e1e1] hover:bg-[#d0d0d0] text-[12px] active:bg-[#c0c0c0]">
+                Proceder
+              </button>
+              <button onClick={() => setShowDesviacionModal(false)}
+                      className="w-[80px] py-[4px] border border-[#888] bg-[#e1e1e1] hover:bg-[#d0d0d0] text-[12px] active:bg-[#c0c0c0]">
+                Salir
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Selectores específicos para el modal de Desviación */}
+      {showDesvAccountSel && (
+        <div className="fixed inset-0 z-[3100]" style={{ background: 'rgba(0,0,0,0.3)' }}>
+          <div style={{ position: 'absolute', left: accountDR.pos.x, top: accountDR.pos.y, width: accountDR.size.w, height: accountDR.size.h }}
+               className="flex flex-col bg-white border border-[#888] shadow-[2px_3px_16px_rgba(0,0,0,0.4)] relative">
+            {accountDR.resizeHandles}
+            <div onMouseDown={accountDR.onDragDown}
+                 className="flex items-center justify-between px-3 py-[6px] bg-[#4472c4] shrink-0 cursor-move">
+              <span className="text-white text-[12px] font-bold tracking-wide uppercase">Selección de cuenta</span>
+              <button onClick={() => setShowDesvAccountSel(false)}
+                      className="w-[22px] h-[22px] flex items-center justify-center hover:bg-red-500 text-white rounded-[2px]">
+                <X size={14} strokeWidth={2.5} />
+              </button>
+            </div>
+            <div className="flex-1 overflow-hidden">
+              <Accounts
+                isModal={true}
+                onAccountSelect={(code, name) => {
+                  setDesvFilterCode(code);
+                  setDesvFilterName(name);
+                  setShowDesvAccountSel(false);
+                  setDesvCalculatedData(null);
+                }}
+              />
+            </div>
+          </div>
+        </div>
+      )}
+
+      {showDesvCebeSel && (
+        <CenterSelectorModal
+          type="cebe"
+          items={cebes}
+          onSelect={val => {
+            setDesvFilterCode(val);
+            const center = cebes.find(c => c.code === val);
+            setDesvFilterName(center ? center.name : val);
+            setDesvCalculatedData(null);
+          }}
+          onClose={() => setShowDesvCebeSel(false)}
+        />
+      )}
+
+      {showDesvCecoSel && (
+        <CenterSelectorModal
+          type="ceco"
+          items={cecos}
+          onSelect={val => {
+            setDesvFilterCode(val);
+            const center = cecos.find(c => c.code === val);
+            setDesvFilterName(center ? center.name : val);
+            setDesvCalculatedData(null);
+          }}
+          onClose={() => setShowDesvCecoSel(false)}
+        />
       )}
     </div>
   );
