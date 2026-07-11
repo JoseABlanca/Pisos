@@ -93,6 +93,12 @@ const IcoPage = () => (
     <path d="M10 1v3h3" fill="none" stroke="#999" strokeWidth="1"/>
   </svg>
 );
+const IcoSidebarToggle = () => (
+  <svg width="16" height="16" viewBox="0 0 16 16" fill="none" className="text-[#333]">
+    <rect x="2" y="2" width="12" height="12" rx="1.5" stroke="currentColor" strokeWidth="1.5"/>
+    <line x1="6" y1="2" x2="6" y2="14" stroke="currentColor" strokeWidth="1.5"/>
+  </svg>
+);
 
 /* ═══════════════════════════════════════════════════════════════════════════════
    TOOLBAR BUTTON
@@ -651,89 +657,107 @@ export default function Analitica() {
           </div>
 
           {/* Table */}
-          <div className="flex-1 flex flex-col overflow-hidden" onClick={() => setSelectedCode(null)}>
-            <div className="flex-1 overflow-auto">
-              <table className="w-full border-collapse text-[11px]" style={{ tableLayout: 'auto' }}>
-                <colgroup>
-                  <col style={{ minWidth: 120 }} />
-                  <col style={{ minWidth: 200 }} />
-                  <col style={{ minWidth: 100 }} />
-                  {MONTHS_HDR.map((_, i) => <col key={i} style={{ minWidth: 60 }} />)}
-                </colgroup>
-                <thead>
-                  <tr className="sticky top-0 bg-white border-b border-[#d6d6d6] z-10">
-                    <th className="text-left font-normal text-[#555] text-[10px] uppercase tracking-wider py-[5px] px-2">
-                      <div className="flex items-center gap-[6px]">
-                        <button onClick={() => setSidebarVisible(p => !p)} title="Ocultar/Mostrar filtros"
-                                className="hover:bg-[#e0e0e0] p-[1px] rounded-[2px]">
-                          <IcoPage />
-                        </button>
-                        <span>{viewMode === 'analitica' ? 'CEBE / CECO' : 'CUENTA'}</span>
-                      </div>
-                    </th>
-                    <th className="text-left font-normal text-[#555] text-[10px] uppercase tracking-wider py-[5px] px-2">DESCRIPCIÓN</th>
-                    <th className="text-right font-normal text-[#555] text-[10px] uppercase tracking-wider py-[5px] px-2">PRESUPUESTO</th>
-                    {MONTHS_HDR.map(m => (
-                      <th key={m} className="text-right font-normal text-[#555] text-[10px] uppercase tracking-wider py-[5px] px-2">{m}</th>
-                    ))}
-                  </tr>
-                </thead>
-                <tbody>
-                  {visibleRows.map(row => {
-                    const sel = selectedCode === row.code;
-                    return (
-                      <tr key={row.code}
-                          className={`border-b border-[#f0f0f0] cursor-default ${sel ? 'bg-[#cce5ff]' : 'hover:bg-[#f5f7fa]'}`}
-                          onClick={e => { e.stopPropagation(); setSelectedCode(row.code); }}
-                          onDoubleClick={() => { setSelectedCode(row.code); setTimeout(openEdit, 0); }}>
-                        <td className="py-[3px] px-2 whitespace-nowrap">
-                          <div className="flex items-center" style={{ paddingLeft: row.depth * 16 }}>
-                            {row.hasChildren ? (
-                              <button onClick={e => { e.stopPropagation(); setCollapsed(p => ({ ...p, [row.code]: !p[row.code] })); }}
-                                      className="mr-[5px] text-[#999] hover:text-[#333] flex items-center justify-center w-[14px] h-[14px]">
-                                <svg width="8" height="8" viewBox="0 0 8 8" fill="none">
-                                  {collapsed[row.code]
-                                    ? <path d="M2 0l4 4-4 4" stroke="currentColor" strokeWidth="1.5" fill="none" />
-                                    : <path d="M0 2l4 4 4-4" stroke="currentColor" strokeWidth="1.5" fill="none" />}
-                                </svg>
-                              </button>
-                            ) : <span className="w-[19px] shrink-0" />}
-                            <span className="text-[11px] text-[#333]">{row.code}</span>
+          <div className="flex-1 flex flex-col overflow-hidden bg-white" onClick={() => setSelectedCode(null)}>
+            {/* Horizontal scroll wrapper for both tables */}
+            <div className="flex-1 flex flex-col overflow-x-auto overflow-y-hidden">
+              <div className="min-w-[1460px] flex-1 flex flex-col overflow-hidden">
+                {/* Body Table */}
+                <div className="flex-1 overflow-y-auto">
+                  <table className="w-full border-collapse text-[11px]" style={{ tableLayout: 'fixed' }}>
+                    <colgroup>
+                      <col style={{ width: 180 }} />
+                      <col style={{ width: 320 }} />
+                      <col style={{ width: 120 }} />
+                      {MONTHS_HDR.map((_, i) => <col key={i} style={{ width: 80 }} />)}
+                    </colgroup>
+                    <thead>
+                      <tr className="sticky top-0 bg-white border-b border-[#d6d6d6] z-10">
+                        <th className="text-left font-normal text-[#555] text-[10px] uppercase tracking-wider py-[5px] px-2">
+                          <div className="flex items-center gap-[6px]">
+                            <button onClick={() => setSidebarVisible(p => !p)} title="Ocultar/Mostrar filtros"
+                                    className="hover:bg-[#e0e0e0] p-[1px] rounded-[2px] text-[#333] flex items-center justify-center">
+                              <IcoSidebarToggle />
+                            </button>
+                            <span>{viewMode === 'analitica' ? 'CEBE / CECO' : 'CUENTA'}</span>
                           </div>
-                        </td>
-                        <td className="py-[3px] px-2 text-[11px] uppercase text-[#333] whitespace-nowrap overflow-hidden text-ellipsis">{row.name}</td>
-                        <td className="py-[3px] px-2 text-right text-[11px]">{fmt(row.total)}</td>
-                        {[...Array(12)].map((_, i) => (
-                          <td key={i} className="py-[3px] px-2 text-right text-[11px]">{fmt(row.months[i])}</td>
+                        </th>
+                        <th className="text-left font-normal text-[#555] text-[10px] uppercase tracking-wider py-[5px] px-2">DESCRIPCIÓN</th>
+                        <th className="text-right font-normal text-[#555] text-[10px] uppercase tracking-wider py-[5px] px-2">PRESUPUESTO</th>
+                        {MONTHS_HDR.map(m => (
+                          <th key={m} className="text-right font-normal text-[#555] text-[10px] uppercase tracking-wider py-[5px] px-2">{m}</th>
                         ))}
                       </tr>
-                    );
-                  })}
-                </tbody>
-                <tfoot>
-                  <tr className="bg-[#fcfbf9] border-t-2 border-[#d6d6d6] font-bold text-[11px]">
-                    <td colSpan={2} className="text-right pr-4 py-1.5 text-[#2b579a]">TOTAL:</td>
-                    <td className="text-right px-2 py-1.5 text-[#a51d24]">{fmt(performanceTotals.totalDiff)}</td>
-                    {performanceTotals.monthsDiff.map((diff, i) => (
-                      <td key={i} className="text-right px-2 py-1.5 text-[#a51d24]">{fmt(diff)}</td>
-                    ))}
-                  </tr>
-                  <tr className="bg-[#fcfbf9] font-bold text-[11px]">
-                    <td colSpan={2} className="text-right pr-4 py-1.5 text-[#2b579a]">SALDO PUNTEADO:</td>
-                    <td className="text-right px-2 py-1.5 text-[#a51d24]">{fmt(0)}</td>
-                    {[...Array(12)].map((_, i) => (
-                      <td key={i} className="text-right px-2 py-1.5 text-[#a51d24]">{fmt(0)}</td>
-                    ))}
-                  </tr>
-                  <tr className="bg-[#fcfbf9] font-bold text-[11px] border-b border-[#d6d6d6]">
-                    <td colSpan={2} className="text-right pr-4 py-1.5 text-[#2b579a]">SALDO SIN PUNTEAR:</td>
-                    <td className="text-right px-2 py-1.5 text-[#a51d24]">{fmt(performanceTotals.totalDiff)}</td>
-                    {performanceTotals.monthsDiff.map((diff, i) => (
-                      <td key={i} className="text-right px-2 py-1.5 text-[#a51d24]">{fmt(diff)}</td>
-                    ))}
-                  </tr>
-                </tfoot>
-              </table>
+                    </thead>
+                    <tbody>
+                      {visibleRows.map(row => {
+                        const sel = selectedCode === row.code;
+                        return (
+                          <tr key={row.code}
+                              className={`border-b border-[#f0f0f0] cursor-default ${sel ? 'bg-[#cce5ff]' : 'hover:bg-[#f5f7fa]'}`}
+                              onClick={e => { e.stopPropagation(); setSelectedCode(row.code); }}
+                              onDoubleClick={() => { setSelectedCode(row.code); setTimeout(openEdit, 0); }}>
+                            <td className="py-[3px] px-2 whitespace-nowrap">
+                              <div className="flex items-center" style={{ paddingLeft: row.depth * 16 }}>
+                                {row.hasChildren ? (
+                                  <button onClick={e => { e.stopPropagation(); setCollapsed(p => ({ ...p, [row.code]: !p[row.code] })); }}
+                                          className="mr-[5px] text-[#999] hover:text-[#333] flex items-center justify-center w-[14px] h-[14px]">
+                                    <svg width="8" height="8" viewBox="0 0 8 8" fill="none">
+                                      {collapsed[row.code]
+                                        ? <path d="M2 0l4 4-4 4" stroke="currentColor" strokeWidth="1.5" fill="none" />
+                                        : <path d="M0 2l4 4 4-4" stroke="currentColor" strokeWidth="1.5" fill="none" />}
+                                    </svg>
+                                  </button>
+                                ) : <span className="w-[19px] shrink-0" />}
+                                <span className="text-[11px] text-[#333]">{row.code}</span>
+                              </div>
+                            </td>
+                            <td className="py-[3px] px-2 text-[11px] uppercase text-[#333] whitespace-nowrap overflow-hidden text-ellipsis">{row.name}</td>
+                            <td className="py-[3px] px-2 text-right text-[11px]">{fmt(row.total)}</td>
+                            {[...Array(12)].map((_, i) => (
+                              <td key={i} className="py-[3px] px-2 text-right text-[11px]">{fmt(row.months[i])}</td>
+                            ))}
+                          </tr>
+                        );
+                      })}
+                    </tbody>
+                  </table>
+                </div>
+
+                {/* Fixed bottom footer table */}
+                <div className="border-t-2 border-[#d6d6d6] bg-[#fcfbf9] shrink-0 select-text">
+                  <table className="w-full border-collapse text-[11px]" style={{ tableLayout: 'fixed' }}>
+                    <colgroup>
+                      <col style={{ width: 180 }} />
+                      <col style={{ width: 320 }} />
+                      <col style={{ width: 120 }} />
+                      {MONTHS_HDR.map((_, i) => <col key={i} style={{ width: 80 }} />)}
+                    </colgroup>
+                    <tbody>
+                      <tr className="font-bold text-[11px]">
+                        <td colSpan={2} className="text-right pr-4 py-1 text-[#2b579a]">TOTAL:</td>
+                        <td className="text-right px-2 py-1 text-[#a51d24]">{fmt(performanceTotals.totalDiff)}</td>
+                        {performanceTotals.monthsDiff.map((diff, i) => (
+                          <td key={i} className="text-right px-2 py-1 text-[#a51d24]">{fmt(diff)}</td>
+                        ))}
+                      </tr>
+                      <tr className="font-bold text-[11px]">
+                        <td colSpan={2} className="text-right pr-4 py-1 text-[#2b579a]">SALDO PUNTEADO:</td>
+                        <td className="text-right px-2 py-1 text-[#a51d24]">{fmt(0)}</td>
+                        {[...Array(12)].map((_, i) => (
+                          <td key={i} className="text-right px-2 py-1 text-[#a51d24]">{fmt(0)}</td>
+                        ))}
+                      </tr>
+                      <tr className="font-bold text-[11px] border-b border-[#d6d6d6]">
+                        <td colSpan={2} className="text-right pr-4 py-1 text-[#2b579a]">SALDO SIN PUNTEAR:</td>
+                        <td className="text-right px-2 py-1 text-[#a51d24]">{fmt(performanceTotals.totalDiff)}</td>
+                        {performanceTotals.monthsDiff.map((diff, i) => (
+                          <td key={i} className="text-right px-2 py-1 text-[#a51d24]">{fmt(diff)}</td>
+                        ))}
+                      </tr>
+                    </tbody>
+                  </table>
+                </div>
+              </div>
             </div>
           </div>
         </div>
