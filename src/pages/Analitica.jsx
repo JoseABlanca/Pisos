@@ -365,7 +365,7 @@ const MultiSelectDropdown = ({ label, options, selected, onChange }) => {
               filteredOptions.map(opt => {
                 const checked = selected.includes(opt.code);
                 return (
-                  <label key={opt.code} className="flex items-center px-1 py-0.5 hover:bg-[#cce5ff] cursor-pointer select-none truncate">
+                  <label key={opt.code} className="flex items-center px-2 py-1 hover:bg-[#cce5ff] cursor-pointer select-none w-full min-h-[24px]">
                     <input 
                       type="checkbox" 
                       checked={checked} 
@@ -524,10 +524,12 @@ export default function Analitica() {
   const budgetsForYearFiltered = useMemo(() => {
     let buds = budgetsForYear;
     if (selectedCebes.length > 0) {
-      buds = buds.filter(b => b.cebe && selectedCebes.includes(b.cebe));
+      const normalizedSelected = selectedCebes.map(c => c.replace(/^(CEBE|CECO)/i, '').trim());
+      buds = buds.filter(b => b.cebe && normalizedSelected.includes(b.cebe.replace(/^(CEBE|CECO)/i, '').trim()));
     }
     if (selectedCecos.length > 0) {
-      buds = buds.filter(b => b.ceco && selectedCecos.includes(b.ceco));
+      const normalizedSelected = selectedCecos.map(c => c.replace(/^(CEBE|CECO)/i, '').trim());
+      buds = buds.filter(b => b.ceco && normalizedSelected.includes(b.ceco.replace(/^(CEBE|CECO)/i, '').trim()));
     }
     return buds;
   }, [budgetsForYear, selectedCebes, selectedCecos]);
@@ -803,11 +805,13 @@ export default function Analitica() {
       
       if (selectedCebes.length > 0) {
         const txCebeNorm = tx.cebe ? tx.cebe.replace(/^(CEBE|CECO)/i, '').trim() : '';
-        if (!selectedCebes.includes(txCebeNorm)) return false;
+        const normalizedSelected = selectedCebes.map(c => c.replace(/^(CEBE|CECO)/i, '').trim());
+        if (!normalizedSelected.includes(txCebeNorm)) return false;
       }
       if (selectedCecos.length > 0) {
         const txCecoNorm = tx.ceco ? tx.ceco.replace(/^(CEBE|CECO)/i, '').trim() : '';
-        if (!selectedCecos.includes(txCecoNorm)) return false;
+        const normalizedSelected = selectedCecos.map(c => c.replace(/^(CEBE|CECO)/i, '').trim());
+        if (!normalizedSelected.includes(txCecoNorm)) return false;
       }
       
       // Group filter
@@ -856,11 +860,13 @@ export default function Analitica() {
       if (yr !== selectedYear) return false;
       if (selectedCebes.length > 0) {
         const txCebeNorm = tx.cebe ? tx.cebe.replace(/^(CEBE|CECO)/i, '').trim() : '';
-        if (!selectedCebes.includes(txCebeNorm)) return false;
+        const normalizedSelected = selectedCebes.map(c => c.replace(/^(CEBE|CECO)/i, '').trim());
+        if (!normalizedSelected.includes(txCebeNorm)) return false;
       }
       if (selectedCecos.length > 0) {
         const txCecoNorm = tx.ceco ? tx.ceco.replace(/^(CEBE|CECO)/i, '').trim() : '';
-        if (!selectedCecos.includes(txCecoNorm)) return false;
+        const normalizedSelected = selectedCecos.map(c => c.replace(/^(CEBE|CECO)/i, '').trim());
+        if (!normalizedSelected.includes(txCecoNorm)) return false;
       }
       return true;
     });
@@ -1057,6 +1063,7 @@ export default function Analitica() {
       return;
     }
 
+    const cleanZero = n => Math.abs(n) < 0.005 ? 0 : n;
     const calculatedMonths = [];
     let cumulativePresupuesto = 0;
     let cumulativeSaldo = 0;
@@ -1125,11 +1132,11 @@ export default function Analitica() {
 
       calculatedMonths.push({
         mes: MONTHS_LONG[m],
-        presupuesto: presupuesto_m,
-        saldo: saldo_m,
-        desviacion: desviacion_m,
-        pctDesviacion: pctDesviacion_m,
-        pctDesvArrast: pctDesvArrast_m
+        presupuesto: cleanZero(presupuesto_m),
+        saldo: cleanZero(saldo_m),
+        desviacion: cleanZero(desviacion_m),
+        pctDesviacion: cleanZero(pctDesviacion_m),
+        pctDesvArrast: cleanZero(pctDesvArrast_m)
       });
     }
 
@@ -1147,11 +1154,11 @@ export default function Analitica() {
     setDesvCalculatedData({
       months: calculatedMonths,
       totals: {
-        presupuesto: totalPresupuesto,
-        saldo: totalSaldo,
-        desviacion: totalDesviacion,
-        pctDesviacion: totalPctDesviacion,
-        pctDesvArrast: totalPctDesviacion
+        presupuesto: cleanZero(totalPresupuesto),
+        saldo: cleanZero(totalSaldo),
+        desviacion: cleanZero(totalDesviacion),
+        pctDesviacion: cleanZero(totalPctDesviacion),
+        pctDesvArrast: cleanZero(totalPctDesviacion)
       }
     });
   };
@@ -1501,31 +1508,35 @@ export default function Analitica() {
                       {MONTHS_HDR.map((_, i) => shouldRenderMonth(i) && <col key={i} style={{ width: 80 }} />)}
                     </colgroup>
                     <tbody>
-                      <tr className="font-bold text-[11px]">
+                      <tr className={`font-bold text-[11px] ${!showDeviations ? 'border-b border-[#d6d6d6]' : ''}`}>
                         <td colSpan={2} className="text-right pr-4 py-1 text-[#2b579a]">TOTAL:</td>
                         <td className="text-right px-2 py-1 text-[#a51d24]">{fmt(performanceTotals.totalDiff)}</td>
                         {performanceTotals.monthsDiff.map((diff, i) => shouldRenderMonth(i) && (
                           <td key={i} className="text-right px-2 py-1 text-[#a51d24]">{fmt(diff)}</td>
                         ))}
                       </tr>
-                      <tr className="font-bold text-[11px]">
-                        <td colSpan={2} className="text-right pr-4 py-1 text-[#2b579a]">DESVIACIÓN:</td>
-                        <td className="text-right px-2 py-1 text-[#a51d24]">{fmt(performanceDeviations.totalDiff)}</td>
-                        {performanceDeviations.monthsDiff.map((diff, i) => shouldRenderMonth(i) && (
-                          <td key={i} className="text-right px-2 py-1 text-[#a51d24]">{fmt(diff)}</td>
-                        ))}
-                      </tr>
-                      <tr className="font-bold text-[11px] border-b border-[#d6d6d6]">
-                        <td colSpan={2} className="text-right pr-4 py-1 text-[#2b579a]">PORCENTAJE:</td>
-                        <td className="text-right px-2 py-1 text-[#a51d24]">
-                          {performanceDeviations.totalPct === 0 ? '-' : `${performanceDeviations.totalPct > 0 ? '+' : ''}${performanceDeviations.totalPct.toLocaleString('es-ES', { minimumFractionDigits: 1, maximumFractionDigits: 1 })}%`}
-                        </td>
-                        {performanceDeviations.monthsPct.map((pct, i) => shouldRenderMonth(i) && (
-                          <td key={i} className="text-right px-2 py-1 text-[#a51d24]">
-                            {pct === 0 ? '-' : `${pct > 0 ? '+' : ''}${pct.toLocaleString('es-ES', { minimumFractionDigits: 1, maximumFractionDigits: 1 })}%`}
-                          </td>
-                        ))}
-                      </tr>
+                      {showDeviations && (
+                        <>
+                          <tr className="font-bold text-[11px]">
+                            <td colSpan={2} className="text-right pr-4 py-1 text-[#2b579a]">DESVIACIÓN:</td>
+                            <td className="text-right px-2 py-1 text-[#a51d24]">{fmt(performanceDeviations.totalDiff)}</td>
+                            {performanceDeviations.monthsDiff.map((diff, i) => shouldRenderMonth(i) && (
+                              <td key={i} className="text-right px-2 py-1 text-[#a51d24]">{fmt(diff)}</td>
+                            ))}
+                          </tr>
+                          <tr className="font-bold text-[11px] border-b border-[#d6d6d6]">
+                            <td colSpan={2} className="text-right pr-4 py-1 text-[#2b579a]">PORCENTAJE:</td>
+                            <td className="text-right px-2 py-1 text-[#a51d24]">
+                              {performanceDeviations.totalPct === 0 ? '-' : `${performanceDeviations.totalPct > 0 ? '+' : ''}${performanceDeviations.totalPct.toLocaleString('es-ES', { minimumFractionDigits: 1, maximumFractionDigits: 1 })}%`}
+                            </td>
+                            {performanceDeviations.monthsPct.map((pct, i) => shouldRenderMonth(i) && (
+                              <td key={i} className="text-right px-2 py-1 text-[#a51d24]">
+                                {pct === 0 ? '-' : `${pct > 0 ? '+' : ''}${pct.toLocaleString('es-ES', { minimumFractionDigits: 1, maximumFractionDigits: 1 })}%`}
+                              </td>
+                            ))}
+                          </tr>
+                        </>
+                      )}
                     </tbody>
                   </table>
                 </div>
