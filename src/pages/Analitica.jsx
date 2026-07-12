@@ -926,11 +926,11 @@ export default function Analitica() {
 
     txsPageFiltered.forEach(tx => {
       const txMonth = new Date(tx.date).getMonth();
-      const code = tx.accountId || tx.cuentaContable || '';
+      const account = rawAccounts.find(a => a.id === tx.accountId || a.code === tx.accountId);
+      const code = account ? (account.code || '') : (tx.cuentaContable || '');
       const isHaber = code.startsWith('7') || code.startsWith('9');
       const isDebe = code.startsWith('6') || code.startsWith('8');
 
-      const account = rawAccounts.find(a => a.id === tx.accountId || a.code === tx.accountId);
       const net = getTransactionNet(tx, account);
 
       if (isHaber) {
@@ -957,23 +957,24 @@ export default function Analitica() {
   }, [txsPageFiltered, rawAccounts, selectedPeriods]);
 
   const performanceDeviations = useMemo(() => {
+    const cleanZero = n => Math.abs(n) < 0.005 ? 0 : n;
     const monthsDiff = Array(12).fill(0);
     const monthsPct = Array(12).fill(0);
 
     for (let i = 0; i < 12; i++) {
       const budget = performanceTotals.monthsDiff[i];
       const actual = performanceActuals.monthsDiff[i];
-      const diff = actual - budget;
+      const diff = cleanZero(actual - budget);
       monthsDiff[i] = diff;
-      monthsPct[i] = budget === 0 
+      monthsPct[i] = cleanZero(budget === 0 
         ? (actual === 0 ? 0 : (actual > 0 ? 100 : -100)) 
-        : (diff / budget) * 100;
+        : (diff / budget) * 100);
     }
 
-    const totalDiff = performanceActuals.totalDiff - performanceTotals.totalDiff;
-    const totalPct = performanceTotals.totalDiff === 0 
+    const totalDiff = cleanZero(performanceActuals.totalDiff - performanceTotals.totalDiff);
+    const totalPct = cleanZero(performanceTotals.totalDiff === 0 
       ? (performanceActuals.totalDiff === 0 ? 0 : (performanceActuals.totalDiff > 0 ? 100 : -100)) 
-      : (totalDiff / performanceTotals.totalDiff) * 100;
+      : (totalDiff / performanceTotals.totalDiff) * 100);
 
     return {
       monthsDiff,
@@ -995,6 +996,10 @@ export default function Analitica() {
 
   /* ── Helpers ──────────────────────────────────────────────────────────────── */
   const fmt = v => v === 0 ? '' : (v || 0).toLocaleString('es-ES', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+  const fmtDev = v => {
+    const cleaned = Math.abs(v || 0) < 0.005 ? 0 : (v || 0);
+    return cleaned.toLocaleString('es-ES', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+  };
   const formTotal = Object.values(formMonths).reduce((s, v) => s + (parseFloat(v) || 0), 0);
 
   const openNew = () => {
@@ -1467,9 +1472,9 @@ export default function Analitica() {
                                     </div>
                                   </td>
                                   <td className="py-[2px] px-2 text-[10px] text-slate-400 uppercase whitespace-nowrap overflow-hidden text-ellipsis italic">Importe desviación</td>
-                                  <td className="py-[2px] px-2 text-right text-[10px] font-mono text-slate-600 font-semibold">{fmt(rowDev.total)}</td>
+                                  <td className="py-[2px] px-2 text-right text-[10px] font-mono text-slate-600 font-semibold">{fmtDev(rowDev.total)}</td>
                                   {[...Array(12)].map((_, i) => shouldRenderMonth(i) && (
-                                    <td key={i} className="py-[2px] px-2 text-right text-[10px] font-mono text-slate-500">{fmt(rowDev.months[i])}</td>
+                                    <td key={i} className="py-[2px] px-2 text-right text-[10px] font-mono text-slate-500">{fmtDev(rowDev.months[i])}</td>
                                   ))}
                                 </tr>
                                 {/* Deviation Percentage Row */}
@@ -1508,35 +1513,43 @@ export default function Analitica() {
                       {MONTHS_HDR.map((_, i) => shouldRenderMonth(i) && <col key={i} style={{ width: 80 }} />)}
                     </colgroup>
                     <tbody>
-                      <tr className={`font-bold text-[11px] ${!showDeviations ? 'border-b border-[#d6d6d6]' : ''}`}>
+                      <tr className="font-bold text-[11px]">
                         <td colSpan={2} className="text-right pr-4 py-1 text-[#2b579a]">TOTAL:</td>
                         <td className="text-right px-2 py-1 text-[#a51d24]">{fmt(performanceTotals.totalDiff)}</td>
                         {performanceTotals.monthsDiff.map((diff, i) => shouldRenderMonth(i) && (
                           <td key={i} className="text-right px-2 py-1 text-[#a51d24]">{fmt(diff)}</td>
                         ))}
                       </tr>
-                      {showDeviations && (
-                        <>
-                          <tr className="font-bold text-[11px]">
-                            <td colSpan={2} className="text-right pr-4 py-1 text-[#2b579a]">DESVIACIÓN:</td>
-                            <td className="text-right px-2 py-1 text-[#a51d24]">{fmt(performanceDeviations.totalDiff)}</td>
-                            {performanceDeviations.monthsDiff.map((diff, i) => shouldRenderMonth(i) && (
-                              <td key={i} className="text-right px-2 py-1 text-[#a51d24]">{fmt(diff)}</td>
-                            ))}
-                          </tr>
-                          <tr className="font-bold text-[11px] border-b border-[#d6d6d6]">
-                            <td colSpan={2} className="text-right pr-4 py-1 text-[#2b579a]">PORCENTAJE:</td>
-                            <td className="text-right px-2 py-1 text-[#a51d24]">
-                              {performanceDeviations.totalPct === 0 ? '-' : `${performanceDeviations.totalPct > 0 ? '+' : ''}${performanceDeviations.totalPct.toLocaleString('es-ES', { minimumFractionDigits: 1, maximumFractionDigits: 1 })}%`}
-                            </td>
-                            {performanceDeviations.monthsPct.map((pct, i) => shouldRenderMonth(i) && (
-                              <td key={i} className="text-right px-2 py-1 text-[#a51d24]">
-                                {pct === 0 ? '-' : `${pct > 0 ? '+' : ''}${pct.toLocaleString('es-ES', { minimumFractionDigits: 1, maximumFractionDigits: 1 })}%`}
-                              </td>
-                            ))}
-                          </tr>
-                        </>
-                      )}
+                      <tr className="font-bold text-[11px]">
+                        <td colSpan={2} className="text-right pr-4 py-1 text-[#2b579a]">
+                          {showDeviations ? 'DESVIACIÓN:' : '\u00A0'}
+                        </td>
+                        <td className="text-right px-2 py-1 text-[#a51d24]">
+                          {showDeviations ? fmtDev(performanceDeviations.totalDiff) : '\u00A0'}
+                        </td>
+                        {performanceDeviations.monthsDiff.map((diff, i) => shouldRenderMonth(i) && (
+                          <td key={i} className="text-right px-2 py-1 text-[#a51d24]">
+                            {showDeviations ? fmtDev(diff) : '\u00A0'}
+                          </td>
+                        ))}
+                      </tr>
+                      <tr className="font-bold text-[11px] border-b border-[#d6d6d6]">
+                        <td colSpan={2} className="text-right pr-4 py-1 text-[#2b579a]">
+                          {showDeviations ? 'PORCENTAJE:' : '\u00A0'}
+                        </td>
+                        <td className="text-right px-2 py-1 text-[#a51d24]">
+                          {showDeviations 
+                            ? (performanceDeviations.totalPct === 0 ? '0,0%' : `${performanceDeviations.totalPct > 0 ? '+' : ''}${performanceDeviations.totalPct.toLocaleString('es-ES', { minimumFractionDigits: 1, maximumFractionDigits: 1 })}%`)
+                            : '\u00A0'}
+                        </td>
+                        {performanceDeviations.monthsPct.map((pct, i) => shouldRenderMonth(i) && (
+                          <td key={i} className="text-right px-2 py-1 text-[#a51d24]">
+                            {showDeviations 
+                              ? (pct === 0 ? '0,0%' : `${pct > 0 ? '+' : ''}${pct.toLocaleString('es-ES', { minimumFractionDigits: 1, maximumFractionDigits: 1 })}%`)
+                              : '\u00A0'}
+                          </td>
+                        ))}
+                      </tr>
                     </tbody>
                   </table>
                 </div>
