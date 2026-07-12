@@ -302,6 +302,70 @@ function SearchableSelect({ value, onChange, options, placeholder }) {
   );
 }
 
+const MultiSelectDropdown = ({ label, options, selected, onChange }) => {
+  const [isOpen, setIsOpen] = useState(false);
+  const containerRef = useRef(null);
+
+  useEffect(() => {
+    const handleOutside = (e) => {
+      if (containerRef.current && !containerRef.current.contains(e.target)) {
+        setIsOpen(false);
+      }
+    };
+    document.addEventListener('mousedown', handleOutside);
+    return () => document.removeEventListener('mousedown', handleOutside);
+  }, []);
+
+  const toggleOption = (optVal) => {
+    if (selected.includes(optVal)) {
+      onChange(selected.filter(x => x !== optVal));
+    } else {
+      onChange([...selected, optVal]);
+    }
+  };
+
+  return (
+    <div className="relative flex flex-col text-[11px] mb-2" ref={containerRef}>
+      <span className="text-[10px] text-gray-500 font-bold uppercase mb-1">{label}</span>
+      <button 
+        onClick={() => setIsOpen(!isOpen)}
+        className="w-full border border-[#aaa] bg-white px-2 py-[3px] text-left flex justify-between items-center rounded-sm hover:border-[#888] active:bg-[#eee]"
+      >
+        <span className="truncate">
+          {selected.length === 0 ? 'Todos' : `${selected.length} selec.`}
+        </span>
+        <svg className="w-2.5 h-2.5 text-gray-500 shrink-0 ml-1" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M19 9l-7 7-7-7" />
+        </svg>
+      </button>
+      {isOpen && (
+        <div className="absolute left-0 right-0 top-full mt-0.5 bg-white border border-[#aaa] shadow-md z-30 max-h-40 overflow-y-auto rounded-sm p-1">
+          {options.length === 0 ? (
+            <div className="text-gray-400 p-1 text-center italic">Ninguno</div>
+          ) : (
+            options.map(opt => {
+              const checked = selected.includes(opt.code);
+              return (
+                <label key={opt.code} className="flex items-center px-1 py-0.5 hover:bg-[#cce5ff] cursor-pointer select-none truncate">
+                  <input 
+                    type="checkbox" 
+                    checked={checked} 
+                    onChange={() => toggleOption(opt.code)} 
+                    className="mr-1.5 accent-blue-600 shrink-0"
+                  />
+                  <span className="truncate" title={`${opt.code} - ${opt.name}`}>
+                    {opt.code} - {opt.name}
+                  </span>
+                </label>
+              );
+            })
+          )}
+        </div>
+      )}
+    </div>
+  );
+};
+
 /* ═══════════════════════════════════════════════════════════════════════════════
    MAIN COMPONENT
    ═══════════════════════════════════════════════════════════════════════════════ */
@@ -332,6 +396,8 @@ export default function Analitica() {
   const [desvYear, setDesvYear] = useState(2026);
   const [showDeviations, setShowDeviations] = useState(false);
   const [analyticalGrouping, setAnalyticalGrouping] = useState('cebe'); // 'cebe' | 'ceco'
+  const [selectedCebes, setSelectedCebes] = useState([]);
+  const [selectedCecos, setSelectedCecos] = useState([]);
 
   const shouldRenderMonth = (idx) => {
     if (selectedPeriods.length === 0) return true; // ALL
@@ -410,6 +476,17 @@ export default function Analitica() {
 
   const budgetsForYearFiltered = useMemo(() => {
     let buds = budgetsForYear;
+    if (selectedCebes.length > 0) {
+      buds = buds.filter(b => b.cebe && selectedCebes.includes(b.cebe));
+    }
+    if (selectedCecos.length > 0) {
+      buds = buds.filter(b => b.ceco && selectedCecos.includes(b.ceco));
+    }
+    return buds;
+  }, [budgetsForYear, selectedCebes, selectedCecos]);
+
+  const analyticalBudgets = useMemo(() => {
+    let buds = budgetsForYearFiltered;
     if (groupFilter !== 'ALL') {
       buds = buds.filter(b => b.accountCode && b.accountCode.startsWith(groupFilter));
     }
@@ -433,7 +510,7 @@ export default function Analitica() {
       });
     }
     return buds;
-  }, [budgetsForYear, groupFilter, searchQuery, rawAccounts, cebes, cecos]);
+  }, [budgetsForYearFiltered, groupFilter, searchQuery, rawAccounts, cebes, cecos]);
 
   /* ── Build tree ONLY from budgets (table starts empty if no budgets) ─────── */
   // Real account codes from the DB (the ones the user actually created)
@@ -441,7 +518,7 @@ export default function Analitica() {
 
   const budgetCodes = useMemo(() => {
     // Start with the exact codes that have a budget
-    const leafCodes = new Set(budgetsForYear.map(b => b.accountCode).filter(Boolean));
+    const leafCodes = new Set(budgetsForYearFiltered.map(b => b.accountCode).filter(Boolean));
     const codes = new Set(leafCodes);
     // Only add parent codes that actually exist in the user's account database
     leafCodes.forEach(c => {
@@ -451,10 +528,10 @@ export default function Analitica() {
       }
     });
     return Array.from(codes).sort();
-  }, [budgetsForYear, realAccountCodes]);
+  }, [budgetsForYearFiltered, realAccountCodes]);
 
   // Set of codes that have a direct budget entry
-  const leafBudgetCodes = useMemo(() => new Set(budgetsForYear.map(b => b.accountCode).filter(Boolean)), [budgetsForYear]);
+  const leafBudgetCodes = useMemo(() => new Set(budgetsForYearFiltered.map(b => b.accountCode).filter(Boolean)), [budgetsForYearFiltered]);
 
   const treeRows = useMemo(() => {
     // If onlyAssigned, show only the exact leaf codes with budgets (no parents, no hierarchy)
@@ -468,10 +545,10 @@ export default function Analitica() {
     }
     return codes.map(code => {
       const isLeaf = leafBudgetCodes.has(code);
-      const buds = budgetsForYear.filter(b => b.accountCode === code);
+      const buds = budgetsForYearFiltered.filter(b => b.accountCode === code);
       const childBuds = onlyAssigned
         ? buds   // in flat mode, no children aggregation
-        : budgetsForYear.filter(b => b.accountCode.startsWith(code));
+        : budgetsForYearFiltered.filter(b => b.accountCode.startsWith(code));
       const total = (onlyAssigned ? buds : childBuds).reduce((s, b) => s + (parseFloat(b.total) || 0), 0);
       const months = Object.fromEntries([...Array(12)].map((_, i) => [i,
         (onlyAssigned ? buds : childBuds).reduce((s, b) => s + (parseFloat(b.months?.[i]) || 0), 0)
@@ -486,7 +563,7 @@ export default function Analitica() {
       const hasChildren = !onlyAssigned && codes.some(o => o !== code && o.startsWith(code));
       return { id: code, code, name: descr(code, rawAccounts), depth, hasChildren, total, months, isLeaf };
     });
-  }, [budgetCodes, leafBudgetCodes, budgetsForYear, rawAccounts, groupFilter, searchQuery, onlyAssigned]);
+  }, [budgetCodes, leafBudgetCodes, budgetsForYearFiltered, rawAccounts, groupFilter, searchQuery, onlyAssigned]);
 
   const analyticalTreeRows = useMemo(() => {
     if (viewMode !== 'analitica') return [];
@@ -495,13 +572,13 @@ export default function Analitica() {
 
     if (analyticalGrouping === 'ceco') {
       // Grouping: CECO > CEBE
-      const cecoCodes = Array.from(new Set(budgetsForYearFiltered.map(b => b.ceco).filter(Boolean))).sort();
+      const cecoCodes = Array.from(new Set(analyticalBudgets.map(b => b.ceco).filter(Boolean))).sort();
       
       cecoCodes.forEach(cecoCode => {
         const cecoCenter = cecos.find(c => c.code === cecoCode);
         const cecoName = cecoCenter ? cecoCenter.name : `CECO ${cecoCode}`;
         
-        const budsForCeco = budgetsForYearFiltered.filter(b => b.ceco === cecoCode);
+        const budsForCeco = analyticalBudgets.filter(b => b.ceco === cecoCode);
         const cecoTotal = budsForCeco.reduce((s, b) => s + (parseFloat(b.total) || 0), 0);
         const cecoMonths = Object.fromEntries([...Array(12)].map((_, i) => [
           i,
@@ -554,13 +631,13 @@ export default function Analitica() {
       });
     } else {
       // Grouping: CEBE > CECO (Default)
-      const cebeCodes = Array.from(new Set(budgetsForYearFiltered.map(b => b.cebe).filter(Boolean))).sort();
+      const cebeCodes = Array.from(new Set(analyticalBudgets.map(b => b.cebe).filter(Boolean))).sort();
       
       cebeCodes.forEach(cebeCode => {
         const cebeCenter = cebes.find(c => c.code === cebeCode);
         const cebeName = cebeCenter ? cebeCenter.name : `CEBE ${cebeCode}`;
         
-        const budsForCebe = budgetsForYearFiltered.filter(b => b.cebe === cebeCode);
+        const budsForCebe = analyticalBudgets.filter(b => b.cebe === cebeCode);
         const cebeTotal = budsForCebe.reduce((s, b) => s + (parseFloat(b.total) || 0), 0);
         const cebeMonths = Object.fromEntries([...Array(12)].map((_, i) => [
           i,
@@ -614,7 +691,7 @@ export default function Analitica() {
     }
 
     return rows;
-  }, [viewMode, budgetsForYearFiltered, cebes, cecos, collapsed, analyticalGrouping]);
+  }, [viewMode, analyticalBudgets, cebes, cecos, collapsed, analyticalGrouping]);
 
   const visibleRows = useMemo(() => {
     if (viewMode === 'analitica') {
@@ -678,7 +755,16 @@ export default function Analitica() {
     const txsForYear = rawTransactions.filter(tx => {
       if (!tx.date) return false;
       const yr = new Date(tx.date).getFullYear();
-      return yr === selectedYear;
+      if (yr !== selectedYear) return false;
+      if (selectedCebes.length > 0) {
+        const txCebeNorm = tx.cebe ? tx.cebe.replace(/^(CEBE|CECO)/i, '').trim() : '';
+        if (!selectedCebes.includes(txCebeNorm)) return false;
+      }
+      if (selectedCecos.length > 0) {
+        const txCecoNorm = tx.ceco ? tx.ceco.replace(/^(CEBE|CECO)/i, '').trim() : '';
+        if (!selectedCecos.includes(txCecoNorm)) return false;
+      }
+      return true;
     });
 
     visibleRows.forEach(row => {
@@ -724,7 +810,7 @@ export default function Analitica() {
     });
 
     return map;
-  }, [visibleRows, rawTransactions, selectedYear, viewMode, rawAccounts]);
+  }, [visibleRows, rawTransactions, selectedYear, viewMode, rawAccounts, selectedCebes, selectedCecos]);
 
   const performanceActuals = useMemo(() => {
     const monthsActual = Array(12).fill(0);
@@ -737,7 +823,16 @@ export default function Analitica() {
     const txsForYear = rawTransactions.filter(tx => {
       if (!tx.date) return false;
       const yr = new Date(tx.date).getFullYear();
-      return yr === selectedYear;
+      if (yr !== selectedYear) return false;
+      if (selectedCebes.length > 0) {
+        const txCebeNorm = tx.cebe ? tx.cebe.replace(/^(CEBE|CECO)/i, '').trim() : '';
+        if (!selectedCebes.includes(txCebeNorm)) return false;
+      }
+      if (selectedCecos.length > 0) {
+        const txCecoNorm = tx.ceco ? tx.ceco.replace(/^(CEBE|CECO)/i, '').trim() : '';
+        if (!selectedCecos.includes(txCecoNorm)) return false;
+      }
+      return true;
     });
 
     txsForYear.forEach(tx => {
@@ -770,7 +865,7 @@ export default function Analitica() {
       monthsDiff,
       totalDiff
     };
-  }, [rawTransactions, selectedYear, rawAccounts, selectedPeriods]);
+  }, [rawTransactions, selectedYear, rawAccounts, selectedPeriods, selectedCebes, selectedCecos]);
 
   const performanceDeviations = useMemo(() => {
     const monthsDiff = Array(12).fill(0);
@@ -1087,6 +1182,25 @@ export default function Analitica() {
                 <div className="mt-2 pt-2 border-t border-slate-200">
                   <SideCheck checked={showDeviations} onChange={e => setShowDeviations(e.target.checked)} label="Ver desviaciones" bold={showDeviations} />
                 </div>
+              </div>
+              
+              {/* Filtrar Centros */}
+              <div className="bg-[#e6e8ec] text-[#333] text-[12px] font-bold px-3 py-[5px] border-b border-[#d6d6d6]">
+                Filtrar Centros
+              </div>
+              <div className="px-3 py-2 flex flex-col border-b border-[#d6d6d6]">
+                <MultiSelectDropdown 
+                  label="CEBE" 
+                  options={cebes} 
+                  selected={selectedCebes} 
+                  onChange={setSelectedCebes} 
+                />
+                <MultiSelectDropdown 
+                  label="CECO" 
+                  options={cecos} 
+                  selected={selectedCecos} 
+                  onChange={setSelectedCecos} 
+                />
               </div>
               
               {/* Bottom: Ver saldos */}
