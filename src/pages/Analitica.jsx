@@ -331,6 +331,7 @@ export default function Analitica() {
   const [selectedRowId, setSelectedRowId] = useState(null);
   const [desvYear, setDesvYear] = useState(2026);
   const [showDeviations, setShowDeviations] = useState(false);
+  const [analyticalGrouping, setAnalyticalGrouping] = useState('cebe'); // 'cebe' | 'ceco'
  
   // Modal state
   const [showForm, setShowForm] = useState(false);
@@ -399,6 +400,33 @@ export default function Analitica() {
   /* ── Budget data for selected year ────────────────────────────────────────── */
   const budgetsForYear = useMemo(() => budgets.filter(b => b.year === selectedYear), [budgets, selectedYear]);
 
+  const budgetsForYearFiltered = useMemo(() => {
+    let buds = budgetsForYear;
+    if (groupFilter !== 'ALL') {
+      buds = buds.filter(b => b.accountCode && b.accountCode.startsWith(groupFilter));
+    }
+    if (searchQuery) {
+      const q = searchQuery.toLowerCase();
+      buds = buds.filter(b => {
+        const accName = descr(b.accountCode, rawAccounts).toLowerCase();
+        const cebeCenter = cebes.find(c => c.code === b.cebe);
+        const cebeName = cebeCenter ? cebeCenter.name.toLowerCase() : '';
+        const cecoCenter = cecos.find(c => c.code === b.ceco);
+        const cecoName = cecoCenter ? cecoCenter.name.toLowerCase() : '';
+        
+        return (
+          b.accountCode?.toLowerCase().includes(q) ||
+          accName.includes(q) ||
+          b.cebe?.toLowerCase().includes(q) ||
+          cebeName.includes(q) ||
+          b.ceco?.toLowerCase().includes(q) ||
+          cecoName.includes(q)
+        );
+      });
+    }
+    return buds;
+  }, [budgetsForYear, groupFilter, searchQuery, rawAccounts, cebes, cecos]);
+
   /* ── Build tree ONLY from budgets (table starts empty if no budgets) ─────── */
   // Real account codes from the DB (the ones the user actually created)
   const realAccountCodes = useMemo(() => new Set(rawAccounts.map(a => a.code).filter(Boolean)), [rawAccounts]);
@@ -455,68 +483,130 @@ export default function Analitica() {
   const analyticalTreeRows = useMemo(() => {
     if (viewMode !== 'analitica') return [];
 
-    // Find all unique CEBE codes present in budgetsForYear
-    const cebeCodes = Array.from(new Set(budgetsForYear.map(b => b.cebe).filter(Boolean))).sort();
-    
     const rows = [];
-    cebeCodes.forEach(cebeCode => {
-      const cebeCenter = cebes.find(c => c.code === cebeCode);
-      const cebeName = cebeCenter ? cebeCenter.name : `CEBE ${cebeCode}`;
+
+    if (analyticalGrouping === 'ceco') {
+      // Grouping: CECO > CEBE
+      const cecoCodes = Array.from(new Set(budgetsForYearFiltered.map(b => b.ceco).filter(Boolean))).sort();
       
-      const budsForCebe = budgetsForYear.filter(b => b.cebe === cebeCode);
-      const cebeTotal = budsForCebe.reduce((s, b) => s + (parseFloat(b.total) || 0), 0);
-      const cebeMonths = Object.fromEntries([...Array(12)].map((_, i) => [
-        i,
-        budsForCebe.reduce((s, b) => s + (parseFloat(b.months?.[i]) || 0), 0)
-      ]));
+      cecoCodes.forEach(cecoCode => {
+        const cecoCenter = cecos.find(c => c.code === cecoCode);
+        const cecoName = cecoCenter ? cecoCenter.name : `CECO ${cecoCode}`;
+        
+        const budsForCeco = budgetsForYearFiltered.filter(b => b.ceco === cecoCode);
+        const cecoTotal = budsForCeco.reduce((s, b) => s + (parseFloat(b.total) || 0), 0);
+        const cecoMonths = Object.fromEntries([...Array(12)].map((_, i) => [
+          i,
+          budsForCeco.reduce((s, b) => s + (parseFloat(b.months?.[i]) || 0), 0)
+        ]));
 
-      const cecoCodes = Array.from(new Set(budsForCebe.map(b => b.ceco).filter(Boolean))).sort();
-      const hasChildren = cecoCodes.length > 0;
+        const cebeCodes = Array.from(new Set(budsForCeco.map(b => b.cebe).filter(Boolean))).sort();
+        const hasChildren = cebeCodes.length > 0;
 
-      rows.push({
-        id: cebeCode,
-        code: cebeCode,
-        name: cebeName.toUpperCase(),
-        depth: 0,
-        hasChildren,
-        total: cebeTotal,
-        months: cebeMonths,
-        isCebe: true,
-        isCeco: false,
-        cebeCode
-      });
-
-      if (hasChildren && !collapsed[cebeCode]) {
-        cecoCodes.forEach(cecoCode => {
-          const cecoCenter = cecos.find(c => c.code === cecoCode);
-          const cecoName = cecoCenter ? cecoCenter.name : `CECO ${cecoCode}`;
-
-          const budsForCeco = budsForCebe.filter(b => b.ceco === cecoCode);
-          const cecoTotal = budsForCeco.reduce((s, b) => s + (parseFloat(b.total) || 0), 0);
-          const cecoMonths = Object.fromEntries([...Array(12)].map((_, i) => [
-            i,
-            budsForCeco.reduce((s, b) => s + (parseFloat(b.months?.[i]) || 0), 0)
-          ]));
-
-          rows.push({
-            id: `${cebeCode}_${cecoCode}`,
-            code: cecoCode,
-            name: cecoName.toUpperCase(),
-            depth: 1,
-            hasChildren: false,
-            total: cecoTotal,
-            months: cecoMonths,
-            isCebe: false,
-            isCeco: true,
-            cebeCode,
-            cecoCode
-          });
+        rows.push({
+          id: cecoCode,
+          code: cecoCode,
+          name: cecoName.toUpperCase(),
+          depth: 0,
+          hasChildren,
+          total: cecoTotal,
+          months: cecoMonths,
+          isCebe: false,
+          isCeco: true,
+          cecoCode
         });
-      }
-    });
+
+        if (hasChildren && !collapsed[cecoCode]) {
+          cebeCodes.forEach(cebeCode => {
+            const cebeCenter = cebes.find(c => c.code === cebeCode);
+            const cebeName = cebeCenter ? cebeCenter.name : `CEBE ${cebeCode}`;
+
+            const budsForCebe = budsForCeco.filter(b => b.cebe === cebeCode);
+            const cebeTotal = budsForCebe.reduce((s, b) => s + (parseFloat(b.total) || 0), 0);
+            const cebeMonths = Object.fromEntries([...Array(12)].map((_, i) => [
+              i,
+              budsForCebe.reduce((s, b) => s + (parseFloat(b.months?.[i]) || 0), 0)
+            ]));
+
+            rows.push({
+              id: `${cecoCode}_${cebeCode}`,
+              code: cebeCode,
+              name: cebeName.toUpperCase(),
+              depth: 1,
+              hasChildren: false,
+              total: cebeTotal,
+              months: cebeMonths,
+              isCebe: true,
+              isCeco: false,
+              cecoCode,
+              cebeCode
+            });
+          });
+        }
+      });
+    } else {
+      // Grouping: CEBE > CECO (Default)
+      const cebeCodes = Array.from(new Set(budgetsForYearFiltered.map(b => b.cebe).filter(Boolean))).sort();
+      
+      cebeCodes.forEach(cebeCode => {
+        const cebeCenter = cebes.find(c => c.code === cebeCode);
+        const cebeName = cebeCenter ? cebeCenter.name : `CEBE ${cebeCode}`;
+        
+        const budsForCebe = budgetsForYearFiltered.filter(b => b.cebe === cebeCode);
+        const cebeTotal = budsForCebe.reduce((s, b) => s + (parseFloat(b.total) || 0), 0);
+        const cebeMonths = Object.fromEntries([...Array(12)].map((_, i) => [
+          i,
+          budsForCebe.reduce((s, b) => s + (parseFloat(b.months?.[i]) || 0), 0)
+        ]));
+
+        const cecoCodes = Array.from(new Set(budsForCebe.map(b => b.ceco).filter(Boolean))).sort();
+        const hasChildren = cecoCodes.length > 0;
+
+        rows.push({
+          id: cebeCode,
+          code: cebeCode,
+          name: cebeName.toUpperCase(),
+          depth: 0,
+          hasChildren,
+          total: cebeTotal,
+          months: cebeMonths,
+          isCebe: true,
+          isCeco: false,
+          cebeCode
+        });
+
+        if (hasChildren && !collapsed[cebeCode]) {
+          cecoCodes.forEach(cecoCode => {
+            const cecoCenter = cecos.find(c => c.code === cecoCode);
+            const cecoName = cecoCenter ? cecoCenter.name : `CECO ${cecoCode}`;
+
+            const budsForCeco = budsForCebe.filter(b => b.ceco === cecoCode);
+            const cecoTotal = budsForCeco.reduce((s, b) => s + (parseFloat(b.total) || 0), 0);
+            const cecoMonths = Object.fromEntries([...Array(12)].map((_, i) => [
+              i,
+              budsForCeco.reduce((s, b) => s + (parseFloat(b.months?.[i]) || 0), 0)
+            ]));
+
+            rows.push({
+              id: `${cebeCode}_${cecoCode}`,
+              code: cecoCode,
+              name: cecoName.toUpperCase(),
+              depth: 1,
+              hasChildren: false,
+              total: cecoTotal,
+              months: cecoMonths,
+              isCebe: false,
+              isCeco: true,
+              cebeCode,
+              cecoCode
+            });
+          });
+        }
+      });
+    }
 
     return rows;
-  }, [viewMode, budgetsForYear, cebes, cecos, collapsed]);
+  }, [viewMode, budgetsForYearFiltered, cebes, cecos, collapsed, analyticalGrouping]);
 
   const visibleRows = useMemo(() => {
     if (viewMode === 'analitica') {
@@ -544,16 +634,14 @@ export default function Analitica() {
 
     budgetsForYear.forEach(b => {
       const code = b.accountCode || '';
-      const isHaber = code.startsWith('7');
-      const isDebe = code.startsWith('6');
+      const isHaber = code.startsWith('7') || code.startsWith('9');
+      const isDebe = code.startsWith('6') || code.startsWith('8');
 
       if (isHaber) {
-        totalHaber += parseFloat(b.total) || 0;
         for (let i = 0; i < 12; i++) {
           monthsHaber[i] += parseFloat(b.months?.[i]) || 0;
         }
       } else if (isDebe) {
-        totalDebe += parseFloat(b.total) || 0;
         for (let i = 0; i < 12; i++) {
           monthsDebe[i] += parseFloat(b.months?.[i]) || 0;
         }
@@ -562,6 +650,10 @@ export default function Analitica() {
 
     for (let i = 0; i < 12; i++) {
       monthsDiff[i] = monthsHaber[i] - monthsDebe[i];
+      if (shouldRenderMonth(i)) {
+        totalHaber += monthsHaber[i];
+        totalDebe += monthsDebe[i];
+      }
     }
     const totalDiff = totalHaber - totalDebe;
 
@@ -569,7 +661,7 @@ export default function Analitica() {
       monthsDiff,
       totalDiff
     };
-  }, [budgetsForYear]);
+  }, [budgetsForYear, selectedPeriods]);
 
   const actualsMap = useMemo(() => {
     const map = {};
@@ -595,16 +687,17 @@ export default function Analitica() {
             isMatch = true;
           }
         } else if (viewMode === 'analitica') {
-          if (row.isCebe) {
-            if (tx.cebe && tx.cebe.replace(/^(CEBE|CECO)/i, '').trim() === row.cebeCode.replace(/^(CEBE|CECO)/i, '').trim()) {
-              isMatch = true;
-            }
-          } else if (row.isCeco) {
+          const hasCebe = !!row.cebeCode;
+          const hasCeco = !!row.cecoCode;
+          
+          if (hasCebe && hasCeco) {
             const cebeMatch = tx.cebe && tx.cebe.replace(/^(CEBE|CECO)/i, '').trim() === row.cebeCode.replace(/^(CEBE|CECO)/i, '').trim();
             const cecoMatch = tx.ceco && tx.ceco.replace(/^(CEBE|CECO)/i, '').trim() === row.cecoCode.replace(/^(CEBE|CECO)/i, '').trim();
-            if (cebeMatch && cecoMatch) {
-              isMatch = true;
-            }
+            if (cebeMatch && cecoMatch) isMatch = true;
+          } else if (hasCebe) {
+            if (tx.cebe && tx.cebe.replace(/^(CEBE|CECO)/i, '').trim() === row.cebeCode.replace(/^(CEBE|CECO)/i, '').trim()) isMatch = true;
+          } else if (hasCeco) {
+            if (tx.ceco && tx.ceco.replace(/^(CEBE|CECO)/i, '').trim() === row.cecoCode.replace(/^(CEBE|CECO)/i, '').trim()) isMatch = true;
           }
         }
 
@@ -649,10 +742,8 @@ export default function Analitica() {
       const net = getTransactionNet(tx, account);
 
       if (isHaber) {
-        totalHaber += net;
         monthsHaber[txMonth] += net;
       } else if (isDebe) {
-        totalDebe += net;
         monthsDebe[txMonth] += net;
       }
     });
@@ -660,6 +751,10 @@ export default function Analitica() {
     const monthsDiff = Array(12).fill(0);
     for (let i = 0; i < 12; i++) {
       monthsDiff[i] = monthsHaber[i] - monthsDebe[i];
+      if (shouldRenderMonth(i)) {
+        totalHaber += monthsHaber[i];
+        totalDebe += monthsDebe[i];
+      }
     }
     const totalDiff = totalHaber - totalDebe;
 
@@ -667,7 +762,7 @@ export default function Analitica() {
       monthsDiff,
       totalDiff
     };
-  }, [rawTransactions, selectedYear, rawAccounts]);
+  }, [rawTransactions, selectedYear, rawAccounts, selectedPeriods]);
 
   const performanceDeviations = useMemo(() => {
     const monthsDiff = Array(12).fill(0);
@@ -942,7 +1037,12 @@ export default function Analitica() {
         <TBtn icon={IcoBajar}  label="Bajar"  onClick={() => {}} disabled={!selectedRowId} />
         <div className="w-[1px] self-stretch my-[6px] bg-[#d6d6d6] mx-[6px]" />
         <TBtn icon={IcoExpandir}  label="Expandir"  onClick={() => setCollapsed({})} />
-        <TBtn icon={IcoColapsar}  label="Colapsar"  onClick={() => { const k = {}; treeRows.forEach(r => { if (r.hasChildren) k[r.code] = true; }); setCollapsed(k); }} />
+        <TBtn icon={IcoColapsar}  label="Colapsar"  onClick={() => {
+          const k = {};
+          const targetRows = viewMode === 'analitica' ? analyticalTreeRows : treeRows;
+          targetRows.forEach(r => { if (r.hasChildren) k[r.code] = true; });
+          setCollapsed(k);
+        }} />
       </div>
 
       {/* ── BODY ────────────────────────────────────────────────────────────── */}
@@ -976,6 +1076,13 @@ export default function Analitica() {
               <div className="px-3 py-2 flex flex-col gap-1 border-b border-[#d6d6d6]">
                 <SideRadio checked={viewMode === 'contable'} onChange={() => { setViewMode('contable'); setSelectedRowId(null); setCollapsed({}); }} label="Cuentas Contables" />
                 <SideRadio checked={viewMode === 'analitica'} onChange={() => { setViewMode('analitica'); setSelectedRowId(null); setCollapsed({}); }} label="Cuenta Analítica" />
+                {viewMode === 'analitica' && (
+                  <div className="mt-2 pt-2 border-t border-slate-200 flex flex-col gap-1">
+                    <div className="text-[10px] text-gray-500 font-bold uppercase mb-1">Agrupación:</div>
+                    <SideRadio checked={analyticalGrouping === 'cebe'} onChange={() => { setAnalyticalGrouping('cebe'); setCollapsed({}); }} label="Por CEBE (CEBE > CECO)" />
+                    <SideRadio checked={analyticalGrouping === 'ceco'} onChange={() => { setAnalyticalGrouping('ceco'); setCollapsed({}); }} label="Por CECO (CECO > CEBE)" />
+                  </div>
+                )}
                 <div className="mt-2 pt-2 border-t border-slate-200">
                   <SideCheck checked={showDeviations} onChange={e => setShowDeviations(e.target.checked)} label="Ver desviaciones" bold={showDeviations} />
                 </div>
@@ -1062,7 +1169,7 @@ export default function Analitica() {
                           <span>{viewMode === 'analitica' ? 'CEBE / CECO' : 'CUENTA'}</span>
                         </th>
                         <th className="text-left font-normal text-[#555] text-[10px] uppercase tracking-wider py-[5px] px-2">DESCRIPCIÓN</th>
-                        <th className="text-right font-normal text-[#555] text-[10px] uppercase tracking-wider py-[5px] px-2">PRESUPUESTO</th>
+                        <th className="text-right font-normal text-[#555] text-[10px] uppercase tracking-wider py-[5px] px-2">TOTAL</th>
                         {MONTHS_HDR.map((m, i) => shouldRenderMonth(i) && (
                           <th key={m} className="text-right font-normal text-[#555] text-[10px] uppercase tracking-wider py-[5px] px-2">{m}</th>
                         ))}
@@ -1072,13 +1179,20 @@ export default function Analitica() {
                       {visibleRows.map(row => {
                         const sel = selectedRowId === row.id;
 
+                        let budgetSum = 0;
+                        for (let i = 0; i < 12; i++) {
+                          if (shouldRenderMonth(i)) {
+                            budgetSum += row.months[i] || 0;
+                          }
+                        }
+
                         let rowDev = null;
                         if (showDeviations) {
                           const rowActuals = actualsMap[row.id] || { months: Array(12).fill(0), total: 0 };
-                          const totalDev = rowActuals.total - row.total;
                           const monthsDev = Array(12).fill(0);
                           const monthsPct = Array(12).fill(0);
 
+                          let actualsSum = 0;
                           for (let i = 0; i < 12; i++) {
                             const budgetVal = row.months[i] || 0;
                             const actualVal = rowActuals.months[i] || 0;
@@ -1086,11 +1200,16 @@ export default function Analitica() {
                             monthsPct[i] = budgetVal === 0 
                               ? (actualVal === 0 ? 0 : (actualVal > 0 ? 100 : -100))
                               : (monthsDev[i] / budgetVal) * 100;
+                            
+                            if (shouldRenderMonth(i)) {
+                              actualsSum += actualVal;
+                            }
                           }
 
-                          const totalPct = row.total === 0
-                            ? (rowActuals.total === 0 ? 0 : (rowActuals.total > 0 ? 100 : -100))
-                            : (totalDev / row.total) * 100;
+                          const totalDev = actualsSum - budgetSum;
+                          const totalPct = budgetSum === 0
+                            ? (actualsSum === 0 ? 0 : (actualsSum > 0 ? 100 : -100))
+                            : (totalDev / budgetSum) * 100;
 
                           rowDev = {
                             total: totalDev,
@@ -1121,7 +1240,7 @@ export default function Analitica() {
                                 </div>
                               </td>
                               <td className="py-[3px] px-2 text-[11px] uppercase text-[#333] whitespace-nowrap overflow-hidden text-ellipsis">{row.name}</td>
-                              <td className="py-[3px] px-2 text-right text-[11px]">{fmt(row.total)}</td>
+                              <td className="py-[3px] px-2 text-right text-[11px]">{fmt(budgetSum)}</td>
                               {[...Array(12)].map((_, i) => shouldRenderMonth(i) && (
                                 <td key={i} className="py-[3px] px-2 text-right text-[11px]">{fmt(row.months[i])}</td>
                               ))}
