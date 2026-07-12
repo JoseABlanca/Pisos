@@ -304,17 +304,28 @@ function SearchableSelect({ value, onChange, options, placeholder }) {
 
 const MultiSelectDropdown = ({ label, options, selected, onChange }) => {
   const [isOpen, setIsOpen] = useState(false);
+  const [search, setSearch] = useState('');
   const containerRef = useRef(null);
 
   useEffect(() => {
     const handleOutside = (e) => {
       if (containerRef.current && !containerRef.current.contains(e.target)) {
         setIsOpen(false);
+        setSearch('');
       }
     };
     document.addEventListener('mousedown', handleOutside);
     return () => document.removeEventListener('mousedown', handleOutside);
   }, []);
+
+  const filteredOptions = useMemo(() => {
+    if (!search) return options;
+    const q = search.toLowerCase();
+    return options.filter(opt => 
+      (opt.code || '').toLowerCase().includes(q) || 
+      (opt.name || '').toLowerCase().includes(q)
+    );
+  }, [options, search]);
 
   const toggleOption = (optVal) => {
     if (selected.includes(optVal)) {
@@ -339,27 +350,36 @@ const MultiSelectDropdown = ({ label, options, selected, onChange }) => {
         </svg>
       </button>
       {isOpen && (
-        <div className="absolute left-0 right-0 top-full mt-0.5 bg-white border border-[#aaa] shadow-md z-30 max-h-40 overflow-y-auto rounded-sm p-1">
-          {options.length === 0 ? (
-            <div className="text-gray-400 p-1 text-center italic">Ninguno</div>
-          ) : (
-            options.map(opt => {
-              const checked = selected.includes(opt.code);
-              return (
-                <label key={opt.code} className="flex items-center px-1 py-0.5 hover:bg-[#cce5ff] cursor-pointer select-none truncate">
-                  <input 
-                    type="checkbox" 
-                    checked={checked} 
-                    onChange={() => toggleOption(opt.code)} 
-                    className="mr-1.5 accent-blue-600 shrink-0"
-                  />
-                  <span className="truncate" title={`${opt.code} - ${opt.name}`}>
-                    {opt.code} - {opt.name}
-                  </span>
-                </label>
-              );
-            })
-          )}
+        <div className="absolute left-0 right-0 top-full mt-0.5 bg-white border border-[#aaa] shadow-md z-30 max-h-56 overflow-y-auto rounded-sm p-1 flex flex-col gap-1">
+          <input 
+            type="text" 
+            placeholder="Buscar..." 
+            value={search} 
+            onChange={e => setSearch(e.target.value)} 
+            className="w-full border border-slate-300 px-1 py-0.5 text-[10px] outline-none focus:border-blue-500 rounded-sm"
+          />
+          <div className="overflow-y-auto max-h-36 flex flex-col">
+            {filteredOptions.length === 0 ? (
+              <div className="text-gray-400 p-1 text-center italic">Ninguno</div>
+            ) : (
+              filteredOptions.map(opt => {
+                const checked = selected.includes(opt.code);
+                return (
+                  <label key={opt.code} className="flex items-center px-1 py-0.5 hover:bg-[#cce5ff] cursor-pointer select-none truncate">
+                    <input 
+                      type="checkbox" 
+                      checked={checked} 
+                      onChange={() => toggleOption(opt.code)} 
+                      className="mr-1.5 accent-blue-600 shrink-0"
+                    />
+                    <span className="truncate" title={`${opt.code} - ${opt.name}`}>
+                      {opt.code} - {opt.name}
+                    </span>
+                  </label>
+                );
+              })
+            )}
+          </div>
         </div>
       )}
     </div>
@@ -398,6 +418,33 @@ export default function Analitica() {
   const [analyticalGrouping, setAnalyticalGrouping] = useState('cebe'); // 'cebe' | 'ceco'
   const [selectedCebes, setSelectedCebes] = useState([]);
   const [selectedCecos, setSelectedCecos] = useState([]);
+  const [sidebarWidth, setSidebarWidth] = useState(150);
+  const sidebarDragRef = useRef({ active: false, startX: 0, startW: 0 });
+
+  const handleSidebarResizeDown = (e) => {
+    e.preventDefault();
+    sidebarDragRef.current = {
+      active: true,
+      startX: e.clientX,
+      startW: sidebarWidth
+    };
+
+    const up = () => {
+      sidebarDragRef.current.active = false;
+      window.removeEventListener('mouseup', up);
+      window.removeEventListener('mousemove', mv);
+    };
+
+    const mv = (ev) => {
+      if (!sidebarDragRef.current.active) return;
+      const dx = ev.clientX - sidebarDragRef.current.startX;
+      const newW = Math.max(120, Math.min(350, sidebarDragRef.current.startW + dx));
+      setSidebarWidth(newW);
+    };
+
+    window.addEventListener('mouseup', up);
+    window.addEventListener('mousemove', mv);
+  };
 
   const shouldRenderMonth = (idx) => {
     if (selectedPeriods.length === 0) return true; // ALL
@@ -485,7 +532,7 @@ export default function Analitica() {
     return buds;
   }, [budgetsForYear, selectedCebes, selectedCecos]);
 
-  const analyticalBudgets = useMemo(() => {
+  const budgetsPageFiltered = useMemo(() => {
     let buds = budgetsForYearFiltered;
     if (groupFilter !== 'ALL') {
       buds = buds.filter(b => b.accountCode && b.accountCode.startsWith(groupFilter));
@@ -572,13 +619,13 @@ export default function Analitica() {
 
     if (analyticalGrouping === 'ceco') {
       // Grouping: CECO > CEBE
-      const cecoCodes = Array.from(new Set(analyticalBudgets.map(b => b.ceco).filter(Boolean))).sort();
+      const cecoCodes = Array.from(new Set(budgetsPageFiltered.map(b => b.ceco).filter(Boolean))).sort();
       
       cecoCodes.forEach(cecoCode => {
         const cecoCenter = cecos.find(c => c.code === cecoCode);
         const cecoName = cecoCenter ? cecoCenter.name : `CECO ${cecoCode}`;
         
-        const budsForCeco = analyticalBudgets.filter(b => b.ceco === cecoCode);
+        const budsForCeco = budgetsPageFiltered.filter(b => b.ceco === cecoCode);
         const cecoTotal = budsForCeco.reduce((s, b) => s + (parseFloat(b.total) || 0), 0);
         const cecoMonths = Object.fromEntries([...Array(12)].map((_, i) => [
           i,
@@ -631,13 +678,13 @@ export default function Analitica() {
       });
     } else {
       // Grouping: CEBE > CECO (Default)
-      const cebeCodes = Array.from(new Set(analyticalBudgets.map(b => b.cebe).filter(Boolean))).sort();
+      const cebeCodes = Array.from(new Set(budgetsPageFiltered.map(b => b.cebe).filter(Boolean))).sort();
       
       cebeCodes.forEach(cebeCode => {
         const cebeCenter = cebes.find(c => c.code === cebeCode);
         const cebeName = cebeCenter ? cebeCenter.name : `CEBE ${cebeCode}`;
         
-        const budsForCebe = analyticalBudgets.filter(b => b.cebe === cebeCode);
+        const budsForCebe = budgetsPageFiltered.filter(b => b.cebe === cebeCode);
         const cebeTotal = budsForCebe.reduce((s, b) => s + (parseFloat(b.total) || 0), 0);
         const cebeMonths = Object.fromEntries([...Array(12)].map((_, i) => [
           i,
@@ -691,7 +738,7 @@ export default function Analitica() {
     }
 
     return rows;
-  }, [viewMode, analyticalBudgets, cebes, cecos, collapsed, analyticalGrouping]);
+  }, [viewMode, budgetsPageFiltered, cebes, cecos, collapsed, analyticalGrouping]);
 
   const visibleRows = useMemo(() => {
     if (viewMode === 'analitica') {
@@ -717,7 +764,7 @@ export default function Analitica() {
     let totalHaber = 0;
     let totalDebe = 0;
 
-    budgetsForYear.forEach(b => {
+    budgetsPageFiltered.forEach(b => {
       const code = b.accountCode || '';
       const isHaber = code.startsWith('7') || code.startsWith('9');
       const isDebe = code.startsWith('6') || code.startsWith('8');
@@ -746,7 +793,58 @@ export default function Analitica() {
       monthsDiff,
       totalDiff
     };
-  }, [budgetsForYear, selectedPeriods]);
+  }, [budgetsPageFiltered, selectedPeriods]);
+
+  const txsPageFiltered = useMemo(() => {
+    let txs = rawTransactions.filter(tx => {
+      if (!tx.date) return false;
+      const yr = new Date(tx.date).getFullYear();
+      if (yr !== selectedYear) return false;
+      
+      if (selectedCebes.length > 0) {
+        const txCebeNorm = tx.cebe ? tx.cebe.replace(/^(CEBE|CECO)/i, '').trim() : '';
+        if (!selectedCebes.includes(txCebeNorm)) return false;
+      }
+      if (selectedCecos.length > 0) {
+        const txCecoNorm = tx.ceco ? tx.ceco.replace(/^(CEBE|CECO)/i, '').trim() : '';
+        if (!selectedCecos.includes(txCecoNorm)) return false;
+      }
+      
+      // Group filter
+      if (groupFilter !== 'ALL') {
+        const txAccCode = tx.accountId || tx.cuentaContable || '';
+        if (!txAccCode.startsWith(groupFilter)) return false;
+      }
+      
+      // Search query
+      if (searchQuery) {
+        const q = searchQuery.toLowerCase();
+        const txAccCode = tx.accountId || tx.cuentaContable || '';
+        const account = rawAccounts.find(a => a.id === txAccCode || a.code === txAccCode);
+        const accName = account ? (account.name || '').toLowerCase() : '';
+        const txCebeNorm = tx.cebe ? tx.cebe.replace(/^(CEBE|CECO)/i, '').toLowerCase().trim() : '';
+        const txCecoNorm = tx.ceco ? tx.ceco.replace(/^(CEBE|CECO)/i, '').toLowerCase().trim() : '';
+        
+        const cebeCenter = cebes.find(c => c.code.toLowerCase() === txCebeNorm);
+        const cebeName = cebeCenter ? cebeCenter.name.toLowerCase() : '';
+        const cecoCenter = cecos.find(c => c.code.toLowerCase() === txCecoNorm);
+        const cecoName = cecoCenter ? cecoCenter.name.toLowerCase() : '';
+        
+        const match = (
+          txAccCode.toLowerCase().includes(q) ||
+          accName.includes(q) ||
+          txCebeNorm.includes(q) ||
+          cebeName.includes(q) ||
+          txCecoNorm.includes(q) ||
+          cecoName.includes(q)
+        );
+        if (!match) return false;
+      }
+      
+      return true;
+    });
+    return txs;
+  }, [rawTransactions, selectedYear, selectedCebes, selectedCecos, groupFilter, searchQuery, rawAccounts, cebes, cecos]);
 
   const actualsMap = useMemo(() => {
     const map = {};
@@ -820,22 +918,7 @@ export default function Analitica() {
     let totalHaber = 0;
     let totalDebe = 0;
 
-    const txsForYear = rawTransactions.filter(tx => {
-      if (!tx.date) return false;
-      const yr = new Date(tx.date).getFullYear();
-      if (yr !== selectedYear) return false;
-      if (selectedCebes.length > 0) {
-        const txCebeNorm = tx.cebe ? tx.cebe.replace(/^(CEBE|CECO)/i, '').trim() : '';
-        if (!selectedCebes.includes(txCebeNorm)) return false;
-      }
-      if (selectedCecos.length > 0) {
-        const txCecoNorm = tx.ceco ? tx.ceco.replace(/^(CEBE|CECO)/i, '').trim() : '';
-        if (!selectedCecos.includes(txCecoNorm)) return false;
-      }
-      return true;
-    });
-
-    txsForYear.forEach(tx => {
+    txsPageFiltered.forEach(tx => {
       const txMonth = new Date(tx.date).getMonth();
       const code = tx.accountId || tx.cuentaContable || '';
       const isHaber = code.startsWith('7') || code.startsWith('9');
@@ -865,7 +948,7 @@ export default function Analitica() {
       monthsDiff,
       totalDiff
     };
-  }, [rawTransactions, selectedYear, rawAccounts, selectedPeriods, selectedCebes, selectedCecos]);
+  }, [txsPageFiltered, rawAccounts, selectedPeriods]);
 
   const performanceDeviations = useMemo(() => {
     const monthsDiff = Array(12).fill(0);
@@ -1146,9 +1229,9 @@ export default function Analitica() {
 
         {/* ── LEFT SIDEBAR (Foto 1 exact) ───────────────────────────────────── */}
         {sidebarVisible && (
-          <div className="flex shrink-0 border-r border-[#d6d6d6]">
+          <div className="flex shrink-0 border-r border-[#d6d6d6] relative">
             {/* The main sidebar */}
-            <div className="w-[150px] bg-[#f3f3f3] flex flex-col overflow-y-auto select-none border-r border-slate-300">
+            <div className="bg-[#f3f3f3] flex flex-col overflow-y-auto select-none border-r border-slate-300" style={{ width: sidebarWidth }}>
               {/* Lista actual */}
               <div className="bg-[#e6e8ec] text-[#333] text-[12px] font-bold px-3 py-[5px] border-b border-[#d6d6d6]">
                 Lista actual
@@ -1211,6 +1294,13 @@ export default function Analitica() {
                 </select>
               </div>
             </div>
+
+            {/* Drag Resize Handle */}
+            <div 
+              onMouseDown={handleSidebarResizeDown} 
+              className="absolute top-0 bottom-0 w-[5px] cursor-col-resize hover:bg-blue-400/40 active:bg-blue-500 z-20 select-none" 
+              style={{ left: sidebarWidth - 2 }}
+            />
 
             {/* The date strip */}
             <div className="w-[50px] bg-white flex flex-col items-center py-2 gap-1.5 shrink-0 overflow-y-auto">
