@@ -502,6 +502,7 @@ export default function Accounts({ isModal = false, onAccountSelect = null }) {
             key={node.id || node.code} 
             onClick={() => setSelectedNode(node.code)}
             onDoubleClick={() => {
+              console.log("Account row double clicked:", node.code, node.name, "isModal:", isModal, "onAccountSelect:", typeof onAccountSelect);
               if (isModal && onAccountSelect) {
                 onAccountSelect(node.code, node.name);
                 return;

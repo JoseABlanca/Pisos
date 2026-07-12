@@ -4,6 +4,7 @@ import { collection, query, where, onSnapshot, addDoc, updateDoc, deleteDoc, doc
 import { useAuth } from '../context/AuthContext';
 import { ChevronRight, ChevronDown, Check, Plus, AlertTriangle, ArrowUp, ArrowDown, Search } from 'lucide-react';
 import { CustomIcon } from '../components/CustomIcons';
+import ZoomControl from '../components/ZoomControl';
 
 export default function AnalyticalCenters({ type, isModal = false, onSelect = null }) {
   const { user, queryUserIds } = useAuth();
@@ -505,6 +506,10 @@ export default function AnalyticalCenters({ type, isModal = false, onSelect = nu
                 )}
               </tbody>
             </table>
+          </div>
+          
+          <div className="flex justify-end p-1 bg-[#f0f0f0] border-t border-[#808080]">
+            <ZoomControl />
           </div>
         </div>
         </div>

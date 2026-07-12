@@ -1,4 +1,4 @@
-import { useState, useEffect, useMemo, useRef } from 'react';
+import { useState, useEffect, useMemo, useRef, Fragment } from 'react';
 import { db } from '../firebase/config';
 import { collection, query, where, onSnapshot, doc, setDoc, deleteDoc } from 'firebase/firestore';
 import { useAuth } from '../context/AuthContext';
@@ -330,6 +330,7 @@ export default function Analitica() {
   const [collapsed, setCollapsed] = useState({});
   const [selectedRowId, setSelectedRowId] = useState(null);
   const [desvYear, setDesvYear] = useState(2026);
+  const [showDeviations, setShowDeviations] = useState(false);
  
   // Modal state
   const [showForm, setShowForm] = useState(false);
@@ -569,6 +570,131 @@ export default function Analitica() {
       totalDiff
     };
   }, [budgetsForYear]);
+
+  const actualsMap = useMemo(() => {
+    const map = {};
+    if (!rawTransactions.length) return map;
+
+    const txsForYear = rawTransactions.filter(tx => {
+      if (!tx.date) return false;
+      const yr = new Date(tx.date).getFullYear();
+      return yr === selectedYear;
+    });
+
+    visibleRows.forEach(row => {
+      const monthsActual = Array(12).fill(0);
+      let totalActual = 0;
+
+      txsForYear.forEach(tx => {
+        const txMonth = new Date(tx.date).getMonth();
+        let isMatch = false;
+
+        if (viewMode === 'contable') {
+          const txAccCode = tx.accountId || tx.cuentaContable || '';
+          if (txAccCode.startsWith(row.code)) {
+            isMatch = true;
+          }
+        } else if (viewMode === 'analitica') {
+          if (row.isCebe) {
+            if (tx.cebe && tx.cebe.replace(/^(CEBE|CECO)/i, '').trim() === row.cebeCode.replace(/^(CEBE|CECO)/i, '').trim()) {
+              isMatch = true;
+            }
+          } else if (row.isCeco) {
+            const cebeMatch = tx.cebe && tx.cebe.replace(/^(CEBE|CECO)/i, '').trim() === row.cebeCode.replace(/^(CEBE|CECO)/i, '').trim();
+            const cecoMatch = tx.ceco && tx.ceco.replace(/^(CEBE|CECO)/i, '').trim() === row.cecoCode.replace(/^(CEBE|CECO)/i, '').trim();
+            if (cebeMatch && cecoMatch) {
+              isMatch = true;
+            }
+          }
+        }
+
+        if (isMatch) {
+          const account = rawAccounts.find(a => a.id === tx.accountId || a.code === tx.accountId);
+          const net = getTransactionNet(tx, account);
+          monthsActual[txMonth] += net;
+          totalActual += net;
+        }
+      });
+
+      map[row.id] = {
+        months: monthsActual,
+        total: totalActual
+      };
+    });
+
+    return map;
+  }, [visibleRows, rawTransactions, selectedYear, viewMode, rawAccounts]);
+
+  const performanceActuals = useMemo(() => {
+    const monthsActual = Array(12).fill(0);
+    const monthsHaber = Array(12).fill(0);
+    const monthsDebe = Array(12).fill(0);
+
+    let totalHaber = 0;
+    let totalDebe = 0;
+
+    const txsForYear = rawTransactions.filter(tx => {
+      if (!tx.date) return false;
+      const yr = new Date(tx.date).getFullYear();
+      return yr === selectedYear;
+    });
+
+    txsForYear.forEach(tx => {
+      const txMonth = new Date(tx.date).getMonth();
+      const code = tx.accountId || tx.cuentaContable || '';
+      const isHaber = code.startsWith('7') || code.startsWith('9');
+      const isDebe = code.startsWith('6') || code.startsWith('8');
+
+      const account = rawAccounts.find(a => a.id === tx.accountId || a.code === tx.accountId);
+      const net = getTransactionNet(tx, account);
+
+      if (isHaber) {
+        totalHaber += net;
+        monthsHaber[txMonth] += net;
+      } else if (isDebe) {
+        totalDebe += net;
+        monthsDebe[txMonth] += net;
+      }
+    });
+
+    const monthsDiff = Array(12).fill(0);
+    for (let i = 0; i < 12; i++) {
+      monthsDiff[i] = monthsHaber[i] - monthsDebe[i];
+    }
+    const totalDiff = totalHaber - totalDebe;
+
+    return {
+      monthsDiff,
+      totalDiff
+    };
+  }, [rawTransactions, selectedYear, rawAccounts]);
+
+  const performanceDeviations = useMemo(() => {
+    const monthsDiff = Array(12).fill(0);
+    const monthsPct = Array(12).fill(0);
+
+    for (let i = 0; i < 12; i++) {
+      const budget = performanceTotals.monthsDiff[i];
+      const actual = performanceActuals.monthsDiff[i];
+      const diff = actual - budget;
+      monthsDiff[i] = diff;
+      monthsPct[i] = budget === 0 
+        ? (actual === 0 ? 0 : (actual > 0 ? 100 : -100)) 
+        : (diff / budget) * 100;
+    }
+
+    const totalDiff = performanceActuals.totalDiff - performanceTotals.totalDiff;
+    const totalPct = performanceTotals.totalDiff === 0 
+      ? (performanceActuals.totalDiff === 0 ? 0 : (performanceActuals.totalDiff > 0 ? 100 : -100)) 
+      : (totalDiff / performanceTotals.totalDiff) * 100;
+
+    return {
+      monthsDiff,
+      totalDiff,
+      monthsPct,
+      totalPct
+    };
+  }, [performanceTotals, performanceActuals]);
 
   // Auto-fill account when CEBE and CECO are selected based on associations
   useEffect(() => {
@@ -850,6 +976,9 @@ export default function Analitica() {
               <div className="px-3 py-2 flex flex-col gap-1 border-b border-[#d6d6d6]">
                 <SideRadio checked={viewMode === 'contable'} onChange={() => { setViewMode('contable'); setSelectedRowId(null); setCollapsed({}); }} label="Cuentas Contables" />
                 <SideRadio checked={viewMode === 'analitica'} onChange={() => { setViewMode('analitica'); setSelectedRowId(null); setCollapsed({}); }} label="Cuenta Analítica" />
+                <div className="mt-2 pt-2 border-t border-slate-200">
+                  <SideCheck checked={showDeviations} onChange={e => setShowDeviations(e.target.checked)} label="Ver desviaciones" bold={showDeviations} />
+                </div>
               </div>
               
               {/* Bottom: Ver saldos */}
@@ -942,32 +1071,96 @@ export default function Analitica() {
                     <tbody>
                       {visibleRows.map(row => {
                         const sel = selectedRowId === row.id;
+
+                        let rowDev = null;
+                        if (showDeviations) {
+                          const rowActuals = actualsMap[row.id] || { months: Array(12).fill(0), total: 0 };
+                          const totalDev = rowActuals.total - row.total;
+                          const monthsDev = Array(12).fill(0);
+                          const monthsPct = Array(12).fill(0);
+
+                          for (let i = 0; i < 12; i++) {
+                            const budgetVal = row.months[i] || 0;
+                            const actualVal = rowActuals.months[i] || 0;
+                            monthsDev[i] = actualVal - budgetVal;
+                            monthsPct[i] = budgetVal === 0 
+                              ? (actualVal === 0 ? 0 : (actualVal > 0 ? 100 : -100))
+                              : (monthsDev[i] / budgetVal) * 100;
+                          }
+
+                          const totalPct = row.total === 0
+                            ? (rowActuals.total === 0 ? 0 : (rowActuals.total > 0 ? 100 : -100))
+                            : (totalDev / row.total) * 100;
+
+                          rowDev = {
+                            total: totalDev,
+                            months: monthsDev,
+                            pctTotal: totalPct,
+                            pctMonths: monthsPct
+                          };
+                        }
+
                         return (
-                          <tr key={row.id}
-                              className={`border-b border-[#f0f0f0] cursor-default ${sel ? 'bg-[#cce5ff]' : 'hover:bg-[#f5f7fa]'}`}
-                              onClick={e => { e.stopPropagation(); setSelectedRowId(row.id); }}
-                              onDoubleClick={() => { setSelectedRowId(row.id); setTimeout(openEdit, 0); }}>
-                            <td className="py-[3px] px-2 whitespace-nowrap">
-                              <div className="flex items-center" style={{ paddingLeft: row.depth * 16 }}>
-                                {row.hasChildren ? (
-                                  <button onClick={e => { e.stopPropagation(); setCollapsed(p => ({ ...p, [row.code]: !p[row.code] })); }}
-                                          className="mr-[5px] text-[#999] hover:text-[#333] flex items-center justify-center w-[14px] h-[14px]">
-                                    <svg width="8" height="8" viewBox="0 0 8 8" fill="none">
-                                      {collapsed[row.code]
-                                        ? <path d="M2 0l4 4-4 4" stroke="currentColor" strokeWidth="1.5" fill="none" />
-                                        : <path d="M0 2l4 4 4-4" stroke="currentColor" strokeWidth="1.5" fill="none" />}
-                                    </svg>
-                                  </button>
-                                ) : <span className="w-[19px] shrink-0" />}
-                                <span className="text-[11px] text-[#333]">{row.code}</span>
-                              </div>
-                            </td>
-                            <td className="py-[3px] px-2 text-[11px] uppercase text-[#333] whitespace-nowrap overflow-hidden text-ellipsis">{row.name}</td>
-                            <td className="py-[3px] px-2 text-right text-[11px]">{fmt(row.total)}</td>
-                            {[...Array(12)].map((_, i) => shouldRenderMonth(i) && (
-                              <td key={i} className="py-[3px] px-2 text-right text-[11px]">{fmt(row.months[i])}</td>
-                            ))}
-                          </tr>
+                          <Fragment key={row.id}>
+                            <tr className={`border-b border-[#f0f0f0] cursor-default ${sel ? 'bg-[#cce5ff]' : 'hover:bg-[#f5f7fa]'}`}
+                                onClick={e => { e.stopPropagation(); setSelectedRowId(row.id); }}
+                                onDoubleClick={() => { setSelectedRowId(row.id); setTimeout(openEdit, 0); }}>
+                              <td className="py-[3px] px-2 whitespace-nowrap">
+                                <div className="flex items-center" style={{ paddingLeft: row.depth * 16 }}>
+                                  {row.hasChildren ? (
+                                    <button onClick={e => { e.stopPropagation(); setCollapsed(p => ({ ...p, [row.code]: !p[row.code] })); }}
+                                            className="mr-[5px] text-[#999] hover:text-[#333] flex items-center justify-center w-[14px] h-[14px]">
+                                      <svg width="8" height="8" viewBox="0 0 8 8" fill="none">
+                                        {collapsed[row.code]
+                                          ? <path d="M2 0l4 4-4 4" stroke="currentColor" strokeWidth="1.5" fill="none" />
+                                          : <path d="M0 2l4 4 4-4" stroke="currentColor" strokeWidth="1.5" fill="none" />}
+                                      </svg>
+                                    </button>
+                                  ) : <span className="w-[19px] shrink-0" />}
+                                  <span className="text-[11px] text-[#333]">{row.code}</span>
+                                </div>
+                              </td>
+                              <td className="py-[3px] px-2 text-[11px] uppercase text-[#333] whitespace-nowrap overflow-hidden text-ellipsis">{row.name}</td>
+                              <td className="py-[3px] px-2 text-right text-[11px]">{fmt(row.total)}</td>
+                              {[...Array(12)].map((_, i) => shouldRenderMonth(i) && (
+                                <td key={i} className="py-[3px] px-2 text-right text-[11px]">{fmt(row.months[i])}</td>
+                              ))}
+                            </tr>
+                            {showDeviations && rowDev && (
+                              <>
+                                {/* Deviation Amount Row */}
+                                <tr className="border-b border-[#f0f0f0] bg-slate-50/50 hover:bg-slate-100/50">
+                                  <td className="py-[2px] px-2 whitespace-nowrap">
+                                    <div className="flex items-center text-slate-500" style={{ paddingLeft: (row.depth * 16) + 19 }}>
+                                      <span className="text-[10px] font-semibold tracking-wider text-slate-400">DESV. (IMP)</span>
+                                    </div>
+                                  </td>
+                                  <td className="py-[2px] px-2 text-[10px] text-slate-400 uppercase whitespace-nowrap overflow-hidden text-ellipsis italic">Importe desviación</td>
+                                  <td className="py-[2px] px-2 text-right text-[10px] font-mono text-slate-600 font-semibold">{fmt(rowDev.total)}</td>
+                                  {[...Array(12)].map((_, i) => shouldRenderMonth(i) && (
+                                    <td key={i} className="py-[2px] px-2 text-right text-[10px] font-mono text-slate-500">{fmt(rowDev.months[i])}</td>
+                                  ))}
+                                </tr>
+                                {/* Deviation Percentage Row */}
+                                <tr className="border-b border-[#f0f0f0] bg-slate-50/50 hover:bg-slate-100/50">
+                                  <td className="py-[2px] px-2 whitespace-nowrap">
+                                    <div className="flex items-center text-slate-500" style={{ paddingLeft: (row.depth * 16) + 19 }}>
+                                      <span className="text-[10px] font-semibold tracking-wider text-slate-400">DESV. (%)</span>
+                                    </div>
+                                  </td>
+                                  <td className="py-[2px] px-2 text-[10px] text-slate-400 uppercase whitespace-nowrap overflow-hidden text-ellipsis italic">Porcentaje desviación</td>
+                                  <td className="py-[2px] px-2 text-right text-[10px] font-mono text-slate-600 font-semibold">
+                                    {rowDev.pctTotal === 0 ? '-' : `${rowDev.pctTotal > 0 ? '+' : ''}${rowDev.pctTotal.toLocaleString('es-ES', { minimumFractionDigits: 1, maximumFractionDigits: 1 })}%`}
+                                  </td>
+                                  {[...Array(12)].map((_, i) => shouldRenderMonth(i) && (
+                                    <td key={i} className="py-[2px] px-2 text-right text-[10px] font-mono text-slate-500">
+                                      {rowDev.pctMonths[i] === 0 ? '-' : `${rowDev.pctMonths[i] > 0 ? '+' : ''}${rowDev.pctMonths[i].toLocaleString('es-ES', { minimumFractionDigits: 1, maximumFractionDigits: 1 })}%`}
+                                    </td>
+                                  ))}
+                                </tr>
+                              </>
+                            )}
+                          </Fragment>
                         );
                       })}
                     </tbody>
@@ -992,17 +1185,21 @@ export default function Analitica() {
                         ))}
                       </tr>
                       <tr className="font-bold text-[11px]">
-                        <td colSpan={2} className="text-right pr-4 py-1 text-[#2b579a]">SALDO PUNTEADO:</td>
-                        <td className="text-right px-2 py-1 text-[#a51d24]">{fmt(0)}</td>
-                        {[...Array(12)].map((_, i) => shouldRenderMonth(i) && (
-                          <td key={i} className="text-right px-2 py-1 text-[#a51d24]">{fmt(0)}</td>
+                        <td colSpan={2} className="text-right pr-4 py-1 text-[#2b579a]">DESVIACIÓN:</td>
+                        <td className="text-right px-2 py-1 text-[#a51d24]">{fmt(performanceDeviations.totalDiff)}</td>
+                        {performanceDeviations.monthsDiff.map((diff, i) => shouldRenderMonth(i) && (
+                          <td key={i} className="text-right px-2 py-1 text-[#a51d24]">{fmt(diff)}</td>
                         ))}
                       </tr>
                       <tr className="font-bold text-[11px] border-b border-[#d6d6d6]">
-                        <td colSpan={2} className="text-right pr-4 py-1 text-[#2b579a]">SALDO SIN PUNTEAR:</td>
-                        <td className="text-right px-2 py-1 text-[#a51d24]">{fmt(performanceTotals.totalDiff)}</td>
-                        {performanceTotals.monthsDiff.map((diff, i) => shouldRenderMonth(i) && (
-                          <td key={i} className="text-right px-2 py-1 text-[#a51d24]">{fmt(diff)}</td>
+                        <td colSpan={2} className="text-right pr-4 py-1 text-[#2b579a]">PORCENTAJE:</td>
+                        <td className="text-right px-2 py-1 text-[#a51d24]">
+                          {performanceDeviations.totalPct === 0 ? '-' : `${performanceDeviations.totalPct > 0 ? '+' : ''}${performanceDeviations.totalPct.toLocaleString('es-ES', { minimumFractionDigits: 1, maximumFractionDigits: 1 })}%`}
+                        </td>
+                        {performanceDeviations.monthsPct.map((pct, i) => shouldRenderMonth(i) && (
+                          <td key={i} className="text-right px-2 py-1 text-[#a51d24]">
+                            {pct === 0 ? '-' : `${pct > 0 ? '+' : ''}${pct.toLocaleString('es-ES', { minimumFractionDigits: 1, maximumFractionDigits: 1 })}%`}
+                          </td>
                         ))}
                       </tr>
                     </tbody>
