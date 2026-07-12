@@ -332,6 +332,14 @@ export default function Analitica() {
   const [desvYear, setDesvYear] = useState(2026);
   const [showDeviations, setShowDeviations] = useState(false);
   const [analyticalGrouping, setAnalyticalGrouping] = useState('cebe'); // 'cebe' | 'ceco'
+
+  const shouldRenderMonth = (idx) => {
+    if (selectedPeriods.length === 0) return true; // ALL
+    if (selectedPeriods.includes(String(idx))) return true;
+    const q = Math.floor(idx / 3) + 1;
+    if (selectedPeriods.includes(`${q}T`)) return true;
+    return false;
+  };
  
   // Modal state
   const [showForm, setShowForm] = useState(false);
@@ -803,13 +811,6 @@ export default function Analitica() {
 
   /* ── Helpers ──────────────────────────────────────────────────────────────── */
   const fmt = v => v === 0 ? '' : (v || 0).toLocaleString('es-ES', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
-  const shouldRenderMonth = (idx) => {
-    if (selectedPeriods.length === 0) return true; // ALL
-    if (selectedPeriods.includes(String(idx))) return true;
-    const q = Math.floor(idx / 3) + 1;
-    if (selectedPeriods.includes(`${q}T`)) return true;
-    return false;
-  };
   const formTotal = Object.values(formMonths).reduce((s, v) => s + (parseFloat(v) || 0), 0);
 
   const openNew = () => {
