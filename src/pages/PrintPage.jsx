@@ -601,7 +601,7 @@ export default function PrintPage() {
       { id: 'quantity', label: 'Cant.' },
       { id: 'pmc', label: 'PMC' },
       { id: 'currentPrice', label: 'Precio Act.' },
-      { id: 'totalCost', label: 'Inversi�n' },
+      { id: 'totalCost', label: 'Inversión' },
       { id: 'currentValue', label: 'Valor Actual' },
       { id: 'pnl', label: 'Rendimiento (PnL)' }
     ],
@@ -4398,7 +4398,7 @@ export default function PrintPage() {
         holdings = holdings.filter(h => rvAssetFilter.includes(h.assetId));
       }
 
-      // Ordenaci�n
+      // Ordenación
       if (sortCol1 !== 'none') {
         holdings.sort((a, b) => {
           let valA = a[sortCol1];
@@ -4409,7 +4409,7 @@ export default function PrintPage() {
         });
       }
 
-      // Gr�ficos (Hist�rico de Renta Variable)
+      // Gráficos (Histórico de Renta Variable)
       if (showRvChart) {
         // Prepare chart data based on grouped periods using all rvTransactions
         const chartDataMap = {};
@@ -4439,14 +4439,14 @@ export default function PrintPage() {
 
         pageViews.push(
           <div key="rv-chart" className="page-sheet relative">
-            {renderPageHeader('Hist�rico de Renta Variable (Cartera Consolidada)')}
+            {renderPageHeader('Histórico de Renta Variable (Cartera Consolidada)')}
             <div className="flex flex-col items-center justify-center mt-10" style={{ height: '400px' }}>
-              <span className="text-[12px] font-bold text-slate-700 mb-4 font-sans">Evoluci�n (Compras, Ventas, Dividendos)</span>
+              <span className="text-[12px] font-bold text-slate-700 mb-4 font-sans">Evolución (Compras, Ventas, Dividendos)</span>
               <ResponsiveContainer width="90%" height="100%">
                 <BarChart data={chartData} margin={{ top: 20, right: 30, left: 20, bottom: 5 }}>
                   <CartesianGrid strokeDasharray="3 3" />
                   <XAxis dataKey="period" tick={{fontSize: 10}} />
-                  <YAxis tick={{fontSize: 10}} tickFormatter={(val) => `�${(val/1000).toFixed(0)}k`} />
+                  <YAxis tick={{fontSize: 10}} tickFormatter={(val) => `€${(val/1000).toFixed(0)}k`} />
                   <Tooltip formatter={(value) => formatCurrency(value)} />
                   <Legend wrapperStyle={{ fontSize: '10px' }} />
                   <Bar dataKey="compras" name="Compras" stackId="a" fill="#1e40af" />
@@ -4460,7 +4460,7 @@ export default function PrintPage() {
         );
       }
 
-      // Agrupaci�n
+      // Agrupación
       let listPages = [];
       let totalPages = 1;
       
@@ -4516,30 +4516,30 @@ export default function PrintPage() {
                 {pageIdx === 0 && (
                   <div className="grid grid-cols-3 gap-2 mb-4 text-[10px] select-none no-print border border-slate-350 p-2 bg-slate-50">
                     <div>
-                      <span className="text-slate-500 font-bold block uppercase text-[8px]">Inversi�n Total</span>
-                      <span className="font-sans tabular-nums font-bold text-slate-800 text-[12px]">{formatCurrency(sum.totalCost)} �</span>
+                      <span className="text-slate-500 font-bold block uppercase text-[8px]">Inversión Total</span>
+                      <span className="font-sans tabular-nums font-bold text-slate-800 text-[12px]">{formatCurrency(sum.totalCost)} €</span>
                     </div>
                     <div>
                       <span className="text-slate-500 font-bold block uppercase text-[8px]">Valor de Mercado</span>
-                      <span className="font-sans tabular-nums font-bold text-slate-800 text-[12px]">{formatCurrency(sum.totalValue)} �</span>
+                      <span className="font-sans tabular-nums font-bold text-slate-800 text-[12px]">{formatCurrency(sum.totalValue)} €</span>
                     </div>
                     <div>
                       <span className="text-slate-500 font-bold block uppercase text-[8px]">Rendimiento Total (PnL)</span>
                       <span className={`font-sans tabular-nums font-bold text-[12px] ${sum.pnl >= 0 ? 'text-green-700' : 'text-red-700'}`}>
-                        {formatCurrency(sum.pnl)} � ({(sum.pnlPercent || 0).toFixed(2)}%)
+                        {formatCurrency(sum.pnl)} € ({(sum.pnlPercent || 0).toFixed(2)}%)
                       </span>
                     </div>
                     <div className="pt-2 border-t border-slate-200">
                       <span className="text-slate-500 font-bold block uppercase text-[8px]">Dividendos Cobrados</span>
-                      <span className="font-sans tabular-nums font-bold text-slate-800 text-[12px]">{formatCurrency(sum.dividends)} �</span>
+                      <span className="font-sans tabular-nums font-bold text-slate-800 text-[12px]">{formatCurrency(sum.dividends)} €</span>
                     </div>
                     <div className="pt-2 border-t border-slate-200">
                       <span className="text-slate-500 font-bold block uppercase text-[8px]">Efectivo en Brokers</span>
-                      <span className="font-sans tabular-nums font-bold text-slate-800 text-[12px]">{formatCurrency(sum.cash)} �</span>
+                      <span className="font-sans tabular-nums font-bold text-slate-800 text-[12px]">{formatCurrency(sum.cash)} €</span>
                     </div>
                     <div className="pt-2 border-t border-slate-200">
                       <span className="text-slate-500 font-bold block uppercase text-[8px]">Total Cartera</span>
-                      <span className="font-sans tabular-nums font-bold text-slate-800 text-[12px]">{formatCurrency(sum.grandTotal)} �</span>
+                      <span className="font-sans tabular-nums font-bold text-slate-800 text-[12px]">{formatCurrency(sum.grandTotal)} €</span>
                     </div>
                   </div>
                 )}
@@ -4592,8 +4592,8 @@ export default function PrintPage() {
                         {visibleCols.map((col, idx) => {
                           if (idx === 0) return <td key={col.id} className="py-2 px-1" colSpan={Math.max(1, visibleCols.findIndex(c => ['totalCost', 'currentValue', 'pnl'].includes(c.id)))}>TOTAL POSICIONES:</td>;
                           if (idx < visibleCols.findIndex(c => ['totalCost', 'currentValue', 'pnl'].includes(c.id))) return null;
-                          if (col.id === 'totalCost') return <td key={col.id} className="py-2 px-1 text-right font-sans tabular-nums">{formatCurrency(sum.totalCost)}</td>;
-                          if (col.id === 'currentValue') return <td key={col.id} className="py-2 px-1 text-right font-sans tabular-nums text-slate-900">{formatCurrency(sum.totalValue)}</td>;
+                          if (col.id === 'totalCost') return <td key={col.id} className="py-2 px-1 text-right font-sans tabular-nums">{formatCurrency(sum.totalCost)} €/td>;
+                          if (col.id === 'currentValue') return <td key={col.id} className="py-2 px-1 text-right font-sans tabular-nums text-slate-900">{formatCurrency(sum.totalValue)} €/td>;
                           if (col.id === 'pnl') return <td key={col.id} className={`py-2 px-1 text-right font-sans font-bold tabular-nums ${sum.pnl >= 0 ? 'text-green-700' : 'text-red-700'}`}>{(sum.pnlPercent || 0).toFixed(2)}%</td>;
                           return <td key={col.id} className="py-2 px-1"></td>;
                         })}
@@ -4634,7 +4634,7 @@ export default function PrintPage() {
         filteredTx = filteredTx.filter(tx => rvAssetFilter.includes(tx.assetId));
       }
 
-      // Ordenaci�n
+      // Ordenación
       if (sortCol1 !== 'none') {
         filteredTx.sort((a, b) => {
           let valA = a[sortCol1];
@@ -4648,7 +4648,7 @@ export default function PrintPage() {
         filteredTx.sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime()); // Default
       }
 
-      // Agrupaci�n y Paginaci�n
+      // Agrupación y Paginación
       let listPages = [];
       let totalPages = 1;
       
@@ -4822,11 +4822,11 @@ export default function PrintPage() {
                     {isLastPage && (
                       <tr className="bg-slate-100 font-bold border-t-2 border-slate-400 text-[11px]">
                         <td className="py-2 px-1">TOTAL GENERAL:</td>
-                        <td className="py-2 px-1 text-right font-sans tabular-nums">{formatCurrency(sum.totalInvested)}</td>
+                        <td className="py-2 px-1 text-right font-sans tabular-nums">{formatCurrency(sum.totalInvested)} €/td>
                         <td className="py-2 px-1 text-right font-sans tabular-nums">{formatCurrency(sum.totalReturnGross)}</td>
                         <td className="py-2 px-1 text-right font-sans tabular-nums text-red-650">{formatCurrency(sum.totalReturnGross - sum.totalReturnNet)}</td>
-                        <td className="py-2 px-1 text-right font-sans tabular-nums text-green-700 font-extrabold">{formatCurrency(sum.totalReturnNet)}</td>
-                        <td className="py-2 px-1 text-right font-sans tabular-nums text-slate-900">{formatCurrency(sum.totalCurrentValueNet)}</td>
+                        <td className="py-2 px-1 text-right font-sans tabular-nums text-green-700 font-extrabold">{formatCurrency(sum.totalReturnNet)} €/td>
+                        <td className="py-2 px-1 text-right font-sans tabular-nums text-slate-900">{formatCurrency(sum.totalCurrentValueNet)} €/td>
                         <td className="py-2 px-1 text-right font-sans font-bold text-blue-900">{(sum.avgReturnNet || 0).toFixed(2)}%</td>
                       </tr>
                     )}
@@ -6970,7 +6970,7 @@ export default function PrintPage() {
                     </select>
                   </div>
                                     <div className="flex flex-col gap-1 border-t border-slate-100 pt-2">
-                    <span className="text-[9px] font-bold text-slate-400 uppercase">Agrupaci�n del Informe</span>
+                    <span className="text-[9px] font-bold text-slate-400 uppercase">Agrupación del Informe</span>
                     <select
                       value={groupCol1}
                       onChange={(e) => setGroupCol1(e.target.value)}
@@ -6983,7 +6983,7 @@ export default function PrintPage() {
                   </div>
                                     {selectedTemplate === 'rv_portfolio' && (
                   <div className="flex flex-col gap-1 border-t border-slate-100 pt-2">
-                    <span className="text-[9px] font-bold text-slate-400 uppercase">Gr�ficos del Hist�rico</span>
+                    <span className="text-[9px] font-bold text-slate-400 uppercase">Gráficos del Histórico</span>
                     <label className="flex items-center gap-2 cursor-pointer select-none text-[10px] font-semibold text-slate-600 font-sans">
                       <input 
                         type="checkbox"
@@ -6991,7 +6991,7 @@ export default function PrintPage() {
                         onChange={(e) => setShowRvChart(e.target.checked)}
                         className="w-3 h-3"
                       />
-                      <span>Mostrar Gr�ficos</span>
+                      <span>Mostrar Gráficos</span>
                     </label>
                   </div>
                   )}
