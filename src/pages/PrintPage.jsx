@@ -3,8 +3,8 @@ import { db } from '../firebase/config';
 import { collection, query, where, onSnapshot } from 'firebase/firestore';
 import { useAuth } from '../context/AuthContext';
 import { useSearchParams } from 'react-router-dom';
-import { 
 import ResizableSidebar from '../components/ResizableSidebar';
+import { 
   Printer, 
   BookOpen, 
   FileText, 
@@ -25,7 +25,10 @@ import ResizableSidebar from '../components/ResizableSidebar';
   RotateCcw,
   ChevronDown,
   ArrowUpDown,
-  Filter
+  TrendingDown,
+  Plus,
+  Trash2,
+  Edit2
 } from 'lucide-react';
 
 const SpanishAccountingNames = {
@@ -7477,3 +7480,4 @@ export default function PrintPage() {
     </ResizableSidebar>
   );
 }
+
