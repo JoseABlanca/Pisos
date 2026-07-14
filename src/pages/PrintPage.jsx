@@ -594,6 +594,17 @@ export default function PrintPage() {
       { id: 'theoreticalSalePrice', label: 'Precio de Venta' },
       { id: 'gastosCompraVenta', label: 'Gastos Compra Venta' },
     ],
+    rv_portfolio: [
+      { id: 'assetId', label: 'Ticker' },
+      { id: 'assetName', label: 'Activo' },
+      { id: 'brokerId', label: 'Broker' },
+      { id: 'quantity', label: 'Cant.' },
+      { id: 'avgPrice', label: 'PMC' },
+      { id: 'currentPrice', label: 'Precio Act.' },
+      { id: 'totalCost', label: 'Inversi�n' },
+      { id: 'currentValue', label: 'Valor Actual' },
+      { id: 'pnl', label: 'Rendimiento (PnL)' }
+    ],
     rv_transactions: [
       { id: 'date', label: 'Fecha' },
       { id: 'type', label: 'Tipo' },
@@ -682,7 +693,9 @@ export default function PrintPage() {
     clientes: new Set(['id','name','dni','phone','email','status','propertyName','rentalRef']),
     extracto_propietarios: new Set(['name','property','percentage','acquisitionPrice','investedCapital','adquisitionExpenses','acqPlusExpenses','capitalReforma','currentValue','ingresosExtracto','gastosExtracto','rendimientoNetoExtracto','mortgagePending','gain','netGain','realReturn']),
     metricas_inversion: new Set(['property','owner','percentage','acquisitionPrice','investedCapital','ingresosAnuales','gastosAnuales','beneficioNeto','roi','roe','cashOnCash','grossYield','netYield']),
-    plan_contable: new Set(['code','description'])
+    plan_contable: new Set(['code','description']),
+    rv_portfolio: new Set(['assetId', 'assetName', 'brokerId', 'quantity', 'avgPrice', 'currentPrice', 'totalCost', 'currentValue', 'pnl']),
+    rv_transactions: new Set(['date', 'type', 'assetId', 'brokerId', 'quantity', 'price', 'fee', 'currency', 'totalAmountEUR'])
   };
   const [visibleColumns, setVisibleColumns] = useState(() => {
     try {
@@ -4373,355 +4386,152 @@ export default function PrintPage() {
     }
 
     // 7. CARTERA DE RENTA VARIABLE
-
-    if (selectedTemplate === 'metricas_inversion') {
-      const cv = (colId) => isColVisible('metricas_inversion', colId);
-      
-      const accessoryIds = new Set(
-        properties
-          .map(p => {
-            if (!p.accessoryPropertyId) return null;
-            const acc = properties.find(prop => prop.id === p.accessoryPropertyId || prop.name === p.accessoryPropertyId);
-            return acc ? acc.id : null;
-          })
-          .filter(Boolean)
-      );
-
-      const ownerRows = [];
-      properties.forEach(p => {
-        if (groupAccessoryAssets && accessoryIds.has(p.id)) return;
-
-        const activePropFilters = selectedFilterProperties.metricas_inversion || [];
-        if (activePropFilters.length > 0 && !activePropFilters.includes(p.id)) return;
-
-        const activeRentFilters = selectedFilterRentals.metricas_inversion || [];
-        if (activeRentFilters.length > 0) {
-          const pRentals = rentals.filter(r => r.propertyId === p.id).map(r => r.reference);
-          if (!activeRentFilters.some(ref => pRentals.includes(ref))) return;
-        }
-
-        let ownersArr = Array.isArray(p.owners) && p.owners.length > 0 ? p.owners : [{ name: 'Sin Propietario', percentage: 100 }];
-
-        const consolidated = getConsolidatedProperty(p, properties, rentals, filteredEntriesForPrint, selectedCecos);
-        const mainMetrics = getPropertyMetrics(p, filteredEntriesForPrint, selectedCecos);
-        const acc = p.accessoryPropertyId ? properties.find(prop => prop.id === p.accessoryPropertyId || prop.name === p.accessoryPropertyId) : null;
-        const accMetrics = acc ? getPropertyMetrics(acc, filteredEntriesForPrint, selectedCecos) : { ingresos: 0, gastos: 0, neto: 0 };
-        
-        const baseIngresos = mainMetrics.ingresos + accMetrics.ingresos;
-        const baseGastos = mainMetrics.gastos + accMetrics.gastos;
-        const baseNeto = mainMetrics.neto + accMetrics.neto;
-        const baseInvested = consolidated.investedCapital || 0;
-        const baseAcqPrice = consolidated.acquisitionPrice || 0;
-
-        ownersArr.forEach(o => {
-          const activeOwnerFilters = selectedFilterOwners.metricas_inversion || [];
-          if (activeOwnerFilters.length > 0 && !activeOwnerFilters.includes(o.name)) return;
-          
-          const pct = parseFloat(o.percentage) || 100;
-          const factor = pct / 100;
-
-          ownerRows.push({
-            pId: p.id,
-            pName: p.name,
-            ownerName: o.name || '---',
-            percentage: pct,
-            ingresosAnuales: baseIngresos * factor,
-            gastosAnuales: baseGastos * factor,
-            beneficioNeto: baseNeto * factor,
-            investedCapital: baseInvested * factor,
-            acquisitionPrice: baseAcqPrice * factor,
-          });
-        });
-      });
-
-      const sortedOwnerRows = multiLevelSort(ownerRows, 'metricas_inversion', rentals, properties, sortCol1, sortDir1, sortCol2, sortDir2, filteredEntriesForPrint);
-
-      let blocks = [];
-      if (groupByOwner) {
-        const groups = {};
-        sortedOwnerRows.forEach(r => {
-          if (!groups[r.ownerName]) groups[r.ownerName] = [];
-          groups[r.ownerName].push(r);
-        });
-        
-        blocks = Object.entries(groups).map(([ownerName, rows]) => {
-          return {
-            headerLabel: `Propietario: ${ownerName}`,
-            rows: rows
-          };
-        });
-      } else {
-        const groups = {};
-        sortedOwnerRows.forEach(r => {
-          if (!groups[r.pName]) groups[r.pName] = [];
-          groups[r.pName].push(r);
-        });
-        
-        blocks = Object.entries(groups).map(([pName, rows]) => {
-          return {
-            headerLabel: `Finca: ${pName}`,
-            rows: rows
-          };
-        });
-      }
-
-      const listPages = chunkFlatList(blocks, getLimit(6));
-
-      if (blocks.length === 0) {
-        pageViews.push(
-          <div key="empty" className="page-sheet relative">
-            {renderPageHeader('Métricas de Inversión')}
-            <p className="text-center py-12 text-slate-450 italic text-[10px]">No hay inmuebles registrados.</p>
-            {renderPageFooter(1, 1, auditNumber)}
-          </div>
-        );
-      } else {
-        listPages.forEach((pageItems, pageIdx) => {
-          pageViews.push(
-            <div key={pageIdx} className="page-sheet relative">
-              <div className="flex flex-col gap-4">
-                {renderPageHeader('Métricas de Inversión')}
-                {pageItems.map((block, idx) => {
-                  const orderedCols = ALL_COLUMNS['metricas_inversion'].filter(c => cv(c.id));
-
-                  const blockTotals = block.rows.reduce((acc, r) => {
-                    acc.acquisitionPrice += r.acquisitionPrice || 0;
-                    acc.investedCapital += r.investedCapital || 0;
-                    acc.ingresosAnuales += r.ingresosAnuales || 0;
-                    acc.gastosAnuales += r.gastosAnuales || 0;
-                    acc.beneficioNeto += r.beneficioNeto || 0;
-                    return acc;
-                  }, { acquisitionPrice: 0, investedCapital: 0, ingresosAnuales: 0, gastosAnuales: 0, beneficioNeto: 0 });
-
-                  const tRoi = blockTotals.investedCapital > 0 ? (blockTotals.beneficioNeto / blockTotals.investedCapital) * 100 : 0;
-                  const tRoe = blockTotals.investedCapital > 0 ? (blockTotals.beneficioNeto / blockTotals.investedCapital) * 100 : 0;
-                  const tCashOnCash = blockTotals.investedCapital > 0 ? (blockTotals.beneficioNeto / blockTotals.investedCapital) * 100 : 0;
-                  const tGrossYield = blockTotals.acquisitionPrice > 0 ? (blockTotals.ingresosAnuales / blockTotals.acquisitionPrice) * 100 : 0;
-                  const tNetYield = blockTotals.acquisitionPrice > 0 ? (blockTotals.beneficioNeto / blockTotals.acquisitionPrice) * 100 : 0;
-
-                  return (
-                    <div key={idx} className="mb-2 break-inside-avoid">
-                      <div className="bg-slate-100 p-1 border border-slate-300 font-bold text-slate-800 flex justify-between text-[9px] mb-1.5 uppercase">
-                        <span>{block.headerLabel}</span>
-                      </div>
-                      <table className="w-full text-[8.5px] border-collapse">
-                        <thead>
-                          <tr className="border-b border-slate-300 font-semibold text-slate-600 bg-slate-50">
-                            {orderedCols.map(c => {
-                              if (c.id === 'property') return <th key={c.id} className="py-0.5 px-1 text-left">Inmueble</th>;
-                              if (c.id === 'owner') return <th key={c.id} className="py-0.5 px-1 text-left">Propietario</th>;
-                              if (c.id === 'percentage') return <th key={c.id} className="py-0.5 px-1 text-right">% Prop.</th>;
-                              if (c.id === 'acquisitionPrice') return <th key={c.id} className="py-0.5 px-1 text-right">Precio Adq.</th>;
-                              if (c.id === 'investedCapital') return <th key={c.id} className="py-0.5 px-1 text-right">Inv. Inicial</th>;
-                              if (c.id === 'ingresosAnuales') return <th key={c.id} className="py-0.5 px-1 text-right">Ingresos</th>;
-                              if (c.id === 'gastosAnuales') return <th key={c.id} className="py-0.5 px-1 text-right">Gastos</th>;
-                              if (c.id === 'beneficioNeto') return <th key={c.id} className="py-0.5 px-1 text-right">Bº Neto</th>;
-                              if (c.id === 'roi') return <th key={c.id} className="py-0.5 px-1 text-right">ROI</th>;
-                              if (c.id === 'roe') return <th key={c.id} className="py-0.5 px-1 text-right">ROE</th>;
-                              if (c.id === 'cashOnCash') return <th key={c.id} className="py-0.5 px-1 text-right">Cash on Cash</th>;
-                              if (c.id === 'grossYield') return <th key={c.id} className="py-0.5 px-1 text-right">R. Bruta</th>;
-                              if (c.id === 'netYield') return <th key={c.id} className="py-0.5 px-1 text-right">R. Neta</th>;
-                              return null;
-                            })}
-                          </tr>
-                        </thead>
-                        <tbody>
-                          {block.rows.map((item, rIdx) => {
-                            const { pName, ownerName, percentage, ingresosAnuales, gastosAnuales, beneficioNeto, investedCapital, acquisitionPrice } = item;
-                            
-                            const roi = investedCapital > 0 ? (beneficioNeto / investedCapital) * 100 : 0;
-                            const roe = investedCapital > 0 ? (beneficioNeto / investedCapital) * 100 : 0;
-                            const cashOnCash = investedCapital > 0 ? (beneficioNeto / investedCapital) * 100 : 0;
-                            const grossYield = acquisitionPrice > 0 ? (ingresosAnuales / acquisitionPrice) * 100 : 0;
-                            const netYield = acquisitionPrice > 0 ? (beneficioNeto / acquisitionPrice) * 100 : 0;
-
-                            return (
-                              <tr key={rIdx} className="border-b border-slate-100">
-                                {orderedCols.map(c => {
-                                  if (c.id === 'property') return <td key={c.id} className="py-0.5 px-1 text-left">{pName}</td>;
-                                  if (c.id === 'owner') return <td key={c.id} className="py-0.5 px-1 text-left">{ownerName}</td>;
-                                  if (c.id === 'percentage') return <td key={c.id} className="py-0.5 px-1 text-right">{percentage.toFixed(2)}%</td>;
-                                  if (c.id === 'acquisitionPrice') return <td key={c.id} className="py-0.5 px-1 text-right">{formatCurrency(acquisitionPrice)}</td>;
-                                  if (c.id === 'investedCapital') return <td key={c.id} className="py-0.5 px-1 text-right">{formatCurrency(investedCapital)}</td>;
-                                  if (c.id === 'ingresosAnuales') return <td key={c.id} className="py-0.5 px-1 text-right">{formatCurrency(ingresosAnuales)}</td>;
-                                  if (c.id === 'gastosAnuales') return <td key={c.id} className="py-0.5 px-1 text-right">{formatCurrency(gastosAnuales)}</td>;
-                                  if (c.id === 'beneficioNeto') return <td key={c.id} className="py-0.5 px-1 text-right">{formatCurrency(beneficioNeto)}</td>;
-                                  if (c.id === 'roi') return <td key={c.id} className="py-0.5 px-1 text-right">{roi.toFixed(2)}%</td>;
-                                  if (c.id === 'roe') return <td key={c.id} className="py-0.5 px-1 text-right">{roe.toFixed(2)}%</td>;
-                                  if (c.id === 'cashOnCash') return <td key={c.id} className="py-0.5 px-1 text-right">{cashOnCash.toFixed(2)}%</td>;
-                                  if (c.id === 'grossYield') return <td key={c.id} className="py-0.5 px-1 text-right">{grossYield.toFixed(2)}%</td>;
-                                  if (c.id === 'netYield') return <td key={c.id} className="py-0.5 px-1 text-right">{netYield.toFixed(2)}%</td>;
-                                  return null;
-                                })}
-                              </tr>
-                            );
-                          })}
-                          {block.rows.length > 1 && (
-                            <tr className="border-t border-slate-400 bg-slate-50 font-bold text-slate-800">
-                              {orderedCols.map(c => {
-                                if (c.id === 'property') return <td key={c.id} className="py-0.5 px-1 text-left">TOTALES</td>;
-                                if (c.id === 'owner') return <td key={c.id} className="py-0.5 px-1 text-left"></td>;
-                                if (c.id === 'percentage') return <td key={c.id} className="py-0.5 px-1 text-right"></td>;
-                                if (c.id === 'acquisitionPrice') return <td key={c.id} className="py-0.5 px-1 text-right">{formatCurrency(blockTotals.acquisitionPrice)}</td>;
-                                if (c.id === 'investedCapital') return <td key={c.id} className="py-0.5 px-1 text-right">{formatCurrency(blockTotals.investedCapital)}</td>;
-                                if (c.id === 'ingresosAnuales') return <td key={c.id} className="py-0.5 px-1 text-right">{formatCurrency(blockTotals.ingresosAnuales)}</td>;
-                                if (c.id === 'gastosAnuales') return <td key={c.id} className="py-0.5 px-1 text-right">{formatCurrency(blockTotals.gastosAnuales)}</td>;
-                                if (c.id === 'beneficioNeto') return <td key={c.id} className="py-0.5 px-1 text-right">{formatCurrency(blockTotals.beneficioNeto)}</td>;
-                                if (c.id === 'roi') return <td key={c.id} className="py-0.5 px-1 text-right">{tRoi.toFixed(2)}%</td>;
-                                if (c.id === 'roe') return <td key={c.id} className="py-0.5 px-1 text-right">{tRoe.toFixed(2)}%</td>;
-                                if (c.id === 'cashOnCash') return <td key={c.id} className="py-0.5 px-1 text-right">{tCashOnCash.toFixed(2)}%</td>;
-                                if (c.id === 'grossYield') return <td key={c.id} className="py-0.5 px-1 text-right">{tGrossYield.toFixed(2)}%</td>;
-                                if (c.id === 'netYield') return <td key={c.id} className="py-0.5 px-1 text-right">{tNetYield.toFixed(2)}%</td>;
-                                return null;
-                              })}
-                            </tr>
-                          )}
-                        </tbody>
-                      </table>
-                    </div>
-                  );
-                })}
-              </div>
-              {renderPageFooter(pageIdx + 1, listPages.length, auditNumber)}
-            </div>
-          );
-        });
-      }
-    }
-
-    if (selectedTemplate === 'plan_contable') {
-      const cv = (colId) => isColVisible('plan_contable', colId);
-      
-      const grouped = {};
-      const groupNames = {};
-      accounts.forEach(acc => {
-        if (acc.code.length === 1) {
-          groupNames[acc.code] = acc.name;
-        } else {
-          const group = acc.code.charAt(0);
-          if (!grouped[group]) grouped[group] = [];
-          grouped[group].push(acc);
-        }
-      });
-      const sortedGroups = Object.keys(grouped).sort();
-      sortedGroups.forEach(g => {
-        grouped[g].sort((a, b) => a.code.localeCompare(b.code));
-      });
-
-      const chunks = [];
-      let currentChunk = [];
-      let currentLines = 0;
-      const MAX_LINES = getLimit(35);
-
-      sortedGroups.forEach(g => {
-        if (currentLines + grouped[g].length + 2 > MAX_LINES && currentChunk.length > 0) {
-          chunks.push(currentChunk);
-          currentChunk = [];
-          currentLines = 0;
-        }
-        currentChunk.push({ group: g, items: grouped[g] });
-        currentLines += grouped[g].length + 2;
-      });
-      if (currentChunk.length > 0) chunks.push(currentChunk);
-
-      if (chunks.length === 0) {
-        pageViews.push(
-          <div key="empty" className="page-sheet relative">
-            {renderPageHeader('Plan Contable')}
-            <p className="text-center py-12 text-slate-450 italic text-[10px]">No hay cuentas registradas.</p>
-            {renderPageFooter(1, 1, auditNumber)}
-          </div>
-        );
-      } else {
-        chunks.forEach((pageItems, pageIdx) => {
-          pageViews.push(
-            <div key={pageIdx} className="page-sheet relative">
-              <div className="flex flex-col gap-4">
-                {renderPageHeader('Plan de Cuentas')}
-                {pageItems.map((block, bIdx) => (
-                  <div key={bIdx} className="mb-2 break-inside-avoid">
-                    <div className="bg-slate-100 p-1 border border-slate-300 font-bold text-slate-800 flex justify-between text-[9px] mb-1.5 uppercase">
-                      <span>Grupo {block.group}: {groupNames[block.group] || ''}</span>
-                    </div>
-                    <table className="w-full text-[8.5px] border-collapse">
-                      <thead>
-                        <tr className="border-b border-slate-300 font-semibold text-slate-600 bg-slate-50">
-                          {cv('code') && <th className="py-0.5 px-1 text-left w-32">Código</th>}
-                          {cv('description') && <th className="py-0.5 px-1 text-left">Descripción</th>}
-                        </tr>
-                      </thead>
-                      <tbody>
-                        {block.items.map((acc, aIdx) => {
-                          const padded = acc.code.padEnd(maxDigits, '0');
-                          return (
-                            <tr key={aIdx} className="border-b border-slate-100">
-                              {cv('code') && <td className="py-0.5 px-1 text-left font-mono">{padded}</td>}
-                              {cv('description') && <td className="py-0.5 px-1 text-left uppercase">{acc.name}</td>}
-                            </tr>
-                          );
-                        })}
-                      </tbody>
-                    </table>
-                  </div>
-                ))}
-              </div>
-              {renderPageFooter(pageIdx + 1, chunks.length, auditNumber)}
-            </div>
-          );
-        });
-      }
-    }
-
-    // 7. CARTERA DE RENTA VARIABLE
-
     if (selectedTemplate === 'rv_portfolio') {
-      const listPages = chunkFlatList(computedRvHoldings.holdings, getLimit(30));
-      const totalPages = listPages.length || 1;
       const sum = computedRvHoldings.summary;
+      let holdings = [...computedRvHoldings.holdings];
 
-      if (listPages.length === 0) {
+      // Filtros
+      if (rvBrokerFilter.length > 0) {
+        holdings = holdings.filter(h => rvBrokerFilter.includes(h.brokerId));
+      }
+      if (rvAssetFilter.length > 0) {
+        holdings = holdings.filter(h => rvAssetFilter.includes(h.assetId));
+      }
+
+      // Ordenaci�n
+      if (sortCol1 !== 'none') {
+        holdings.sort((a, b) => {
+          let valA = a[sortCol1];
+          let valB = b[sortCol1];
+          if (valA < valB) return sortDir1 === 'asc' ? -1 : 1;
+          if (valA > valB) return sortDir1 === 'asc' ? 1 : -1;
+          return 0;
+        });
+      }
+
+      // Gr�ficos (Hist�rico de Renta Variable)
+      if (showRvChart) {
+        // Prepare chart data based on grouped periods using all rvTransactions
+        const chartDataMap = {};
+        let txs = [...rvTransactions];
+        // Apply same filters if needed? Usually historical chart is for the whole portfolio or filtered portfolio.
+        if (rvBrokerFilter.length > 0) txs = txs.filter(tx => rvBrokerFilter.includes(tx.brokerId));
+        if (rvAssetFilter.length > 0) txs = txs.filter(tx => rvAssetFilter.includes(tx.assetId));
+
+        txs.sort((a,b) => new Date(a.date).getTime() - new Date(b.date).getTime()).forEach(tx => {
+          const d = new Date(tx.date);
+          const monthKey = `${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,'0')}`;
+          if (!chartDataMap[monthKey]) chartDataMap[monthKey] = { period: monthKey, compras: 0, ventas: 0, dividendos: 0 };
+          const qty = parseFloat(tx.quantity) || 0;
+          const price = parseFloat(tx.price) || 0;
+          const fee = parseFloat(tx.fee) || 0;
+          const rate = parseFloat(tx.exchangeRate) || 1.0;
+          let eur = 0;
+          if (tx.type === 'Dividendo') eur = (qty * price - fee) / rate;
+          else if (tx.type === 'Compra') eur = (qty * price + fee) / rate;
+          else eur = (qty * price - fee) / rate;
+
+          if (tx.type === 'Compra') chartDataMap[monthKey].compras += eur;
+          if (tx.type === 'Venta') chartDataMap[monthKey].ventas += eur;
+          if (tx.type === 'Dividendo') chartDataMap[monthKey].dividendos += eur;
+        });
+        const chartData = Object.values(chartDataMap);
+
+        pageViews.push(
+          <div key="rv-chart" className="page-sheet relative">
+            {renderPageHeader('Hist�rico de Renta Variable (Cartera Consolidada)')}
+            <div className="flex flex-col items-center justify-center mt-10" style={{ height: '400px' }}>
+              <span className="text-[12px] font-bold text-slate-700 mb-4 font-sans">Evoluci�n (Compras, Ventas, Dividendos)</span>
+              <ResponsiveContainer width="90%" height="100%">
+                <BarChart data={chartData} margin={{ top: 20, right: 30, left: 20, bottom: 5 }}>
+                  <CartesianGrid strokeDasharray="3 3" />
+                  <XAxis dataKey="period" tick={{fontSize: 10}} />
+                  <YAxis tick={{fontSize: 10}} tickFormatter={(val) => `�${(val/1000).toFixed(0)}k`} />
+                  <Tooltip formatter={(value) => formatCurrency(value)} />
+                  <Legend wrapperStyle={{ fontSize: '10px' }} />
+                  <Bar dataKey="compras" name="Compras" stackId="a" fill="#1e40af" />
+                  <Bar dataKey="ventas" name="Ventas" stackId="a" fill="#ea580c" />
+                  <Bar dataKey="dividendos" name="Dividendos" stackId="a" fill="#16a34a" />
+                </BarChart>
+              </ResponsiveContainer>
+            </div>
+            {renderPageFooter(1, 1, auditNumber)}
+          </div>
+        );
+      }
+
+      // Agrupaci�n
+      let listPages = [];
+      let totalPages = 1;
+      
+      const cv = (colId) => isColVisible('rv_portfolio', colId);
+      const visibleCols = (ALL_COLUMNS.rv_portfolio || []).filter(col => cv(col.id));
+
+      if (holdings.length === 0) {
         pageViews.push(
           <div key="empty-rv" className="page-sheet relative">
             {renderPageHeader('Cartera de Renta Variable')}
             <p className="text-center py-12 text-slate-450 italic text-[10px]">No hay posiciones registradas.</p>
-            {renderPageFooter(1, 1, auditNumber)}
+            {renderPageFooter(showRvChart ? 2 : 1, showRvChart ? 2 : 1, auditNumber)}
           </div>
         );
       } else {
+        if (groupCol1 !== 'none') {
+          const groupMap = {};
+          holdings.forEach(h => {
+            const k = h[groupCol1] || 'Sin Clasificar';
+            if (!groupMap[k]) groupMap[k] = [];
+            groupMap[k].push(h);
+          });
+          const groupBlocks = Object.entries(groupMap).sort((a,b) => a[0].localeCompare(b[0])).map(([gName, rows]) => {
+            return [
+              { type: 'group-header', label: gName },
+              ...rows.map(r => ({ ...r, type: 'group-item' }))
+            ];
+          }).filter(b => b.length > 0);
+          listPages = paginateBlocks(groupBlocks, getLimit(22), Math.max(2, Math.floor(6 * heightRatio)));
+        } else {
+          listPages = chunkFlatList(holdings, getLimit(30));
+        }
+
+        totalPages = listPages.length || 1;
+
         listPages.forEach((pageItems, pageIdx) => {
+          const actualPageIdx = showRvChart ? pageIdx + 1 : pageIdx;
+          const actualTotalPages = showRvChart ? totalPages + 1 : totalPages;
           const isLastPage = pageIdx === listPages.length - 1;
           pageViews.push(
-            <div key={`rv-p-${pageIdx}`} className="page-sheet relative">
-              <div>
+            <div key={`rv-p-${pageIdx}`} className="page-sheet relative flex flex-col justify-between">
+              <div className="flex-1">
                 {renderPageHeader('Cartera de Renta Variable - Posiciones')}
                 
                 {pageIdx === 0 && (
                   <div className="grid grid-cols-3 gap-2 mb-4 text-[10px] select-none no-print border border-slate-350 p-2 bg-slate-50">
                     <div>
-                      <span className="text-slate-500 font-bold block uppercase text-[8px]">Inversión Total</span>
-                      <span className="font-mono font-bold text-slate-800 text-[12px]">{formatCurrency(sum.totalCost)} €</span>
+                      <span className="text-slate-500 font-bold block uppercase text-[8px]">Inversi�n Total</span>
+                      <span className="font-mono font-bold text-slate-800 text-[12px]">{formatCurrency(sum.totalCost)} �</span>
                     </div>
                     <div>
                       <span className="text-slate-500 font-bold block uppercase text-[8px]">Valor de Mercado</span>
-                      <span className="font-mono font-bold text-slate-800 text-[12px]">{formatCurrency(sum.totalValue)} €</span>
+                      <span className="font-mono font-bold text-slate-800 text-[12px]">{formatCurrency(sum.totalValue)} �</span>
                     </div>
                     <div>
                       <span className="text-slate-500 font-bold block uppercase text-[8px]">Rendimiento Total (PnL)</span>
                       <span className={`font-mono font-bold text-[12px] ${sum.pnl >= 0 ? 'text-green-700' : 'text-red-700'}`}>
-                        {formatCurrency(sum.pnl)} € ({sum.pnlPercent.toFixed(2)}%)
+                        {formatCurrency(sum.pnl)} � ({sum.pnlPercent.toFixed(2)}%)
                       </span>
                     </div>
                     <div className="pt-2 border-t border-slate-200">
                       <span className="text-slate-500 font-bold block uppercase text-[8px]">Dividendos Cobrados</span>
-                      <span className="font-mono font-bold text-slate-800 text-[12px]">{formatCurrency(sum.dividends)} €</span>
+                      <span className="font-mono font-bold text-slate-800 text-[12px]">{formatCurrency(sum.dividends)} �</span>
                     </div>
                     <div className="pt-2 border-t border-slate-200">
                       <span className="text-slate-500 font-bold block uppercase text-[8px]">Efectivo en Brokers</span>
-                      <span className="font-mono font-bold text-slate-800 text-[12px]">{formatCurrency(sum.cash)} €</span>
+                      <span className="font-mono font-bold text-slate-800 text-[12px]">{formatCurrency(sum.cash)} �</span>
                     </div>
                     <div className="pt-2 border-t border-slate-200">
                       <span className="text-slate-500 font-bold block uppercase text-[8px]">Total Cartera</span>
-                      <span className="font-mono font-bold text-slate-800 text-[12px]">{formatCurrency(sum.grandTotal)} €</span>
+                      <span className="font-mono font-bold text-slate-800 text-[12px]">{formatCurrency(sum.grandTotal)} �</span>
                     </div>
                   </div>
                 )}
@@ -4729,53 +4539,68 @@ export default function PrintPage() {
                 <table className="w-full text-[10px] border-collapse">
                   <thead>
                     <tr className="border-b border-slate-400 bg-slate-100 font-bold text-slate-700">
-                      <th className="py-2 px-1 text-left w-16">Ticker</th>
-                      <th className="py-2 px-1 text-left">Activo</th>
-                      <th className="py-2 px-1 text-left w-20">Broker</th>
-                      <th className="py-2 px-1 text-right w-16">Cant.</th>
-                      <th className="py-2 px-1 text-right w-20">PMC</th>
-                      <th className="py-2 px-1 text-right w-20">Precio Act.</th>
-                      <th className="py-2 px-1 text-right w-24">Coste Total</th>
-                      <th className="py-2 px-1 text-right w-24">Valor Actual</th>
-                      <th className="py-2 px-1 text-right w-24">Rend. (%)</th>
+                      {visibleCols.map(col => {
+                        let align = 'text-left';
+                        if (['quantity', 'avgPrice', 'currentPrice', 'totalCost', 'currentValue', 'pnl'].includes(col.id)) align = 'text-right';
+                        let width = 'auto';
+                        if (['assetId', 'quantity'].includes(col.id)) width = 'w-16';
+                        if (['avgPrice', 'currentPrice', 'brokerId'].includes(col.id)) width = 'w-20';
+                        if (['totalCost', 'currentValue', 'pnl'].includes(col.id)) width = 'w-24';
+                        return <th key={col.id} className={`py-2 px-1 ${align} ${width}`}>{col.label}</th>;
+                      })}
                     </tr>
                   </thead>
                   <tbody>
-                    {pageItems.map(h => (
-                      <tr key={`${h.symbol}_${h.brokerId}`} className="border-b border-slate-100 hover:bg-slate-50">
-                        <td className="py-2 px-1 font-mono font-bold text-slate-650">{h.symbol}</td>
-                        <td className="py-2 px-1 font-bold text-slate-800 uppercase truncate max-w-[120px]">{h.name}</td>
-                        <td className="py-2 px-1 text-slate-600 uppercase text-[9px]">{h.brokerName}</td>
-                        <td className="py-2 px-1 text-right font-mono tabular-nums">{h.quantity.toFixed(4)}</td>
-                        <td className="py-2 px-1 text-right font-sans tabular-nums">{formatCurrency(h.pmc)}</td>
-                        <td className="py-2 px-1 text-right font-sans tabular-nums">{formatCurrency(h.currentPrice)}</td>
-                        <td className="py-2 px-1 text-right font-sans tabular-nums">{formatCurrency(h.totalCost)}</td>
-                        <td className="py-2 px-1 text-right font-sans tabular-nums font-bold text-slate-800">{formatCurrency(h.currentValue)}</td>
-                        <td className={`py-2 px-1 text-right font-sans font-bold tabular-nums ${h.pnl >= 0 ? 'text-green-700' : 'text-red-700'}`}>
-                          {h.pnlPercent.toFixed(2)}%
-                        </td>
-                      </tr>
-                    ))}
+                    {pageItems.map((h, ri) => {
+                      if (h.type === 'group-header') {
+                        return (
+                          <tr key={`ghead-${h.label}-${ri}`} className="bg-slate-100/50 font-bold border-t border-slate-350">
+                            <td colSpan={visibleCols.length} className="py-2 px-2 text-[10px] text-slate-800 font-sans tracking-wide uppercase">
+                              {groupCol1 === 'brokerId' ? 'BROKER' : groupCol1 === 'assetId' ? 'TICKER' : groupCol1}: {h.label}
+                            </td>
+                          </tr>
+                        );
+                      }
+
+                      return (
+                        <tr key={h.id || ri} className="border-b border-slate-100 hover:bg-slate-50">
+                          {visibleCols.map(col => {
+                            if (col.id === 'assetId') return <td key={col.id} className="py-2 px-1 font-bold text-slate-800 uppercase">{h.assetId}</td>;
+                            if (col.id === 'assetName') return <td key={col.id} className="py-2 px-1 text-slate-700 truncate max-w-[120px]">{h.assetName}</td>;
+                            if (col.id === 'brokerId') return <td key={col.id} className="py-2 px-1 text-slate-600 uppercase text-[9px] truncate max-w-[80px]">{h.brokerId}</td>;
+                            if (col.id === 'quantity') return <td key={col.id} className="py-2 px-1 text-right font-mono tabular-nums">{h.quantity.toFixed(4)}</td>;
+                            if (col.id === 'avgPrice') return <td key={col.id} className="py-2 px-1 text-right font-mono tabular-nums">{h.avgPrice.toFixed(2)}</td>;
+                            if (col.id === 'currentPrice') return <td key={col.id} className="py-2 px-1 text-right font-mono tabular-nums font-bold text-slate-800">{h.currentPrice.toFixed(2)}</td>;
+                            if (col.id === 'totalCost') return <td key={col.id} className="py-2 px-1 text-right font-sans tabular-nums">{formatCurrency(h.totalCost)}</td>;
+                            if (col.id === 'currentValue') return <td key={col.id} className="py-2 px-1 text-right font-sans tabular-nums font-bold text-slate-800">{formatCurrency(h.currentValue)}</td>;
+                            if (col.id === 'pnl') return <td key={col.id} className={`py-2 px-1 text-right font-sans font-bold tabular-nums ${h.pnl >= 0 ? 'text-green-700' : 'text-red-700'}`}>{h.pnlPercent.toFixed(2)}%</td>;
+                            return <td key={col.id} className="py-2 px-1">{h[col.id]}</td>;
+                          })}
+                        </tr>
+                      );
+                    })}
                     {isLastPage && (
                       <tr className="bg-slate-100 font-bold border-t-2 border-slate-400 text-[11px]">
-                        <td className="py-2 px-1" colSpan="3">TOTAL POSICIONES:</td>
-                        <td className="py-2 px-1" colSpan="3"></td>
-                        <td className="py-2 px-1 text-right font-sans tabular-nums">{formatCurrency(sum.totalCost)}</td>
-                        <td className="py-2 px-1 text-right font-sans tabular-nums text-slate-900">{formatCurrency(sum.totalValue)}</td>
-                        <td className={`py-2 px-1 text-right font-sans font-bold tabular-nums ${sum.pnl >= 0 ? 'text-green-700' : 'text-red-700'}`}>
-                          {sum.pnlPercent.toFixed(2)}%
-                        </td>
+                        {visibleCols.map((col, idx) => {
+                          if (idx === 0) return <td key={col.id} className="py-2 px-1" colSpan={Math.max(1, visibleCols.findIndex(c => ['totalCost', 'currentValue', 'pnl'].includes(c.id)))}>TOTAL POSICIONES:</td>;
+                          if (idx < visibleCols.findIndex(c => ['totalCost', 'currentValue', 'pnl'].includes(c.id))) return null;
+                          if (col.id === 'totalCost') return <td key={col.id} className="py-2 px-1 text-right font-sans tabular-nums">{formatCurrency(sum.totalCost)}</td>;
+                          if (col.id === 'currentValue') return <td key={col.id} className="py-2 px-1 text-right font-sans tabular-nums text-slate-900">{formatCurrency(sum.totalValue)}</td>;
+                          if (col.id === 'pnl') return <td key={col.id} className={`py-2 px-1 text-right font-sans font-bold tabular-nums ${sum.pnl >= 0 ? 'text-green-700' : 'text-red-700'}`}>{sum.pnlPercent.toFixed(2)}%</td>;
+                          return <td key={col.id} className="py-2 px-1"></td>;
+                        })}
                       </tr>
                     )}
                   </tbody>
                 </table>
               </div>
-              {renderPageFooter(pageIdx + 1, totalPages, auditNumber)}
+              {renderPageFooter(actualPageIdx + 1, actualTotalPages, auditNumber)}
             </div>
           );
         });
       }
     }
+
 
     // 8. TRANSACCIONES DE RENTA VARIABLE
     if (selectedTemplate === 'rv_transactions') {
@@ -7180,6 +7005,7 @@ export default function PrintPage() {
                       <option value="assetId">Agrupar por Acciones (Ticker)</option>
                     </select>
                   </div>
+                                    {selectedTemplate === 'rv_portfolio' && (
                   <div className="flex flex-col gap-1 border-t border-slate-100 pt-2">
                     <span className="text-[9px] font-bold text-slate-400 uppercase">Gr�ficos del Hist�rico</span>
                     <label className="flex items-center gap-2 cursor-pointer select-none text-[10px] font-semibold text-slate-600 font-sans">
@@ -7192,6 +7018,7 @@ export default function PrintPage() {
                       <span>Mostrar Gr�ficos</span>
                     </label>
                   </div>
+                  )}
                 </div>
               )}
             </div>
