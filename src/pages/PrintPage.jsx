@@ -4849,10 +4849,11 @@ export default function PrintPage() {
         );
       }
 
-      // Agrupaci�n
+      // Agrupación
       let listPages = [];
       let totalPages = 1;
       
+      const cv = (colId) => isColVisible('rv_transactions', colId);
       const visibleCols = (ALL_COLUMNS.rv_transactions || []).filter(col => cv(col.id));
 
       if (filteredTx.length === 0) {
