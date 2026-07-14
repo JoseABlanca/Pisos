@@ -1073,6 +1073,7 @@ export default function Analitica() {
 
   const openNew = () => {
     setFormAccount(null);
+    setFormIsExpense(false);
     setFormMonths(Object.fromEntries([...Array(12)].map((_, i) => [i, 0])));
     setFormInputValues(Object.fromEntries([...Array(12)].map((_, i) => [i, '0,00'])));
     setFormCebe('');
@@ -1099,6 +1100,7 @@ export default function Analitica() {
     if (!bud) return;
     const acc = rawAccounts.find(a => a.code === bud.accountCode) || { id: bud.accountId, code: bud.accountCode, name: bud.accountName };
     setFormAccount(acc);
+    setFormIsExpense(bud.isExpense !== undefined ? bud.isExpense : (acc.code?.startsWith('6') || acc.code?.startsWith('8')));
     setFormMonths({ ...bud.months });
     setFormInputValues(Object.fromEntries([...Array(12)].map((_, i) => [
       i,
@@ -1259,6 +1261,7 @@ export default function Analitica() {
       id, accountId: formAccount.id, accountCode: formAccount.code, accountName: formAccount.name || '',
       year: selectedYear, total: parseFloat(total.toFixed(2)), months: formMonths,
       cebe: formCebe || '', ceco: formCeco || '',
+      isExpense: formIsExpense,
       userId: user.uid, updatedAt: new Date().toISOString()
     }, { merge: true });
     setShowForm(false);
@@ -1727,6 +1730,12 @@ export default function Analitica() {
                        onClick={() => setShowAccountSel(true)}
                        className="w-[80px] border border-[#999] px-2 py-[3px] text-[12px] bg-white cursor-pointer outline-none font-mono" />
                 <span className="text-[12px] text-[#333] uppercase truncate flex-1 font-semibold">{formAccount?.name || ''}</span>
+              </div>
+
+              {/* Checkbox Gasto */}
+              <div className="flex items-center gap-[6px] pl-[71px]">
+                <input type="checkbox" id="expenseCheck" checked={formIsExpense} onChange={e => setFormIsExpense(e.target.checked)} className="w-[13px] h-[13px] accent-[#4472c4]" />
+                <label htmlFor="expenseCheck" className="text-[12px] text-[#333] font-bold cursor-pointer select-none">Es un Gasto (restará en los totales)</label>
               </div>
 
               {/* Presupuesto anual + Repartir */}
