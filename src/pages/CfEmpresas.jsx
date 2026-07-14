@@ -9,6 +9,7 @@ import { useTableColumns } from '../hooks/useTableColumns';
 import { exportToPDF } from '../utils/pdfExport';
 import EditableCell from '../components/EditableCell';
 import Accounts from './Accounts';
+import ResizableSidebar from '../components/ResizableSidebar';
 
 const TYPES = ['Inmobiliaria', 'P2P', 'Equity', 'Mixta', 'Otras'];
 const STATUSES = ['activo', 'inactivo'];
@@ -404,7 +405,7 @@ export default function CfEmpresas() {
 
         {/* Left Sidebar */}
         {showSidebar && (
-          <div className="w-64 bg-[#f0f4f9] border-r border-gray-200 flex flex-col shrink-0 transition-all">
+          <ResizableSidebar className=" bg-[#f0f4f9] border-r border-gray-200 flex flex-col shrink-0 transition-all">
             <div className="bg-[#e4ebf5] border-b border-gray-200 p-2 text-[12px] font-bold text-slate-700 flex justify-between items-center">
               <span>Filtros</span>
             </div>
@@ -452,7 +453,7 @@ export default function CfEmpresas() {
                 <p className="text-slate-700">Inactivas: <span className="font-bold text-red-700">{platforms.filter(p => p.status === 'inactivo').length}</span></p>
               </div>
             </div>
-          </div>
+          </ResizableSidebar>
         )}
 
         {/* Main Content */}

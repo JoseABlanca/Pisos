@@ -9,6 +9,7 @@ import ZoomControl from '../components/ZoomControl';
 import { useTableColumns } from '../hooks/useTableColumns';
 import { exportToPDF } from '../utils/pdfExport';
 import EditableCell from '../components/EditableCell';
+import ResizableSidebar from '../components/ResizableSidebar';
 
 export default function Broker() {
   const { user, queryUserIds } = useAuth();
@@ -289,7 +290,7 @@ export default function Broker() {
       <div className="flex flex-row flex-1 overflow-hidden bg-white relative">
         {/* Left Sidebar */}
         {showSidebar && (
-          <div className="w-64 bg-[#f0f4f9] border-r border-gray-200 flex flex-col shrink-0 transition-all">
+          <ResizableSidebar className=" bg-[#f0f4f9] border-r border-gray-200 flex flex-col shrink-0 transition-all">
             <div className="bg-[#e4ebf5] border-b border-gray-200 p-2 text-[12px] font-bold text-slate-700 flex justify-between items-center">
               <span>Filtros</span>
             </div>
@@ -337,7 +338,7 @@ export default function Broker() {
                 </div>
               </div>
             </div>
-          </div>
+          </ResizableSidebar>
         )}
 
         {/* Main Content Table Area */}

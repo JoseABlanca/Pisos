@@ -9,6 +9,7 @@ import { useTableColumns } from '../hooks/useTableColumns';
 import { exportToPDF } from '../utils/pdfExport';
 import EditableCell from '../components/EditableCell';
 import ZoomControl from '../components/ZoomControl';
+import ResizableSidebar from '../components/ResizableSidebar';
 
 const fmt = (v, dec = 2) =>
   (v || 0).toLocaleString('es-ES', { minimumFractionDigits: dec, maximumFractionDigits: dec });
@@ -241,7 +242,7 @@ export default function CfTransactions() {
         
         {/* Collapsible Sidebar */}
         {showSidebar && (
-          <div className="w-64 bg-[#f0f4f9] border-r border-gray-200 flex flex-col shrink-0 transition-all select-none">
+          <ResizableSidebar className=" bg-[#f0f4f9] border-r border-gray-200 flex flex-col shrink-0 transition-all select-none">
             
             {/* Header */}
             <div className="bg-[#e4ebf5] border-b border-gray-200 p-2 text-[12px] font-bold text-slate-700 flex justify-between items-center select-none">
@@ -294,7 +295,7 @@ export default function CfTransactions() {
               </div>
 
             </div>
-          </div>
+          </ResizableSidebar>
         )}
 
         {isMobile && showSidebar && (

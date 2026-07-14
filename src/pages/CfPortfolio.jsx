@@ -7,6 +7,7 @@ import { handleExportFormat } from '../utils/exportUtils';
 import { useTableColumns } from '../hooks/useTableColumns';
 import { exportToPDF } from '../utils/pdfExport';
 import ZoomControl from '../components/ZoomControl';
+import ResizableSidebar from '../components/ResizableSidebar';
 
 const fmt = (v, dec = 2) =>
   (v || 0).toLocaleString('es-ES', { minimumFractionDigits: dec, maximumFractionDigits: dec });
@@ -379,7 +380,7 @@ export default function CfPortfolio() {
         
         {/* Left Sidebar */}
         {showSidebar && (
-          <div className="w-64 bg-[#f0f4f9] border-r border-gray-200 flex flex-col shrink-0 transition-all select-none">
+          <ResizableSidebar className=" bg-[#f0f4f9] border-r border-gray-200 flex flex-col shrink-0 transition-all select-none">
             <div className="bg-[#e4ebf5] border-b border-gray-200 p-2 text-[12px] font-bold text-slate-700">
               Filtros
             </div>
@@ -453,7 +454,7 @@ export default function CfPortfolio() {
               </div>
 
             </div>
-          </div>
+          </ResizableSidebar>
         )}
 
         {isMobile && showSidebar && (

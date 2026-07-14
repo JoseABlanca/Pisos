@@ -12,6 +12,7 @@ import ZoomControl from '../components/ZoomControl';
 import { useTableColumns } from '../hooks/useTableColumns';
 import { exportToPDF } from '../utils/pdfExport';
 import { PieChart, Pie, Cell, BarChart as ReBarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, Legend, ResponsiveContainer } from 'recharts';
+import ResizableSidebar from '../components/ResizableSidebar';
 
 export default function Portfolio() {
   const { user, queryUserIds } = useAuth();
@@ -729,7 +730,7 @@ export default function Portfolio() {
       <div className="flex flex-row flex-1 overflow-hidden bg-white relative">
         {/* Left Sidebar filters */}
         {showSidebar && (
-          <div className="w-64 bg-[#f0f4f9] border-r border-gray-200 flex flex-col shrink-0 transition-all">
+          <ResizableSidebar className=" bg-[#f0f4f9] border-r border-gray-200 flex flex-col shrink-0 transition-all">
             <div className="bg-[#e4ebf5] border-b border-gray-200 p-2 text-[12px] font-bold text-slate-700 flex justify-between items-center">
               <span>Filtros</span>
             </div>
@@ -781,7 +782,7 @@ export default function Portfolio() {
                 </div>
               </div>
             </div>
-          </div>
+          </ResizableSidebar>
         )}
 
         {/* Main Content Area */}

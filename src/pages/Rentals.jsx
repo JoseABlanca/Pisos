@@ -19,6 +19,7 @@ import AccountingEntryModal from '../components/AccountingEntryModal';
 import EditableCell from '../components/EditableCell';
 import Accounts from './Accounts';
 import ExtractoContableTab from '../components/ExtractoContableTab';
+import ResizableSidebar from '../components/ResizableSidebar';
 
 export default function Rentals() {
   const { user, queryUserIds } = useAuth();
@@ -442,7 +443,7 @@ export default function Rentals() {
       <div className="flex flex-row flex-1 overflow-hidden bg-white relative">
         {/* Left Sidebar (Lista actual) */}
         {showSidebar && (
-          <div className="w-64 bg-[#f0f4f9] border-r border-gray-200 flex flex-col shrink-0 transition-all">
+          <ResizableSidebar className=" bg-[#f0f4f9] border-r border-gray-200 flex flex-col shrink-0 transition-all">
             <div className="bg-[#e4ebf5] border-b border-gray-200 p-2 text-[12px] font-bold text-slate-700 flex justify-between items-center">
               <span>Lista actual</span>
             </div>
@@ -519,7 +520,7 @@ export default function Rentals() {
                 ))}
               </div>
             </div>
-          </div>
+          </ResizableSidebar>
         )}
 
         {/* Table View */}
@@ -1098,18 +1099,6 @@ export default function Rentals() {
                                           <option value="">-- Seleccionar Inquilino --</option>
                                           {validCustomers.map(c => <option key={c.id} value={c.id}>{c.name || `${c.firstName || ''} ${c.lastName || ''}`.trim() || c.companyName}</option>)}
                                         </select>
-                                        {room.tenantId && (
-                                          <button 
-                                            onClick={() => {
-                                              const cust = customers.find(c => c.id === room.tenantId);
-                                              if (cust) navigate(`/clientes?editName=${encodeURIComponent(cust.name)}`);
-                                            }}
-                                            className="text-blue-600 hover:text-blue-800 p-1 bg-slate-200 border border-slate-400 shrink-0"
-                                            title="Ir a ficha de cliente"
-                                          >
-                                            <User className="w-4 h-4" />
-                                          </button>
-                                        )}
                                       </div>
                                     </div>
                                     

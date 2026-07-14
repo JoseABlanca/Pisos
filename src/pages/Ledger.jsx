@@ -11,6 +11,7 @@ import {
 } from 'lucide-react';
 import { exportToCSV } from '../utils/exportUtils';
 import Accounts from './Accounts';
+import ResizableSidebar from '../components/ResizableSidebar';
 
 export default function Ledger({ initialMode }) {
   const { user, queryUserIds } = useAuth();
@@ -465,7 +466,7 @@ export default function Ledger({ initialMode }) {
         <div className="flex w-full pt-8">
           {/* Left Sidebar */}
           {showSidebar && (
-            <div className="w-64 border-r border-gray-300 bg-[#f3f4f6] flex flex-col shrink-0 text-[11px] text-gray-800">
+            <ResizableSidebar className=" border-r border-gray-300 bg-[#f3f4f6] flex flex-col shrink-0 text-[11px] text-gray-800">
               <div className="flex-1 overflow-y-auto space-y-4">
                 {renderDateFilters()}
 
@@ -526,7 +527,7 @@ export default function Ledger({ initialMode }) {
                   </div>
                 </div>
               </div>
-            </div>
+            </ResizableSidebar>
           )}
           
           {/* Timeline column */}
@@ -706,7 +707,7 @@ export default function Ledger({ initialMode }) {
 
       <div className="flex flex-1 overflow-hidden border border-[#808080] bg-white">
         {/* Sidebar */}
-        <div className="w-64 border-r border-gray-300 bg-[#f3f4f6] flex flex-col shrink-0 text-[11px] text-gray-800">
+        <ResizableSidebar className=" border-r border-gray-300 bg-[#f3f4f6] flex flex-col shrink-0 text-[11px] text-gray-800">
           <div className="flex-1 overflow-y-auto space-y-4">
             {renderDateFilters()}
             
@@ -756,7 +757,7 @@ export default function Ledger({ initialMode }) {
           <div className="p-1 bg-[#23272a] text-white text-[8px] font-bold text-center uppercase tracking-widest border-t border-[#808080]">
             ACTIVE SYSTEM
           </div>
-        </div>
+        </ResizableSidebar>
 
         {/* Main Content View */}
         <div className="flex-1 flex flex-col relative overflow-hidden bg-white">

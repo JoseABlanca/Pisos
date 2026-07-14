@@ -27,6 +27,7 @@ import { pgcAccounts } from '../data/pgcAccounts';
 import ZoomControl from '../components/ZoomControl';
 
 import { CustomIcon } from '../components/CustomIcons';
+import ResizableSidebar from '../components/ResizableSidebar';
 
 // Descripciones del Plan General Contable
 const PGC_DESCRIPTIONS = {
@@ -732,7 +733,7 @@ export default function Accounts({ isModal = false, onAccountSelect = null }) {
             
             {/* Left Sidebar */}
             {showSidebar && (
-              <div className="w-64 bg-[#f8f9fa] border-r border-[#d1d5db] flex flex-col shrink-0">
+              <ResizableSidebar className=" bg-[#f8f9fa] border-r border-[#d1d5db] flex flex-col shrink-0">
               <div className="bg-[#e9ecef] font-bold text-[12px] px-3 py-1.5 border-b border-[#d1d5db] text-gray-700">Lista actual</div>
               <div className="p-3 space-y-1.5 flex-1 overflow-y-auto text-[11px] text-gray-800">
                 <label className="flex items-center space-x-2 cursor-pointer mb-2">
@@ -773,7 +774,7 @@ export default function Accounts({ isModal = false, onAccountSelect = null }) {
                   <option value="with-balance">Con saldo</option>
                 </select>
               </div>
-              </div>
+              </ResizableSidebar>
             )}
 
             {/* Main Table Area */}

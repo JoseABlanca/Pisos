@@ -11,6 +11,7 @@ import {
   Search, Filter, Download, Trash2, Edit, X, Check, FileText, PanelLeft
 } from 'lucide-react';
 import { exportToCSV } from '../utils/exportUtils';
+import ResizableSidebar from '../components/ResizableSidebar';
 
 function AccountSelector({ accounts, value, onChange }) {
   const [isOpen, setIsOpen] = useState(false);
@@ -447,7 +448,7 @@ export default function Journal() {
       <div className="flex w-full pt-8">
         {/* Left Sidebar */}
         {showSidebar && (
-          <div className="w-64 border-r border-gray-300 bg-[#f9fafc] flex flex-col shrink-0 text-[11px] text-gray-700">
+          <ResizableSidebar className=" border-r border-gray-300 bg-[#f9fafc] flex flex-col shrink-0 text-[11px] text-gray-700">
             <div className="flex-1 p-3 overflow-y-auto space-y-4">
               <div>
                 <h3 className="font-bold mb-2 text-[#2a3042]">FECHAS:</h3>
@@ -478,7 +479,7 @@ export default function Journal() {
                 </div>
               </div>
             </div>
-          </div>
+          </ResizableSidebar>
         )}
         
         {/* Timeline column */}

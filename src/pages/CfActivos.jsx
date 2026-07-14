@@ -12,6 +12,7 @@ import AccountingEntryModal from '../components/AccountingEntryModal';
 import { deleteJournalEntry } from '../services/accounting';
 import { uploadFileToStorage } from '../utils/storageUtils';
 import Accounts from './Accounts';
+import ResizableSidebar from '../components/ResizableSidebar';
 
 const fmt = (v, dec = 2) =>
   (v || 0).toLocaleString('es-ES', { minimumFractionDigits: dec, maximumFractionDigits: dec });
@@ -430,7 +431,7 @@ export default function CfActivos() {
 
         {/* Left Sidebar */}
         {showSidebar && (
-          <div className="w-64 bg-[#f0f4f9] border-r border-gray-200 flex flex-col shrink-0 transition-all">
+          <ResizableSidebar className=" bg-[#f0f4f9] border-r border-gray-200 flex flex-col shrink-0 transition-all">
             <div className="bg-[#e4ebf5] border-b border-gray-200 p-2 text-[12px] font-bold text-slate-700">
               Filtros
             </div>
@@ -486,7 +487,7 @@ export default function CfActivos() {
                 )}
               </div>
             </div>
-          </div>
+          </ResizableSidebar>
         )}
 
         {/* Main Content */}

@@ -3,6 +3,7 @@ import { collection, query, where, onSnapshot, writeBatch, doc } from 'firebase/
 import { db } from '../firebase/config';
 import { useAuth } from '../context/AuthContext';
 import { 
+import ResizableSidebar from '../components/ResizableSidebar';
   LineChart, Line, BarChart, Bar, XAxis, YAxis, CartesianGrid, 
   Tooltip, Legend, ResponsiveContainer, ReferenceLine, ComposedChart, Area, AreaChart
 } from 'recharts';
@@ -592,14 +593,17 @@ export default function RvMetrics() {
        }
        if (maxPortfolioValue > 0) {
           day.drawdownPct = ((currentValue - maxPortfolioValue) / maxPortfolioValue) * 100;
+          day.drawdownEUR = currentValue - maxPortfolioValue;
        } else {
           day.drawdownPct = 0;
+          day.drawdownEUR = 0;
        }
 
        activeTickersList.forEach(t => {
           const tVal = (day[`capitalInvertido_${t}`] || 0) + (day[`beneficioTotal_${t}`] || 0);
           if (tVal > maxPortfolioPerAsset[t]) maxPortfolioPerAsset[t] = tVal;
           day[`drawdownPct_${t}`] = maxPortfolioPerAsset[t] > 0 ? ((tVal - maxPortfolioPerAsset[t]) / maxPortfolioPerAsset[t]) * 100 : 0;
+          day[`drawdownEUR_${t}`] = maxPortfolioPerAsset[t] > 0 ? tVal - maxPortfolioPerAsset[t] : 0;
        });
     });
 
@@ -1355,7 +1359,7 @@ export default function RvMetrics() {
       
       {/* Sidebar */}
       {isSidebarOpen && (
-        <div className="w-72 bg-[#f4f5f8] border-r border-slate-200 flex-shrink-0 flex flex-col h-full overflow-y-auto">
+        <ResizableSidebar defaultWidth={288} className="bg-[#f4f5f8] border-r border-slate-200 h-full overflow-y-auto">
           <div className="p-4 border-b border-slate-200 bg-[#ebeef5] sticky top-0 z-10">
             <h2 className="font-bold text-slate-700 text-sm">Filtros</h2>
           </div>
@@ -1458,7 +1462,7 @@ export default function RvMetrics() {
             )}
 
           </div>
-        </div>
+        </ResizableSidebar>
       )}
 
       {/* Main Content */}
@@ -2110,17 +2114,18 @@ export default function RvMetrics() {
                       const d = new Date(val);
                       return `${d.getMonth()+1}/${d.getFullYear().toString().slice(2)}`;
                   }} />
-                  <YAxis tick={{ fontSize: 10, fill: '#64748b' }} tickFormatter={(v) => `${v.toFixed(1)}%`} />
-                  <Tooltip formatter={(value) => [`${Number(value).toFixed(2)}%`, 'Drawdown']} labelStyle={{ color: '#0f172a', fontWeight: 'bold' }} />
+                  <YAxis tick={{ fontSize: 10, fill: '#64748b' }} tickFormatter={unit === 'EUR' ? formatYAxis : (v) => `${v.toFixed(1)}%`} />
+                  <Tooltip formatter={(value) => unit === 'EUR' ? [`${Number(value).toLocaleString('es-ES', { style: 'currency', currency: 'EUR' })}`, 'Drawdown'] : [`${Number(value).toFixed(2)}%`, 'Drawdown']} labelStyle={{ color: '#0f172a', fontWeight: 'bold' }} />
                   <Legend onClick={handleLegendClick} wrapperStyle={{ fontSize: '11px', cursor: 'pointer' }} />
                   {isAccumulated ? (
-                    <Area type="monotone" name="Drawdown Global" dataKey="drawdownPct" stroke="#3b82f6" fill="#3b82f6" fillOpacity={0.15} hide={hiddenLines['drawdownPct']} />
+                    <Area type="monotone" name="Drawdown Global" dataKey={unit === 'EUR' ? "drawdownEUR" : "drawdownPct"} stroke="#3b82f6" fill="#3b82f6" fillOpacity={0.15} hide={hiddenLines[unit === 'EUR' ? 'drawdownEUR' : 'drawdownPct']} />
                   ) : (
                     tickersToRender.map((t, idx) => {
                        const colors = ['#3b82f6', '#10b981', '#f59e0b', '#ef4444', '#8b5cf6', '#ec4899', '#06b6d4', '#14b8a6', '#f97316'];
                        const color = colors[idx % colors.length];
+                       const dk = unit === 'EUR' ? `drawdownEUR_${t}` : `drawdownPct_${t}`;
                        return (
-                         <Area key={t} type="monotone" name={`${t} Drawdown`} dataKey={`drawdownPct_${t}`} stroke={color} fill={color} fillOpacity={0.3} hide={hiddenLines[`drawdownPct_${t}`]} />
+                         <Area key={t} type="monotone" name={`${t} Drawdown`} dataKey={dk} stroke={color} fill={color} fillOpacity={0.3} hide={hiddenLines[dk]} />
                        )
                     })
                   )}

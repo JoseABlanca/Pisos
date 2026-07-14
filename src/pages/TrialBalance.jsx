@@ -408,24 +408,22 @@ export default function TrialBalance() {
                       <ZoomControl />
                    </div>
                 </div>
-                {/* Totals row */}
-                <div className="flex items-center overflow-x-auto">
-                   <div className="flex items-center space-x-2 mx-auto">
-                      <div className="text-right font-semibold pr-2 whitespace-nowrap">Total:</div>
-                      <div className="w-28 text-center font-bold text-[#0d2a63]">{totals.debit.toLocaleString('es-ES', { minimumFractionDigits: 2 })}</div>
-                      <div className="w-28 text-center font-bold text-[#0d2a63] px-2">{totals.credit.toLocaleString('es-ES', { minimumFractionDigits: 2 })}</div>
-                      <div className="w-28 text-center font-bold text-[#0d2a63]">{totals.balance >= 0 ? totals.balance.toLocaleString('es-ES', { minimumFractionDigits: 2 }) : `(${Math.abs(totals.balance).toLocaleString('es-ES', { minimumFractionDigits: 2 })})`}</div>
-                   </div>
-                </div>
-                {/* Sub-total row */}
-                <div className="flex items-center overflow-x-auto mt-0.5">
-                   <div className="flex items-center space-x-2 mx-auto">
-                      <div className="text-right font-semibold pr-2 whitespace-nowrap">Total hasta la cuenta seleccionada:</div>
-                      <div className="w-28 text-center font-bold text-[#0d2a63]">0,00</div>
-                      <div className="w-28 text-center font-bold text-[#0d2a63] px-2">0,00</div>
-                      <div className="w-28 text-center font-bold text-[#0d2a63]">0,00</div>
-                   </div>
-                </div>
+                 {/* Totals row */}
+                 <div className="flex items-center w-full mt-2">
+                    <div className="w-24 shrink-0 hidden sm:block"></div>
+                    <div className="flex-1 shrink text-right font-semibold pr-4 whitespace-nowrap">Total:</div>
+                    <div className="w-32 shrink-0 text-right font-bold text-[#0d2a63] px-2">{totals.debit.toLocaleString('es-ES', { minimumFractionDigits: 2 })}</div>
+                    <div className="w-32 shrink-0 text-right font-bold text-[#0d2a63] px-2">{totals.credit.toLocaleString('es-ES', { minimumFractionDigits: 2 })}</div>
+                    <div className="w-32 shrink-0 text-right font-bold text-[#0d2a63] pl-2">{totals.balance >= 0 ? totals.balance.toLocaleString('es-ES', { minimumFractionDigits: 2 }) : `(${Math.abs(totals.balance).toLocaleString('es-ES', { minimumFractionDigits: 2 })})`}</div>
+                 </div>
+                 {/* Sub-total row */}
+                 <div className="flex items-center w-full mt-1">
+                    <div className="w-24 shrink-0 hidden sm:block"></div>
+                    <div className="flex-1 shrink text-right font-semibold pr-4 whitespace-nowrap">Total hasta la cuenta seleccionada:</div>
+                    <div className="w-32 shrink-0 text-right font-bold text-[#0d2a63] px-2">0,00</div>
+                    <div className="w-32 shrink-0 text-right font-bold text-[#0d2a63] px-2">0,00</div>
+                    <div className="w-32 shrink-0 text-right font-bold text-[#0d2a63] pl-2">0,00</div>
+                 </div>     
              </div>
          </div>
       </div>
