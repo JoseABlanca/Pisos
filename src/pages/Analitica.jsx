@@ -824,8 +824,9 @@ export default function Analitica() {
 
     budgetsPageFiltered.forEach(b => {
       const code = b.accountCode || '';
-      const isHaber = code.startsWith('7') || code.startsWith('9');
-      const isDebe = code.startsWith('6') || code.startsWith('8');
+      const expenseFlag = b.isExpense !== undefined ? b.isExpense : (code.startsWith('6') || code.startsWith('8'));
+      const isDebe = expenseFlag;
+      const isHaber = !expenseFlag;
 
       if (isHaber) {
         for (let i = 0; i < 12; i++) {
