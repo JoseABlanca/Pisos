@@ -751,6 +751,7 @@ export default function PrintPage() {
   const [rvBrokerFilter, setRvBrokerFilter] = useState([]);
   const [rvAssetFilter, setRvAssetFilter] = useState([]);
   const [showRvChart, setShowRvChart] = useState(false);
+  const [groupCol1, setGroupCol1] = useState('none');
   const [rvChartType, setRvChartType] = useState('volumen'); // 'volumen' or 'rendimiento'
   const [statusFilterAlquileres, setStatusFilterAlquileres] = useState('todos'); // 'todos','activo','inactivo'
   const [statusFilterClientes, setStatusFilterClientes] = useState('todos'); // 'todos','activo','inactivo'
@@ -4804,8 +4805,8 @@ export default function PrintPage() {
           let valA = a[sortCol1];
           let valB = b[sortCol1];
           if (sortCol1 === 'date') { valA = new Date(valA).getTime(); valB = new Date(valB).getTime(); }
-          if (valA < valB) return sortAsc1 ? -1 : 1;
-          if (valA > valB) return sortAsc1 ? 1 : -1;
+          if (valA < valB) return sortDir1 === 'asc' ? -1 : 1;
+          if (valA > valB) return sortDir1 === 'asc' ? 1 : -1;
           return 0;
         });
       } else {
@@ -7165,6 +7166,18 @@ export default function PrintPage() {
                       {rvAssets.map(a => (
                         <option key={a.id} value={a.id}>{a.id} - {a.name}</option>
                       ))}
+                    </select>
+                  </div>
+                                    <div className="flex flex-col gap-1 border-t border-slate-100 pt-2">
+                    <span className="text-[9px] font-bold text-slate-400 uppercase">Agrupaci�n del Informe</span>
+                    <select
+                      value={groupCol1}
+                      onChange={(e) => setGroupCol1(e.target.value)}
+                      className="win-input w-full text-[11px] font-sans"
+                    >
+                      <option value="none">Sin Agrupar</option>
+                      <option value="brokerId">Agrupar por Broker</option>
+                      <option value="assetId">Agrupar por Acciones (Ticker)</option>
                     </select>
                   </div>
                   <div className="flex flex-col gap-1 border-t border-slate-100 pt-2">
