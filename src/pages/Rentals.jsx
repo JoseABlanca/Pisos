@@ -1306,7 +1306,13 @@ export default function Rentals() {
                           const propOwners = selectedProp?.owners || [];
                           if (!formData.propertyId || propOwners.length === 0) return null;
 
-                          const rentEq = (formData.paymentPeriod === 'anual' ? formData.rentAmount / 12 : (formData.paymentPeriod === 'trimestral' ? formData.rentAmount / 3 : formData.rentAmount)) || 0;
+                          let rentEq = 0;
+                          if (formData.rentalType === 'alquiler por habitaciones' && Array.isArray(formData.rooms)) {
+                            const roomsSum = formData.rooms.reduce((sum, r) => sum + (r.isActive !== false ? (Number(r.amount) || 0) : 0), 0);
+                            rentEq = (formData.paymentPeriod === 'anual' ? roomsSum / 12 : (formData.paymentPeriod === 'trimestral' ? roomsSum / 3 : roomsSum)) || 0;
+                          } else {
+                            rentEq = (formData.paymentPeriod === 'anual' ? formData.rentAmount / 12 : (formData.paymentPeriod === 'trimestral' ? formData.rentAmount / 3 : formData.rentAmount)) || 0;
+                          }
                           const expEq = (formData.expenses || []).reduce((sum, exp) => {
                             let monthly = exp.amount || 0;
                             if (exp.period === 'anual') monthly = monthly / 12;
