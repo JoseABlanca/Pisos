@@ -1,9 +1,10 @@
 import { useState, useEffect, useMemo, useRef, Fragment } from 'react';
+import { useRvHistoricalData } from '../hooks/useRvHistoricalData';
 import { db } from '../firebase/config';
 import { collection, query, where, onSnapshot } from 'firebase/firestore';
 import { useAuth } from '../context/AuthContext';
 import { useSearchParams } from 'react-router-dom';
-import { BarChart, CartesianGrid, XAxis, YAxis, Tooltip, Legend, Bar, ResponsiveContainer, PieChart, Pie, Cell } from 'recharts';
+import { BarChart, CartesianGrid, XAxis, YAxis, Tooltip, Legend, Bar, ResponsiveContainer, PieChart, Pie, Cell, AreaChart, Area, ComposedChart, Line } from 'recharts';
 import { 
   Printer, 
   BookOpen, 
@@ -1535,6 +1536,8 @@ export default function PrintPage() {
   const [cfPlatforms, setCfPlatforms] = useState([]);
   const [cfTransactions, setCfTransactions] = useState([]);
   const [cfInvestments, setCfInvestments] = useState([]);
+  const [rvAssetHistory, setRvAssetHistory] = useState({});
+  const [rvConfig, setRvConfig] = useState({});
 
   const [loading, setLoading] = useState(true);
 
@@ -1634,6 +1637,27 @@ export default function PrintPage() {
       query(collection(db, 'cf_investments'), where('userId', 'in', userIds)),
       (snap) => setCfInvestments(snap.docs.map(doc => ({ id: doc.id, ...doc.data() })))
     );
+
+    const unsubRvHistory = onSnapshot(
+      query(collection(db, 'rv_asset_history'), where('userId', 'in', userIds)),
+      (snap) => {
+        const hMap = {};
+        snap.docs.forEach(d => {
+          const data = d.data();
+          if (!hMap[data.assetId]) hMap[data.assetId] = {};
+          hMap[data.assetId][data.date] = data.close;
+        });
+        setRvAssetHistory(hMap);
+      }
+    );
+
+    const unsubRvConfig = onSnapshot(
+      doc(db, 'rv_config', userIds[0]),
+      (snapConf) => {
+        if (snapConf.exists()) setRvConfig(snapConf.data());
+      }
+    );
+
 
     // Let loading finish after some time or when main data is retrieved
     const timer = setTimeout(() => setLoading(false), 800);
@@ -6679,7 +6703,75 @@ export default function PrintPage() {
             </div>
           )}
 
-          {/* Ordenación del Informe */}
+          
+                  {/* RV Metrics Filters for PrintPage */}
+                  {selectedTemplate === 'rv_portfolio' && rvChartType === 'historical_advanced' && (
+                    <div className="mt-4 space-y-3 p-3 bg-white border border-slate-200 rounded-md shadow-sm">
+                      <span className="text-[10px] font-bold text-slate-400 uppercase">Filtros Histórico</span>
+                      
+                      <div className="grid grid-cols-2 gap-1 text-[11px]">
+                        <button
+                          onClick={() => setRvMetricsPrimary('VALOR')}
+                          className={`px-2 py-1 rounded ${rvMetricsPrimary === 'VALOR' ? 'bg-indigo-50 text-indigo-700 font-medium' : 'bg-slate-50 text-slate-500 hover:bg-slate-100'}`}
+                        >
+                          Gráfica Valor
+                        </button>
+                        <button
+                          onClick={() => setRvMetricsPrimary('PLUSVALIA')}
+                          className={`px-2 py-1 rounded ${rvMetricsPrimary === 'PLUSVALIA' ? 'bg-indigo-50 text-indigo-700 font-medium' : 'bg-slate-50 text-slate-500 hover:bg-slate-100'}`}
+                        >
+                          Gráfica Plusvalia
+                        </button>
+                      </div>
+
+                      <div className="grid grid-cols-2 gap-1 text-[11px]">
+                        <button
+                          onClick={() => setRvMetricsUnit('EUR')}
+                          className={`px-2 py-1 rounded ${rvMetricsUnit === 'EUR' ? 'bg-indigo-50 text-indigo-700 font-medium' : 'bg-slate-50 text-slate-500 hover:bg-slate-100'}`}
+                        >
+                          Euros (€)
+                        </button>
+                        <button
+                          onClick={() => setRvMetricsUnit('PERCENT')}
+                          className={`px-2 py-1 rounded ${rvMetricsUnit === 'PERCENT' ? 'bg-indigo-50 text-indigo-700 font-medium' : 'bg-slate-50 text-slate-500 hover:bg-slate-100'}`}
+                        >
+                          Porcentaje (%)
+                        </button>
+                      </div>
+
+                      <div className="pt-2 border-t border-slate-100">
+                        <span className="text-[10px] text-slate-500 mb-1 block">Datos tarjetas (KPIs):</span>
+                        <div className="grid grid-cols-2 gap-1 text-[11px]">
+                          <button
+                            onClick={() => setRvMetricsKpiType('TOTAL')}
+                            className={`px-1 py-1 rounded ${rvMetricsKpiType === 'TOTAL' ? 'bg-indigo-50 text-indigo-700 font-medium' : 'bg-slate-50 text-slate-500 hover:bg-slate-100'}`}
+                          >
+                            Realizado+Latente
+                          </button>
+                          <button
+                            onClick={() => setRvMetricsKpiType('LATENTE')}
+                            className={`px-1 py-1 rounded ${rvMetricsKpiType === 'LATENTE' ? 'bg-indigo-50 text-indigo-700 font-medium' : 'bg-slate-50 text-slate-500 hover:bg-slate-100'}`}
+                          >
+                            Solo Latente
+                          </button>
+                        </div>
+                      </div>
+
+                      <div className="pt-2 border-t border-slate-100">
+                         <label className="flex items-center space-x-2 text-[11px] text-slate-600 font-medium">
+                           <input 
+                             type="checkbox"
+                             checked={rvMetricsAccumulated}
+                             onChange={(e) => setRvMetricsAccumulated(e.target.checked)}
+                             className="rounded text-indigo-600 focus:ring-indigo-500"
+                           />
+                           <span>Gráfico Acumulado</span>
+                         </label>
+                      </div>
+                    </div>
+                  )}
+
+                  {/* Ordenación del Informe */}
           {['activos', 'alquileres', 'clientes', 'extracto_propietarios', 'rv_transactions', 'rv_portfolio'].includes(selectedTemplate) && (
             <div className="bg-white border border-[#a0a0a0] p-3 flex flex-col gap-3">
               <div

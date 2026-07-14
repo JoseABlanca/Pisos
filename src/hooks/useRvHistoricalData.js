@@ -1,0 +1,1120 @@
+import { useMemo } from 'react';
+
+export function useRvHistoricalData({
+  transactions = [],
+  history = {},
+  assets = {},
+  rvBrokers = {},
+  config = {},
+  selectedTickers = ['ALL'],
+  selectedBrokers = ['ALL'],
+  selectedAccounts = ['ALL'],
+  startDate = '',
+  endDate = '',
+  linePeriod = 'DAY',
+  barPeriod = 'MONTH',
+  histPeriod = 'DAY',
+  histBins = 20,
+  drawdownPeriod = 'DAY',
+  isAccumulated = true,
+  unit = 'EUR',
+  activeView = 'resumen'
+}) {
+  return useMemo(() => {
+    if (!transactions.length) return { lineData: [], barData: [], histogramData: [], drawdownData: [], summary: {} };
+
+    // Initial filter by active/broker/account (These affect the actual invested capital calculations)
+    let txs = [...transactions].sort((a, b) => new Date(a.date) - new Date(b.date));
+    if (!selectedTickers.includes('ALL')) txs = txs.filter(t => selectedTickers.includes(t.assetId));
+    if (!selectedBrokers.includes('ALL')) txs = txs.filter(t => {
+       const b = rvBrokers[t.brokerId];
+       const name = b ? b.name : t.brokerId;
+       return selectedBrokers.includes(name);
+    });
+    if (!selectedAccounts.includes('ALL')) txs = txs.filter(t => {
+       const b = rvBrokers[t.brokerId];
+       const acc = b ? b.accountNumber : null;
+       return selectedAccounts.includes(acc);
+    });
+    
+    if (!txs.length) return { lineData: [], barData: [], summary: {} };
+
+    const firstDate = new Date(txs[0].date);
+    const today = new Date();
+    
+    const txByDate = {};
+    txs.forEach(tx => {
+      if (!txByDate[tx.date]) txByDate[tx.date] = [];
+      txByDate[tx.date].push(tx);
+    });
+
+    let holdings = {}; 
+    let cumulativeRealizedGains = 0;
+    let realizedGainsByAsset = {};
+    
+    const dailyMap = {};
+    const periodMap = {}; 
+    let lastKnownPrices = {}; 
+
+    let currentDate = new Date(firstDate);
+    while (currentDate <= today) {
+      const dateStr = currentDate.toISOString().split('T')[0];
+      
+      if (txByDate[dateStr]) {
+        txByDate[dateStr].forEach(tx => {
+          const tKey = `${tx.assetId}_${tx.brokerId}`;
+          const tAsset = tx.assetId;
+          
+          if (!holdings[tKey]) holdings[tKey] = { assetId: tAsset, shares: 0, avgCost: 0 };
+          
+          const qty = Number(tx.quantity || 0);
+          const price = Number(tx.price || 0);
+          const rate = Number(tx.exchangeRate || 1);
+          const fee = Number(tx.fee || 0);
+          const amtInEur = (qty * price) / rate;
+          const feeInEur = fee / rate;
+
+          if (tx.type === 'Compra') {
+            const oldTotalCost = holdings[tKey].shares * holdings[tKey].avgCost;
+            holdings[tKey].shares += qty;
+            if (holdings[tKey].shares > 0) {
+              holdings[tKey].avgCost = (oldTotalCost + amtInEur + feeInEur) / holdings[tKey].shares;
+            }
+          } else if (tx.type === 'Venta') {
+            const costOfSold = holdings[tKey].avgCost * qty;
+            const gain = (amtInEur - costOfSold - feeInEur);
+            cumulativeRealizedGains += gain;
+            realizedGainsByAsset[tAsset] = (realizedGainsByAsset[tAsset] || 0) + gain;
+            
+            holdings[tKey].shares = Math.max(0, holdings[tKey].shares - qty);
+            if (holdings[tKey].shares === 0) holdings[tKey].avgCost = 0;
+          } else if (tx.type === 'Dividendo') {
+            const gain = (amtInEur - feeInEur);
+            cumulativeRealizedGains += gain;
+            realizedGainsByAsset[tAsset] = (realizedGainsByAsset[tAsset] || 0) + gain;
+          }
+        });
+      }
+
+      let capitalInvertido = 0;
+      let valorMercado = 0;
+
+      // Calculate exchange rates for this day
+      const ratesForDay = { EUR: 1.0, USD: 1.08, GBP: 0.85, CHF: 0.95, JPY: 130.0, ...(config?.exchangeRates || {}) };
+      const isToday = dateStr === today.toISOString().split('T')[0];
+      
+      Object.values(assets).forEach(a => {
+         if (a.type && a.type.toLowerCase() === 'divisa') {
+            const h = history[a.id];
+            let price = isToday ? (parseFloat(a.currentPrice) || h?.[dateStr] || 0) : (h?.[dateStr] !== undefined ? h[dateStr] : parseFloat(a.currentPrice) || 0);
+            if (price > 0) {
+              const id = String(a.id).toUpperCase();
+              const name = String(a.name).toUpperCase();
+              if (id === 'USD' || id === 'GBP' || id === 'CHF' || id === 'JPY') ratesForDay[id] = price;
+              else if (id.includes('EURUSD') || name.includes('EUR/USD') || name.includes('EURUSD')) ratesForDay['USD'] = price;
+              else if (id.includes('EURGBP') || name.includes('EUR/GBP') || name.includes('EURGBP')) ratesForDay['GBP'] = price;
+              else if (id.includes('EURCHF') || name.includes('EUR/CHF') || name.includes('EURCHF')) ratesForDay['CHF'] = price;
+              else if (id.includes('EURJPY') || name.includes('EUR/JPY') || name.includes('EURJPY')) ratesForDay['JPY'] = price;
+              else if (id.startsWith('EUR') && id.length >= 6) ratesForDay[id.substring(3, 6)] = price;
+            }
+         }
+      });
+
+      let dayObj = {
+        date: dateStr,
+        capitalInvertido: 0,
+        valorMercado: 0,
+        beneficioLatente: 0,
+        plusvaliaPct: 0,
+        beneficioTotal: 0,
+        rentabilidadPct: 0
+      };
+
+      Object.keys(holdings).forEach(tKey => {
+        const hld = holdings[tKey];
+        const tAsset = hld.assetId;
+        
+        // Only include if there are shares, or if there is realized gain for this asset
+        if (hld.shares > 0 || realizedGainsByAsset[tAsset]) {
+          
+          if (history[tAsset] && history[tAsset][dateStr] !== undefined) {
+            lastKnownPrices[tAsset] = history[tAsset][dateStr];
+          }
+          
+          let priceRaw = lastKnownPrices[tAsset];
+          if (isToday && assets[tAsset] && assets[tAsset].currentPrice) {
+            priceRaw = parseFloat(assets[tAsset].currentPrice) || priceRaw;
+          }
+          
+          let priceEUR = hld.avgCost; // default to cost if no price
+          if (priceRaw !== undefined) {
+            const curr = assets[tAsset]?.currency || 'EUR';
+            const rate = ratesForDay[curr] || 1.0;
+            priceEUR = priceRaw / rate;
+          }
+          
+          let assetCapitalInvertido = (hld.shares * hld.avgCost);
+          let assetValorMercado = (hld.shares * priceEUR);
+          
+          capitalInvertido += assetCapitalInvertido;
+          valorMercado += assetValorMercado;
+          
+          let assetBeneficioLatente = assetValorMercado - assetCapitalInvertido;
+          
+          dayObj[`capitalInvertido_${tAsset}`] = (dayObj[`capitalInvertido_${tAsset}`] || 0) + assetCapitalInvertido;
+          dayObj[`valorMercado_${tAsset}`] = (dayObj[`valorMercado_${tAsset}`] || 0) + assetValorMercado;
+          dayObj[`beneficioLatente_${tAsset}`] = (dayObj[`beneficioLatente_${tAsset}`] || 0) + assetBeneficioLatente;
+        }
+      });
+      
+      // Calculate pct and realized gains at the asset level to avoid broker duplication
+      Object.keys(assets).forEach(tAsset => {
+         if (dayObj[`capitalInvertido_${tAsset}`] !== undefined || realizedGainsByAsset[tAsset]) {
+            const capInv = dayObj[`capitalInvertido_${tAsset}`] || 0;
+            const latente = dayObj[`beneficioLatente_${tAsset}`] || 0;
+            const benTotal = latente + (realizedGainsByAsset[tAsset] || 0);
+            
+            dayObj[`beneficioTotal_${tAsset}`] = benTotal;
+            dayObj[`plusvaliaPct_${tAsset}`] = capInv > 0 ? (latente / capInv) * 100 : 0;
+            dayObj[`rentabilidadPct_${tAsset}`] = capInv > 0 ? (benTotal / capInv) * 100 : 0;
+         }
+      });
+
+      const beneficioLatente = valorMercado - capitalInvertido;
+      const beneficioTotal = beneficioLatente + cumulativeRealizedGains;
+      const plusvaliaPct = capitalInvertido > 0 ? (beneficioLatente / capitalInvertido) * 100 : 0;
+      const rentabilidadPct = capitalInvertido > 0 ? (beneficioTotal / capitalInvertido) * 100 : 0;
+
+      dayObj.capitalInvertido = capitalInvertido;
+      dayObj.valorMercado = valorMercado;
+      dayObj.beneficioLatente = beneficioLatente;
+      dayObj.plusvaliaPct = plusvaliaPct;
+      dayObj.beneficioTotal = beneficioTotal;
+      dayObj.rentabilidadPct = rentabilidadPct;
+
+      dailyMap[dateStr] = dayObj;
+
+      currentDate.setDate(currentDate.getDate() + 1);
+    }
+
+    let lineChartData = Object.values(dailyMap);
+    
+    const activeTickersList = Array.from(new Set(txs.map(t => t.assetId)));
+
+    // Build periodMap for barChartData
+    let previousBeneficioTotal = 0;
+    let prevBeneficioPerAsset = {};
+    activeTickersList.forEach(t => prevBeneficioPerAsset[t] = 0);
+
+    lineChartData.forEach(day => {
+      let periodKey = day.date; // DAY
+      if (barPeriod === 'MONTH') periodKey = day.date.substring(0, 7);
+      if (barPeriod === 'YEAR') periodKey = day.date.substring(0, 4);
+
+      if (!periodMap[periodKey]) {
+        periodMap[periodKey] = {
+          period: periodKey,
+          startBeneficio: previousBeneficioTotal,
+          endBeneficio: day.beneficioTotal,
+          avgCapital: day.capitalInvertido,
+          count: 1
+        };
+        activeTickersList.forEach(t => {
+           periodMap[periodKey][`startBeneficio_${t}`] = prevBeneficioPerAsset[t];
+           periodMap[periodKey][`endBeneficio_${t}`] = day[`beneficioTotal_${t}`] || 0;
+           periodMap[periodKey][`avgCapital_${t}`] = day[`capitalInvertido_${t}`] || 0;
+        });
+      } else {
+        periodMap[periodKey].endBeneficio = day.beneficioTotal;
+        periodMap[periodKey].avgCapital += day.capitalInvertido;
+        periodMap[periodKey].count += 1;
+        activeTickersList.forEach(t => {
+           periodMap[periodKey][`endBeneficio_${t}`] = day[`beneficioTotal_${t}`] || 0;
+           periodMap[periodKey][`avgCapital_${t}`] += day[`capitalInvertido_${t}`] || 0;
+        });
+      }
+      previousBeneficioTotal = day.beneficioTotal;
+      activeTickersList.forEach(t => prevBeneficioPerAsset[t] = day[`beneficioTotal_${t}`] || 0);
+    });
+
+    let barChartData = Object.values(periodMap).map(p => {
+      const gains = p.endBeneficio - p.startBeneficio;
+      const avgCap = p.avgCapital / p.count;
+      const res = {
+        period: p.period,
+        gains: gains,
+        gainsPct: avgCap > 0 ? (gains / avgCap) * 100 : 0
+      };
+      activeTickersList.forEach(t => {
+         const tGains = (p[`endBeneficio_${t}`] || 0) - (p[`startBeneficio_${t}`] || 0);
+         const tAvgCap = (p[`avgCapital_${t}`] || 0) / p.count;
+         res[`gains_${t}`] = tGains;
+         res[`gainsPct_${t}`] = tAvgCap > 0 ? (tGains / tAvgCap) * 100 : 0;
+      });
+      return res;
+    });
+
+    // Build histChartData for histogramData
+    const histPeriodMap = {};
+    let prevBeneficioTotalHist = 0;
+    let prevBeneficioPerAssetHist = {};
+    activeTickersList.forEach(t => prevBeneficioPerAssetHist[t] = 0);
+
+    lineChartData.forEach(day => {
+      let periodKey = day.date;
+      if (histPeriod === 'MONTH') periodKey = day.date.substring(0, 7);
+      if (histPeriod === 'YEAR') periodKey = day.date.substring(0, 4);
+
+      if (!histPeriodMap[periodKey]) {
+        histPeriodMap[periodKey] = {
+          period: periodKey,
+          startBeneficio: prevBeneficioTotalHist,
+          endBeneficio: day.beneficioTotal,
+          avgCapital: day.capitalInvertido,
+          count: 1
+        };
+        activeTickersList.forEach(t => {
+           histPeriodMap[periodKey][`startBeneficio_${t}`] = prevBeneficioPerAssetHist[t];
+           histPeriodMap[periodKey][`endBeneficio_${t}`] = day[`beneficioTotal_${t}`] || 0;
+           histPeriodMap[periodKey][`avgCapital_${t}`] = day[`capitalInvertido_${t}`] || 0;
+        });
+      } else {
+        histPeriodMap[periodKey].endBeneficio = day.beneficioTotal;
+        histPeriodMap[periodKey].avgCapital += day.capitalInvertido;
+        histPeriodMap[periodKey].count += 1;
+        activeTickersList.forEach(t => {
+           histPeriodMap[periodKey][`endBeneficio_${t}`] = day[`beneficioTotal_${t}`] || 0;
+           histPeriodMap[periodKey][`avgCapital_${t}`] += day[`capitalInvertido_${t}`] || 0;
+        });
+      }
+      prevBeneficioTotalHist = day.beneficioTotal;
+      activeTickersList.forEach(t => prevBeneficioPerAssetHist[t] = day[`beneficioTotal_${t}`] || 0);
+    });
+
+    let histChartData = Object.values(histPeriodMap).map(p => {
+      const gains = p.endBeneficio - p.startBeneficio;
+      const avgCap = p.avgCapital / p.count;
+      const res = {
+        period: p.period,
+        gains: gains,
+        gainsPct: avgCap > 0 ? (gains / avgCap) * 100 : 0
+      };
+      activeTickersList.forEach(t => {
+         const tGains = (p[`endBeneficio_${t}`] || 0) - (p[`startBeneficio_${t}`] || 0);
+         const tAvgCap = (p[`avgCapital_${t}`] || 0) / p.count;
+         res[`gains_${t}`] = tGains;
+         res[`gainsPct_${t}`] = tAvgCap > 0 ? (tGains / tAvgCap) * 100 : 0;
+      });
+      return res;
+    });
+
+    // Date Filter (Display only)
+    if (startDate) {
+      lineChartData = lineChartData.filter(d => d.date >= startDate);
+      barChartData = barChartData.filter(d => d.period >= startDate.substring(0, barPeriod === 'YEAR' ? 4 : (barPeriod === 'MONTH' ? 7 : 10)));
+      histChartData = histChartData.filter(d => d.period >= startDate.substring(0, histPeriod === 'YEAR' ? 4 : (histPeriod === 'MONTH' ? 7 : 10)));
+    }
+    if (endDate) {
+      lineChartData = lineChartData.filter(d => d.date <= endDate);
+      barChartData = barChartData.filter(d => d.period <= endDate.substring(0, barPeriod === 'YEAR' ? 4 : (barPeriod === 'MONTH' ? 7 : 10)));
+      histChartData = histChartData.filter(d => d.period <= endDate.substring(0, histPeriod === 'YEAR' ? 4 : (histPeriod === 'MONTH' ? 7 : 10)));
+    }
+
+    let baseBeneficioLatente = 0;
+    let baseBeneficioTotal = 0;
+    const baseLatentePerAsset = {};
+    const baseTotalPerAsset = {};
+
+    // Rebase lineChartData so that metrics start at 0 at the beginning of the filtered period
+    if (lineChartData.length > 0) {
+      const firstDay = lineChartData[0];
+      baseBeneficioLatente = firstDay.beneficioLatente || 0;
+      baseBeneficioTotal = firstDay.beneficioTotal || 0;
+      
+      activeTickersList.forEach(t => {
+        baseLatentePerAsset[t] = firstDay[`beneficioLatente_${t}`] || 0;
+        baseTotalPerAsset[t] = firstDay[`beneficioTotal_${t}`] || 0;
+      });
+
+      lineChartData = lineChartData.map(day => {
+        const newDay = { ...day };
+        
+        // Global rebase
+        newDay.beneficioLatente = day.beneficioLatente - baseBeneficioLatente;
+        newDay.beneficioTotal = day.beneficioTotal - baseBeneficioTotal;
+        newDay.plusvaliaPct = day.capitalInvertido > 0 ? (newDay.beneficioLatente / day.capitalInvertido) * 100 : 0;
+        newDay.rentabilidadPct = day.capitalInvertido > 0 ? (newDay.beneficioTotal / day.capitalInvertido) * 100 : 0;
+        
+        // Per-asset rebase
+        activeTickersList.forEach(t => {
+           if (newDay[`capitalInvertido_${t}`] !== undefined) {
+             newDay[`beneficioLatente_${t}`] = (day[`beneficioLatente_${t}`] || 0) - baseLatentePerAsset[t];
+             newDay[`beneficioTotal_${t}`] = (day[`beneficioTotal_${t}`] || 0) - baseTotalPerAsset[t];
+             const capInv = newDay[`capitalInvertido_${t}`] || 0;
+             newDay[`plusvaliaPct_${t}`] = capInv > 0 ? (newDay[`beneficioLatente_${t}`] / capInv) * 100 : 0;
+             newDay[`rentabilidadPct_${t}`] = capInv > 0 ? (newDay[`beneficioTotal_${t}`] / capInv) * 100 : 0;
+           }
+        });
+        
+        return newDay;
+      });
+    }
+
+    // Apply Temporalidad (linePeriod) to lineChartData
+    if (linePeriod !== 'DAY') {
+       const periodMapForLine = {};
+       lineChartData.forEach(day => {
+          let periodKey = day.date.substring(0, linePeriod === 'YEAR' ? 4 : 7);
+          periodMapForLine[periodKey] = { ...day, date: periodKey }; // Store last day of period
+       });
+       lineChartData = Object.values(periodMapForLine);
+    }
+
+    // Calculate Drawdown independently
+    let drawdownChartData = Object.values(dailyMap);
+    if (startDate) {
+      drawdownChartData = drawdownChartData.filter(d => d.date >= startDate);
+    }
+    if (endDate) {
+      drawdownChartData = drawdownChartData.filter(d => d.date <= endDate);
+    }
+    if (drawdownPeriod !== 'DAY') {
+       const periodMapForDD = {};
+       drawdownChartData.forEach(day => {
+          let periodKey = day.date.substring(0, drawdownPeriod === 'YEAR' ? 4 : 7);
+          periodMapForDD[periodKey] = { ...day, date: periodKey }; // Store last day of period
+       });
+       drawdownChartData = Object.values(periodMapForDD);
+    }
+    let maxPortfolioValue = 0;
+    let maxPortfolioPerAsset = {};
+    activeTickersList.forEach(t => maxPortfolioPerAsset[t] = 0);
+
+    drawdownChartData.forEach(day => {
+       const currentValue = day.capitalInvertido + day.beneficioTotal;
+       if (currentValue > maxPortfolioValue) {
+          maxPortfolioValue = currentValue;
+       }
+       if (maxPortfolioValue > 0) {
+          day.drawdownPct = ((currentValue - maxPortfolioValue) / maxPortfolioValue) * 100;
+          day.drawdownEUR = currentValue - maxPortfolioValue;
+       } else {
+          day.drawdownPct = 0;
+          day.drawdownEUR = 0;
+       }
+
+       activeTickersList.forEach(t => {
+          const tVal = (day[`capitalInvertido_${t}`] || 0) + (day[`beneficioTotal_${t}`] || 0);
+          if (tVal > maxPortfolioPerAsset[t]) maxPortfolioPerAsset[t] = tVal;
+          day[`drawdownPct_${t}`] = maxPortfolioPerAsset[t] > 0 ? ((tVal - maxPortfolioPerAsset[t]) / maxPortfolioPerAsset[t]) * 100 : 0;
+          day[`drawdownEUR_${t}`] = maxPortfolioPerAsset[t] > 0 ? tVal - maxPortfolioPerAsset[t] : 0;
+       });
+    });
+
+    let histogramData = [];
+    if (histChartData.length > 0) {
+      let returns = [];
+      const tickersToProcess = selectedTickers.includes('ALL') ? activeTickersList : selectedTickers;
+
+      if (isAccumulated) {
+         returns = histChartData.map(d => unit === 'EUR' ? d.gains : d.gainsPct).filter(r => !isNaN(r));
+      } else {
+         tickersToProcess.forEach(t => {
+            if (t !== 'ALL') {
+               const tRets = histChartData.map(d => unit === 'EUR' ? d[`gains_${t}`] : d[`gainsPct_${t}`]).filter(r => !isNaN(r));
+               returns.push(...tRets);
+            }
+         });
+      }
+
+      if (returns.length > 0) {
+        const minRet = Math.min(...returns);
+        const maxRet = Math.max(...returns);
+        const range = maxRet - minRet;
+        const binSize = range === 0 ? 1 : Math.max(range / histBins, unit === 'EUR' ? 10 : 0.5);
+        
+        const bins = {};
+        histChartData.forEach(p => {
+           if (isAccumulated) {
+               const r = unit === 'EUR' ? p.gains : p.gainsPct;
+               if (!isNaN(r)) {
+                  let bin = Math.floor(r / binSize) * binSize;
+                  const binLabel = `${bin.toFixed(unit === 'EUR' ? 0 : 1)}${unit === 'EUR' ? '€' : '%'}`;
+                  if (!bins[binLabel]) bins[binLabel] = { binStart: bin, label: binLabel, count: 0 };
+                  bins[binLabel].count++;
+               }
+           } else {
+               tickersToProcess.forEach(t => {
+                   if (t !== 'ALL') {
+                       const r = unit === 'EUR' ? p[`gains_${t}`] : p[`gainsPct_${t}`];
+                       if (!isNaN(r)) {
+                          let bin = Math.floor(r / binSize) * binSize;
+                          const binLabel = `${bin.toFixed(unit === 'EUR' ? 0 : 1)}${unit === 'EUR' ? '€' : '%'}`;
+                          if (!bins[binLabel]) {
+                              bins[binLabel] = { binStart: bin, label: binLabel, count: 0 };
+                              tickersToProcess.forEach(st => { if (st !== 'ALL') bins[binLabel][`count_${st}`] = 0; });
+                          }
+                          bins[binLabel][`count_${t}`]++;
+                       }
+                   }
+               });
+           }
+        });
+        
+        histogramData = Object.values(bins).sort((a, b) => a.binStart - b.binStart);
+
+        
+        if (isAccumulated) {
+           const n = returns.length;
+           const h = Math.max(binSize * 0.3, 0.02);
+           const factor = binSize / (h * Math.sqrt(2 * Math.PI));
+
+           histogramData.forEach(b => {
+              const x = b.binStart + (binSize / 2);
+              let sumK = 0;
+              for (let i = 0; i < n; i++) {
+                 const u = (x - returns[i]) / h;
+                 sumK += Math.exp(-0.5 * u * u);
+              }
+              b.density = factor * sumK;
+           });
+        } else {
+           tickersToProcess.forEach(t => {
+              if (t !== 'ALL') {
+                 const tRets = histChartData.map(d => unit === 'EUR' ? d[`gains_${t}`] : d[`gainsPct_${t}`]).filter(r => !isNaN(r));
+                 if (tRets.length > 0) {
+                    const n = tRets.length;
+                    const h = Math.max(binSize * 0.3, 0.02);
+                    const factor = binSize / (h * Math.sqrt(2 * Math.PI));
+
+                    histogramData.forEach(b => {
+                       const x = b.binStart + (binSize / 2);
+                       let sumK = 0;
+                       for (let i = 0; i < n; i++) {
+                          const u = (x - tRets[i]) / h;
+                          sumK += Math.exp(-0.5 * u * u);
+                       }
+                       b[`density_${t}`] = factor * sumK;
+                    });
+                 }
+              }
+           });
+        }
+      }
+    }
+
+    // ----- EXACT CURRENT SUMMARY CALCULATION (Matches Portfolio.jsx) -----
+    let exactCurrentCost = 0;
+    let exactCurrentValue = 0;
+    let exactRealizedGains = 0;
+    let exactAssetStats = {};
+
+    const currentRates = { EUR: 1.0, USD: 1.08, GBP: 0.85, CHF: 0.95, JPY: 130.0, ...(config?.exchangeRates || {}) };
+    Object.values(assets).forEach(a => {
+      if (a.type && a.type.toLowerCase() === 'divisa') {
+        const price = parseFloat(a.currentPrice);
+        if (price > 0) {
+          const id = String(a.id).toUpperCase();
+          const name = String(a.name).toUpperCase();
+          if (id === 'USD' || id === 'GBP' || id === 'CHF' || id === 'JPY') currentRates[id] = price;
+          else if (id.includes('EURUSD') || name.includes('EUR/USD') || name.includes('EURUSD')) currentRates['USD'] = price;
+          else if (id.includes('EURGBP') || name.includes('EUR/GBP') || name.includes('EURGBP')) currentRates['GBP'] = price;
+          else if (id.includes('EURCHF') || name.includes('EUR/CHF') || name.includes('EURCHF')) currentRates['CHF'] = price;
+          else if (id.includes('EURJPY') || name.includes('EUR/JPY') || name.includes('EURJPY')) currentRates['JPY'] = price;
+          else if (id.startsWith('EUR') && id.length >= 6) currentRates[id.substring(3, 6)] = price;
+        }
+      }
+    });
+
+    const positions = {};
+    let grossProfit = 0;
+    let grossLoss = 0;
+    let totalCommissions = 0;
+    let winningTrades = 0;
+    let losingTrades = 0;
+    let evenTrades = 0;
+    let maxConsecutiveLosses = 0;
+    let currentConsecutiveLosses = 0;
+    let totalTrades = 0;
+
+    txs.forEach(tx => {
+      const key = `${tx.assetId}_${tx.brokerId}`;
+      const tAsset = tx.assetId;
+      if (!positions[key]) positions[key] = { assetId: tAsset, qty: 0, costEUR: 0, realized: 0 };
+      const rate = tx.exchangeRate || 1.0;
+      const q = parseFloat(tx.quantity) || 0;
+      const p = parseFloat(tx.price) || 0;
+      const f = parseFloat(tx.fee) || 0;
+
+      totalCommissions += f / rate;
+
+      if (tx.type === 'Compra') {
+        positions[key].costEUR += (q * p + f) / rate;
+        positions[key].qty += q;
+      } else if (tx.type === 'Venta') {
+        const pmc = positions[key].qty > 0 ? positions[key].costEUR / positions[key].qty : 0;
+        const costReduction = q * pmc;
+        positions[key].costEUR = Math.max(0, positions[key].costEUR - costReduction);
+        positions[key].qty = Math.max(0, positions[key].qty - q);
+        
+        const gain = ((q * p - f) / rate) - costReduction;
+        exactRealizedGains += gain;
+        positions[key].realized += gain;
+
+        totalTrades++;
+        if (gain > 0.01) {
+          grossProfit += gain;
+          winningTrades++;
+          currentConsecutiveLosses = 0;
+        } else if (gain < -0.01) {
+          grossLoss += Math.abs(gain);
+          losingTrades++;
+          currentConsecutiveLosses++;
+          if (currentConsecutiveLosses > maxConsecutiveLosses) maxConsecutiveLosses = currentConsecutiveLosses;
+        } else {
+          evenTrades++;
+          currentConsecutiveLosses = 0;
+        }
+
+      } else if (tx.type === 'Dividendo') {
+        const gain = (q * p - f) / rate;
+        exactRealizedGains += gain;
+        positions[key].realized += gain;
+        // Dividend could be considered as gross profit but not a "trade" per se. We will add it to gross profit.
+        grossProfit += gain > 0 ? gain : 0;
+      }
+    });
+
+    Object.keys(positions).forEach(key => {
+      const pos = positions[key];
+      const asset = assets[pos.assetId];
+      const currentPriceRaw = asset ? parseFloat(asset.currentPrice) || 0 : 0;
+      const assetRate = currentRates[asset?.currency] || 1.0;
+      
+      const posVal = (pos.qty * currentPriceRaw) / assetRate;
+      
+      if (!exactAssetStats[pos.assetId]) {
+        exactAssetStats[pos.assetId] = { capitalInvertido: 0, valorMercado: 0, beneficioTotal: 0 };
+      }
+      
+      exactAssetStats[pos.assetId].capitalInvertido += pos.costEUR;
+      exactAssetStats[pos.assetId].valorMercado += posVal;
+      exactAssetStats[pos.assetId].beneficioTotal += (posVal - pos.costEUR) + pos.realized;
+      
+      if (pos.qty > 0) {
+        exactCurrentCost += pos.costEUR;
+        exactCurrentValue += posVal;
+      }
+    });
+
+    const exactTotalGains = (exactCurrentValue - exactCurrentCost) + exactRealizedGains;
+    const exactLatente = exactCurrentValue - exactCurrentCost;
+    const exactPlusvaliaPct = exactCurrentCost > 0 ? (exactLatente / exactCurrentCost) * 100 : 0;
+    const exactRoiPct = exactCurrentCost > 0 ? (exactTotalGains / exactCurrentCost) * 100 : 0;
+
+    // Apply exact current values to the final point on the chart
+    if (lineChartData.length > 0) {
+      const lastIdx = lineChartData.length - 1;
+      
+      const rawLatente = exactLatente;
+      const rawTotal = exactTotalGains;
+      
+      lineChartData[lastIdx].capitalInvertido = exactCurrentCost;
+      lineChartData[lastIdx].valorMercado = exactCurrentValue;
+      
+      // Rebase the final point values using the base offsets!
+      lineChartData[lastIdx].beneficioLatente = rawLatente - baseBeneficioLatente;
+      lineChartData[lastIdx].plusvaliaPct = exactCurrentCost > 0 ? (lineChartData[lastIdx].beneficioLatente / exactCurrentCost) * 100 : 0;
+      lineChartData[lastIdx].beneficioTotal = rawTotal - baseBeneficioTotal;
+      lineChartData[lastIdx].rentabilidadPct = exactCurrentCost > 0 ? (lineChartData[lastIdx].beneficioTotal / exactCurrentCost) * 100 : 0;
+      
+      Object.keys(exactAssetStats).forEach(key => {
+         lineChartData[lastIdx][`capitalInvertido_${key}`] = exactAssetStats[key].capitalInvertido;
+         lineChartData[lastIdx][`valorMercado_${key}`] = exactAssetStats[key].valorMercado;
+         
+         const rawAssetTotal = exactAssetStats[key].beneficioTotal;
+         const rawAssetLatente = exactAssetStats[key].valorMercado - exactAssetStats[key].capitalInvertido;
+         
+         const rebasedAssetLatente = rawAssetLatente - (baseLatentePerAsset[key] || 0);
+         const rebasedAssetTotal = rawAssetTotal - (baseTotalPerAsset[key] || 0);
+         
+         lineChartData[lastIdx][`beneficioLatente_${key}`] = rebasedAssetLatente;
+         lineChartData[lastIdx][`beneficioTotal_${key}`] = rebasedAssetTotal;
+         
+         const cap = exactAssetStats[key].capitalInvertido;
+         lineChartData[lastIdx][`plusvaliaPct_${key}`] = cap > 0 ? (rebasedAssetLatente / cap) * 100 : 0;
+         lineChartData[lastIdx][`rentabilidadPct_${key}`] = cap > 0 ? (rebasedAssetTotal / cap) * 100 : 0;
+      });
+    }
+
+    // Peak, Drawdown, and Duration calculations
+    let maxDrawdownPct = 0;
+    let maxDrawdownEUR = 0;
+    let peakValue = 0;
+    let peakDate = null;
+    let maxDDDurationDays = 0;
+    const drawdowns = [];
+    const ddDurations = [];
+    let currentDDStart = null;
+    let prevVal = null;
+    const dailyReturns = [];
+
+    lineChartData.forEach(day => {
+       const equity = day.valorMercado + (day.beneficioTotal - day.beneficioLatente); 
+       
+       if (equity >= peakValue) {
+          if (peakValue > 0 && currentDDStart) {
+             const duration = (new Date(day.date) - new Date(currentDDStart)) / (1000 * 60 * 60 * 24);
+             ddDurations.push(duration);
+             if (duration > maxDDDurationDays) maxDDDurationDays = duration;
+          }
+          peakValue = equity;
+          peakDate = day.date;
+          currentDDStart = null;
+       } else {
+          if (!currentDDStart) {
+             currentDDStart = peakDate || day.date;
+          }
+          const ddPct = (peakValue - equity) / peakValue;
+          if (ddPct > maxDrawdownPct) maxDrawdownPct = ddPct;
+          drawdowns.push(ddPct);
+          
+          const ddEUR = equity - peakValue;
+          if (ddEUR < maxDrawdownEUR) maxDrawdownEUR = ddEUR;
+       }
+
+       if (prevVal !== null && prevVal > 0) {
+          const ret = (equity - prevVal) / prevVal;
+          dailyReturns.push(ret);
+       }
+       prevVal = equity;
+    });
+
+    if (currentDDStart && lineChartData.length > 0) {
+       const duration = (new Date(lineChartData[lineChartData.length - 1].date) - new Date(currentDDStart)) / (1000 * 60 * 60 * 24);
+       ddDurations.push(duration);
+       if (duration > maxDDDurationDays) maxDDDurationDays = duration;
+    }
+
+    const lastEquity = lineChartData.length > 0 ? (lineChartData[lineChartData.length - 1].valorMercado + (lineChartData[lineChartData.length - 1].beneficioTotal - lineChartData[lineChartData.length - 1].beneficioLatente)) : 0;
+
+    // Basic stats
+    const N = dailyReturns.length;
+    let avgReturn = 0;
+    let stdDev = 0;
+    let sharpeRatio = 0;
+    let downsideStdDev = 0;
+    let sortino = 0;
+    let sortinoDivRoot2 = 0;
+    let skew = 0;
+    let kurtosis = 0;
+    
+    if (N > 0) {
+       avgReturn = dailyReturns.reduce((a, b) => a + b, 0) / N;
+       const variance = dailyReturns.reduce((a, b) => a + Math.pow(b - avgReturn, 2), 0) / N;
+       stdDev = Math.sqrt(variance);
+       sharpeRatio = stdDev > 0 ? (avgReturn / stdDev) * Math.sqrt(252) : 0;
+       
+       const negativeReturns = dailyReturns.map(r => Math.min(0, r));
+       const downsideVariance = negativeReturns.reduce((a, b) => a + b * b, 0) / N;
+       downsideStdDev = Math.sqrt(downsideVariance);
+       sortino = downsideStdDev > 0 ? (avgReturn / downsideStdDev) * Math.sqrt(252) : 0;
+       sortinoDivRoot2 = sortino / Math.sqrt(2);
+       
+       if (N > 2 && stdDev > 0) {
+          const sumCubed = dailyReturns.reduce((a, b) => a + Math.pow(b - avgReturn, 3), 0);
+          skew = (N * sumCubed) / ((N - 1) * (N - 2) * Math.pow(stdDev, 3));
+       }
+       if (N > 3 && stdDev > 0) {
+          const sumFourth = dailyReturns.reduce((a, b) => a + Math.pow(b - avgReturn, 4), 0);
+          const term1 = (N * (N + 1)) / ((N - 1) * (N - 2) * (N - 3));
+          const term2 = sumFourth / Math.pow(stdDev, 4);
+          const term3 = (3 * Math.pow(N - 1, 2)) / ((N - 2) * (N - 3));
+          kurtosis = term1 * term2 - term3;
+       }
+    }
+
+     // Cumulative Return & CAGR
+     const activeGainsEUR = kpiBenefitType === 'LATENTE' ? exactLatente : exactTotalGains;
+     const activeReturnPct = kpiBenefitType === 'LATENTE' ? exactPlusvaliaPct : exactRoiPct;
+     const cumulativeReturn = activeReturnPct / 100;
+     const cumulativeGainsEUR = activeGainsEUR;
+ 
+     let cagr = 0;
+     if (lineChartData.length >= 2 && cumulativeReturn > -1) {
+        const days = (new Date(lineChartData[lineChartData.length - 1].date) - new Date(lineChartData[0].date)) / (1000 * 60 * 60 * 24);
+        const years = days / 365.25;
+        if (years > 0) {
+           cagr = Math.pow(1 + cumulativeReturn, 1 / years) - 1;
+        }
+     }
+ 
+     const calmar = maxDrawdownPct > 0 ? (cagr / maxDrawdownPct) : 0;
+ 
+     // Time in market
+     const timeInMarket = N > 0 ? dailyReturns.filter(r => r !== 0).length / N : 0;
+ 
+     // Volatility EUR (annualized standard deviation of daily EUR equity changes)
+     const dailyEURChanges = [];
+     let prevEqTemp = null;
+     lineChartData.forEach(day => {
+        const equity = day.valorMercado + (day.beneficioTotal - day.beneficioLatente);
+        if (prevEqTemp !== null) {
+           dailyEURChanges.push(equity - prevEqTemp);
+        }
+        prevEqTemp = equity;
+     });
+     let volatilityEUR = 0;
+     if (dailyEURChanges.length > 0) {
+        const avgEURChange = dailyEURChanges.reduce((a,b)=>a+b,0) / dailyEURChanges.length;
+        const varEUR = dailyEURChanges.reduce((a,b)=>a+Math.pow(b-avgEURChange,2),0) / dailyEURChanges.length;
+        volatilityEUR = Math.sqrt(varEUR) * Math.sqrt(252);
+     }
+ 
+     // Expected daily/monthly/yearly
+     const expectedDaily = avgReturn;
+     const expectedMonthly = avgReturn * 21;
+     const expectedYearly = avgReturn * 252;
+ 
+     // Win/Loss ratio and stats
+     const posReturns = dailyReturns.filter(r => r > 0);
+     const negReturns = dailyReturns.filter(r => r < 0);
+     const winRate = N > 0 ? posReturns.length / N : 0;
+     const lossRate = 1 - winRate;
+     const avgWinRet = posReturns.length > 0 ? posReturns.reduce((a,b)=>a+b,0) / posReturns.length : 0;
+     const avgLossRet = negReturns.length > 0 ? Math.abs(negReturns.reduce((a,b)=>a+b,0) / negReturns.length) : 0;
+     const winLossRatio = avgLossRet > 0 ? avgWinRet / avgLossRet : 0;
+     
+     // Kelly criterion
+     const kelly = winLossRatio > 0 ? winRate - (lossRate / winLossRatio) : 0;
+ 
+     // Risk of Ruin
+     const edge = winRate - lossRate;
+     const riskOfRuin = edge > 0 ? Math.pow((1 - edge) / (1 + edge), 10) : 1.0;
+ 
+     // Daily Value-at-Risk
+     const dailyVaR = -(avgReturn - 1.645 * stdDev);
+ 
+     // Expected Shortfall (cVaR)
+     const varThreshold = avgReturn - 1.645 * stdDev;
+     const worstReturns = dailyReturns.filter(r => r <= varThreshold);
+     const expectedShortfall = worstReturns.length > 0 ? -(worstReturns.reduce((a,b)=>a+b,0) / worstReturns.length) : dailyVaR;
+ 
+     // Gain/Pain ratio
+     const sumPos = posReturns.reduce((a,b)=>a+b,0);
+     const sumNeg = Math.abs(negReturns.reduce((a,b)=>a+b,0));
+     const gainPainRatio = sumNeg > 0 ? sumPos / sumNeg : 0;
+ 
+     // Monthly returns and Gain/Pain (1M)
+     const monthlyMap = {};
+     lineChartData.forEach(day => {
+        const mKey = day.date.substring(0, 7); // YYYY-MM
+        const equity = day.valorMercado + (day.beneficioTotal - day.beneficioLatente);
+        if (!monthlyMap[mKey]) monthlyMap[mKey] = [];
+        monthlyMap[mKey].push(equity);
+     });
+     const monthlyReturns = [];
+     const sortedMKeys = Object.keys(monthlyMap).sort();
+     for (let i = 0; i < sortedMKeys.length; i++) {
+        const equities = monthlyMap[sortedMKeys[i]];
+        const startEq = equities[0];
+        const endEq = equities[equities.length - 1];
+        if (i > 0) {
+           const prevMKeys = monthlyMap[sortedMKeys[i - 1]];
+           const prevEq = prevMKeys[prevMKeys.length - 1];
+           if (prevEq > 0) {
+              monthlyReturns.push((endEq - prevEq) / prevEq);
+           }
+        } else {
+           if (startEq > 0) {
+              monthlyReturns.push((endEq - startEq) / startEq);
+           }
+        }
+     }
+     const posMonthly = monthlyReturns.filter(r => r > 0);
+     const negMonthly = monthlyReturns.filter(r => r < 0);
+     const sumMPos = posMonthly.reduce((a,b)=>a+b,0);
+     const sumMNeg = Math.abs(negMonthly.reduce((a,b)=>a+b,0));
+     const gainPain1M = sumMNeg > 0 ? sumMPos / sumMNeg : 0;
+ 
+     // Common Sense Ratio, CPC Index, Tail Ratio
+     const sortedReturns = [...dailyReturns].sort((a,b) => a - b);
+     const p5Idx = Math.floor(sortedReturns.length * 0.05);
+     const p95Idx = Math.floor(sortedReturns.length * 0.95);
+     const p5 = sortedReturns[p5Idx] || 0;
+     const p95 = sortedReturns[p95Idx] || 0;
+     const tailRatio = Math.abs(p5) > 0 ? p95 / Math.abs(p5) : 0;
+     const commonSenseRatio = gainPainRatio * tailRatio;
+     const cpcIndex = gainPainRatio * winLossRatio * winRate;
+ 
+     // Outlier Win/Loss Ratios
+     let outlierWinRatio = 0;
+     if (posReturns.length > 0) {
+        const sortedPos = [...posReturns].sort((a,b) => a - b);
+        const q1 = sortedPos[Math.floor(sortedPos.length * 0.25)];
+        const q3 = sortedPos[Math.floor(sortedPos.length * 0.75)];
+        const iqr = q3 - q1;
+        const cutoff = q3 + 1.5 * iqr;
+        const outliers = posReturns.filter(r => r > cutoff);
+        outlierWinRatio = outliers.length > 0 ? outliers.reduce((a,b)=>a+b,0) / outliers.length : avgWinRet;
+     }
+     let outlierLossRatio = 0;
+     if (negReturns.length > 0) {
+        const sortedNeg = [...negReturns].sort((a,b) => a - b);
+        const q1 = sortedNeg[Math.floor(sortedNeg.length * 0.25)];
+        const q3 = sortedNeg[Math.floor(sortedNeg.length * 0.75)];
+        const iqr = q3 - q1;
+        const cutoff = q1 - 1.5 * iqr;
+        const outliers = negReturns.filter(r => r < cutoff);
+        outlierLossRatio = outliers.length > 0 ? outliers.reduce((a,b)=>a+b,0) / outliers.length : avgLossRet;
+     }
+ 
+     // Lookback returns (MTD, 3M, 6M, YTD, 1Y, 3Y, 5Y, 10Y, All-time)
+     const getReturnForLookback = (monthsLookback, annualize = false) => {
+        if (lineChartData.length < 2) return null;
+        const totalDaysOfHistory = (new Date(lineChartData[lineChartData.length - 1].date) - new Date(lineChartData[0].date)) / (1000 * 60 * 60 * 24);
+        if (totalDaysOfHistory < monthsLookback * 30.4375) {
+           return null;
+        }
+        const lastDate = new Date(lineChartData[lineChartData.length - 1].date);
+        const targetDate = new Date(lastDate);
+        targetDate.setMonth(targetDate.getMonth() - monthsLookback);
+        
+        let closestDay = lineChartData[0];
+        let minDiff = Math.abs(new Date(closestDay.date) - targetDate);
+        for (let d of lineChartData) {
+           const diff = Math.abs(new Date(d.date) - targetDate);
+           if (diff < minDiff) {
+              minDiff = diff;
+              closestDay = d;
+           }
+        }
+        const startEq = closestDay.valorMercado + (closestDay.beneficioTotal - closestDay.beneficioLatente);
+        const endEq = lastEquity;
+        if (startEq <= 0) return null;
+        const ret = (endEq - startEq) / startEq;
+        if (annualize && monthsLookback > 12) {
+           const years = monthsLookback / 12;
+           return Math.pow(1 + ret, 1 / years) - 1;
+        }
+        return ret;
+     };
+ 
+     const getMTDReturn = () => {
+        if (lineChartData.length < 2) return null;
+        const lastDate = new Date(lineChartData[lineChartData.length - 1].date);
+        const mStart = new Date(lastDate.getFullYear(), lastDate.getMonth(), 1);
+        if (new Date(lineChartData[0].date) > lastDate) return null;
+        
+        let closestDay = lineChartData[0];
+        let minDiff = Math.abs(new Date(closestDay.date) - mStart);
+        for (let d of lineChartData) {
+           const diff = Math.abs(new Date(d.date) - mStart);
+           if (diff < minDiff) {
+              minDiff = diff;
+              closestDay = d;
+           }
+        }
+        const startEq = closestDay.valorMercado + (closestDay.beneficioTotal - closestDay.beneficioLatente);
+        const endEq = lastEquity;
+        return startEq > 0 ? (endEq - startEq) / startEq : null;
+     };
+ 
+     const getYTDReturn = () => {
+        if (lineChartData.length < 2) return null;
+        const lastDate = new Date(lineChartData[lineChartData.length - 1].date);
+        const yStart = new Date(lastDate.getFullYear(), 0, 1);
+        if (new Date(lineChartData[0].date) > lastDate) return null;
+        
+        let closestDay = lineChartData[0];
+        let minDiff = Math.abs(new Date(closestDay.date) - yStart);
+        for (let d of lineChartData) {
+           const diff = Math.abs(new Date(d.date) - yStart);
+           if (diff < minDiff) {
+              minDiff = diff;
+              closestDay = d;
+           }
+        }
+        const startEq = closestDay.valorMercado + (closestDay.beneficioTotal - closestDay.beneficioLatente);
+        const endEq = lastEquity;
+        return startEq > 0 ? (endEq - startEq) / startEq : null;
+     };
+ 
+     const mtd = getMTDReturn();
+     const threeM = getReturnForLookback(3);
+     const sixM = getReturnForLookback(6);
+     const ytd = getYTDReturn();
+     const oneY = getReturnForLookback(12);
+     const threeY = getReturnForLookback(36, true);
+     const fiveY = getReturnForLookback(60, true);
+     const tenY = getReturnForLookback(120, true);
+
+    // Best/Worst Day, Month, Year
+    const bestDay = N > 0 ? Math.max(...dailyReturns) : 0;
+    const worstDay = N > 0 ? Math.min(...dailyReturns) : 0;
+    const bestMonth = monthlyReturns.length > 0 ? Math.max(...monthlyReturns) : 0;
+    const worstMonth = monthlyReturns.length > 0 ? Math.min(...monthlyReturns) : 0;
+
+    const yearlyMap = {};
+    lineChartData.forEach(day => {
+       const yKey = day.date.substring(0, 4); // YYYY
+       const equity = day.valorMercado + (day.beneficioTotal - day.beneficioLatente);
+       if (!yearlyMap[yKey]) yearlyMap[yKey] = [];
+       yearlyMap[yKey].push(equity);
+    });
+    const yearlyReturns = [];
+    const sortedYKeys = Object.keys(yearlyMap).sort();
+    for (let i = 0; i < sortedYKeys.length; i++) {
+       const equities = yearlyMap[sortedYKeys[i]];
+       const startEq = equities[0];
+       const endEq = equities[equities.length - 1];
+       if (i > 0) {
+          const prevYKeys = yearlyMap[sortedYKeys[i - 1]];
+          const prevEq = prevYKeys[prevYKeys.length - 1];
+          if (prevEq > 0) {
+             yearlyReturns.push((endEq - prevEq) / prevEq);
+          }
+       } else {
+          if (startEq > 0) {
+             yearlyReturns.push((endEq - startEq) / startEq);
+          }
+       }
+    }
+    const bestYear = yearlyReturns.length > 0 ? Math.max(...yearlyReturns) : 0;
+    const worstYear = yearlyReturns.length > 0 ? Math.min(...yearlyReturns) : 0;
+
+    // Drawdowns stats
+    const avgDrawdown = drawdowns.length > 0 ? drawdowns.reduce((a,b)=>a+b,0) / drawdowns.length : 0;
+    const avgDrawdownDays = ddDurations.length > 0 ? ddDurations.reduce((a,b)=>a+b,0) / ddDurations.length : 0;
+    const recoveryFactor = maxDrawdownPct > 0 ? cumulativeReturn / maxDrawdownPct : 0;
+    const ulcerIndex = drawdowns.length > 0 ? Math.sqrt(drawdowns.reduce((a,b)=>a+b*b, 0) / drawdowns.length) : 0;
+
+    // Monthly positive/negative avgs and Win Pcts
+    const avgUpMonth = posMonthly.length > 0 ? posMonthly.reduce((a,b)=>a+b,0) / posMonthly.length : 0;
+    const avgDownMonth = negMonthly.length > 0 ? negMonthly.reduce((a,b)=>a+b,0) / negMonthly.length : 0;
+    const winDaysPct = N > 0 ? (dailyReturns.filter(r => r > 0).length / N) * 100 : 0;
+    const winMonthPct = monthlyReturns.length > 0 ? (monthlyReturns.filter(r => r > 0).length / monthlyReturns.length) * 100 : 0;
+    
+    const quarterMap = {};
+    lineChartData.forEach(day => {
+       const dateObj = new Date(day.date);
+       const qKey = `${dateObj.getFullYear()}-Q${Math.floor(dateObj.getMonth() / 3) + 1}`;
+       const equity = day.valorMercado + (day.beneficioTotal - day.beneficioLatente);
+       if (!quarterMap[qKey]) quarterMap[qKey] = [];
+       quarterMap[qKey].push(equity);
+    });
+    const quarterReturns = [];
+    const sortedQKeys = Object.keys(quarterMap).sort();
+    for (let i = 0; i < sortedQKeys.length; i++) {
+       const equities = quarterMap[sortedQKeys[i]];
+       const startEq = equities[0];
+       const endEq = equities[equities.length - 1];
+       if (i > 0) {
+          const prevQKeys = quarterMap[sortedQKeys[i - 1]];
+          const prevEq = prevQKeys[prevQKeys.length - 1];
+          if (prevEq > 0) {
+             quarterReturns.push((endEq - prevEq) / prevEq);
+          }
+       } else {
+          if (startEq > 0) {
+             quarterReturns.push((endEq - startEq) / startEq);
+          }
+       }
+    }
+     const winQuarterPct = quarterReturns.length > 0 ? (quarterReturns.filter(r => r > 0).length / quarterReturns.length) * 100 : 0;
+     const winYearPct = yearlyReturns.length > 0 ? (yearlyReturns.filter(r => r > 0).length / yearlyReturns.length) * 100 : 0;
+ 
+     const percentProfitable = totalTrades > 0 ? ((winningTrades / totalTrades) * 100).toFixed(2) : '0.00';
+     const avgTrade = totalTrades > 0 ? ((grossProfit - grossLoss) / totalTrades).toFixed(2) : '0.00';
+     const avgWin = winningTrades > 0 ? (grossProfit / winningTrades).toFixed(2) : '0.00';
+     const avgLoss = losingTrades > 0 ? (grossLoss / losingTrades).toFixed(2) : '0.00';
+     const ratioWinLoss = avgLoss > 0 ? (avgWin / avgLoss).toFixed(2) : (avgWin > 0 ? '99.00' : '0.00');
+ 
+     return { 
+       lineData: lineChartData,
+      barData: barChartData,
+      histogramData: histogramData,
+      drawdownData: drawdownChartData,
+      summary: { 
+        currentCapital: exactCurrentCost,
+        currentValue: exactCurrentValue,
+        totalGains: exactTotalGains,
+        latenteGains: exactLatente,
+        roiPct: exactRoiPct,
+        plusvaliaPct: exactPlusvaliaPct,
+        metrics: {
+          riskFreeRate: 0,
+          timeInMarket,
+          cumulativeReturn,
+          cumulativeGainsEUR,
+          cagr,
+          sharpeRatio: sharpeRatio.toFixed(2),
+          sortino,
+          sortinoDivRoot2,
+          maxDrawdownPct: (maxDrawdownPct * 100).toFixed(2),
+          maxDrawdownEUR,
+          longestDDDays: maxDDDurationDays,
+           volatilityAnn: stdDev * Math.sqrt(252),
+           volatilityEUR,
+           totalCommissions,
+           r2: 0,
+           calmar,
+           skew,
+           kurtosis,
+           expectedDaily,
+           expectedMonthly,
+           expectedYearly,
+           kelly,
+          riskOfRuin,
+          dailyVaR,
+          expectedShortfall,
+          gainPainRatio,
+          gainPain1M,
+          payoffRatio: winLossRatio,
+          profitFactor: gainPainRatio,
+          commonSenseRatio,
+          cpcIndex,
+          tailRatio,
+          outlierWinRatio,
+          outlierLossRatio,
+          mtd,
+          threeM,
+          sixM,
+          ytd,
+          oneY,
+          threeY,
+          fiveY,
+          tenY,
+          bestDay,
+          worstDay,
+          bestMonth,
+          worstMonth,
+          bestYear,
+          worstYear,
+          avgDrawdown,
+          avgDrawdownDays,
+          recoveryFactor,
+          ulcerIndex,
+          avgUpMonth,
+          avgDownMonth,
+          winDaysPct,
+          winMonthPct,
+          winQuarterPct,
+          winYearPct,
+          beta: 0,
+          alpha: 0,
+          totalTrades,
+          percentProfitable,
+          winningTrades,
+          losingTrades,
+          evenTrades,
+          avgTrade,
+          avgWin,
+          avgLoss,
+          ratioWinLoss,
+          maxConsecutiveLosses
+        }
+      } 
+    };
+  }, [transactions, history, assets, config, selectedTickers, selectedBrokers, selectedAccounts, startDate, endDate, linePeriod, barPeriod, histPeriod, histBins, drawdownPeriod, isAccumulated]);
+}
