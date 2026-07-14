@@ -4779,18 +4779,18 @@ export default function PrintPage() {
             <div key={`rv-tx-${pageIdx}`} className="page-sheet relative">
               <div>
                 {renderPageHeader('Registro de Transacciones de Renta Variable')}
-                <table className="w-full text-[10px] border-collapse">
+                <table className="w-full text-[8.5px] border-collapse">
                   <thead>
-                    <tr className="border-b border-slate-400 bg-slate-100 font-bold text-slate-700">
-                      <th className="py-2 px-1 text-left w-16">Fecha</th>
-                      <th className="py-2 px-1 text-left w-16">Tipo</th>
-                      <th className="py-2 px-1 text-left w-16">Ticker</th>
-                      <th className="py-2 px-1 text-left">Broker</th>
-                      <th className="py-2 px-1 text-right w-16">Cant.</th>
-                      <th className="py-2 px-1 text-right w-20">Precio</th>
-                      <th className="py-2 px-1 text-right w-20">Comisión</th>
-                      <th className="py-2 px-1 text-center w-12">Divisa</th>
-                      <th className="py-2 px-1 text-right w-24">Total (EUR)</th>
+                    <tr className="border-b border-slate-300 font-semibold text-slate-600">
+                      <th className="py-0.5 px-1 text-left w-16">Fecha</th>
+                      <th className="py-0.5 px-1 text-left w-16">Tipo</th>
+                      <th className="py-0.5 px-1 text-left w-16">Ticker</th>
+                      <th className="py-0.5 px-1 text-left">Broker</th>
+                      <th className="py-0.5 px-1 text-right w-16">Cant.</th>
+                      <th className="py-0.5 px-1 text-right w-20">Precio</th>
+                      <th className="py-0.5 px-1 text-right w-20">Comisión</th>
+                      <th className="py-0.5 px-1 text-center w-12">Divisa</th>
+                      <th className="py-0.5 px-1 text-right w-24">Total (EUR)</th>
                     </tr>
                   </thead>
                   <tbody>
@@ -4807,8 +4807,8 @@ export default function PrintPage() {
 
                       return (
                         <tr key={tx.id || idx} className="border-b border-slate-100 hover:bg-slate-50">
-                          <td className="py-1.5 px-1 font-mono text-slate-650">{formatDate(tx.date)}</td>
-                          <td className="py-1.5 px-1 font-bold">
+                          <td className="py-0.5 px-1 font-mono text-slate-650">{formatDate(tx.date)}</td>
+                          <td className="py-0.5 px-1 font-bold">
                             <span className={`px-1 py-0.5 rounded text-[8px] uppercase ${
                               tx.type === 'Compra' ? 'bg-blue-100 text-blue-800' :
                               tx.type === 'Venta' ? 'bg-orange-100 text-orange-850' : 'bg-green-100 text-green-800'
@@ -4816,13 +4816,13 @@ export default function PrintPage() {
                               {tx.type}
                             </span>
                           </td>
-                          <td className="py-1.5 px-1 font-mono font-bold text-slate-800">{tx.assetId}</td>
-                          <td className="py-1.5 px-1 uppercase text-slate-600 truncate max-w-[80px]">{tx.brokerId}</td>
-                          <td className="py-1.5 px-1 text-right font-mono">{qty.toFixed(4)}</td>
-                          <td className="py-1.5 px-1 text-right font-mono">{price.toFixed(2)}</td>
-                          <td className="py-1.5 px-1 text-right font-mono">{fee.toFixed(2)}</td>
-                          <td className="py-1.5 px-1 text-center font-mono text-[9px] text-slate-500">{tx.currency || 'EUR'}</td>
-                          <td className="py-1.5 px-1 text-right font-sans font-bold tabular-nums text-slate-800">
+                          <td className="py-0.5 px-1 font-mono font-bold text-slate-800">{tx.assetId}</td>
+                          <td className="py-0.5 px-1 uppercase text-slate-600 truncate max-w-[80px]">{tx.brokerId}</td>
+                          <td className="py-0.5 px-1 text-right font-mono">{qty.toFixed(4)}</td>
+                          <td className="py-0.5 px-1 text-right font-mono">{price.toFixed(2)}</td>
+                          <td className="py-0.5 px-1 text-right font-mono">{fee.toFixed(2)}</td>
+                          <td className="py-0.5 px-1 text-center font-mono text-[9px] text-slate-500">{tx.currency || 'EUR'}</td>
+                          <td className="py-0.5 px-1 text-right font-sans font-bold tabular-nums text-slate-800">
                             {formatCurrency(totalAmountEUR)}
                           </td>
                         </tr>
