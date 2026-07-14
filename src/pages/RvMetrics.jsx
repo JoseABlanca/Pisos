@@ -2,8 +2,8 @@ import React, { useState, useEffect, useMemo } from 'react';
 import { collection, query, where, onSnapshot, writeBatch, doc } from 'firebase/firestore';
 import { db } from '../firebase/config';
 import { useAuth } from '../context/AuthContext';
-import { 
 import ResizableSidebar from '../components/ResizableSidebar';
+import { 
   LineChart, Line, BarChart, Bar, XAxis, YAxis, CartesianGrid, 
   Tooltip, Legend, ResponsiveContainer, ReferenceLine, ComposedChart, Area, AreaChart
 } from 'recharts';

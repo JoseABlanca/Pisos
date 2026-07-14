@@ -3,7 +3,6 @@ import { db } from '../firebase/config';
 import { collection, query, where, onSnapshot } from 'firebase/firestore';
 import { useAuth } from '../context/AuthContext';
 import { useSearchParams } from 'react-router-dom';
-import ResizableSidebar from '../components/ResizableSidebar';
 import { 
   Printer, 
   BookOpen, 
@@ -25,10 +24,7 @@ import {
   RotateCcw,
   ChevronDown,
   ArrowUpDown,
-  TrendingDown,
-  Plus,
-  Trash2,
-  Edit2
+  Filter
 } from 'lucide-react';
 
 const SpanishAccountingNames = {
@@ -6368,7 +6364,7 @@ export default function PrintPage() {
 
       {/* Right panel - Filters list */}
       {showRightPanel && (
-        <ResizableSidebar className=" bg-[#f0f0f0] border border-[#808080] shrink-0 p-2 flex flex-col gap-3 win-bevel no-print overflow-y-auto max-h-full">
+        <div className="w-64 bg-[#f0f0f0] border border-[#808080] shrink-0 p-2 flex flex-col gap-3 win-bevel no-print overflow-y-auto max-h-full">
           <div className="bg-[#cbd5e0] font-bold p-1.5 uppercase text-[10px] border-b border-[#a0a0a0] text-slate-700 flex justify-between items-center">
             <span>Filtros Disponibles</span>
             <div className="flex items-center gap-1.5">
@@ -7477,7 +7473,6 @@ export default function PrintPage() {
 
         </div>
       )}
-    </ResizableSidebar>
+    </div>
   );
 }
-
