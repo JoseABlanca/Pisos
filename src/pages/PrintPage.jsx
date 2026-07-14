@@ -7149,7 +7149,7 @@ export default function PrintPage() {
                       className="win-input w-full text-[11px] font-sans"
                     >
                       <option value="todos">Todos los Brokers</option>
-                      {brokers.map(b => (
+                      {rvBrokers.map(b => (
                         <option key={b.id} value={b.id}>{b.name}</option>
                       ))}
                     </select>
@@ -7162,7 +7162,7 @@ export default function PrintPage() {
                       className="win-input w-full text-[11px] font-sans"
                     >
                       <option value="todos">Todas las Acciones</option>
-                      {assets.map(a => (
+                      {rvAssets.map(a => (
                         <option key={a.id} value={a.id}>{a.id} - {a.name}</option>
                       ))}
                     </select>
