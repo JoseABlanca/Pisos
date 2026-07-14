@@ -33,6 +33,7 @@ export default function Home() {
   const [brokers, setBrokers] = useState([]);
   const [cfProjects, setCfProjects] = useState([]);
   const [cfTransactions, setCfTransactions] = useState([]);
+  const [budgets, setBudgets] = useState([]);
 
   // Fetch all data reactively
   useEffect(() => {
@@ -63,6 +64,9 @@ export default function Home() {
     const unsubCfTx = onSnapshot(query(collection(db, 'cf_transactions'), where('userId', 'in', targetUserIds)), snap => {
       setCfTransactions(snap.docs.map(d => ({ ...d.data(), id: d.id })));
     });
+    const unsubBudgets = onSnapshot(query(collection(db, 'budgets'), where('userId', 'in', targetUserIds)), snap => {
+      setBudgets(snap.docs.map(d => ({ ...d.data(), id: d.id })));
+    });
 
     return () => {
       unsubAcc();
@@ -73,6 +77,7 @@ export default function Home() {
       unsubBroker();
       unsubCfProj();
       unsubCfTx();
+      unsubBudgets();
     };
   }, [user, queryUserIds]);
 
@@ -272,13 +277,35 @@ export default function Home() {
 
     const cfValue = cfInvested + cfRentsNet;
 
-    // Totals
-    const patrimonio = patrimonioNeto;
-    const liquidez = bankBalance572 + rvPortfolioValue;
+    // 6. Ingresos y Gastos Previstos (Budgets for next month)
+    const today = new Date();
+    let nextMonthIndex = today.getMonth() + 1;
+    let targetYear = today.getFullYear();
+    if (nextMonthIndex > 11) {
+      nextMonthIndex = 0;
+      targetYear += 1;
+    }
+
+    let ingresosPrevistos = 0;
+    let gastosPrevistos = 0;
+
+    budgets.forEach(b => {
+      if (b.year === targetYear) {
+        const val = parseFloat(b.months?.[nextMonthIndex]) || 0;
+        const code = String(b.accountCode || '');
+        const isExpense = b.isExpense !== undefined ? b.isExpense : (code.startsWith('6') || code.startsWith('8'));
+        
+        if (code.startsWith('7')) {
+          ingresosPrevistos += val;
+        } else if (isExpense) {
+          gastosPrevistos += val;
+        }
+      }
+    });
 
     return {
-      patrimonio,
-      liquidez,
+      patrimonio: patrimonioNeto,
+      liquidez: bankBalance572 + rvPortfolioValue,
       bankBalance,
       bankBalance572,
       totalActivo,
@@ -288,9 +315,11 @@ export default function Home() {
       rvBrokerCash,
       realEstateValue,
       realEstateMortgages,
-      cfValue
+      cfValue,
+      ingresosPrevistos,
+      gastosPrevistos
     };
-  }, [accounts, journalEntries, properties, rvTransactions, rvAssets, brokers, cfProjects, cfTransactions]);
+  }, [accounts, journalEntries, properties, rvTransactions, rvAssets, brokers, cfProjects, cfTransactions, budgets]);
 
   const modules = [
     { name: 'Contabilidad', desc: 'Gestión de asientos y cuentas', icon: Calculator },
@@ -392,10 +421,12 @@ export default function Home() {
                 </div>
               </div>
               <div>
-                <p className="text-2xl font-black text-slate-400 tracking-tight font-mono">
-                  0,00 €
+                <p className="text-2xl font-black text-blue-600 tracking-tight font-mono">
+                  {kpis.ingresosPrevistos.toLocaleString('es-ES', { minimumFractionDigits: 2, maximumFractionDigits: 2 })} €
                 </p>
-                <p className="text-[9px] text-slate-450 mt-2 italic">Módulo de planificación en desarrollo</p>
+                <p className="text-[9px] text-slate-450 mt-2 italic uppercase">
+                  Mes: {new Date(new Date().getFullYear(), new Date().getMonth() + 1, 1).toLocaleString('es-ES', { month: 'long' })}
+                </p>
               </div>
             </div>
           </div>
@@ -415,10 +446,12 @@ export default function Home() {
                 </div>
               </div>
               <div>
-                <p className="text-2xl font-black text-slate-400 tracking-tight font-mono">
-                  0,00 €
+                <p className="text-2xl font-black text-amber-600 tracking-tight font-mono">
+                  {kpis.gastosPrevistos.toLocaleString('es-ES', { minimumFractionDigits: 2, maximumFractionDigits: 2 })} €
                 </p>
-                <p className="text-[9px] text-slate-450 mt-2 italic">Módulo de planificación en desarrollo</p>
+                <p className="text-[9px] text-slate-450 mt-2 italic uppercase">
+                  Mes: {new Date(new Date().getFullYear(), new Date().getMonth() + 1, 1).toLocaleString('es-ES', { month: 'long' })}
+                </p>
               </div>
             </div>
           </div>
