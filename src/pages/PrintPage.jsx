@@ -4592,8 +4592,8 @@ export default function PrintPage() {
                         {visibleCols.map((col, idx) => {
                           if (idx === 0) return <td key={col.id} className="py-2 px-1" colSpan={Math.max(1, visibleCols.findIndex(c => ['totalCost', 'currentValue', 'pnl'].includes(c.id)))}>TOTAL POSICIONES:</td>;
                           if (idx < visibleCols.findIndex(c => ['totalCost', 'currentValue', 'pnl'].includes(c.id))) return null;
-                          if (col.id === 'totalCost') return <td key={col.id} className="py-2 px-1 text-right font-sans tabular-nums">{formatCurrency(sum.totalCost)} €/td>;
-                          if (col.id === 'currentValue') return <td key={col.id} className="py-2 px-1 text-right font-sans tabular-nums text-slate-900">{formatCurrency(sum.totalValue)} €/td>;
+                          if (col.id === 'totalCost') return <td key={col.id} className="py-2 px-1 text-right font-sans tabular-nums">{formatCurrency(sum.totalCost)} €</td>;
+                          if (col.id === 'currentValue') return <td key={col.id} className="py-2 px-1 text-right font-sans tabular-nums text-slate-900">{formatCurrency(sum.totalValue)} €</td>;
                           if (col.id === 'pnl') return <td key={col.id} className={`py-2 px-1 text-right font-sans font-bold tabular-nums ${sum.pnl >= 0 ? 'text-green-700' : 'text-red-700'}`}>{(sum.pnlPercent || 0).toFixed(2)}%</td>;
                           return <td key={col.id} className="py-2 px-1"></td>;
                         })}
@@ -4822,11 +4822,11 @@ export default function PrintPage() {
                     {isLastPage && (
                       <tr className="bg-slate-100 font-bold border-t-2 border-slate-400 text-[11px]">
                         <td className="py-2 px-1">TOTAL GENERAL:</td>
-                        <td className="py-2 px-1 text-right font-sans tabular-nums">{formatCurrency(sum.totalInvested)} €/td>
+                        <td className="py-2 px-1 text-right font-sans tabular-nums">{formatCurrency(sum.totalInvested)} €</td>
                         <td className="py-2 px-1 text-right font-sans tabular-nums">{formatCurrency(sum.totalReturnGross)}</td>
                         <td className="py-2 px-1 text-right font-sans tabular-nums text-red-650">{formatCurrency(sum.totalReturnGross - sum.totalReturnNet)}</td>
-                        <td className="py-2 px-1 text-right font-sans tabular-nums text-green-700 font-extrabold">{formatCurrency(sum.totalReturnNet)} €/td>
-                        <td className="py-2 px-1 text-right font-sans tabular-nums text-slate-900">{formatCurrency(sum.totalCurrentValueNet)} €/td>
+                        <td className="py-2 px-1 text-right font-sans tabular-nums text-green-700 font-extrabold">{formatCurrency(sum.totalReturnNet)} €</td>
+                        <td className="py-2 px-1 text-right font-sans tabular-nums text-slate-900">{formatCurrency(sum.totalCurrentValueNet)} €</td>
                         <td className="py-2 px-1 text-right font-sans font-bold text-blue-900">{(sum.avgReturnNet || 0).toFixed(2)}%</td>
                       </tr>
                     )}
