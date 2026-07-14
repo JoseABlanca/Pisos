@@ -580,7 +580,10 @@ export default function Analitica() {
   }, [budgetsForYearFiltered, realAccountCodes]);
 
   // Set of codes that have a direct budget entry
-  const leafBudgetCodes = useMemo(() => new Set(budgetsForYearFiltered.map(b => b.accountCode).filter(Boolean)), [budgetsForYearFiltered]);
+  const leafBudgetCodes = useMemo(() => new Set(budgetsForYearFiltered.map(b => {
+    const account = rawAccounts.find(a => a.id === b.accountId || a.code === b.accountCode);
+    return account ? account.code : b.accountCode;
+  }).filter(Boolean)), [budgetsForYearFiltered, rawAccounts]);
 
   const treeRows = useMemo(() => {
     // If onlyAssigned, show only the exact leaf codes with budgets (no parents, no hierarchy)
@@ -594,10 +597,17 @@ export default function Analitica() {
     }
     return codes.map(code => {
       const isLeaf = leafBudgetCodes.has(code);
-      const buds = budgetsForYearFiltered.filter(b => b.accountCode === code);
+      const buds = budgetsForYearFiltered.filter(b => {
+        const account = rawAccounts.find(a => a.id === b.accountId || a.code === b.accountCode);
+        return (account ? account.code : b.accountCode) === code;
+      });
       const childBuds = onlyAssigned
         ? buds   // in flat mode, no children aggregation
-        : budgetsForYearFiltered.filter(b => b.accountCode.startsWith(code));
+        : budgetsForYearFiltered.filter(b => {
+            const account = rawAccounts.find(a => a.id === b.accountId || a.code === b.accountCode);
+            const bCode = account ? account.code : b.accountCode;
+            return bCode && bCode.startsWith(code);
+          });
       const total = (onlyAssigned ? buds : childBuds).reduce((s, b) => s + (parseFloat(b.total) || 0), 0);
       const months = Object.fromEntries([...Array(12)].map((_, i) => [i,
         (onlyAssigned ? buds : childBuds).reduce((s, b) => s + (parseFloat(b.months?.[i]) || 0), 0)
@@ -628,10 +638,20 @@ export default function Analitica() {
         const cecoName = cecoCenter ? cecoCenter.name : `CECO ${cecoCode}`;
         
         const budsForCeco = budgetsPageFiltered.filter(b => b.ceco === cecoCode);
-        const cecoTotal = budsForCeco.reduce((s, b) => s + (parseFloat(b.total) || 0), 0);
+        const cecoTotal = budsForCeco.reduce((s, b) => {
+          const account = rawAccounts.find(a => a.id === b.accountId || a.code === b.accountCode);
+          const code = account ? (account.code || '') : (b.accountCode || '');
+          const mult = (code.startsWith('6') || code.startsWith('8')) ? -1 : 1;
+          return s + (parseFloat(b.total) || 0) * mult;
+        }, 0);
         const cecoMonths = Object.fromEntries([...Array(12)].map((_, i) => [
           i,
-          budsForCeco.reduce((s, b) => s + (parseFloat(b.months?.[i]) || 0), 0)
+          budsForCeco.reduce((s, b) => {
+            const account = rawAccounts.find(a => a.id === b.accountId || a.code === b.accountCode);
+            const code = account ? (account.code || '') : (b.accountCode || '');
+            const mult = (code.startsWith('6') || code.startsWith('8')) ? -1 : 1;
+            return s + (parseFloat(b.months?.[i]) || 0) * mult;
+          }, 0)
         ]));
 
         const cebeCodes = Array.from(new Set(budsForCeco.map(b => b.cebe).filter(Boolean))).sort();
@@ -656,10 +676,20 @@ export default function Analitica() {
             const cebeName = cebeCenter ? cebeCenter.name : `CEBE ${cebeCode}`;
 
             const budsForCebe = budsForCeco.filter(b => b.cebe === cebeCode);
-            const cebeTotal = budsForCebe.reduce((s, b) => s + (parseFloat(b.total) || 0), 0);
+            const cebeTotal = budsForCebe.reduce((s, b) => {
+              const account = rawAccounts.find(a => a.id === b.accountId || a.code === b.accountCode);
+              const code = account ? (account.code || '') : (b.accountCode || '');
+              const mult = (code.startsWith('6') || code.startsWith('8')) ? -1 : 1;
+              return s + (parseFloat(b.total) || 0) * mult;
+            }, 0);
             const cebeMonths = Object.fromEntries([...Array(12)].map((_, i) => [
               i,
-              budsForCebe.reduce((s, b) => s + (parseFloat(b.months?.[i]) || 0), 0)
+              budsForCebe.reduce((s, b) => {
+                const account = rawAccounts.find(a => a.id === b.accountId || a.code === b.accountCode);
+                const code = account ? (account.code || '') : (b.accountCode || '');
+                const mult = (code.startsWith('6') || code.startsWith('8')) ? -1 : 1;
+                return s + (parseFloat(b.months?.[i]) || 0) * mult;
+              }, 0)
             ]));
 
             rows.push({
@@ -687,10 +717,20 @@ export default function Analitica() {
         const cebeName = cebeCenter ? cebeCenter.name : `CEBE ${cebeCode}`;
         
         const budsForCebe = budgetsPageFiltered.filter(b => b.cebe === cebeCode);
-        const cebeTotal = budsForCebe.reduce((s, b) => s + (parseFloat(b.total) || 0), 0);
+        const cebeTotal = budsForCebe.reduce((s, b) => {
+          const account = rawAccounts.find(a => a.id === b.accountId || a.code === b.accountCode);
+          const code = account ? (account.code || '') : (b.accountCode || '');
+          const mult = (code.startsWith('6') || code.startsWith('8')) ? -1 : 1;
+          return s + (parseFloat(b.total) || 0) * mult;
+        }, 0);
         const cebeMonths = Object.fromEntries([...Array(12)].map((_, i) => [
           i,
-          budsForCebe.reduce((s, b) => s + (parseFloat(b.months?.[i]) || 0), 0)
+          budsForCebe.reduce((s, b) => {
+            const account = rawAccounts.find(a => a.id === b.accountId || a.code === b.accountCode);
+            const code = account ? (account.code || '') : (b.accountCode || '');
+            const mult = (code.startsWith('6') || code.startsWith('8')) ? -1 : 1;
+            return s + (parseFloat(b.months?.[i]) || 0) * mult;
+          }, 0)
         ]));
 
         const cecoCodes = Array.from(new Set(budsForCebe.map(b => b.ceco).filter(Boolean))).sort();
@@ -715,10 +755,18 @@ export default function Analitica() {
             const cecoName = cecoCenter ? cecoCenter.name : `CECO ${cecoCode}`;
 
             const budsForCeco = budsForCebe.filter(b => b.ceco === cecoCode);
-            const cecoTotal = budsForCeco.reduce((s, b) => s + (parseFloat(b.total) || 0), 0);
+            const cecoTotal = budsForCeco.reduce((s, b) => {
+              const account = rawAccounts.find(a => a.id === b.accountId || a.code === b.accountCode);
+              const code = account ? (account.code || '') : (b.accountCode || '');
+              const mult = (code.startsWith('6') || code.startsWith('8')) ? -1 : 1;
+              return s + (parseFloat(b.total) || 0) * mult;
+            }, 0);
             const cecoMonths = Object.fromEntries([...Array(12)].map((_, i) => [
               i,
-              budsForCeco.reduce((s, b) => s + (parseFloat(b.months?.[i]) || 0), 0)
+              budsForCeco.reduce((s, b) => {
+                const mult = (b.accountCode?.startsWith('6') || b.accountCode?.startsWith('8')) ? -1 : 1;
+                return s + (parseFloat(b.months?.[i]) || 0) * mult;
+              }, 0)
             ]));
 
             rows.push({
@@ -901,7 +949,12 @@ export default function Analitica() {
 
         if (isMatch) {
           const account = rawAccounts.find(a => a.id === tx.accountId || a.code === tx.accountId);
-          const net = getTransactionNet(tx, account);
+          let net = getTransactionNet(tx, account);
+          if (viewMode === 'analitica') {
+            const code = account ? (account.code || '') : (tx.cuentaContable || '');
+            const mult = (code.startsWith('6') || code.startsWith('8')) ? -1 : 1;
+            net = net * mult;
+          }
           monthsActual[txMonth] += net;
           totalActual += net;
         }
@@ -1413,26 +1466,29 @@ export default function Analitica() {
                           for (let i = 0; i < 12; i++) {
                             const budgetVal = row.months[i] || 0;
                             const actualVal = rowActuals.months[i] || 0;
-                            monthsDev[i] = actualVal - budgetVal;
-                            monthsPct[i] = budgetVal === 0 
+                            monthsDev[i] = cleanZero(actualVal - budgetVal);
+                            
+                            const rawPct = budgetVal === 0 
                               ? (actualVal === 0 ? 0 : (actualVal > 0 ? 100 : -100))
                               : (monthsDev[i] / budgetVal) * 100;
+                            monthsPct[i] = cleanZero(rawPct);
                             
                             if (shouldRenderMonth(i)) {
                               actualsSum += actualVal;
                             }
                           }
 
-                          const totalDev = actualsSum - budgetSum;
-                          const totalPct = budgetSum === 0
+                          const totalDev = cleanZero(actualsSum - budgetSum);
+                          const totalPct = cleanZero(budgetSum === 0
                             ? (actualsSum === 0 ? 0 : (actualsSum > 0 ? 100 : -100))
-                            : (totalDev / budgetSum) * 100;
+                            : (totalDev / budgetSum) * 100);
 
                           rowDev = {
                             total: totalDev,
                             months: monthsDev,
                             pctTotal: totalPct,
-                            pctMonths: monthsPct
+                            pctMonths: monthsPct,
+                            actualsSum: actualsSum
                           };
                         }
 
@@ -1486,13 +1542,22 @@ export default function Analitica() {
                                   </td>
                                   <td className="py-[2px] px-2 text-[10px] text-slate-400 uppercase whitespace-nowrap overflow-hidden text-ellipsis italic">Porcentaje desviación</td>
                                   <td className="py-[2px] px-2 text-right text-[10px] font-mono text-slate-600 font-semibold">
-                                    {rowDev.pctTotal === 0 ? '-' : `${rowDev.pctTotal > 0 ? '+' : ''}${rowDev.pctTotal.toLocaleString('es-ES', { minimumFractionDigits: 1, maximumFractionDigits: 1 })}%`}
+                                    {(budgetSum === 0 && rowDev.actualsSum === 0) 
+                                      ? '-' 
+                                      : `${rowDev.pctTotal > 0 ? '+' : ''}${rowDev.pctTotal.toLocaleString('es-ES', { minimumFractionDigits: 1, maximumFractionDigits: 1 }) }%`}
                                   </td>
-                                  {[...Array(12)].map((_, i) => shouldRenderMonth(i) && (
-                                    <td key={i} className="py-[2px] px-2 text-right text-[10px] font-mono text-slate-500">
-                                      {rowDev.pctMonths[i] === 0 ? '-' : `${rowDev.pctMonths[i] > 0 ? '+' : ''}${rowDev.pctMonths[i].toLocaleString('es-ES', { minimumFractionDigits: 1, maximumFractionDigits: 1 })}%`}
-                                    </td>
-                                  ))}
+                                  {[...Array(12)].map((_, i) => {
+                                    const budgetVal = row.months[i] || 0;
+                                    const actualVal = (actualsMap[row.id]?.months?.[i]) || 0;
+                                    const isZeroActivity = budgetVal === 0 && actualVal === 0;
+                                    return shouldRenderMonth(i) && (
+                                      <td key={i} className="py-[2px] px-2 text-right text-[10px] font-mono text-slate-500">
+                                        {isZeroActivity 
+                                          ? '-' 
+                                          : `${rowDev.pctMonths[i] > 0 ? '+' : ''}${rowDev.pctMonths[i].toLocaleString('es-ES', { minimumFractionDigits: 1, maximumFractionDigits: 1 }) }%`}
+                                      </td>
+                                    );
+                                  })}
                                 </tr>
                               </>
                             )}
