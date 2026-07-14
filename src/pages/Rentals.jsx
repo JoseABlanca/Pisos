@@ -1314,6 +1314,7 @@ export default function Rentals() {
                             rentEq = (formData.paymentPeriod === 'anual' ? formData.rentAmount / 12 : (formData.paymentPeriod === 'trimestral' ? formData.rentAmount / 3 : formData.rentAmount)) || 0;
                           }
                           const expEq = (formData.expenses || []).reduce((sum, exp) => {
+                            if (exp.includeInSum === false) return sum;
                             let monthly = exp.amount || 0;
                             if (exp.period === 'anual') monthly = monthly / 12;
                             else if (exp.period === 'trimestral') monthly = monthly / 3;
