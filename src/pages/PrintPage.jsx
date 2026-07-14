@@ -6437,7 +6437,7 @@ export default function PrintPage() {
           )}
 
           {/* Filtros Inmobiliarios (Multiselección) */}
-          {['activos', 'alquileres', 'clientes', 'extracto_propietarios', 'metricas_inversion'].includes(selectedTemplate) && (
+          {['activos', 'alquileres', 'clientes', 'extracto_propietarios', 'metricas_inversion', 'rv_transactions', 'rv_portfolio'].includes(selectedTemplate) && (
             <div className="bg-white border border-[#a0a0a0] p-3 flex flex-col gap-3">
               <div
                 className="text-[10px] font-bold text-slate-500 uppercase flex items-center justify-between cursor-pointer select-none hover:text-slate-800"
@@ -6680,7 +6680,7 @@ export default function PrintPage() {
           )}
 
           {/* Ordenación del Informe */}
-          {['activos', 'alquileres', 'clientes', 'extracto_propietarios'].includes(selectedTemplate) && (
+          {['activos', 'alquileres', 'clientes', 'extracto_propietarios', 'rv_transactions', 'rv_portfolio'].includes(selectedTemplate) && (
             <div className="bg-white border border-[#a0a0a0] p-3 flex flex-col gap-3">
               <div
                 className="text-[10px] font-bold text-slate-500 uppercase flex items-center justify-between cursor-pointer select-none hover:text-slate-800"
@@ -6777,7 +6777,7 @@ export default function PrintPage() {
           )}
 
           {/* Column Visibility Filter (for inmobiliaria reports) */}
-          {['activos', 'alquileres', 'clientes', 'extracto_propietarios', 'metricas_inversion'].includes(selectedTemplate) && ALL_COLUMNS[selectedTemplate] && (
+          {['activos', 'alquileres', 'clientes', 'extracto_propietarios', 'metricas_inversion', 'rv_transactions', 'rv_portfolio'].includes(selectedTemplate) && ALL_COLUMNS[selectedTemplate] && (
             <div className="bg-white border border-[#a0a0a0] p-3 flex flex-col gap-2" ref={colDropdownRef}>
               <div
                 className="text-[10px] font-bold text-slate-500 uppercase flex items-center justify-between cursor-pointer select-none hover:text-slate-800"
