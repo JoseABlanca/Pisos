@@ -4612,6 +4612,18 @@ export default function PrintPage() {
 
     // 8. TRANSACCIONES DE RENTA VARIABLE
     if (selectedTemplate === 'rv_transactions') {
+      const txsWithAmounts = rvTransactions.map(tx => {
+        const qty = parseFloat(tx.quantity) || 0;
+        const price = parseFloat(tx.price) || 0;
+        const fee = parseFloat(tx.fee) || 0;
+        const rate = parseFloat(tx.exchangeRate) || 1.0;
+        let totalAmountEUR = 0;
+        if (tx.type === 'Dividendo') totalAmountEUR = (qty * price - fee) / rate;
+        else if (tx.type === 'Compra') totalAmountEUR = (qty * price + fee) / rate;
+        else totalAmountEUR = (qty * price - fee) / rate;
+        return { ...tx, totalAmountEUR, qty, price, fee, rate };
+      });
+
       let filteredTx = [...txsWithAmounts];
       
       // Filtros
