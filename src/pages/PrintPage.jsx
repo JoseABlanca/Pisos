@@ -3107,7 +3107,7 @@ export default function PrintPage() {
           <h2 className="text-xl font-bold uppercase tracking-tight text-slate-900">{title}</h2>
           <p className="text-[10px] text-slate-500 font-bold uppercase">{subtitle}</p>
         </div>
-        <div className="text-right text-[10px] text-slate-500 font-mono">
+        <div className="text-right text-[10px] text-slate-500 font-sans tabular-nums">
           Fecha Emisión: {new Date().toLocaleDateString()}
         </div>
       </div>
@@ -3123,7 +3123,7 @@ export default function PrintPage() {
         </div>
         <div className="text-right">
           <p>Página {currentPage} de {totalPages}</p>
-          <p className="font-mono">Auditoría Nº {auditNumber}</p>
+          <p className="font-sans tabular-nums">Auditoría Nº {auditNumber}</p>
         </div>
       </div>
     );
@@ -3220,7 +3220,7 @@ export default function PrintPage() {
                             <tr key={`line-${entry.id}-${lineIndex}`} className={rowBg}>
                               <td className="py-0.5 px-1" colSpan="2"></td>
                               <td className="py-0.5 px-1 text-slate-600 pl-4">{accDisplay}</td>
-                              <td className="py-0.5 px-1 font-mono text-[9px] text-slate-500">{centerDisplay}</td>
+                              <td className="py-0.5 px-1 font-sans tabular-nums text-[9px] text-slate-500">{centerDisplay}</td>
                               <td className="py-0.5 px-1 text-right font-sans tabular-nums text-slate-600">{line.debit > 0 ? formatCurrency(line.debit) : ''}</td>
                               <td className="py-0.5 px-1 text-right font-sans tabular-nums text-slate-600">{line.credit > 0 ? formatCurrency(line.credit) : ''}</td>
                             </tr>
@@ -3335,7 +3335,7 @@ export default function PrintPage() {
                             return (
                               <tr key={idx} className="border-b border-slate-100 hover:bg-slate-50">
                                 <td className="py-0.5 px-1 font-sans tabular-nums">{formatDate(line.date)}</td>
-                                <td className="py-0.5 px-1 text-center font-mono">{line.entryNo || '-'}</td>
+                                <td className="py-0.5 px-1 text-center font-sans tabular-nums">{line.entryNo || '-'}</td>
                                 <td className="py-0.5 px-1 truncate max-w-[200px] uppercase">{line.description}</td>
                                 <td className="py-0.5 px-1 text-right font-sans tabular-nums text-slate-650">{line.debit > 0 ? formatCurrency(line.debit) : ''}</td>
                                 <td className="py-0.5 px-1 text-right font-sans tabular-nums text-slate-650">{line.credit > 0 ? formatCurrency(line.credit) : ''}</td>
@@ -3466,7 +3466,7 @@ export default function PrintPage() {
                   <tbody>
                     {pageItems.map(acc => (
                       <tr key={acc.code} className="border-b border-slate-100 hover:bg-slate-50">
-                        <td className="py-1.5 px-1 font-mono">{acc.code}</td>
+                        <td className="py-1.5 px-1 font-sans tabular-nums">{acc.code}</td>
                         <td className="py-1.5 px-1 font-bold text-slate-800 uppercase">{formatAccountName(acc.name)}</td>
                         <td className="py-1.5 px-1 text-right font-sans tabular-nums text-slate-650">{acc.debit > 0 ? formatCurrency(acc.debit) : '0,00'}</td>
                         <td className="py-1.5 px-1 text-right font-sans tabular-nums text-slate-650">{acc.credit > 0 ? formatCurrency(acc.credit) : '0,00'}</td>
@@ -3605,9 +3605,9 @@ export default function PrintPage() {
                           {cv('ingresos') && <td className="py-1.5 px-2 text-right tabular-nums">{formatCurrency(metrics.ingresos)}</td>}
                           {cv('gastos') && <td className="py-1.5 px-2 text-right tabular-nums">{formatCurrency(metrics.gastos)}</td>}
                           {cv('netYield') && <td className="py-1.5 px-2 text-right tabular-nums">{formatCurrency(metrics.neto)}</td>}
-                          {cv('catastral') && <td className="py-1.5 px-2 font-mono uppercase">{p.catastral || '---'}</td>}
+                          {cv('catastral') && <td className="py-1.5 px-2 font-sans tabular-nums uppercase">{p.catastral || '---'}</td>}
                           {cv('cp') && <td className="py-1.5 px-2 text-center">{p.cp || '---'}</td>}
-                          {cv('accountNumber') && <td className="py-1.5 px-2 font-mono">{p.accountNumber || '---'}</td>}
+                          {cv('accountNumber') && <td className="py-1.5 px-2 font-sans tabular-nums">{p.accountNumber || '---'}</td>}
                           {cv('activeTenant') && <td className="py-1.5 px-2 uppercase">{getActiveClientDisplayConsolidated(p)}</td>}
                           {cv('capitalReformas') && <td className="py-1.5 px-2 text-right tabular-nums">{propCapitalizedReforms > 0 ? formatCurrency(propCapitalizedReforms) : '---'}</td>}
                           {cv('capitalAportado') && <td className="py-1.5 px-2 text-right tabular-nums">{propInvestedCapital > 0 ? formatCurrency(propInvestedCapital) : '---'}</td>}
@@ -4466,6 +4466,14 @@ export default function PrintPage() {
       
       const cv = (colId) => isColVisible('rv_portfolio', colId);
       const visibleCols = (ALL_COLUMNS.rv_portfolio || []).filter(col => cv(col.id));
+      if (columnOrder['rv_portfolio']) {
+        const orderMap = new Map(columnOrder['rv_portfolio'].map((id, i) => [id, i]));
+        visibleCols.sort((a, b) => {
+          const idxA = orderMap.has(a.id) ? orderMap.get(a.id) : 999;
+          const idxB = orderMap.has(b.id) ? orderMap.get(b.id) : 999;
+          return idxA - idxB;
+        });
+      }
 
       if (holdings.length === 0) {
         pageViews.push(
@@ -4509,29 +4517,29 @@ export default function PrintPage() {
                   <div className="grid grid-cols-3 gap-2 mb-4 text-[10px] select-none no-print border border-slate-350 p-2 bg-slate-50">
                     <div>
                       <span className="text-slate-500 font-bold block uppercase text-[8px]">Inversi�n Total</span>
-                      <span className="font-mono font-bold text-slate-800 text-[12px]">{formatCurrency(sum.totalCost)} �</span>
+                      <span className="font-sans tabular-nums font-bold text-slate-800 text-[12px]">{formatCurrency(sum.totalCost)} �</span>
                     </div>
                     <div>
                       <span className="text-slate-500 font-bold block uppercase text-[8px]">Valor de Mercado</span>
-                      <span className="font-mono font-bold text-slate-800 text-[12px]">{formatCurrency(sum.totalValue)} �</span>
+                      <span className="font-sans tabular-nums font-bold text-slate-800 text-[12px]">{formatCurrency(sum.totalValue)} �</span>
                     </div>
                     <div>
                       <span className="text-slate-500 font-bold block uppercase text-[8px]">Rendimiento Total (PnL)</span>
-                      <span className={`font-mono font-bold text-[12px] ${sum.pnl >= 0 ? 'text-green-700' : 'text-red-700'}`}>
+                      <span className={`font-sans tabular-nums font-bold text-[12px] ${sum.pnl >= 0 ? 'text-green-700' : 'text-red-700'}`}>
                         {formatCurrency(sum.pnl)} � ({(sum.pnlPercent || 0).toFixed(2)}%)
                       </span>
                     </div>
                     <div className="pt-2 border-t border-slate-200">
                       <span className="text-slate-500 font-bold block uppercase text-[8px]">Dividendos Cobrados</span>
-                      <span className="font-mono font-bold text-slate-800 text-[12px]">{formatCurrency(sum.dividends)} �</span>
+                      <span className="font-sans tabular-nums font-bold text-slate-800 text-[12px]">{formatCurrency(sum.dividends)} �</span>
                     </div>
                     <div className="pt-2 border-t border-slate-200">
                       <span className="text-slate-500 font-bold block uppercase text-[8px]">Efectivo en Brokers</span>
-                      <span className="font-mono font-bold text-slate-800 text-[12px]">{formatCurrency(sum.cash)} �</span>
+                      <span className="font-sans tabular-nums font-bold text-slate-800 text-[12px]">{formatCurrency(sum.cash)} �</span>
                     </div>
                     <div className="pt-2 border-t border-slate-200">
                       <span className="text-slate-500 font-bold block uppercase text-[8px]">Total Cartera</span>
-                      <span className="font-mono font-bold text-slate-800 text-[12px]">{formatCurrency(sum.grandTotal)} �</span>
+                      <span className="font-sans tabular-nums font-bold text-slate-800 text-[12px]">{formatCurrency(sum.grandTotal)} �</span>
                     </div>
                   </div>
                 )}
@@ -4568,9 +4576,9 @@ export default function PrintPage() {
                             if (col.id === 'assetId') return <td key={col.id} className="py-2 px-1 font-bold text-slate-800 uppercase">{h.assetId}</td>;
                             if (col.id === 'assetName') return <td key={col.id} className="py-2 px-1 text-slate-700 truncate max-w-[120px]">{h.assetName}</td>;
                             if (col.id === 'brokerId') return <td key={col.id} className="py-2 px-1 text-slate-600 uppercase text-[9px] truncate max-w-[80px]">{h.brokerId}</td>;
-                            if (col.id === 'quantity') return <td key={col.id} className="py-2 px-1 text-right font-mono tabular-nums">{(h.quantity || 0).toFixed(4)}</td>;
-                            if (col.id === 'avgPrice') return <td key={col.id} className="py-2 px-1 text-right font-mono tabular-nums">{(h.avgPrice || 0).toFixed(2)}</td>;
-                            if (col.id === 'currentPrice') return <td key={col.id} className="py-2 px-1 text-right font-mono tabular-nums font-bold text-slate-800">{(h.currentPrice || 0).toFixed(2)}</td>;
+                            if (col.id === 'quantity') return <td key={col.id} className="py-2 px-1 text-right font-sans tabular-nums tabular-nums">{(h.quantity || 0).toFixed(4)}</td>;
+                            if (col.id === 'avgPrice') return <td key={col.id} className="py-2 px-1 text-right font-sans tabular-nums tabular-nums">{(h.avgPrice || 0).toFixed(2)}</td>;
+                            if (col.id === 'currentPrice') return <td key={col.id} className="py-2 px-1 text-right font-sans tabular-nums tabular-nums font-bold text-slate-800">{(h.currentPrice || 0).toFixed(2)}</td>;
                             if (col.id === 'totalCost') return <td key={col.id} className="py-2 px-1 text-right font-sans tabular-nums">{formatCurrency(h.totalCost)}</td>;
                             if (col.id === 'currentValue') return <td key={col.id} className="py-2 px-1 text-right font-sans tabular-nums font-bold text-slate-800">{formatCurrency(h.currentValue)}</td>;
                             if (col.id === 'pnl') return <td key={col.id} className={`py-2 px-1 text-right font-sans font-bold tabular-nums ${h.pnl >= 0 ? 'text-green-700' : 'text-red-700'}`}>{(h.pnlPercent || 0).toFixed(2)}%</td>;
@@ -4604,18 +4612,8 @@ export default function PrintPage() {
 
     // 8. TRANSACCIONES DE RENTA VARIABLE
     if (selectedTemplate === 'rv_transactions') {
-      let filteredTx = [...rvTransactions].map(tx => {
-        const qty = parseFloat(tx.quantity) || 0;
-        const price = parseFloat(tx.price) || 0;
-        const fee = parseFloat(tx.fee) || 0;
-        const rate = parseFloat(tx.exchangeRate) || 1.0;
-        let totalAmountEUR = 0;
-        if (tx.type === 'Dividendo') totalAmountEUR = (qty * price - fee) / rate;
-        else if (tx.type === 'Compra') totalAmountEUR = (qty * price + fee) / rate;
-        else totalAmountEUR = (qty * price - fee) / rate;
-        return { ...tx, totalAmountEUR, qty, price, fee, rate };
-      });
-
+      let filteredTx = [...txsWithAmounts];
+      
       // Filtros
       if (rvBrokerFilter.length > 0) {
         filteredTx = filteredTx.filter(tx => rvBrokerFilter.includes(tx.brokerId));
@@ -4635,29 +4633,34 @@ export default function PrintPage() {
           return 0;
         });
       } else {
-        filteredTx.sort((a, b) => new Date(b.date) - new Date(a.date)); // Default
+        filteredTx.sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime()); // Default
       }
 
-      // Gr�ficos (si procede)
-      
-      // Agrupación
+      // Agrupaci�n y Paginaci�n
       let listPages = [];
       let totalPages = 1;
       
       const cv = (colId) => isColVisible('rv_transactions', colId);
       const visibleCols = (ALL_COLUMNS.rv_transactions || []).filter(col => cv(col.id));
+      if (columnOrder['rv_transactions']) {
+        const orderMap = new Map(columnOrder['rv_transactions'].map((id, i) => [id, i]));
+        visibleCols.sort((a, b) => {
+          const idxA = orderMap.has(a.id) ? orderMap.get(a.id) : 999;
+          const idxB = orderMap.has(b.id) ? orderMap.get(b.id) : 999;
+          return idxA - idxB;
+        });
+      }
 
       if (filteredTx.length === 0) {
         pageViews.push(
           <div key="empty-rv-tx" className="page-sheet relative">
-            {renderPageHeader('Transacciones de Renta Variable')}
-            <p className="text-center py-12 text-slate-450 italic text-[10px]">No hay transacciones registradas.</p>
-            {renderPageFooter(showRvChart ? 2 : 1, showRvChart ? 2 : 1, auditNumber)}
+            {renderPageHeader('Registro de Transacciones de Renta Variable')}
+            <p className="text-center py-12 text-slate-450 italic text-[10px]">No hay transacciones que mostrar.</p>
+            {renderPageFooter(1, 1, auditNumber)}
           </div>
         );
       } else {
         if (groupCol1 !== 'none') {
-          // Group logic
           const groupMap = {};
           filteredTx.forEach(tx => {
             const k = tx[groupCol1] || 'Sin Clasificar';
@@ -4670,35 +4673,30 @@ export default function PrintPage() {
               ...rows.map(r => ({ ...r, type: 'group-item' }))
             ];
           }).filter(b => b.length > 0);
-          listPages = paginateBlocks(groupBlocks, getLimit(22), Math.max(2, Math.floor(6 * heightRatio)));
+          listPages = paginateBlocks(groupBlocks, getLimit(45), Math.max(2, Math.floor(6 * heightRatio)));
         } else {
-          listPages = chunkFlatList(filteredTx, getLimit(34));
+          listPages = chunkFlatList(filteredTx, getLimit(50));
         }
-        
+
         totalPages = listPages.length || 1;
 
         listPages.forEach((pageItems, pageIdx) => {
-          const actualPageIdx = showRvChart ? pageIdx + 1 : pageIdx;
-          const actualTotalPages = showRvChart ? totalPages + 1 : totalPages;
           pageViews.push(
-            <div key={`rv-tx-${pageIdx}`} className="page-sheet relative flex flex-col justify-between">
+            <div key={`rv-t-${pageIdx}`} className="page-sheet relative flex flex-col justify-between">
               <div className="flex-1">
                 {renderPageHeader('Registro de Transacciones de Renta Variable')}
-                <table className="w-full text-[8.5px] border-collapse">
+                <table className="w-full text-[10px] border-collapse">
                   <thead>
-                    <tr className="border-b border-slate-300 font-semibold text-slate-600 bg-transparent">
+                    <tr className="border-b border-slate-400 bg-slate-100 font-bold text-slate-700">
                       {visibleCols.map(col => {
                         let align = 'text-left';
                         if (['quantity', 'price', 'fee', 'totalAmountEUR'].includes(col.id)) align = 'text-right';
-                        if (col.id === 'currency') align = 'text-center';
                         let width = 'auto';
-                        if (['date', 'type', 'assetId', 'quantity'].includes(col.id)) width = 'w-16';
-                        if (['price', 'fee'].includes(col.id)) width = 'w-20';
-                        if (col.id === 'currency') width = 'w-12';
+                        if (col.id === 'date') width = 'w-16';
+                        if (col.id === 'type' || col.id === 'brokerId') width = 'w-20';
+                        if (col.id === 'quantity' || col.id === 'price') width = 'w-20';
                         if (col.id === 'totalAmountEUR') width = 'w-24';
-                        return (
-                          <th key={col.id} className={`py-0.5 px-1 ${align} ${width}`}>{col.label}</th>
-                        );
+                        return <th key={col.id} className={`py-2 px-1 ${align} ${width}`}>{col.label}</th>;
                       })}
                     </tr>
                   </thead>
@@ -4717,15 +4715,15 @@ export default function PrintPage() {
                       return (
                         <tr key={tx.id || idx} className="border-b border-slate-100 hover:bg-slate-50">
                           {visibleCols.map(col => {
-                            if (col.id === 'date') return <td key={col.id} className="py-0.5 px-1 font-mono text-slate-650">{formatDate(tx.date)}</td>;
-                            if (col.id === 'type') return <td key={col.id} className={`py-0.5 px-1 font-bold uppercase text-[8px] ${tx.type === 'Compra' ? 'text-blue-700' : tx.type === 'Venta' ? 'text-orange-700' : 'text-green-700'}`}>{tx.type}</td>;
-                            if (col.id === 'assetId') return <td key={col.id} className="py-0.5 px-1 font-mono font-bold text-slate-800">{tx.assetId}</td>;
-                            if (col.id === 'brokerId') return <td key={col.id} className="py-0.5 px-1 uppercase text-slate-600 truncate max-w-[80px]">{tx.brokerId}</td>;
-                            if (col.id === 'quantity') return <td key={col.id} className="py-0.5 px-1 text-right font-mono">{(tx.qty || 0).toFixed(4)}</td>;
-                            if (col.id === 'price') return <td key={col.id} className="py-0.5 px-1 text-right font-mono">{(tx.price || 0).toFixed(2)}</td>;
-                            if (col.id === 'fee') return <td key={col.id} className="py-0.5 px-1 text-right font-mono">{(tx.fee || 0).toFixed(2)}</td>;
-                            if (col.id === 'currency') return <td key={col.id} className="py-0.5 px-1 text-center font-mono text-[9px] text-slate-500">{tx.currency || 'EUR'}</td>;
-                            if (col.id === 'totalAmountEUR') return <td key={col.id} className="py-0.5 px-1 text-right font-sans font-bold tabular-nums text-slate-800">{formatCurrency(tx.totalAmountEUR)}</td>;
+                            if (col.id === 'date') return <td key={col.id} className="py-0.5 px-1 font-sans tabular-nums text-slate-650">{formatDate(tx.date)}</td>;
+                            if (col.id === 'type') return <td key={col.id} className="py-0.5 px-1 font-bold text-[10px] text-slate-600 uppercase">{tx.type}</td>;
+                            if (col.id === 'assetId') return <td key={col.id} className="py-0.5 px-1 font-bold text-slate-800 uppercase">{tx.assetId}</td>;
+                            if (col.id === 'brokerId') return <td key={col.id} className="py-0.5 px-1 text-[9px] uppercase text-slate-500">{tx.brokerId}</td>;
+                            if (col.id === 'quantity') return <td key={col.id} className="py-0.5 px-1 text-right font-sans tabular-nums">{(tx.qty || 0).toFixed(4)}</td>;
+                            if (col.id === 'price') return <td key={col.id} className="py-0.5 px-1 text-right font-sans tabular-nums">{(tx.price || 0).toFixed(2)}</td>;
+                            if (col.id === 'fee') return <td key={col.id} className="py-0.5 px-1 text-right font-sans tabular-nums">{(tx.fee || 0).toFixed(2)}</td>;
+                            if (col.id === 'currency') return <td key={col.id} className="py-0.5 px-1 text-center font-sans tabular-nums">{tx.currency}</td>;
+                            if (col.id === 'totalAmountEUR') return <td key={col.id} className="py-0.5 px-1 text-right font-sans font-bold tabular-nums text-slate-800">{formatCurrency(tx.totalAmountEUR || 0)}</td>;
                             return <td key={col.id} className="py-0.5 px-1">{tx[col.id]}</td>;
                           })}
                         </tr>
@@ -4734,12 +4732,13 @@ export default function PrintPage() {
                   </tbody>
                 </table>
               </div>
-              {renderPageFooter(actualPageIdx + 1, actualTotalPages, auditNumber)}
+              {renderPageFooter(pageIdx + 1, totalPages, auditNumber)}
             </div>
           );
         });
       }
     }
+
 
     // 9. CARTERA DE CROWDFUNDING
     if (selectedTemplate === 'cf_portfolio') {
@@ -4767,19 +4766,19 @@ export default function PrintPage() {
                   <div className="grid grid-cols-4 gap-2 mb-4 text-[10px] select-none no-print border border-slate-350 p-2 bg-slate-50">
                     <div>
                       <span className="text-slate-500 font-bold block uppercase text-[8px]">Total Invertido</span>
-                      <span className="font-mono font-bold text-slate-800 text-[12px]">{formatCurrency(sum.totalInvested)} €</span>
+                      <span className="font-sans tabular-nums font-bold text-slate-800 text-[12px]">{formatCurrency(sum.totalInvested)} €</span>
                     </div>
                     <div>
                       <span className="text-slate-500 font-bold block uppercase text-[8px]">Valor Actual (Neto)</span>
-                      <span className="font-mono font-bold text-slate-800 text-[12px]">{formatCurrency(sum.totalCurrentValueNet)} €</span>
+                      <span className="font-sans tabular-nums font-bold text-slate-800 text-[12px]">{formatCurrency(sum.totalCurrentValueNet)} €</span>
                     </div>
                     <div>
                       <span className="text-slate-500 font-bold block uppercase text-[8px]">Rentas Netas</span>
-                      <span className="font-mono font-bold text-green-700 text-[12px]">+{formatCurrency(sum.totalReturnNet)} €</span>
+                      <span className="font-sans tabular-nums font-bold text-green-700 text-[12px]">+{formatCurrency(sum.totalReturnNet)} €</span>
                     </div>
                     <div>
                       <span className="text-slate-500 font-bold block uppercase text-[8px]">Rentabilidad Neta Media</span>
-                      <span className="font-mono font-bold text-blue-900 text-[12px]">{(sum.avgReturnNet || 0).toFixed(2)}%</span>
+                      <span className="font-sans tabular-nums font-bold text-blue-900 text-[12px]">{(sum.avgReturnNet || 0).toFixed(2)}%</span>
                     </div>
                   </div>
                 )}
@@ -4800,12 +4799,12 @@ export default function PrintPage() {
                     {pageItems.map(r => (
                       <tr key={r.id} className="border-b border-slate-100 hover:bg-slate-50">
                         <td className="py-2 px-1 font-bold text-slate-800 uppercase truncate max-w-[180px]">{r.groupName}</td>
-                        <td className="py-2 px-1 text-right font-mono tabular-nums">{formatCurrency(r.investment)}</td>
-                        <td className="py-2 px-1 text-right font-mono tabular-nums text-slate-650">{formatCurrency(r.grossRents)}</td>
-                        <td className="py-2 px-1 text-right font-mono tabular-nums text-red-650">{formatCurrency(r.expenses)}</td>
-                        <td className="py-2 px-1 text-right font-mono tabular-nums text-green-700 font-semibold">{formatCurrency(r.netRents)}</td>
-                        <td className="py-2 px-1 text-right font-mono tabular-nums font-bold text-slate-800">{formatCurrency(r.totalNet)}</td>
-                        <td className="py-2 px-1 text-right font-mono font-bold text-blue-800">{(r.yieldNet || 0).toFixed(2)}%</td>
+                        <td className="py-2 px-1 text-right font-sans tabular-nums tabular-nums">{formatCurrency(r.investment)}</td>
+                        <td className="py-2 px-1 text-right font-sans tabular-nums tabular-nums text-slate-650">{formatCurrency(r.grossRents)}</td>
+                        <td className="py-2 px-1 text-right font-sans tabular-nums tabular-nums text-red-650">{formatCurrency(r.expenses)}</td>
+                        <td className="py-2 px-1 text-right font-sans tabular-nums tabular-nums text-green-700 font-semibold">{formatCurrency(r.netRents)}</td>
+                        <td className="py-2 px-1 text-right font-sans tabular-nums tabular-nums font-bold text-slate-800">{formatCurrency(r.totalNet)}</td>
+                        <td className="py-2 px-1 text-right font-sans tabular-nums font-bold text-blue-800">{(r.yieldNet || 0).toFixed(2)}%</td>
                       </tr>
                     ))}
                     {isLastPage && (
@@ -4868,7 +4867,7 @@ export default function PrintPage() {
 
                       return (
                         <tr key={tx.id || idx} className="border-b border-slate-100 hover:bg-slate-50">
-                          <td className="py-1.5 px-1 font-mono text-slate-650">{formatDate(tx.date)}</td>
+                          <td className="py-1.5 px-1 font-sans tabular-nums text-slate-650">{formatDate(tx.date)}</td>
                           <td className="py-1.5 px-1 font-bold text-slate-800 uppercase truncate max-w-[120px]">{project ? project.name : tx.projectId}</td>
                           <td className="py-1.5 px-1 uppercase text-[9px] text-slate-650 truncate max-w-[100px]">{platform ? platform.name : tx.platformId}</td>
                           <td className="py-1.5 px-1 font-semibold text-slate-600">{tx.type || '—'}</td>
@@ -4924,11 +4923,11 @@ export default function PrintPage() {
                     {pageItems.map(row => (
                       <tr key={row.year} className="border-b border-slate-100 hover:bg-slate-50">
                         <td className="py-2 px-1 text-center font-bold text-slate-700">{row.year}</td>
-                        <td className="py-2 px-1 text-right font-mono tabular-nums text-slate-650">{formatCurrency(row.reNeto)}</td>
-                        <td className="py-2 px-1 text-right font-mono tabular-nums text-slate-500">{formatCurrency(row.reAmortizacion)}</td>
-                        <td className="py-2 px-1 text-right font-mono tabular-nums text-slate-650">{formatCurrency(row.rvGains)}</td>
-                        <td className="py-2 px-1 text-right font-mono tabular-nums text-slate-650">{formatCurrency(row.rvDividends)}</td>
-                        <td className="py-2 px-1 text-right font-mono tabular-nums text-slate-650">{formatCurrency(row.cfGains)}</td>
+                        <td className="py-2 px-1 text-right font-sans tabular-nums tabular-nums text-slate-650">{formatCurrency(row.reNeto)}</td>
+                        <td className="py-2 px-1 text-right font-sans tabular-nums tabular-nums text-slate-500">{formatCurrency(row.reAmortizacion)}</td>
+                        <td className="py-2 px-1 text-right font-sans tabular-nums tabular-nums text-slate-650">{formatCurrency(row.rvGains)}</td>
+                        <td className="py-2 px-1 text-right font-sans tabular-nums tabular-nums text-slate-650">{formatCurrency(row.rvDividends)}</td>
+                        <td className="py-2 px-1 text-right font-sans tabular-nums tabular-nums text-slate-650">{formatCurrency(row.cfGains)}</td>
                         <td className="py-2 px-1 text-right font-sans font-bold tabular-nums text-blue-800 bg-blue-50/50">{formatCurrency(row.baseImponible)}</td>
                         <td className="py-2 px-1 text-right font-sans font-bold tabular-nums text-amber-900 bg-amber-50/30">{formatCurrency(row.impuestoEstimado)}</td>
                       </tr>
@@ -4985,11 +4984,11 @@ export default function PrintPage() {
                   <tbody>
                     {pageItems.map(r => (
                       <tr key={r.id} className="border-b border-slate-100 hover:bg-slate-50">
-                        <td className="py-2 px-1 font-mono text-slate-650">{r.id}</td>
+                        <td className="py-2 px-1 font-sans tabular-nums text-slate-650">{r.id}</td>
                         <td className="py-2 px-1 font-bold text-slate-800 uppercase">{r.name}</td>
-                        <td className="py-2 px-1 text-right font-mono tabular-nums text-slate-650">{formatCurrency(r.ingresos)}</td>
-                        <td className="py-2 px-1 text-right font-mono tabular-nums text-slate-650">{formatCurrency(r.gastos)}</td>
-                        <td className="py-2 px-1 text-right font-mono tabular-nums text-slate-500">{formatCurrency(r.amortizacion)}</td>
+                        <td className="py-2 px-1 text-right font-sans tabular-nums tabular-nums text-slate-650">{formatCurrency(r.ingresos)}</td>
+                        <td className="py-2 px-1 text-right font-sans tabular-nums tabular-nums text-slate-650">{formatCurrency(r.gastos)}</td>
+                        <td className="py-2 px-1 text-right font-sans tabular-nums tabular-nums text-slate-500">{formatCurrency(r.amortizacion)}</td>
                         <td className="py-2 px-1 text-right font-sans font-bold tabular-nums text-blue-800">{formatCurrency(r.beneficioNeto)}</td>
                       </tr>
                     ))}
@@ -5059,12 +5058,12 @@ export default function PrintPage() {
                   <tbody>
                     {pageItems.map((r, idx) => (
                       <tr key={idx} className="border-b border-slate-100 hover:bg-slate-50">
-                        <td className="py-1.5 px-1 font-mono text-slate-650">{formatDate(r.date)}</td>
+                        <td className="py-1.5 px-1 font-sans tabular-nums text-slate-650">{formatDate(r.date)}</td>
                         <td className="py-1.5 px-1 font-bold text-slate-800 uppercase truncate max-w-[120px]">{r.assetName} ({r.assetId})</td>
-                        <td className="py-1.5 px-1 text-right font-mono">{(r.qty || 0).toFixed(4)}</td>
-                        <td className="py-1.5 px-1 text-right font-mono">{formatCurrency(r.sellPriceEUR)}</td>
-                        <td className="py-1.5 px-1 text-right font-mono">{formatCurrency(r.sellTotal)}</td>
-                        <td className="py-1.5 px-1 text-right font-mono">{formatCurrency(r.costBasis)}</td>
+                        <td className="py-1.5 px-1 text-right font-sans tabular-nums">{(r.qty || 0).toFixed(4)}</td>
+                        <td className="py-1.5 px-1 text-right font-sans tabular-nums">{formatCurrency(r.sellPriceEUR)}</td>
+                        <td className="py-1.5 px-1 text-right font-sans tabular-nums">{formatCurrency(r.sellTotal)}</td>
+                        <td className="py-1.5 px-1 text-right font-sans tabular-nums">{formatCurrency(r.costBasis)}</td>
                         <td className={`py-1.5 px-1 text-right font-sans font-bold ${r.gain >= 0 ? 'text-green-700' : 'text-red-700'}`}>{formatCurrency(r.gain)}</td>
                         <td className="py-1.5 px-1 text-right font-sans font-bold text-amber-900">{formatCurrency(r.tax)}</td>
                       </tr>
@@ -5116,11 +5115,11 @@ export default function PrintPage() {
                   <tbody>
                     {pageItems.map((r, idx) => (
                       <tr key={idx} className="border-b border-slate-100 hover:bg-slate-50">
-                        <td className="py-1.5 px-1 font-mono text-slate-650">{formatDate(r.date)}</td>
+                        <td className="py-1.5 px-1 font-sans tabular-nums text-slate-650">{formatDate(r.date)}</td>
                         <td className="py-1.5 px-1 font-bold text-slate-800 uppercase truncate max-w-[180px]">{r.assetName} ({r.assetId})</td>
-                        <td className="py-1.5 px-1 text-right font-mono tabular-nums">{formatCurrency(r.gross)}</td>
-                        <td className="py-1.5 px-1 text-right font-mono tabular-nums text-red-650">{formatCurrency(r.withholding)}</td>
-                        <td className="py-1.5 px-1 text-right font-mono tabular-nums text-green-700 font-semibold">{formatCurrency(r.net)}</td>
+                        <td className="py-1.5 px-1 text-right font-sans tabular-nums tabular-nums">{formatCurrency(r.gross)}</td>
+                        <td className="py-1.5 px-1 text-right font-sans tabular-nums tabular-nums text-red-650">{formatCurrency(r.withholding)}</td>
+                        <td className="py-1.5 px-1 text-right font-sans tabular-nums tabular-nums text-green-700 font-semibold">{formatCurrency(r.net)}</td>
                         <td className="py-1.5 px-1 text-right font-sans font-bold tabular-nums text-amber-900">{formatCurrency(r.tax)}</td>
                       </tr>
                     ))}
@@ -5189,11 +5188,11 @@ export default function PrintPage() {
                   <tbody>
                     {pageItems.map((r, idx) => (
                       <tr key={idx} className="border-b border-slate-100 hover:bg-slate-50">
-                        <td className="py-1.5 px-1 font-mono text-slate-650">{formatDate(r.endDate)}</td>
+                        <td className="py-1.5 px-1 font-sans tabular-nums text-slate-650">{formatDate(r.endDate)}</td>
                         <td className="py-1.5 px-1 font-bold text-slate-800 uppercase truncate max-w-[120px]">{r.projectName}</td>
                         <td className="py-1.5 px-1 uppercase text-[9px] text-slate-600 truncate max-w-[90px]">{r.platformName}</td>
-                        <td className="py-1.5 px-1 text-right font-mono tabular-nums">{formatCurrency(r.invested)}</td>
-                        <td className="py-1.5 px-1 text-right font-mono tabular-nums">{formatCurrency(r.received)}</td>
+                        <td className="py-1.5 px-1 text-right font-sans tabular-nums tabular-nums">{formatCurrency(r.invested)}</td>
+                        <td className="py-1.5 px-1 text-right font-sans tabular-nums tabular-nums">{formatCurrency(r.received)}</td>
                         <td className={`py-1.5 px-1 text-right font-sans font-bold tabular-nums ${r.gain >= 0 ? 'text-green-700' : 'text-red-700'}`}>{formatCurrency(r.gain)}</td>
                         <td className="py-1.5 px-1 text-right font-sans font-bold tabular-nums text-amber-900">{formatCurrency(r.tax)}</td>
                       </tr>
@@ -5247,9 +5246,9 @@ export default function PrintPage() {
                       <tr key={idx} className="border-b border-slate-100 hover:bg-slate-50">
                         <td className="py-1.5 px-1 font-bold text-slate-800 uppercase truncate max-w-[140px]">{r.projectName}</td>
                         <td className="py-1.5 px-1 uppercase text-[9px] text-slate-600 truncate max-w-[90px]">{r.platformName}</td>
-                        <td className="py-1.5 px-1 text-right font-mono tabular-nums">{formatCurrency(r.invested)}</td>
-                        <td className="py-1.5 px-1 text-center font-mono">{(r.rate || 0).toFixed(2)}%</td>
-                        <td className="py-1.5 px-1 text-right font-mono tabular-nums text-green-700 font-semibold">{formatCurrency(r.expectedGain)}</td>
+                        <td className="py-1.5 px-1 text-right font-sans tabular-nums tabular-nums">{formatCurrency(r.invested)}</td>
+                        <td className="py-1.5 px-1 text-center font-sans tabular-nums">{(r.rate || 0).toFixed(2)}%</td>
+                        <td className="py-1.5 px-1 text-right font-sans tabular-nums tabular-nums text-green-700 font-semibold">{formatCurrency(r.expectedGain)}</td>
                         <td className="py-1.5 px-1 text-right font-sans font-bold tabular-nums text-amber-900">{formatCurrency(r.expectedTax)}</td>
                       </tr>
                     ))}
