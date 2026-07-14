@@ -3,7 +3,7 @@ import { db } from '../firebase/config';
 import { collection, query, where, onSnapshot } from 'firebase/firestore';
 import { useAuth } from '../context/AuthContext';
 import { useSearchParams } from 'react-router-dom';
-import { BarChart, CartesianGrid, XAxis, YAxis, Tooltip, Legend, Bar, ResponsiveContainer } from 'recharts';
+import { BarChart, CartesianGrid, XAxis, YAxis, Tooltip, Legend, Bar, ResponsiveContainer, PieChart, Pie, Cell } from 'recharts';
 import { 
   Printer, 
   BookOpen, 
@@ -595,11 +595,11 @@ export default function PrintPage() {
       { id: 'gastosCompraVenta', label: 'Gastos Compra Venta' },
     ],
     rv_portfolio: [
-      { id: 'assetId', label: 'Ticker' },
-      { id: 'assetName', label: 'Activo' },
-      { id: 'brokerId', label: 'Broker' },
+      { id: 'symbol', label: 'Ticker' },
+      { id: 'name', label: 'Activo' },
+      { id: 'brokerName', label: 'Broker' },
       { id: 'quantity', label: 'Cant.' },
-      { id: 'avgPrice', label: 'PMC' },
+      { id: 'pmc', label: 'PMC' },
       { id: 'currentPrice', label: 'Precio Act.' },
       { id: 'totalCost', label: 'Inversi�n' },
       { id: 'currentValue', label: 'Valor Actual' },
@@ -694,7 +694,7 @@ export default function PrintPage() {
     extracto_propietarios: new Set(['name','property','percentage','acquisitionPrice','investedCapital','adquisitionExpenses','acqPlusExpenses','capitalReforma','currentValue','ingresosExtracto','gastosExtracto','rendimientoNetoExtracto','mortgagePending','gain','netGain','realReturn']),
     metricas_inversion: new Set(['property','owner','percentage','acquisitionPrice','investedCapital','ingresosAnuales','gastosAnuales','beneficioNeto','roi','roe','cashOnCash','grossYield','netYield']),
     plan_contable: new Set(['code','description']),
-    rv_portfolio: new Set(['assetId', 'assetName', 'brokerId', 'quantity', 'avgPrice', 'currentPrice', 'totalCost', 'currentValue', 'pnl']),
+    rv_portfolio: new Set(['symbol', 'name', 'brokerName', 'quantity', 'pmc', 'currentPrice', 'totalCost', 'currentValue', 'pnl']),
     rv_transactions: new Set(['date', 'type', 'assetId', 'brokerId', 'quantity', 'price', 'fee', 'currency', 'totalAmountEUR'])
   };
   const [visibleColumns, setVisibleColumns] = useState(() => {
@@ -4480,7 +4480,7 @@ export default function PrintPage() {
           <div key="empty-rv" className="page-sheet relative">
             {renderPageHeader('Cartera de Renta Variable')}
             <p className="text-center py-12 text-slate-450 italic text-[10px]">No hay posiciones registradas.</p>
-            {renderPageFooter(showRvChart ? 2 : 1, showRvChart ? 2 : 1, auditNumber)}
+            {renderPageFooter(rvChartType !== 'none' ? 2 : 1, rvChartType !== 'none' ? 2 : 1, auditNumber)}
           </div>
         );
       } else {
@@ -4505,8 +4505,8 @@ export default function PrintPage() {
         totalPages = listPages.length || 1;
 
         listPages.forEach((pageItems, pageIdx) => {
-          const actualPageIdx = showRvChart ? pageIdx + 1 : pageIdx;
-          const actualTotalPages = showRvChart ? totalPages + 1 : totalPages;
+          const actualPageIdx = rvChartType !== 'none' ? pageIdx + 1 : pageIdx;
+          const actualTotalPages = rvChartType !== 'none' ? totalPages + 1 : totalPages;
           const isLastPage = pageIdx === listPages.length - 1;
           pageViews.push(
             <div key={`rv-p-${pageIdx}`} className="page-sheet relative flex flex-col justify-between">
@@ -4576,9 +4576,9 @@ export default function PrintPage() {
                             if (col.id === 'assetId') return <td key={col.id} className="py-2 px-1 font-bold text-slate-800 uppercase">{h.assetId}</td>;
                             if (col.id === 'assetName') return <td key={col.id} className="py-2 px-1 text-slate-700 truncate max-w-[120px]">{h.assetName}</td>;
                             if (col.id === 'brokerId') return <td key={col.id} className="py-2 px-1 text-slate-600 uppercase text-[9px] truncate max-w-[80px]">{h.brokerId}</td>;
-                            if (col.id === 'quantity') return <td key={col.id} className="py-2 px-1 text-right font-sans tabular-nums tabular-nums">{(h.quantity || 0).toFixed(4)}</td>;
-                            if (col.id === 'avgPrice') return <td key={col.id} className="py-2 px-1 text-right font-sans tabular-nums tabular-nums">{(h.avgPrice || 0).toFixed(2)}</td>;
-                            if (col.id === 'currentPrice') return <td key={col.id} className="py-2 px-1 text-right font-sans tabular-nums tabular-nums font-bold text-slate-800">{(h.currentPrice || 0).toFixed(2)}</td>;
+                            if (col.id === 'quantity') return <td key={col.id} className="py-2 px-1 text-right font-sans tabular-nums">{(h.quantity || 0).toFixed(4)}</td>;
+                            if (col.id === 'avgPrice') return <td key={col.id} className="py-2 px-1 text-right font-sans tabular-nums">{(h.avgPrice || 0).toFixed(2)}</td>;
+                            if (col.id === 'currentPrice') return <td key={col.id} className="py-2 px-1 text-right font-sans tabular-nums font-bold text-slate-800">{(h.currentPrice || 0).toFixed(2)}</td>;
                             if (col.id === 'totalCost') return <td key={col.id} className="py-2 px-1 text-right font-sans tabular-nums">{formatCurrency(h.totalCost)}</td>;
                             if (col.id === 'currentValue') return <td key={col.id} className="py-2 px-1 text-right font-sans tabular-nums font-bold text-slate-800">{formatCurrency(h.currentValue)}</td>;
                             if (col.id === 'pnl') return <td key={col.id} className={`py-2 px-1 text-right font-sans font-bold tabular-nums ${h.pnl >= 0 ? 'text-green-700' : 'text-red-700'}`}>{(h.pnlPercent || 0).toFixed(2)}%</td>;
@@ -4811,11 +4811,11 @@ export default function PrintPage() {
                     {pageItems.map(r => (
                       <tr key={r.id} className="border-b border-slate-100 hover:bg-slate-50">
                         <td className="py-2 px-1 font-bold text-slate-800 uppercase truncate max-w-[180px]">{r.groupName}</td>
-                        <td className="py-2 px-1 text-right font-sans tabular-nums tabular-nums">{formatCurrency(r.investment)}</td>
-                        <td className="py-2 px-1 text-right font-sans tabular-nums tabular-nums text-slate-650">{formatCurrency(r.grossRents)}</td>
-                        <td className="py-2 px-1 text-right font-sans tabular-nums tabular-nums text-red-650">{formatCurrency(r.expenses)}</td>
-                        <td className="py-2 px-1 text-right font-sans tabular-nums tabular-nums text-green-700 font-semibold">{formatCurrency(r.netRents)}</td>
-                        <td className="py-2 px-1 text-right font-sans tabular-nums tabular-nums font-bold text-slate-800">{formatCurrency(r.totalNet)}</td>
+                        <td className="py-2 px-1 text-right font-sans tabular-nums">{formatCurrency(r.investment)}</td>
+                        <td className="py-2 px-1 text-right font-sans tabular-nums text-slate-650">{formatCurrency(r.grossRents)}</td>
+                        <td className="py-2 px-1 text-right font-sans tabular-nums text-red-650">{formatCurrency(r.expenses)}</td>
+                        <td className="py-2 px-1 text-right font-sans tabular-nums text-green-700 font-semibold">{formatCurrency(r.netRents)}</td>
+                        <td className="py-2 px-1 text-right font-sans tabular-nums font-bold text-slate-800">{formatCurrency(r.totalNet)}</td>
                         <td className="py-2 px-1 text-right font-sans tabular-nums font-bold text-blue-800">{(r.yieldNet || 0).toFixed(2)}%</td>
                       </tr>
                     ))}
@@ -4935,11 +4935,11 @@ export default function PrintPage() {
                     {pageItems.map(row => (
                       <tr key={row.year} className="border-b border-slate-100 hover:bg-slate-50">
                         <td className="py-2 px-1 text-center font-bold text-slate-700">{row.year}</td>
-                        <td className="py-2 px-1 text-right font-sans tabular-nums tabular-nums text-slate-650">{formatCurrency(row.reNeto)}</td>
-                        <td className="py-2 px-1 text-right font-sans tabular-nums tabular-nums text-slate-500">{formatCurrency(row.reAmortizacion)}</td>
-                        <td className="py-2 px-1 text-right font-sans tabular-nums tabular-nums text-slate-650">{formatCurrency(row.rvGains)}</td>
-                        <td className="py-2 px-1 text-right font-sans tabular-nums tabular-nums text-slate-650">{formatCurrency(row.rvDividends)}</td>
-                        <td className="py-2 px-1 text-right font-sans tabular-nums tabular-nums text-slate-650">{formatCurrency(row.cfGains)}</td>
+                        <td className="py-2 px-1 text-right font-sans tabular-nums text-slate-650">{formatCurrency(row.reNeto)}</td>
+                        <td className="py-2 px-1 text-right font-sans tabular-nums text-slate-500">{formatCurrency(row.reAmortizacion)}</td>
+                        <td className="py-2 px-1 text-right font-sans tabular-nums text-slate-650">{formatCurrency(row.rvGains)}</td>
+                        <td className="py-2 px-1 text-right font-sans tabular-nums text-slate-650">{formatCurrency(row.rvDividends)}</td>
+                        <td className="py-2 px-1 text-right font-sans tabular-nums text-slate-650">{formatCurrency(row.cfGains)}</td>
                         <td className="py-2 px-1 text-right font-sans font-bold tabular-nums text-blue-800 bg-blue-50/50">{formatCurrency(row.baseImponible)}</td>
                         <td className="py-2 px-1 text-right font-sans font-bold tabular-nums text-amber-900 bg-amber-50/30">{formatCurrency(row.impuestoEstimado)}</td>
                       </tr>
@@ -4998,9 +4998,9 @@ export default function PrintPage() {
                       <tr key={r.id} className="border-b border-slate-100 hover:bg-slate-50">
                         <td className="py-2 px-1 font-sans tabular-nums text-slate-650">{r.id}</td>
                         <td className="py-2 px-1 font-bold text-slate-800 uppercase">{r.name}</td>
-                        <td className="py-2 px-1 text-right font-sans tabular-nums tabular-nums text-slate-650">{formatCurrency(r.ingresos)}</td>
-                        <td className="py-2 px-1 text-right font-sans tabular-nums tabular-nums text-slate-650">{formatCurrency(r.gastos)}</td>
-                        <td className="py-2 px-1 text-right font-sans tabular-nums tabular-nums text-slate-500">{formatCurrency(r.amortizacion)}</td>
+                        <td className="py-2 px-1 text-right font-sans tabular-nums text-slate-650">{formatCurrency(r.ingresos)}</td>
+                        <td className="py-2 px-1 text-right font-sans tabular-nums text-slate-650">{formatCurrency(r.gastos)}</td>
+                        <td className="py-2 px-1 text-right font-sans tabular-nums text-slate-500">{formatCurrency(r.amortizacion)}</td>
                         <td className="py-2 px-1 text-right font-sans font-bold tabular-nums text-blue-800">{formatCurrency(r.beneficioNeto)}</td>
                       </tr>
                     ))}
@@ -5129,9 +5129,9 @@ export default function PrintPage() {
                       <tr key={idx} className="border-b border-slate-100 hover:bg-slate-50">
                         <td className="py-1.5 px-1 font-sans tabular-nums text-slate-650">{formatDate(r.date)}</td>
                         <td className="py-1.5 px-1 font-bold text-slate-800 uppercase truncate max-w-[180px]">{r.assetName} ({r.assetId})</td>
-                        <td className="py-1.5 px-1 text-right font-sans tabular-nums tabular-nums">{formatCurrency(r.gross)}</td>
-                        <td className="py-1.5 px-1 text-right font-sans tabular-nums tabular-nums text-red-650">{formatCurrency(r.withholding)}</td>
-                        <td className="py-1.5 px-1 text-right font-sans tabular-nums tabular-nums text-green-700 font-semibold">{formatCurrency(r.net)}</td>
+                        <td className="py-1.5 px-1 text-right font-sans tabular-nums">{formatCurrency(r.gross)}</td>
+                        <td className="py-1.5 px-1 text-right font-sans tabular-nums text-red-650">{formatCurrency(r.withholding)}</td>
+                        <td className="py-1.5 px-1 text-right font-sans tabular-nums text-green-700 font-semibold">{formatCurrency(r.net)}</td>
                         <td className="py-1.5 px-1 text-right font-sans font-bold tabular-nums text-amber-900">{formatCurrency(r.tax)}</td>
                       </tr>
                     ))}
@@ -5203,8 +5203,8 @@ export default function PrintPage() {
                         <td className="py-1.5 px-1 font-sans tabular-nums text-slate-650">{formatDate(r.endDate)}</td>
                         <td className="py-1.5 px-1 font-bold text-slate-800 uppercase truncate max-w-[120px]">{r.projectName}</td>
                         <td className="py-1.5 px-1 uppercase text-[9px] text-slate-600 truncate max-w-[90px]">{r.platformName}</td>
-                        <td className="py-1.5 px-1 text-right font-sans tabular-nums tabular-nums">{formatCurrency(r.invested)}</td>
-                        <td className="py-1.5 px-1 text-right font-sans tabular-nums tabular-nums">{formatCurrency(r.received)}</td>
+                        <td className="py-1.5 px-1 text-right font-sans tabular-nums">{formatCurrency(r.invested)}</td>
+                        <td className="py-1.5 px-1 text-right font-sans tabular-nums">{formatCurrency(r.received)}</td>
                         <td className={`py-1.5 px-1 text-right font-sans font-bold tabular-nums ${r.gain >= 0 ? 'text-green-700' : 'text-red-700'}`}>{formatCurrency(r.gain)}</td>
                         <td className="py-1.5 px-1 text-right font-sans font-bold tabular-nums text-amber-900">{formatCurrency(r.tax)}</td>
                       </tr>
@@ -5258,9 +5258,9 @@ export default function PrintPage() {
                       <tr key={idx} className="border-b border-slate-100 hover:bg-slate-50">
                         <td className="py-1.5 px-1 font-bold text-slate-800 uppercase truncate max-w-[140px]">{r.projectName}</td>
                         <td className="py-1.5 px-1 uppercase text-[9px] text-slate-600 truncate max-w-[90px]">{r.platformName}</td>
-                        <td className="py-1.5 px-1 text-right font-sans tabular-nums tabular-nums">{formatCurrency(r.invested)}</td>
+                        <td className="py-1.5 px-1 text-right font-sans tabular-nums">{formatCurrency(r.invested)}</td>
                         <td className="py-1.5 px-1 text-center font-sans tabular-nums">{(r.rate || 0).toFixed(2)}%</td>
-                        <td className="py-1.5 px-1 text-right font-sans tabular-nums tabular-nums text-green-700 font-semibold">{formatCurrency(r.expectedGain)}</td>
+                        <td className="py-1.5 px-1 text-right font-sans tabular-nums text-green-700 font-semibold">{formatCurrency(r.expectedGain)}</td>
                         <td className="py-1.5 px-1 text-right font-sans font-bold tabular-nums text-amber-900">{formatCurrency(r.expectedTax)}</td>
                       </tr>
                     ))}
@@ -6926,7 +6926,7 @@ export default function PrintPage() {
 
           
           {/* Options specific to Renta Variable */}
-          {['rv_transactions'].includes(selectedTemplate) && (
+          {['rv_transactions', 'rv_portfolio'].includes(selectedTemplate) && (
             <div className="bg-white border border-[#a0a0a0] p-3 flex flex-col gap-3">
               <div
                 className="text-[10px] font-bold text-slate-500 uppercase flex items-center justify-between cursor-pointer select-none hover:text-slate-800"
