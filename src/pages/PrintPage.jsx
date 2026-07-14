@@ -4518,7 +4518,7 @@ export default function PrintPage() {
                     <div>
                       <span className="text-slate-500 font-bold block uppercase text-[8px]">Rendimiento Total (PnL)</span>
                       <span className={`font-mono font-bold text-[12px] ${sum.pnl >= 0 ? 'text-green-700' : 'text-red-700'}`}>
-                        {formatCurrency(sum.pnl)} � ({sum.pnlPercent.toFixed(2)}%)
+                        {formatCurrency(sum.pnl)} � ({(sum.pnlPercent || 0).toFixed(2)}%)
                       </span>
                     </div>
                     <div className="pt-2 border-t border-slate-200">
@@ -4568,12 +4568,12 @@ export default function PrintPage() {
                             if (col.id === 'assetId') return <td key={col.id} className="py-2 px-1 font-bold text-slate-800 uppercase">{h.assetId}</td>;
                             if (col.id === 'assetName') return <td key={col.id} className="py-2 px-1 text-slate-700 truncate max-w-[120px]">{h.assetName}</td>;
                             if (col.id === 'brokerId') return <td key={col.id} className="py-2 px-1 text-slate-600 uppercase text-[9px] truncate max-w-[80px]">{h.brokerId}</td>;
-                            if (col.id === 'quantity') return <td key={col.id} className="py-2 px-1 text-right font-mono tabular-nums">{h.quantity.toFixed(4)}</td>;
-                            if (col.id === 'avgPrice') return <td key={col.id} className="py-2 px-1 text-right font-mono tabular-nums">{h.avgPrice.toFixed(2)}</td>;
-                            if (col.id === 'currentPrice') return <td key={col.id} className="py-2 px-1 text-right font-mono tabular-nums font-bold text-slate-800">{h.currentPrice.toFixed(2)}</td>;
+                            if (col.id === 'quantity') return <td key={col.id} className="py-2 px-1 text-right font-mono tabular-nums">{(h.quantity || 0).toFixed(4)}</td>;
+                            if (col.id === 'avgPrice') return <td key={col.id} className="py-2 px-1 text-right font-mono tabular-nums">{(h.avgPrice || 0).toFixed(2)}</td>;
+                            if (col.id === 'currentPrice') return <td key={col.id} className="py-2 px-1 text-right font-mono tabular-nums font-bold text-slate-800">{(h.currentPrice || 0).toFixed(2)}</td>;
                             if (col.id === 'totalCost') return <td key={col.id} className="py-2 px-1 text-right font-sans tabular-nums">{formatCurrency(h.totalCost)}</td>;
                             if (col.id === 'currentValue') return <td key={col.id} className="py-2 px-1 text-right font-sans tabular-nums font-bold text-slate-800">{formatCurrency(h.currentValue)}</td>;
-                            if (col.id === 'pnl') return <td key={col.id} className={`py-2 px-1 text-right font-sans font-bold tabular-nums ${h.pnl >= 0 ? 'text-green-700' : 'text-red-700'}`}>{h.pnlPercent.toFixed(2)}%</td>;
+                            if (col.id === 'pnl') return <td key={col.id} className={`py-2 px-1 text-right font-sans font-bold tabular-nums ${h.pnl >= 0 ? 'text-green-700' : 'text-red-700'}`}>{(h.pnlPercent || 0).toFixed(2)}%</td>;
                             return <td key={col.id} className="py-2 px-1">{h[col.id]}</td>;
                           })}
                         </tr>
@@ -4586,7 +4586,7 @@ export default function PrintPage() {
                           if (idx < visibleCols.findIndex(c => ['totalCost', 'currentValue', 'pnl'].includes(c.id))) return null;
                           if (col.id === 'totalCost') return <td key={col.id} className="py-2 px-1 text-right font-sans tabular-nums">{formatCurrency(sum.totalCost)}</td>;
                           if (col.id === 'currentValue') return <td key={col.id} className="py-2 px-1 text-right font-sans tabular-nums text-slate-900">{formatCurrency(sum.totalValue)}</td>;
-                          if (col.id === 'pnl') return <td key={col.id} className={`py-2 px-1 text-right font-sans font-bold tabular-nums ${sum.pnl >= 0 ? 'text-green-700' : 'text-red-700'}`}>{sum.pnlPercent.toFixed(2)}%</td>;
+                          if (col.id === 'pnl') return <td key={col.id} className={`py-2 px-1 text-right font-sans font-bold tabular-nums ${sum.pnl >= 0 ? 'text-green-700' : 'text-red-700'}`}>{(sum.pnlPercent || 0).toFixed(2)}%</td>;
                           return <td key={col.id} className="py-2 px-1"></td>;
                         })}
                       </tr>
@@ -4639,42 +4639,7 @@ export default function PrintPage() {
       }
 
       // Gr�ficos (si procede)
-      if (showRvChart && filteredTx.length > 0) {
-        // Prepare chart data based on grouped periods (e.g. by month)
-        const chartDataMap = {};
-        [...filteredTx].sort((a,b) => new Date(a.date) - new Date(b.date)).forEach(tx => {
-          const d = new Date(tx.date);
-          const monthKey = `${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,'0')}`;
-          if (!chartDataMap[monthKey]) chartDataMap[monthKey] = { period: monthKey, compras: 0, ventas: 0, dividendos: 0 };
-          if (tx.type === 'Compra') chartDataMap[monthKey].compras += tx.totalAmountEUR;
-          if (tx.type === 'Venta') chartDataMap[monthKey].ventas += tx.totalAmountEUR;
-          if (tx.type === 'Dividendo') chartDataMap[monthKey].dividendos += tx.totalAmountEUR;
-        });
-        const chartData = Object.values(chartDataMap);
-
-        pageViews.push(
-          <div key="rv-chart" className="page-sheet relative">
-            {renderPageHeader('Hist�rico de Renta Variable')}
-            <div className="flex flex-col items-center justify-center mt-10" style={{ height: '400px' }}>
-              <span className="text-[12px] font-bold text-slate-700 mb-4 font-sans">Evoluci�n (Compras, Ventas, Dividendos)</span>
-              <ResponsiveContainer width="90%" height="100%">
-                <BarChart data={chartData} margin={{ top: 20, right: 30, left: 20, bottom: 5 }}>
-                  <CartesianGrid strokeDasharray="3 3" />
-                  <XAxis dataKey="period" tick={{fontSize: 10}} />
-                  <YAxis tick={{fontSize: 10}} tickFormatter={(val) => `�${(val/1000).toFixed(0)}k`} />
-                  <Tooltip formatter={(value) => formatCurrency(value)} />
-                  <Legend wrapperStyle={{ fontSize: '10px' }} />
-                  <Bar dataKey="compras" name="Compras" stackId="a" fill="#1e40af" />
-                  <Bar dataKey="ventas" name="Ventas" stackId="a" fill="#ea580c" />
-                  <Bar dataKey="dividendos" name="Dividendos" stackId="a" fill="#16a34a" />
-                </BarChart>
-              </ResponsiveContainer>
-            </div>
-            {renderPageFooter(1, 1, auditNumber)}
-          </div>
-        );
-      }
-
+      
       // Agrupación
       let listPages = [];
       let totalPages = 1;
@@ -4756,9 +4721,9 @@ export default function PrintPage() {
                             if (col.id === 'type') return <td key={col.id} className={`py-0.5 px-1 font-bold uppercase text-[8px] ${tx.type === 'Compra' ? 'text-blue-700' : tx.type === 'Venta' ? 'text-orange-700' : 'text-green-700'}`}>{tx.type}</td>;
                             if (col.id === 'assetId') return <td key={col.id} className="py-0.5 px-1 font-mono font-bold text-slate-800">{tx.assetId}</td>;
                             if (col.id === 'brokerId') return <td key={col.id} className="py-0.5 px-1 uppercase text-slate-600 truncate max-w-[80px]">{tx.brokerId}</td>;
-                            if (col.id === 'quantity') return <td key={col.id} className="py-0.5 px-1 text-right font-mono">{tx.qty.toFixed(4)}</td>;
-                            if (col.id === 'price') return <td key={col.id} className="py-0.5 px-1 text-right font-mono">{tx.price.toFixed(2)}</td>;
-                            if (col.id === 'fee') return <td key={col.id} className="py-0.5 px-1 text-right font-mono">{tx.fee.toFixed(2)}</td>;
+                            if (col.id === 'quantity') return <td key={col.id} className="py-0.5 px-1 text-right font-mono">{(tx.qty || 0).toFixed(4)}</td>;
+                            if (col.id === 'price') return <td key={col.id} className="py-0.5 px-1 text-right font-mono">{(tx.price || 0).toFixed(2)}</td>;
+                            if (col.id === 'fee') return <td key={col.id} className="py-0.5 px-1 text-right font-mono">{(tx.fee || 0).toFixed(2)}</td>;
                             if (col.id === 'currency') return <td key={col.id} className="py-0.5 px-1 text-center font-mono text-[9px] text-slate-500">{tx.currency || 'EUR'}</td>;
                             if (col.id === 'totalAmountEUR') return <td key={col.id} className="py-0.5 px-1 text-right font-sans font-bold tabular-nums text-slate-800">{formatCurrency(tx.totalAmountEUR)}</td>;
                             return <td key={col.id} className="py-0.5 px-1">{tx[col.id]}</td>;
@@ -4814,7 +4779,7 @@ export default function PrintPage() {
                     </div>
                     <div>
                       <span className="text-slate-500 font-bold block uppercase text-[8px]">Rentabilidad Neta Media</span>
-                      <span className="font-mono font-bold text-blue-900 text-[12px]">{sum.avgReturnNet.toFixed(2)}%</span>
+                      <span className="font-mono font-bold text-blue-900 text-[12px]">{(sum.avgReturnNet || 0).toFixed(2)}%</span>
                     </div>
                   </div>
                 )}
@@ -4840,7 +4805,7 @@ export default function PrintPage() {
                         <td className="py-2 px-1 text-right font-mono tabular-nums text-red-650">{formatCurrency(r.expenses)}</td>
                         <td className="py-2 px-1 text-right font-mono tabular-nums text-green-700 font-semibold">{formatCurrency(r.netRents)}</td>
                         <td className="py-2 px-1 text-right font-mono tabular-nums font-bold text-slate-800">{formatCurrency(r.totalNet)}</td>
-                        <td className="py-2 px-1 text-right font-mono font-bold text-blue-800">{r.yieldNet.toFixed(2)}%</td>
+                        <td className="py-2 px-1 text-right font-mono font-bold text-blue-800">{(r.yieldNet || 0).toFixed(2)}%</td>
                       </tr>
                     ))}
                     {isLastPage && (
@@ -4851,7 +4816,7 @@ export default function PrintPage() {
                         <td className="py-2 px-1 text-right font-sans tabular-nums text-red-650">{formatCurrency(sum.totalReturnGross - sum.totalReturnNet)}</td>
                         <td className="py-2 px-1 text-right font-sans tabular-nums text-green-700 font-extrabold">{formatCurrency(sum.totalReturnNet)}</td>
                         <td className="py-2 px-1 text-right font-sans tabular-nums text-slate-900">{formatCurrency(sum.totalCurrentValueNet)}</td>
-                        <td className="py-2 px-1 text-right font-sans font-bold text-blue-900">{sum.avgReturnNet.toFixed(2)}%</td>
+                        <td className="py-2 px-1 text-right font-sans font-bold text-blue-900">{(sum.avgReturnNet || 0).toFixed(2)}%</td>
                       </tr>
                     )}
                   </tbody>
@@ -5096,7 +5061,7 @@ export default function PrintPage() {
                       <tr key={idx} className="border-b border-slate-100 hover:bg-slate-50">
                         <td className="py-1.5 px-1 font-mono text-slate-650">{formatDate(r.date)}</td>
                         <td className="py-1.5 px-1 font-bold text-slate-800 uppercase truncate max-w-[120px]">{r.assetName} ({r.assetId})</td>
-                        <td className="py-1.5 px-1 text-right font-mono">{r.qty.toFixed(4)}</td>
+                        <td className="py-1.5 px-1 text-right font-mono">{(r.qty || 0).toFixed(4)}</td>
                         <td className="py-1.5 px-1 text-right font-mono">{formatCurrency(r.sellPriceEUR)}</td>
                         <td className="py-1.5 px-1 text-right font-mono">{formatCurrency(r.sellTotal)}</td>
                         <td className="py-1.5 px-1 text-right font-mono">{formatCurrency(r.costBasis)}</td>
@@ -5283,7 +5248,7 @@ export default function PrintPage() {
                         <td className="py-1.5 px-1 font-bold text-slate-800 uppercase truncate max-w-[140px]">{r.projectName}</td>
                         <td className="py-1.5 px-1 uppercase text-[9px] text-slate-600 truncate max-w-[90px]">{r.platformName}</td>
                         <td className="py-1.5 px-1 text-right font-mono tabular-nums">{formatCurrency(r.invested)}</td>
-                        <td className="py-1.5 px-1 text-center font-mono">{r.rate.toFixed(2)}%</td>
+                        <td className="py-1.5 px-1 text-center font-mono">{(r.rate || 0).toFixed(2)}%</td>
                         <td className="py-1.5 px-1 text-right font-mono tabular-nums text-green-700 font-semibold">{formatCurrency(r.expectedGain)}</td>
                         <td className="py-1.5 px-1 text-right font-sans font-bold tabular-nums text-amber-900">{formatCurrency(r.expectedTax)}</td>
                       </tr>
