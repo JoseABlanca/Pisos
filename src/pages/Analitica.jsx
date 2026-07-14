@@ -458,6 +458,7 @@ export default function Analitica() {
   const [showForm, setShowForm] = useState(false);
   const [isEditing, setIsEditing] = useState(false);
   const [formAccount, setFormAccount] = useState(null);
+  const [formIsExpense, setFormIsExpense] = useState(false);
   const [formMonths, setFormMonths] = useState(() => Object.fromEntries([...Array(12)].map((_, i) => [i, 0])));
   const [formInputValues, setFormInputValues] = useState(() => Object.fromEntries([...Array(12)].map((_, i) => [i, '0,00'])));
   const [formCebe, setFormCebe] = useState('');
@@ -641,7 +642,8 @@ export default function Analitica() {
         const cecoTotal = budsForCeco.reduce((s, b) => {
           const account = rawAccounts.find(a => a.id === b.accountId || a.code === b.accountCode);
           const code = account ? (account.code || '') : (b.accountCode || '');
-          const mult = (code.startsWith('6') || code.startsWith('8')) ? -1 : 1;
+          const expenseFlag = b.isExpense !== undefined ? b.isExpense : (code.startsWith('6') || code.startsWith('8'));
+          const mult = expenseFlag ? -1 : 1;
           return s + (parseFloat(b.total) || 0) * mult;
         }, 0);
         const cecoMonths = Object.fromEntries([...Array(12)].map((_, i) => [
@@ -649,7 +651,8 @@ export default function Analitica() {
           budsForCeco.reduce((s, b) => {
             const account = rawAccounts.find(a => a.id === b.accountId || a.code === b.accountCode);
             const code = account ? (account.code || '') : (b.accountCode || '');
-            const mult = (code.startsWith('6') || code.startsWith('8')) ? -1 : 1;
+            const expenseFlag = b.isExpense !== undefined ? b.isExpense : (code.startsWith('6') || code.startsWith('8'));
+          const mult = expenseFlag ? -1 : 1;
             return s + (parseFloat(b.months?.[i]) || 0) * mult;
           }, 0)
         ]));
@@ -679,7 +682,8 @@ export default function Analitica() {
             const cebeTotal = budsForCebe.reduce((s, b) => {
               const account = rawAccounts.find(a => a.id === b.accountId || a.code === b.accountCode);
               const code = account ? (account.code || '') : (b.accountCode || '');
-              const mult = (code.startsWith('6') || code.startsWith('8')) ? -1 : 1;
+              const expenseFlag = b.isExpense !== undefined ? b.isExpense : (code.startsWith('6') || code.startsWith('8'));
+          const mult = expenseFlag ? -1 : 1;
               return s + (parseFloat(b.total) || 0) * mult;
             }, 0);
             const cebeMonths = Object.fromEntries([...Array(12)].map((_, i) => [
@@ -687,7 +691,8 @@ export default function Analitica() {
               budsForCebe.reduce((s, b) => {
                 const account = rawAccounts.find(a => a.id === b.accountId || a.code === b.accountCode);
                 const code = account ? (account.code || '') : (b.accountCode || '');
-                const mult = (code.startsWith('6') || code.startsWith('8')) ? -1 : 1;
+                const expenseFlag = b.isExpense !== undefined ? b.isExpense : (code.startsWith('6') || code.startsWith('8'));
+          const mult = expenseFlag ? -1 : 1;
                 return s + (parseFloat(b.months?.[i]) || 0) * mult;
               }, 0)
             ]));
@@ -720,7 +725,8 @@ export default function Analitica() {
         const cebeTotal = budsForCebe.reduce((s, b) => {
           const account = rawAccounts.find(a => a.id === b.accountId || a.code === b.accountCode);
           const code = account ? (account.code || '') : (b.accountCode || '');
-          const mult = (code.startsWith('6') || code.startsWith('8')) ? -1 : 1;
+          const expenseFlag = b.isExpense !== undefined ? b.isExpense : (code.startsWith('6') || code.startsWith('8'));
+          const mult = expenseFlag ? -1 : 1;
           return s + (parseFloat(b.total) || 0) * mult;
         }, 0);
         const cebeMonths = Object.fromEntries([...Array(12)].map((_, i) => [
@@ -728,7 +734,8 @@ export default function Analitica() {
           budsForCebe.reduce((s, b) => {
             const account = rawAccounts.find(a => a.id === b.accountId || a.code === b.accountCode);
             const code = account ? (account.code || '') : (b.accountCode || '');
-            const mult = (code.startsWith('6') || code.startsWith('8')) ? -1 : 1;
+            const expenseFlag = b.isExpense !== undefined ? b.isExpense : (code.startsWith('6') || code.startsWith('8'));
+          const mult = expenseFlag ? -1 : 1;
             return s + (parseFloat(b.months?.[i]) || 0) * mult;
           }, 0)
         ]));
@@ -758,7 +765,8 @@ export default function Analitica() {
             const cecoTotal = budsForCeco.reduce((s, b) => {
               const account = rawAccounts.find(a => a.id === b.accountId || a.code === b.accountCode);
               const code = account ? (account.code || '') : (b.accountCode || '');
-              const mult = (code.startsWith('6') || code.startsWith('8')) ? -1 : 1;
+              const expenseFlag = b.isExpense !== undefined ? b.isExpense : (code.startsWith('6') || code.startsWith('8'));
+          const mult = expenseFlag ? -1 : 1;
               return s + (parseFloat(b.total) || 0) * mult;
             }, 0);
             const cecoMonths = Object.fromEntries([...Array(12)].map((_, i) => [
@@ -952,7 +960,8 @@ export default function Analitica() {
           let net = getTransactionNet(tx, account);
           if (viewMode === 'analitica') {
             const code = account ? (account.code || '') : (tx.cuentaContable || '');
-            const mult = (code.startsWith('6') || code.startsWith('8')) ? -1 : 1;
+            const expenseFlag = b.isExpense !== undefined ? b.isExpense : (code.startsWith('6') || code.startsWith('8'));
+          const mult = expenseFlag ? -1 : 1;
             net = net * mult;
           }
           monthsActual[txMonth] += net;
@@ -1036,6 +1045,13 @@ export default function Analitica() {
       totalPct
     };
   }, [performanceTotals, performanceActuals]);
+
+  // Set isExpense automatically based on selected account group
+  useEffect(() => {
+    if (formAccount && formAccount.code) {
+      setFormIsExpense(formAccount.code.startsWith('6') || formAccount.code.startsWith('8'));
+    }
+  }, [formAccount]);
 
   // Auto-fill account when CEBE and CECO are selected based on associations
   useEffect(() => {
