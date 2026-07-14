@@ -1064,6 +1064,7 @@ export default function Analitica() {
   }, [formCebe, formCeco, associations, rawAccounts]);
 
   /* ── Helpers ──────────────────────────────────────────────────────────────── */
+  const cleanZero = n => Math.abs(n) < 0.005 ? 0 : n;
   const fmt = v => v === 0 ? '' : (v || 0).toLocaleString('es-ES', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
   const fmtDev = v => {
     const cleaned = Math.abs(v || 0) < 0.005 ? 0 : (v || 0);
