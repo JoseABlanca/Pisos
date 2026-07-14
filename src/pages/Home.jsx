@@ -347,8 +347,8 @@ export default function Home() {
           <p className="text-xs text-slate-500">Resumen integral y acceso a los módulos contables.</p>
         </div>
 
-        {/* 4 KPI Cards Grid */}
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
+        {/* 5 KPI Cards Grid */}
+        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-5 gap-6">
           
           {/* Card 1: Patrimonio Actual */}
           <div className="bg-white p-5 rounded-2xl border border-slate-200 shadow-sm hover:shadow-md transition-shadow relative overflow-hidden group">
@@ -448,6 +448,31 @@ export default function Home() {
               <div>
                 <p className="text-2xl font-black text-amber-600 tracking-tight font-mono">
                   {kpis.gastosPrevistos.toLocaleString('es-ES', { minimumFractionDigits: 2, maximumFractionDigits: 2 })} €
+                </p>
+                <p className="text-[9px] text-slate-450 mt-2 italic uppercase">
+                  Mes: {new Date(new Date().getFullYear(), new Date().getMonth() + 1, 1).toLocaleString('es-ES', { month: 'long' })}
+                </p>
+              </div>
+            </div>
+          </div>
+
+          {/* Card 5: Neto Previsto Este Mes */}
+          <div className="bg-white p-5 rounded-2xl border border-slate-200 shadow-sm relative overflow-hidden group">
+            <div className="relative flex flex-col justify-between h-full">
+              <div className="flex justify-between items-start mb-4">
+                <div className="flex flex-col">
+                  <span className="text-[10px] font-bold text-slate-400 uppercase tracking-wider">Neto Previsto</span>
+                  <span className="text-[9px] text-purple-600 bg-purple-50 px-1.5 py-0.5 rounded font-bold uppercase mt-1 w-max">
+                    Previsión
+                  </span>
+                </div>
+                <div className="p-2 bg-slate-100 text-slate-500 rounded-xl">
+                  <Sparkles className="w-5 h-5 text-purple-500" />
+                </div>
+              </div>
+              <div>
+                <p className="text-2xl font-black text-purple-600 tracking-tight font-mono">
+                  {(kpis.ingresosPrevistos - kpis.gastosPrevistos).toLocaleString('es-ES', { minimumFractionDigits: 2, maximumFractionDigits: 2 })} €
                 </p>
                 <p className="text-[9px] text-slate-450 mt-2 italic uppercase">
                   Mes: {new Date(new Date().getFullYear(), new Date().getMonth() + 1, 1).toLocaleString('es-ES', { month: 'long' })}
