@@ -960,8 +960,7 @@ export default function Analitica() {
           let net = getTransactionNet(tx, account);
           if (viewMode === 'analitica') {
             const code = account ? (account.code || '') : (tx.cuentaContable || '');
-            const expenseFlag = b.isExpense !== undefined ? b.isExpense : (code.startsWith('6') || code.startsWith('8'));
-          const mult = expenseFlag ? -1 : 1;
+            const mult = (code.startsWith('6') || code.startsWith('8')) ? -1 : 1;
             net = net * mult;
           }
           monthsActual[txMonth] += net;
