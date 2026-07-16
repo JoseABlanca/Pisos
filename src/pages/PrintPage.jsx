@@ -1,7 +1,8 @@
 import { useState, useEffect, useMemo, useRef, Fragment } from 'react';
 import { useRvHistoricalData } from '../hooks/useRvHistoricalData';
+import ResizableSidebar from '../components/ResizableSidebar';
 import { db } from '../firebase/config';
-import { collection, query, where, onSnapshot } from 'firebase/firestore';
+import { collection, query, where, onSnapshot, doc } from 'firebase/firestore';
 import { useAuth } from '../context/AuthContext';
 import { useSearchParams } from 'react-router-dom';
 import { BarChart, CartesianGrid, XAxis, YAxis, Tooltip, Legend, Bar, ResponsiveContainer, PieChart, Pie, Cell, AreaChart, Area, ComposedChart, Line } from 'recharts';
@@ -400,6 +401,9 @@ export default function PrintPage() {
   });
   const [isDatesCollapsed, setIsDatesCollapsed] = useState(true);
   const [isFiltersInmobCollapsed, setIsFiltersInmobCollapsed] = useState(false);
+  
+  
+
   const [isSortCollapsed, setIsSortCollapsed] = useState(false);
   const [isColsCollapsed, setIsColsCollapsed] = useState(false);
   const [isOptsAlquilerCollapsed, setIsOptsAlquilerCollapsed] = useState(false);
@@ -766,7 +770,13 @@ export default function PrintPage() {
   const [rvAssetFilter, setRvAssetFilter] = useState([]);
   const [showRvChart, setShowRvChart] = useState(false);
   const [groupCol1, setGroupCol1] = useState('none');
-  const [rvChartType, setRvChartType] = useState('volumen'); // 'volumen' or 'rendimiento'
+  const [rvChartTypes, setRvChartTypes] = useState(['historical_advanced']);
+  const [rvMetricsPrimary, setRvMetricsPrimary] = useState('VALOR');
+  const [rvMetricsUnit, setRvMetricsUnit] = useState('EUR');
+  const [rvMetricsAccumulated, setRvMetricsAccumulated] = useState(true);
+  const [rvMetricsKpiType, setRvMetricsKpiType] = useState('TOTAL');
+  const [rvMetricsLinePeriod, setRvMetricsLinePeriod] = useState('DAY');
+  const [rvMetricsBarPeriod, setRvMetricsBarPeriod] = useState('MONTH'); // 'volumen' or 'rendimiento'
   const [statusFilterAlquileres, setStatusFilterAlquileres] = useState('todos'); // 'todos','activo','inactivo'
   const [statusFilterClientes, setStatusFilterClientes] = useState('todos'); // 'todos','activo','inactivo'
 
@@ -1540,6 +1550,21 @@ export default function PrintPage() {
   const [rvConfig, setRvConfig] = useState({});
 
   const [loading, setLoading] = useState(true);
+
+  const { lineData: rvLineData, barData: rvBarData, histogramData: rvHistogramData, drawdownData: rvDrawdownData } = useRvHistoricalData({
+    transactions: rvTransactions,
+    history: rvAssetHistory,
+    assets: Object.fromEntries(rvAssets.map(a => [a.id, a])),
+    rvBrokers: Object.fromEntries(rvBrokers.map(b => [b.id, b])),
+    config: { exchangeRates: { EUR: 1.0, USD: 1.08, GBP: 0.85, CHF: 0.95, JPY: 130.0 } },
+    selectedTickers: rvAssetFilter.length > 0 ? rvAssetFilter : ['ALL'],
+    selectedBrokers: rvBrokerFilter.length > 0 ? rvBrokerFilter : ['ALL'],
+    linePeriod: rvMetricsLinePeriod,
+    barPeriod: rvMetricsBarPeriod,
+    unit: rvMetricsUnit,
+    isAccumulated: rvMetricsAccumulated,
+    kpiBenefitType: rvMetricsKpiType
+  });
 
   // Subscriptions to Firestore
   useEffect(() => {
@@ -3131,7 +3156,7 @@ export default function PrintPage() {
           <h2 className="text-xl font-bold uppercase tracking-tight text-slate-900">{title}</h2>
           <p className="text-[10px] text-slate-500 font-bold uppercase">{subtitle}</p>
         </div>
-        <div className="text-right text-[10px] text-slate-500 font-sans tabular-nums">
+        <div className="text-right text-[10px] text-slate-500 font-sans tracking-normal">
           Fecha Emisión: {new Date().toLocaleDateString()}
         </div>
       </div>
@@ -3147,7 +3172,7 @@ export default function PrintPage() {
         </div>
         <div className="text-right">
           <p>Página {currentPage} de {totalPages}</p>
-          <p className="font-sans tabular-nums">Auditoría Nº {auditNumber}</p>
+          <p className="font-sans tracking-normal">Auditoría Nº {auditNumber}</p>
         </div>
       </div>
     );
@@ -3215,11 +3240,11 @@ export default function PrintPage() {
                       const rowBg = entryIndex % 2 === 0 ? 'bg-white' : 'bg-slate-50';
                       rows.push(
                         <tr key={`entry-${entry.id}`} className={`font-bold border-t border-slate-200 ${rowBg}`}>
-                          <td className="py-1 px-1 text-slate-600 font-sans tabular-nums">{formatDate(entry.date)}</td>
+                          <td className="py-1 px-1 text-slate-600 font-sans tracking-normal">{formatDate(entry.date)}</td>
                           <td className="py-1 px-1 text-slate-600">{entry.number || entryIndex + 1}</td>
                           <td className="py-1 px-1 text-slate-900 uppercase" colSpan="2">{entry.description}</td>
-                          <td className="py-1 px-1 text-right font-sans tabular-nums text-slate-900">{formatCurrency(entry.total)}</td>
-                          <td className="py-1 px-1 text-right font-sans tabular-nums text-slate-900">{formatCurrency(entry.total)}</td>
+                          <td className="py-1 px-1 text-right font-sans tracking-normal text-slate-900">{formatCurrency(entry.total)}</td>
+                          <td className="py-1 px-1 text-right font-sans tracking-normal text-slate-900">{formatCurrency(entry.total)}</td>
                         </tr>
                       );
                       if (entry.lines) {
@@ -3244,9 +3269,9 @@ export default function PrintPage() {
                             <tr key={`line-${entry.id}-${lineIndex}`} className={rowBg}>
                               <td className="py-0.5 px-1" colSpan="2"></td>
                               <td className="py-0.5 px-1 text-slate-600 pl-4">{accDisplay}</td>
-                              <td className="py-0.5 px-1 font-sans tabular-nums text-[9px] text-slate-500">{centerDisplay}</td>
-                              <td className="py-0.5 px-1 text-right font-sans tabular-nums text-slate-600">{line.debit > 0 ? formatCurrency(line.debit) : ''}</td>
-                              <td className="py-0.5 px-1 text-right font-sans tabular-nums text-slate-600">{line.credit > 0 ? formatCurrency(line.credit) : ''}</td>
+                              <td className="py-0.5 px-1 font-sans tracking-normal text-[9px] text-slate-500">{centerDisplay}</td>
+                              <td className="py-0.5 px-1 text-right font-sans tracking-normal text-slate-600">{line.debit > 0 ? formatCurrency(line.debit) : ''}</td>
+                              <td className="py-0.5 px-1 text-right font-sans tracking-normal text-slate-600">{line.credit > 0 ? formatCurrency(line.credit) : ''}</td>
                             </tr>
                           );
                         });
@@ -3350,7 +3375,7 @@ export default function PrintPage() {
                           {!block.isFirst && (
                             <tr className="bg-slate-50 italic font-semibold text-slate-500">
                               <td className="py-0.5 px-1" colSpan="3">Saldo anterior (Arrastrado):</td>
-                              <td className="py-0.5 px-1 text-right font-sans tabular-nums" colSpan="3">{formatCurrency(runningBalance)}</td>
+                              <td className="py-0.5 px-1 text-right font-sans tracking-normal" colSpan="3">{formatCurrency(runningBalance)}</td>
                             </tr>
                           )}
                           {block.lines.map((line, idx) => {
@@ -3358,21 +3383,21 @@ export default function PrintPage() {
                             runningBalance += isAssetOrExpense ? movement : -movement;
                             return (
                               <tr key={idx} className="border-b border-slate-100 hover:bg-slate-50">
-                                <td className="py-0.5 px-1 font-sans tabular-nums">{formatDate(line.date)}</td>
-                                <td className="py-0.5 px-1 text-center font-sans tabular-nums">{line.entryNo || '-'}</td>
+                                <td className="py-0.5 px-1 font-sans tracking-normal">{formatDate(line.date)}</td>
+                                <td className="py-0.5 px-1 text-center font-sans tracking-normal">{line.entryNo || '-'}</td>
                                 <td className="py-0.5 px-1 truncate max-w-[200px] uppercase">{line.description}</td>
-                                <td className="py-0.5 px-1 text-right font-sans tabular-nums text-slate-650">{line.debit > 0 ? formatCurrency(line.debit) : ''}</td>
-                                <td className="py-0.5 px-1 text-right font-sans tabular-nums text-slate-650">{line.credit > 0 ? formatCurrency(line.credit) : ''}</td>
-                                <td className="py-0.5 px-1 text-right font-sans tabular-nums font-bold text-slate-850">{formatCurrency(runningBalance)}</td>
+                                <td className="py-0.5 px-1 text-right font-sans tracking-normal text-slate-650">{line.debit > 0 ? formatCurrency(line.debit) : ''}</td>
+                                <td className="py-0.5 px-1 text-right font-sans tracking-normal text-slate-650">{line.credit > 0 ? formatCurrency(line.credit) : ''}</td>
+                                <td className="py-0.5 px-1 text-right font-sans tracking-normal font-bold text-slate-850">{formatCurrency(runningBalance)}</td>
                               </tr>
                             );
                           })}
                           {block.isLast && (
                             <tr className="bg-slate-50 font-bold border-t border-slate-300 text-[8.5px]">
                               <td className="py-0.5 px-1" colSpan="3">Suma de Movimientos y Saldo Final:</td>
-                              <td className="py-0.5 px-1 text-right font-sans tabular-nums text-slate-900">{formatCurrency(block.debitSum)}</td>
-                              <td className="py-0.5 px-1 text-right font-sans tabular-nums text-slate-900">{formatCurrency(block.creditSum)}</td>
-                              <td className="py-0.5 px-1 text-right font-sans tabular-nums text-slate-900">{formatCurrency(runningBalance)}</td>
+                              <td className="py-0.5 px-1 text-right font-sans tracking-normal text-slate-900">{formatCurrency(block.debitSum)}</td>
+                              <td className="py-0.5 px-1 text-right font-sans tracking-normal text-slate-900">{formatCurrency(block.creditSum)}</td>
+                              <td className="py-0.5 px-1 text-right font-sans tracking-normal text-slate-900">{formatCurrency(runningBalance)}</td>
                             </tr>
                           )}
                         </tbody>
@@ -3490,21 +3515,21 @@ export default function PrintPage() {
                   <tbody>
                     {pageItems.map(acc => (
                       <tr key={acc.code} className="border-b border-slate-100 hover:bg-slate-50">
-                        <td className="py-1.5 px-1 font-sans tabular-nums">{acc.code}</td>
+                        <td className="py-1.5 px-1 font-sans tracking-normal">{acc.code}</td>
                         <td className="py-1.5 px-1 font-bold text-slate-800 uppercase">{formatAccountName(acc.name)}</td>
-                        <td className="py-1.5 px-1 text-right font-sans tabular-nums text-slate-650">{acc.debit > 0 ? formatCurrency(acc.debit) : '0,00'}</td>
-                        <td className="py-1.5 px-1 text-right font-sans tabular-nums text-slate-650">{acc.credit > 0 ? formatCurrency(acc.credit) : '0,00'}</td>
-                        <td className="py-1.5 px-1 text-right font-sans tabular-nums font-semibold text-blue-800">{acc.debitBalance > 0 ? formatCurrency(acc.debitBalance) : '0,00'}</td>
-                        <td className="py-1.5 px-1 text-right font-sans tabular-nums font-semibold text-amber-900">{acc.creditBalance > 0 ? formatCurrency(acc.creditBalance) : '0,00'}</td>
+                        <td className="py-1.5 px-1 text-right font-sans tracking-normal text-slate-650">{acc.debit > 0 ? formatCurrency(acc.debit) : '0,00'}</td>
+                        <td className="py-1.5 px-1 text-right font-sans tracking-normal text-slate-650">{acc.credit > 0 ? formatCurrency(acc.credit) : '0,00'}</td>
+                        <td className="py-1.5 px-1 text-right font-sans tracking-normal font-semibold text-blue-800">{acc.debitBalance > 0 ? formatCurrency(acc.debitBalance) : '0,00'}</td>
+                        <td className="py-1.5 px-1 text-right font-sans tracking-normal font-semibold text-amber-900">{acc.creditBalance > 0 ? formatCurrency(acc.creditBalance) : '0,00'}</td>
                       </tr>
                     ))}
                     {isLastPage && (
                       <tr className="bg-slate-100 font-bold border-t-2 border-slate-400 text-[11px]">
                         <td className="py-2 px-1" colSpan="2">TOTAL GENERAL:</td>
-                        <td className="py-2 px-1 text-right font-sans tabular-nums">{formatCurrency(totals.debitSum)}</td>
-                        <td className="py-2 px-1 text-right font-sans tabular-nums">{formatCurrency(totals.creditSum)}</td>
-                        <td className="py-2 px-1 text-right font-sans tabular-nums text-blue-900">{formatCurrency(totals.debitBalSum)}</td>
-                        <td className="py-2 px-1 text-right font-sans tabular-nums text-amber-955">{formatCurrency(totals.creditBalSum)}</td>
+                        <td className="py-2 px-1 text-right font-sans tracking-normal">{formatCurrency(totals.debitSum)}</td>
+                        <td className="py-2 px-1 text-right font-sans tracking-normal">{formatCurrency(totals.creditSum)}</td>
+                        <td className="py-2 px-1 text-right font-sans tracking-normal text-blue-900">{formatCurrency(totals.debitBalSum)}</td>
+                        <td className="py-2 px-1 text-right font-sans tracking-normal text-amber-955">{formatCurrency(totals.creditBalSum)}</td>
                       </tr>
                     )}
                   </tbody>
@@ -3623,21 +3648,21 @@ export default function PrintPage() {
                           {cv('cebe_ceco') && <td className="py-1.5 px-2 uppercase">{p.cebe || '---'}</td>}
                           {cv('accountingAccount') && <td className="py-1.5 px-2 text-center">{hasValidAccount ? p.accountingAccount : '---'}</td>}
                           {cv('acquisitionDate') && <td className="py-1.5 px-2 text-center">{displayAcqDate ? formatDate(displayAcqDate) : '---'}</td>}
-                          {cv('purchasePrice') && <td className="py-1.5 px-2 text-right tabular-nums">{displayPurchasePrice > 0 ? formatCurrency(displayPurchasePrice) : '---'}</td>}
-                          {cv('currentValue') && <td className="py-1.5 px-2 text-right tabular-nums">{displayCurrentValue > 0 ? formatCurrency(displayCurrentValue) : '---'}</td>}
-                          {cv('mortgagePending') && <td className="py-1.5 px-2 text-right tabular-nums">{displayMortgagePending > 0 ? formatCurrency(displayMortgagePending) : '0,00'}</td>}
-                          {cv('ingresos') && <td className="py-1.5 px-2 text-right tabular-nums">{formatCurrency(metrics.ingresos)}</td>}
-                          {cv('gastos') && <td className="py-1.5 px-2 text-right tabular-nums">{formatCurrency(metrics.gastos)}</td>}
-                          {cv('netYield') && <td className="py-1.5 px-2 text-right tabular-nums">{formatCurrency(metrics.neto)}</td>}
-                          {cv('catastral') && <td className="py-1.5 px-2 font-sans tabular-nums uppercase">{p.catastral || '---'}</td>}
+                          {cv('purchasePrice') && <td className="py-1.5 px-2 text-right tracking-normal">{displayPurchasePrice > 0 ? formatCurrency(displayPurchasePrice) : '---'}</td>}
+                          {cv('currentValue') && <td className="py-1.5 px-2 text-right tracking-normal">{displayCurrentValue > 0 ? formatCurrency(displayCurrentValue) : '---'}</td>}
+                          {cv('mortgagePending') && <td className="py-1.5 px-2 text-right tracking-normal">{displayMortgagePending > 0 ? formatCurrency(displayMortgagePending) : '0,00'}</td>}
+                          {cv('ingresos') && <td className="py-1.5 px-2 text-right tracking-normal">{formatCurrency(metrics.ingresos)}</td>}
+                          {cv('gastos') && <td className="py-1.5 px-2 text-right tracking-normal">{formatCurrency(metrics.gastos)}</td>}
+                          {cv('netYield') && <td className="py-1.5 px-2 text-right tracking-normal">{formatCurrency(metrics.neto)}</td>}
+                          {cv('catastral') && <td className="py-1.5 px-2 font-sans tracking-normal uppercase">{p.catastral || '---'}</td>}
                           {cv('cp') && <td className="py-1.5 px-2 text-center">{p.cp || '---'}</td>}
-                          {cv('accountNumber') && <td className="py-1.5 px-2 font-sans tabular-nums">{p.accountNumber || '---'}</td>}
+                          {cv('accountNumber') && <td className="py-1.5 px-2 font-sans tracking-normal">{p.accountNumber || '---'}</td>}
                           {cv('activeTenant') && <td className="py-1.5 px-2 uppercase">{getActiveClientDisplayConsolidated(p)}</td>}
-                          {cv('capitalReformas') && <td className="py-1.5 px-2 text-right tabular-nums">{propCapitalizedReforms > 0 ? formatCurrency(propCapitalizedReforms) : '---'}</td>}
-                          {cv('capitalAportado') && <td className="py-1.5 px-2 text-right tabular-nums">{propInvestedCapital > 0 ? formatCurrency(propInvestedCapital) : '---'}</td>}
-                          {cv('totalInversion') && <td className="py-1.5 px-2 text-right tabular-nums">{propTotalInversion > 0 ? formatCurrency(propTotalInversion) : '---'}</td>}
-                          {cv('theoreticalSalePrice') && <td className="py-1.5 px-2 text-right tabular-nums">{propTheoreticalSalePrice > 0 ? formatCurrency(propTheoreticalSalePrice) : '---'}</td>}
-                          {cv('gastosCompraVenta') && <td className="py-1.5 px-2 text-right tabular-nums">{propAdquisitionExpenses > 0 ? formatCurrency(propAdquisitionExpenses) : '---'}</td>}
+                          {cv('capitalReformas') && <td className="py-1.5 px-2 text-right tracking-normal">{propCapitalizedReforms > 0 ? formatCurrency(propCapitalizedReforms) : '---'}</td>}
+                          {cv('capitalAportado') && <td className="py-1.5 px-2 text-right tracking-normal">{propInvestedCapital > 0 ? formatCurrency(propInvestedCapital) : '---'}</td>}
+                          {cv('totalInversion') && <td className="py-1.5 px-2 text-right tracking-normal">{propTotalInversion > 0 ? formatCurrency(propTotalInversion) : '---'}</td>}
+                          {cv('theoreticalSalePrice') && <td className="py-1.5 px-2 text-right tracking-normal">{propTheoreticalSalePrice > 0 ? formatCurrency(propTheoreticalSalePrice) : '---'}</td>}
+                          {cv('gastosCompraVenta') && <td className="py-1.5 px-2 text-right tracking-normal">{propAdquisitionExpenses > 0 ? formatCurrency(propAdquisitionExpenses) : '---'}</td>}
                         </tr>
                       );
                     })}
@@ -3807,15 +3832,15 @@ export default function PrintPage() {
                           {cv('tenants') && <td className="py-1.5 px-2 uppercase">{tenantDisplay}</td>}
                           {cv('startDate') && <td className="py-1.5 px-2 text-center">{startDateVal ? formatDate(startDateVal) : '---'}</td>}
                           {cv('endDate') && <td className="py-1.5 px-2 text-center">{r.endDate ? formatDate(r.endDate) : '--'}</td>}
-                          {cv('depositAmount') && <td className="py-1.5 px-2 text-right tabular-nums">{r.depositAmount > 0 ? formatCurrency(r.depositAmount) : '---'}</td>}
-                          {cv('rentAmount') && <td className="py-1.5 px-2 text-right tabular-nums">{formatCurrency(rentVal)}</td>}
-                          {cv('expenses') && <td className="py-1.5 px-2 text-right tabular-nums">{formatCurrency(expensesVal)}</td>}
-                          {cv('netYield') && <td className="py-1.5 px-2 text-right tabular-nums">{formatCurrency(netYieldVal)}</td>}
-                          {cv('pctAlquiler') && <td className="py-1.5 px-2 text-right tabular-nums">{pctAlquilerVal}</td>}
-                          {cv('ingresosExtracto') && <td className="py-1.5 px-2 text-right tabular-nums">{formatCurrency(extractMetrics.ingresos)}</td>}
-                          {cv('gastosExtracto') && <td className="py-1.5 px-2 text-right tabular-nums">{formatCurrency(extractMetrics.gastos)}</td>}
-                          {cv('rentaNetaExtracto') && <td className="py-1.5 px-2 text-right tabular-nums">{formatCurrency(extractMetrics.neto)}</td>}
-                          {cv('pctIngresos') && <td className="py-1.5 px-2 text-right tabular-nums">{pctIngresosVal}</td>}
+                          {cv('depositAmount') && <td className="py-1.5 px-2 text-right tracking-normal">{r.depositAmount > 0 ? formatCurrency(r.depositAmount) : '---'}</td>}
+                          {cv('rentAmount') && <td className="py-1.5 px-2 text-right tracking-normal">{formatCurrency(rentVal)}</td>}
+                          {cv('expenses') && <td className="py-1.5 px-2 text-right tracking-normal">{formatCurrency(expensesVal)}</td>}
+                          {cv('netYield') && <td className="py-1.5 px-2 text-right tracking-normal">{formatCurrency(netYieldVal)}</td>}
+                          {cv('pctAlquiler') && <td className="py-1.5 px-2 text-right tracking-normal">{pctAlquilerVal}</td>}
+                          {cv('ingresosExtracto') && <td className="py-1.5 px-2 text-right tracking-normal">{formatCurrency(extractMetrics.ingresos)}</td>}
+                          {cv('gastosExtracto') && <td className="py-1.5 px-2 text-right tracking-normal">{formatCurrency(extractMetrics.gastos)}</td>}
+                          {cv('rentaNetaExtracto') && <td className="py-1.5 px-2 text-right tracking-normal">{formatCurrency(extractMetrics.neto)}</td>}
+                          {cv('pctIngresos') && <td className="py-1.5 px-2 text-right tracking-normal">{pctIngresosVal}</td>}
                           {cv('status') && <td className="py-1.5 px-2 text-center uppercase text-[8px]">{r.status || 'activo'}</td>}
                         </tr>
                       );
@@ -3827,15 +3852,15 @@ export default function PrintPage() {
                         {cv('tenants') && <td className="py-1.5 px-2"></td>}
                         {cv('startDate') && <td className="py-1.5 px-2"></td>}
                         {cv('endDate') && <td className="py-1.5 px-2"></td>}
-                        {cv('depositAmount') && <td className="py-1.5 px-2 text-right tabular-nums">{formatCurrency(alquileresTotals.depositAmount)}</td>}
-                        {cv('rentAmount') && <td className="py-1.5 px-2 text-right tabular-nums">{formatCurrency(alquileresTotals.rentAmount)}</td>}
-                        {cv('expenses') && <td className="py-1.5 px-2 text-right tabular-nums">{formatCurrency(alquileresTotals.expenses)}</td>}
-                        {cv('netYield') && <td className="py-1.5 px-2 text-right tabular-nums">{formatCurrency(alquileresTotals.netYield)}</td>}
-                        {cv('pctAlquiler') && <td className="py-1.5 px-2 text-right tabular-nums">{tPctAlquilerVal}</td>}
-                        {cv('ingresosExtracto') && <td className="py-1.5 px-2 text-right tabular-nums">{formatCurrency(alquileresTotals.ingresosExtracto)}</td>}
-                        {cv('gastosExtracto') && <td className="py-1.5 px-2 text-right tabular-nums">{formatCurrency(alquileresTotals.gastosExtracto)}</td>}
-                        {cv('rentaNetaExtracto') && <td className="py-1.5 px-2 text-right tabular-nums">{formatCurrency(alquileresTotals.rentaNetaExtracto)}</td>}
-                        {cv('pctIngresos') && <td className="py-1.5 px-2 text-right tabular-nums">{tPctIngresosVal}</td>}
+                        {cv('depositAmount') && <td className="py-1.5 px-2 text-right tracking-normal">{formatCurrency(alquileresTotals.depositAmount)}</td>}
+                        {cv('rentAmount') && <td className="py-1.5 px-2 text-right tracking-normal">{formatCurrency(alquileresTotals.rentAmount)}</td>}
+                        {cv('expenses') && <td className="py-1.5 px-2 text-right tracking-normal">{formatCurrency(alquileresTotals.expenses)}</td>}
+                        {cv('netYield') && <td className="py-1.5 px-2 text-right tracking-normal">{formatCurrency(alquileresTotals.netYield)}</td>}
+                        {cv('pctAlquiler') && <td className="py-1.5 px-2 text-right tracking-normal">{tPctAlquilerVal}</td>}
+                        {cv('ingresosExtracto') && <td className="py-1.5 px-2 text-right tracking-normal">{formatCurrency(alquileresTotals.ingresosExtracto)}</td>}
+                        {cv('gastosExtracto') && <td className="py-1.5 px-2 text-right tracking-normal">{formatCurrency(alquileresTotals.gastosExtracto)}</td>}
+                        {cv('rentaNetaExtracto') && <td className="py-1.5 px-2 text-right tracking-normal">{formatCurrency(alquileresTotals.rentaNetaExtracto)}</td>}
+                        {cv('pctIngresos') && <td className="py-1.5 px-2 text-right tracking-normal">{tPctIngresosVal}</td>}
                         {cv('status') && <td className="py-1.5 px-2"></td>}
                       </tr>
                     )}
@@ -4309,7 +4334,7 @@ export default function PrintPage() {
                               const isSpan = ['rendimientoNetoExtracto', 'gain', 'netGain', 'realReturn'].includes(col.id);
 
                               return (
-                                <td key={col.id} className={`py-1.5 px-2 ${align} tabular-nums`}>
+                                <td key={col.id} className={`py-1.5 px-2 ${align} tracking-normal`}>
                                   {isSpan ? <span>{valDisplay}</span> : valDisplay}
                                 </td>
                               );
@@ -4346,7 +4371,7 @@ export default function PrintPage() {
                             const isSpan = ['rendimientoNetoExtracto', 'gain', 'netGain', 'realReturn'].includes(col.id);
 
                             return (
-                              <td key={col.id} className={`py-1.5 px-2 ${align} tabular-nums`}>
+                              <td key={col.id} className={`py-1.5 px-2 ${align} tracking-normal`}>
                                 {isSpan ? <span>{valDisplay}</span> : valDisplay}
                               </td>
                             );
@@ -4392,7 +4417,7 @@ export default function PrintPage() {
                           const isSpan = ['rendimientoNetoExtracto', 'gain', 'netGain', 'realReturn'].includes(col.id);
 
                           return (
-                            <td key={col.id} className={`py-1.5 px-2 ${align} tabular-nums`}>
+                            <td key={col.id} className={`py-1.5 px-2 ${align} tracking-normal`}>
                               {isSpan ? <span>{valDisplay}</span> : valDisplay}
                             </td>
                           );
@@ -4419,7 +4444,7 @@ export default function PrintPage() {
         holdings = holdings.filter(h => rvBrokerFilter.includes(h.brokerId));
       }
       if (rvAssetFilter.length > 0) {
-        holdings = holdings.filter(h => rvAssetFilter.includes(h.assetId));
+        holdings = holdings.filter(h => rvAssetFilter.includes(h.symbol));
       }
 
       // Ordenación
@@ -4434,55 +4459,101 @@ export default function PrintPage() {
       }
 
       // Gráficos (Histórico de Renta Variable)
-      if (showRvChart) {
-        // Prepare chart data based on grouped periods using all rvTransactions
-        const chartDataMap = {};
-        let txs = [...rvTransactions];
-        // Apply same filters if needed? Usually historical chart is for the whole portfolio or filtered portfolio.
-        if (rvBrokerFilter.length > 0) txs = txs.filter(tx => rvBrokerFilter.includes(tx.brokerId));
-        if (rvAssetFilter.length > 0) txs = txs.filter(tx => rvAssetFilter.includes(tx.assetId));
-
-        txs.sort((a,b) => new Date(a.date).getTime() - new Date(b.date).getTime()).forEach(tx => {
-          const d = new Date(tx.date);
-          const monthKey = `${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,'0')}`;
-          if (!chartDataMap[monthKey]) chartDataMap[monthKey] = { period: monthKey, compras: 0, ventas: 0, dividendos: 0 };
-          const qty = parseFloat(tx.quantity) || 0;
-          const price = parseFloat(tx.price) || 0;
-          const fee = parseFloat(tx.fee) || 0;
-          const rate = parseFloat(tx.exchangeRate) || 1.0;
-          let eur = 0;
-          if (tx.type === 'Dividendo') eur = (qty * price - fee) / rate;
-          else if (tx.type === 'Compra') eur = (qty * price + fee) / rate;
-          else eur = (qty * price - fee) / rate;
-
-          if (tx.type === 'Compra') chartDataMap[monthKey].compras += eur;
-          if (tx.type === 'Venta') chartDataMap[monthKey].ventas += eur;
-          if (tx.type === 'Dividendo') chartDataMap[monthKey].dividendos += eur;
-        });
-        const chartData = Object.values(chartDataMap);
-
+      if (rvChartTypes.length > 0) {
+      if (rvChartTypes.includes('historical_advanced')) {
+        const formatYAxis = (val) => {
+          if (Math.abs(val) >= 1000) return `€${(val/1000).toFixed(1)}k`;
+          return `€${val}`;
+        };
+        
+        // Page 1: Evolución + Rentabilidad
         pageViews.push(
-          <div key="rv-chart" className="page-sheet relative">
-            {renderPageHeader('Histórico de Renta Variable (Cartera Consolidada)')}
-            <div className="flex flex-col items-center justify-center mt-10" style={{ height: '400px' }}>
-              <span className="text-[12px] font-bold text-slate-700 mb-4 font-sans">Evolución (Compras, Ventas, Dividendos)</span>
-              <ResponsiveContainer width="90%" height="100%">
-                <BarChart data={chartData} margin={{ top: 20, right: 30, left: 20, bottom: 5 }}>
-                  <CartesianGrid strokeDasharray="3 3" />
-                  <XAxis dataKey="period" tick={{fontSize: 10}} />
-                  <YAxis tick={{fontSize: 10}} tickFormatter={(val) => `€${(val/1000).toFixed(0)}k`} />
-                  <Tooltip formatter={(value) => formatCurrency(value)} />
-                  <Legend wrapperStyle={{ fontSize: '10px' }} />
-                  <Bar dataKey="compras" name="Compras" stackId="a" fill="#1e40af" />
-                  <Bar dataKey="ventas" name="Ventas" stackId="a" fill="#ea580c" />
-                  <Bar dataKey="dividendos" name="Dividendos" stackId="a" fill="#16a34a" />
-                </BarChart>
-              </ResponsiveContainer>
+          <div key="rv-chart-hist-1" className="page-sheet relative flex flex-col">
+            {renderPageHeader('Histórico de Renta Variable (Evolución y Rentabilidad)')}
+            
+            <div className="flex-1 flex flex-col justify-center gap-6 mt-6 px-4">
+              <div className="h-[300px]">
+                <span className="text-[12px] font-bold text-slate-700 mb-2 font-sans block">Evolución de la Plusvalía Latente</span>
+                <ResponsiveContainer width="100%" height="100%">
+                  <AreaChart data={rvLineData} margin={{ top: 5, right: 20, left: 20, bottom: 5 }}>
+                    <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="#e2e8f0" />
+                    <XAxis dataKey="date" tick={{ fontSize: 10, fill: '#64748b' }} tickFormatter={(val) => {
+                        if(!val) return '';
+                        const d = new Date(val);
+                        return `${d.getMonth()+1}/${d.getFullYear().toString().slice(2)}`;
+                    }} />
+                    <YAxis tick={{ fontSize: 10, fill: '#64748b' }} tickFormatter={rvMetricsUnit === 'EUR' ? formatYAxis : (v) => `${v.toFixed(1)}%`} />
+                    <Tooltip formatter={(value) => rvMetricsUnit === 'EUR' ? [`${Number(value).toLocaleString('es-ES', { style: 'currency', currency: 'EUR' })}`, 'Beneficio'] : [`${Number(value).toFixed(2)}%`, 'Beneficio']} />
+                    <Legend wrapperStyle={{ fontSize: '11px' }} />
+                    <Area type="monotone" name={rvMetricsPrimary === 'VALOR' ? "Beneficio Total (€)" : "Plusvalía Latente (€)"} dataKey={rvMetricsUnit === 'EUR' ? (rvMetricsPrimary === 'VALOR' ? 'beneficioTotal' : 'beneficioLatente') : (rvMetricsPrimary === 'VALOR' ? 'rentabilidadPct' : 'plusvaliaPct')} stroke="#6366f1" fill="#818cf8" fillOpacity={0.2} />
+                  </AreaChart>
+                </ResponsiveContainer>
+              </div>
+
+              <div className="h-[300px]">
+                <span className="text-[12px] font-bold text-slate-700 mb-2 font-sans block">Rentabilidad por Período</span>
+                <ResponsiveContainer width="100%" height="100%">
+                  <BarChart data={rvBarData} margin={{ top: 5, right: 20, left: 20, bottom: 5 }}>
+                    <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="#e2e8f0" />
+                    <XAxis dataKey="period" tick={{ fontSize: 10, fill: '#64748b' }} />
+                    <YAxis tick={{ fontSize: 10, fill: '#64748b' }} tickFormatter={formatYAxis} />
+                    <Tooltip formatter={(value) => formatCurrency(value)} />
+                    <Legend wrapperStyle={{ fontSize: '11px' }} />
+                    <Bar name={rvMetricsUnit === 'EUR' ? "Beneficio Período (€)" : "Rentabilidad Período (%)"} dataKey={rvMetricsUnit === 'EUR' ? "gains" : "gainsPct"} fill="#3b82f6" radius={[4, 4, 0, 0]} />
+                  </BarChart>
+                </ResponsiveContainer>
+              </div>
             </div>
-            {renderPageFooter(1, 1, auditNumber)}
+            {renderPageFooter(1, 2, auditNumber)}
+          </div>
+        );
+
+        // Page 2: Drawdown + Distribución
+        pageViews.push(
+          <div key="rv-chart-hist-2" className="page-sheet relative flex flex-col">
+            {renderPageHeader('Histórico de Renta Variable (Riesgo y Distribución)')}
+            
+            <div className="flex-1 flex flex-col justify-center gap-6 mt-6 px-4">
+              <div className="h-[300px]">
+                <span className="text-[12px] font-bold text-slate-700 mb-2 font-sans block">Drawdown del Portfolio</span>
+                <ResponsiveContainer width="100%" height="100%">
+                  <AreaChart data={rvDrawdownData} margin={{ top: 5, right: 20, left: 20, bottom: 5 }}>
+                    <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="#e2e8f0" />
+                    <XAxis dataKey="date" tick={{ fontSize: 10, fill: '#64748b' }} tickFormatter={(val) => {
+                        if(!val) return '';
+                        const d = new Date(val);
+                        return `${d.getMonth()+1}/${d.getFullYear().toString().slice(2)}`;
+                    }} />
+                    <YAxis tick={{ fontSize: 10, fill: '#64748b' }} tickFormatter={rvMetricsUnit === 'EUR' ? formatYAxis : (v) => `${v.toFixed(1)}%`} />
+                    <Tooltip formatter={(value) => rvMetricsUnit === 'EUR' ? [`${Number(value).toLocaleString('es-ES', { style: 'currency', currency: 'EUR' })}`, 'Drawdown'] : [`${Number(value).toFixed(2)}%`, 'Drawdown']} />
+                    <Legend wrapperStyle={{ fontSize: '11px' }} />
+                    <Area type="monotone" name="Drawdown Global" dataKey={rvMetricsUnit === 'EUR' ? "drawdownEUR" : "drawdownPct"} stroke="#3b82f6" fill="#3b82f6" fillOpacity={0.15} />
+                  </AreaChart>
+                </ResponsiveContainer>
+              </div>
+
+              {rvHistogramData && rvHistogramData.length > 0 && (
+              <div className="h-[300px]">
+                <span className="text-[12px] font-bold text-slate-700 mb-2 font-sans block">Distribución de Frecuencias</span>
+                <ResponsiveContainer width="100%" height="100%">
+                  <ComposedChart data={rvHistogramData} margin={{ top: 5, right: 20, left: 20, bottom: 5 }} barCategoryGap={0} barGap={0}>
+                    <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="#e2e8f0" />
+                    <XAxis dataKey="label" tick={{ fontSize: 10, fill: '#64748b' }} />
+                    <YAxis tick={{ fontSize: 10, fill: '#64748b' }} />
+                    <Tooltip />
+                    <Legend wrapperStyle={{ fontSize: '11px' }} />
+                    <Bar name="Frecuencia (Días/Meses)" dataKey="count" fill="#3b82f6" fillOpacity={0.45} radius={[4, 4, 0, 0]} />
+                    <Line type="monotone" name="Densidad Normal" dataKey="density" stroke="#3b82f6" strokeWidth={2} dot={false} />
+                  </ComposedChart>
+                </ResponsiveContainer>
+              </div>
+              )}
+            </div>
+            {renderPageFooter(2, 2, auditNumber)}
           </div>
         );
       }
+    }
 
       // Agrupación
       let listPages = [];
@@ -4504,7 +4575,7 @@ export default function PrintPage() {
           <div key="empty-rv" className="page-sheet relative">
             {renderPageHeader('Cartera de Renta Variable')}
             <p className="text-center py-12 text-slate-450 italic text-[10px]">No hay posiciones registradas.</p>
-            {renderPageFooter(rvChartType !== 'none' ? 2 : 1, rvChartType !== 'none' ? 2 : 1, auditNumber)}
+            {renderPageFooter(rvChartTypes.length > 0 ? 2 : 1, rvChartTypes.length > 0 ? 2 : 1, auditNumber)}
           </div>
         );
       } else {
@@ -4529,8 +4600,8 @@ export default function PrintPage() {
         totalPages = listPages.length || 1;
 
         listPages.forEach((pageItems, pageIdx) => {
-          const actualPageIdx = rvChartType !== 'none' ? pageIdx + 1 : pageIdx;
-          const actualTotalPages = rvChartType !== 'none' ? totalPages + 1 : totalPages;
+          const actualPageIdx = rvChartTypes.length > 0 ? pageIdx + 1 : pageIdx;
+          const actualTotalPages = rvChartTypes.length > 0 ? totalPages + 1 : totalPages;
           const isLastPage = pageIdx === listPages.length - 1;
           pageViews.push(
             <div key={`rv-p-${pageIdx}`} className="page-sheet relative flex flex-col justify-between">
@@ -4541,29 +4612,29 @@ export default function PrintPage() {
                   <div className="grid grid-cols-3 gap-2 mb-4 text-[10px] select-none no-print border border-slate-350 p-2 bg-slate-50">
                     <div>
                       <span className="text-slate-500 font-bold block uppercase text-[8px]">Inversión Total</span>
-                      <span className="font-sans tabular-nums font-bold text-slate-800 text-[12px]">{formatCurrency(sum.totalCost)} €</span>
+                      <span className="font-sans tracking-normal font-bold text-slate-800 text-[12px]">{formatCurrency(sum.totalCost)} €</span>
                     </div>
                     <div>
                       <span className="text-slate-500 font-bold block uppercase text-[8px]">Valor de Mercado</span>
-                      <span className="font-sans tabular-nums font-bold text-slate-800 text-[12px]">{formatCurrency(sum.totalValue)} €</span>
+                      <span className="font-sans tracking-normal font-bold text-slate-800 text-[12px]">{formatCurrency(sum.totalValue)} €</span>
                     </div>
                     <div>
                       <span className="text-slate-500 font-bold block uppercase text-[8px]">Rendimiento Total (PnL)</span>
-                      <span className={`font-sans tabular-nums font-bold text-[12px] ${sum.pnl >= 0 ? 'text-green-700' : 'text-red-700'}`}>
+                      <span className={`font-sans tracking-normal font-bold text-[12px] ${sum.pnl >= 0 ? 'text-green-700' : 'text-red-700'}`}>
                         {formatCurrency(sum.pnl)} € ({(sum.pnlPercent || 0).toFixed(2)}%)
                       </span>
                     </div>
                     <div className="pt-2 border-t border-slate-200">
                       <span className="text-slate-500 font-bold block uppercase text-[8px]">Dividendos Cobrados</span>
-                      <span className="font-sans tabular-nums font-bold text-slate-800 text-[12px]">{formatCurrency(sum.dividends)} €</span>
+                      <span className="font-sans tracking-normal font-bold text-slate-800 text-[12px]">{formatCurrency(sum.dividends)} €</span>
                     </div>
                     <div className="pt-2 border-t border-slate-200">
                       <span className="text-slate-500 font-bold block uppercase text-[8px]">Efectivo en Brokers</span>
-                      <span className="font-sans tabular-nums font-bold text-slate-800 text-[12px]">{formatCurrency(sum.cash)} €</span>
+                      <span className="font-sans tracking-normal font-bold text-slate-800 text-[12px]">{formatCurrency(sum.cash)} €</span>
                     </div>
                     <div className="pt-2 border-t border-slate-200">
                       <span className="text-slate-500 font-bold block uppercase text-[8px]">Total Cartera</span>
-                      <span className="font-sans tabular-nums font-bold text-slate-800 text-[12px]">{formatCurrency(sum.grandTotal)} €</span>
+                      <span className="font-sans tracking-normal font-bold text-slate-800 text-[12px]">{formatCurrency(sum.grandTotal)} €</span>
                     </div>
                   </div>
                 )}
@@ -4573,10 +4644,10 @@ export default function PrintPage() {
                     <tr className="border-b border-slate-400 bg-slate-100 font-bold text-slate-700">
                       {visibleCols.map(col => {
                         let align = 'text-left';
-                        if (['quantity', 'avgPrice', 'currentPrice', 'totalCost', 'currentValue', 'pnl'].includes(col.id)) align = 'text-right';
+                        if (['quantity', 'pmc', 'currentPrice', 'totalCost', 'currentValue', 'pnl'].includes(col.id)) align = 'text-right';
                         let width = 'auto';
                         if (['assetId', 'quantity'].includes(col.id)) width = 'w-16';
-                        if (['avgPrice', 'currentPrice', 'brokerId'].includes(col.id)) width = 'w-20';
+                        if (['pmc', 'currentPrice', 'brokerId'].includes(col.id)) width = 'w-20';
                         if (['totalCost', 'currentValue', 'pnl'].includes(col.id)) width = 'w-24';
                         return <th key={col.id} className={`py-2 px-1 ${align} ${width}`}>{col.label}</th>;
                       })}
@@ -4588,7 +4659,7 @@ export default function PrintPage() {
                         return (
                           <tr key={`ghead-${h.label}-${ri}`} className="bg-slate-100/50 font-bold border-t border-slate-350">
                             <td colSpan={visibleCols.length} className="py-2 px-2 text-[10px] text-slate-800 font-sans tracking-wide uppercase">
-                              {groupCol1 === 'brokerId' ? 'BROKER' : groupCol1 === 'assetId' ? 'TICKER' : groupCol1}: {h.label}
+                              {groupCol1 === 'brokerId' ? 'BROKER' : groupCol1 === 'symbol' ? 'TICKER' : groupCol1}: {h.label}
                             </td>
                           </tr>
                         );
@@ -4600,12 +4671,12 @@ export default function PrintPage() {
                             if (col.id === 'assetId') return <td key={col.id} className="py-2 px-1 font-bold text-slate-800 uppercase">{h.assetId}</td>;
                             if (col.id === 'assetName') return <td key={col.id} className="py-2 px-1 text-slate-700 truncate max-w-[120px]">{h.assetName}</td>;
                             if (col.id === 'brokerId') return <td key={col.id} className="py-2 px-1 text-slate-600 uppercase text-[9px] truncate max-w-[80px]">{h.brokerId}</td>;
-                            if (col.id === 'quantity') return <td key={col.id} className="py-2 px-1 text-right font-sans tabular-nums">{(h.quantity || 0).toFixed(4)}</td>;
-                            if (col.id === 'avgPrice') return <td key={col.id} className="py-2 px-1 text-right font-sans tabular-nums">{(h.avgPrice || 0).toFixed(2)}</td>;
-                            if (col.id === 'currentPrice') return <td key={col.id} className="py-2 px-1 text-right font-sans tabular-nums font-bold text-slate-800">{(h.currentPrice || 0).toFixed(2)}</td>;
-                            if (col.id === 'totalCost') return <td key={col.id} className="py-2 px-1 text-right font-sans tabular-nums">{formatCurrency(h.totalCost)}</td>;
-                            if (col.id === 'currentValue') return <td key={col.id} className="py-2 px-1 text-right font-sans tabular-nums font-bold text-slate-800">{formatCurrency(h.currentValue)}</td>;
-                            if (col.id === 'pnl') return <td key={col.id} className={`py-2 px-1 text-right font-sans font-bold tabular-nums ${h.pnl >= 0 ? 'text-green-700' : 'text-red-700'}`}>{(h.pnlPercent || 0).toFixed(2)}%</td>;
+                            if (col.id === 'quantity') return <td key={col.id} className="py-2 px-1 text-right font-sans tracking-normal">{(h.quantity || 0).toFixed(2)}</td>;
+                            if (col.id === 'pmc') return <td key={col.id} className="py-2 px-1 text-right font-sans tracking-normal">{(h.pmc || 0).toFixed(2)}</td>;
+                            if (col.id === 'currentPrice') return <td key={col.id} className="py-2 px-1 text-right font-sans tracking-normal font-bold text-slate-800">{(h.currentPrice || 0).toFixed(2)}</td>;
+                            if (col.id === 'totalCost') return <td key={col.id} className="py-2 px-1 text-right font-sans tracking-normal">{formatCurrency(h.totalCost)}</td>;
+                            if (col.id === 'currentValue') return <td key={col.id} className="py-2 px-1 text-right font-sans tracking-normal font-bold text-slate-800">{formatCurrency(h.currentValue)}</td>;
+                            if (col.id === 'pnl') return <td key={col.id} className={`py-2 px-1 text-right font-sans font-bold tracking-normal ${h.pnl >= 0 ? 'text-green-700' : 'text-red-700'}`}>{(h.pnlPercent || 0).toFixed(2)}%</td>;
                             return <td key={col.id} className="py-2 px-1">{h[col.id]}</td>;
                           })}
                         </tr>
@@ -4616,9 +4687,9 @@ export default function PrintPage() {
                         {visibleCols.map((col, idx) => {
                           if (idx === 0) return <td key={col.id} className="py-2 px-1" colSpan={Math.max(1, visibleCols.findIndex(c => ['totalCost', 'currentValue', 'pnl'].includes(c.id)))}>TOTAL POSICIONES:</td>;
                           if (idx < visibleCols.findIndex(c => ['totalCost', 'currentValue', 'pnl'].includes(c.id))) return null;
-                          if (col.id === 'totalCost') return <td key={col.id} className="py-2 px-1 text-right font-sans tabular-nums">{formatCurrency(sum.totalCost)} €</td>;
-                          if (col.id === 'currentValue') return <td key={col.id} className="py-2 px-1 text-right font-sans tabular-nums text-slate-900">{formatCurrency(sum.totalValue)} €</td>;
-                          if (col.id === 'pnl') return <td key={col.id} className={`py-2 px-1 text-right font-sans font-bold tabular-nums ${sum.pnl >= 0 ? 'text-green-700' : 'text-red-700'}`}>{(sum.pnlPercent || 0).toFixed(2)}%</td>;
+                          if (col.id === 'totalCost') return <td key={col.id} className="py-2 px-1 text-right font-sans tracking-normal">{formatCurrency(sum.totalCost)} €</td>;
+                          if (col.id === 'currentValue') return <td key={col.id} className="py-2 px-1 text-right font-sans tracking-normal text-slate-900">{formatCurrency(sum.totalValue)} €</td>;
+                          if (col.id === 'pnl') return <td key={col.id} className={`py-2 px-1 text-right font-sans font-bold tracking-normal ${sum.pnl >= 0 ? 'text-green-700' : 'text-red-700'}`}>{(sum.pnlPercent || 0).toFixed(2)}%</td>;
                           return <td key={col.id} className="py-2 px-1"></td>;
                         })}
                       </tr>
@@ -4742,7 +4813,7 @@ export default function PrintPage() {
                         return (
                           <tr key={`ghead-${tx.label}-${idx}`} className="bg-slate-100/50 font-bold border-t border-slate-350">
                             <td colSpan={visibleCols.length} className="py-2 px-2 text-[10px] text-slate-800 font-sans tracking-wide uppercase">
-                              {groupCol1 === 'brokerId' ? 'BROKER' : groupCol1 === 'assetId' ? 'TICKER' : groupCol1}: {tx.label}
+                              {groupCol1 === 'brokerId' ? 'BROKER' : groupCol1 === 'symbol' ? 'TICKER' : groupCol1}: {tx.label}
                             </td>
                           </tr>
                         );
@@ -4751,15 +4822,15 @@ export default function PrintPage() {
                       return (
                         <tr key={tx.id || idx} className="border-b border-slate-100 hover:bg-slate-50">
                           {visibleCols.map(col => {
-                            if (col.id === 'date') return <td key={col.id} className="py-0.5 px-1 font-sans tabular-nums text-slate-650">{formatDate(tx.date)}</td>;
+                            if (col.id === 'date') return <td key={col.id} className="py-0.5 px-1 font-sans tracking-normal text-slate-650">{formatDate(tx.date)}</td>;
                             if (col.id === 'type') return <td key={col.id} className="py-0.5 px-1 font-bold text-[10px] text-slate-600 uppercase">{tx.type}</td>;
                             if (col.id === 'assetId') return <td key={col.id} className="py-0.5 px-1 font-bold text-slate-800 uppercase">{tx.assetId}</td>;
                             if (col.id === 'brokerId') return <td key={col.id} className="py-0.5 px-1 text-[9px] uppercase text-slate-500">{tx.brokerId}</td>;
-                            if (col.id === 'quantity') return <td key={col.id} className="py-0.5 px-1 text-right font-sans tabular-nums">{(tx.qty || 0).toFixed(4)}</td>;
-                            if (col.id === 'price') return <td key={col.id} className="py-0.5 px-1 text-right font-sans tabular-nums">{(tx.price || 0).toFixed(2)}</td>;
-                            if (col.id === 'fee') return <td key={col.id} className="py-0.5 px-1 text-right font-sans tabular-nums">{(tx.fee || 0).toFixed(2)}</td>;
-                            if (col.id === 'currency') return <td key={col.id} className="py-0.5 px-1 text-center font-sans tabular-nums">{tx.currency}</td>;
-                            if (col.id === 'totalAmountEUR') return <td key={col.id} className="py-0.5 px-1 text-right font-sans font-bold tabular-nums text-slate-800">{formatCurrency(tx.totalAmountEUR || 0)}</td>;
+                            if (col.id === "quantity") return <td key={col.id} className="py-0.5 px-1 text-right font-sans tracking-normal">{(tx.qty || 0).toFixed(2)}</td>;
+                            if (col.id === 'price') return <td key={col.id} className="py-0.5 px-1 text-right font-sans tracking-normal">{(tx.price || 0).toFixed(2)}</td>;
+                            if (col.id === 'fee') return <td key={col.id} className="py-0.5 px-1 text-right font-sans tracking-normal">{(tx.fee || 0).toFixed(2)}</td>;
+                            if (col.id === 'currency') return <td key={col.id} className="py-0.5 px-1 text-center font-sans tracking-normal">{tx.currency}</td>;
+                            if (col.id === 'totalAmountEUR') return <td key={col.id} className="py-0.5 px-1 text-right font-sans font-bold tracking-normal text-slate-800">{formatCurrency(tx.totalAmountEUR || 0)}</td>;
                             return <td key={col.id} className="py-0.5 px-1">{tx[col.id]}</td>;
                           })}
                         </tr>
@@ -4802,19 +4873,19 @@ export default function PrintPage() {
                   <div className="grid grid-cols-4 gap-2 mb-4 text-[10px] select-none no-print border border-slate-350 p-2 bg-slate-50">
                     <div>
                       <span className="text-slate-500 font-bold block uppercase text-[8px]">Total Invertido</span>
-                      <span className="font-sans tabular-nums font-bold text-slate-800 text-[12px]">{formatCurrency(sum.totalInvested)} €</span>
+                      <span className="font-sans tracking-normal font-bold text-slate-800 text-[12px]">{formatCurrency(sum.totalInvested)} €</span>
                     </div>
                     <div>
                       <span className="text-slate-500 font-bold block uppercase text-[8px]">Valor Actual (Neto)</span>
-                      <span className="font-sans tabular-nums font-bold text-slate-800 text-[12px]">{formatCurrency(sum.totalCurrentValueNet)} €</span>
+                      <span className="font-sans tracking-normal font-bold text-slate-800 text-[12px]">{formatCurrency(sum.totalCurrentValueNet)} €</span>
                     </div>
                     <div>
                       <span className="text-slate-500 font-bold block uppercase text-[8px]">Rentas Netas</span>
-                      <span className="font-sans tabular-nums font-bold text-green-700 text-[12px]">+{formatCurrency(sum.totalReturnNet)} €</span>
+                      <span className="font-sans tracking-normal font-bold text-green-700 text-[12px]">+{formatCurrency(sum.totalReturnNet)} €</span>
                     </div>
                     <div>
                       <span className="text-slate-500 font-bold block uppercase text-[8px]">Rentabilidad Neta Media</span>
-                      <span className="font-sans tabular-nums font-bold text-blue-900 text-[12px]">{(sum.avgReturnNet || 0).toFixed(2)}%</span>
+                      <span className="font-sans tracking-normal font-bold text-blue-900 text-[12px]">{(sum.avgReturnNet || 0).toFixed(2)}%</span>
                     </div>
                   </div>
                 )}
@@ -4835,22 +4906,22 @@ export default function PrintPage() {
                     {pageItems.map(r => (
                       <tr key={r.id} className="border-b border-slate-100 hover:bg-slate-50">
                         <td className="py-2 px-1 font-bold text-slate-800 uppercase truncate max-w-[180px]">{r.groupName}</td>
-                        <td className="py-2 px-1 text-right font-sans tabular-nums">{formatCurrency(r.investment)}</td>
-                        <td className="py-2 px-1 text-right font-sans tabular-nums text-slate-650">{formatCurrency(r.grossRents)}</td>
-                        <td className="py-2 px-1 text-right font-sans tabular-nums text-red-650">{formatCurrency(r.expenses)}</td>
-                        <td className="py-2 px-1 text-right font-sans tabular-nums text-green-700 font-semibold">{formatCurrency(r.netRents)}</td>
-                        <td className="py-2 px-1 text-right font-sans tabular-nums font-bold text-slate-800">{formatCurrency(r.totalNet)}</td>
-                        <td className="py-2 px-1 text-right font-sans tabular-nums font-bold text-blue-800">{(r.yieldNet || 0).toFixed(2)}%</td>
+                        <td className="py-2 px-1 text-right font-sans tracking-normal">{formatCurrency(r.investment)}</td>
+                        <td className="py-2 px-1 text-right font-sans tracking-normal text-slate-650">{formatCurrency(r.grossRents)}</td>
+                        <td className="py-2 px-1 text-right font-sans tracking-normal text-red-650">{formatCurrency(r.expenses)}</td>
+                        <td className="py-2 px-1 text-right font-sans tracking-normal text-green-700 font-semibold">{formatCurrency(r.netRents)}</td>
+                        <td className="py-2 px-1 text-right font-sans tracking-normal font-bold text-slate-800">{formatCurrency(r.totalNet)}</td>
+                        <td className="py-2 px-1 text-right font-sans tracking-normal font-bold text-blue-800">{(r.yieldNet || 0).toFixed(2)}%</td>
                       </tr>
                     ))}
                     {isLastPage && (
                       <tr className="bg-slate-100 font-bold border-t-2 border-slate-400 text-[11px]">
                         <td className="py-2 px-1">TOTAL GENERAL:</td>
-                        <td className="py-2 px-1 text-right font-sans tabular-nums">{formatCurrency(sum.totalInvested)} €</td>
-                        <td className="py-2 px-1 text-right font-sans tabular-nums">{formatCurrency(sum.totalReturnGross)}</td>
-                        <td className="py-2 px-1 text-right font-sans tabular-nums text-red-650">{formatCurrency(sum.totalReturnGross - sum.totalReturnNet)}</td>
-                        <td className="py-2 px-1 text-right font-sans tabular-nums text-green-700 font-extrabold">{formatCurrency(sum.totalReturnNet)} €</td>
-                        <td className="py-2 px-1 text-right font-sans tabular-nums text-slate-900">{formatCurrency(sum.totalCurrentValueNet)} €</td>
+                        <td className="py-2 px-1 text-right font-sans tracking-normal">{formatCurrency(sum.totalInvested)} €</td>
+                        <td className="py-2 px-1 text-right font-sans tracking-normal">{formatCurrency(sum.totalReturnGross)}</td>
+                        <td className="py-2 px-1 text-right font-sans tracking-normal text-red-650">{formatCurrency(sum.totalReturnGross - sum.totalReturnNet)}</td>
+                        <td className="py-2 px-1 text-right font-sans tracking-normal text-green-700 font-extrabold">{formatCurrency(sum.totalReturnNet)} €</td>
+                        <td className="py-2 px-1 text-right font-sans tracking-normal text-slate-900">{formatCurrency(sum.totalCurrentValueNet)} €</td>
                         <td className="py-2 px-1 text-right font-sans font-bold text-blue-900">{(sum.avgReturnNet || 0).toFixed(2)}%</td>
                       </tr>
                     )}
@@ -4903,11 +4974,11 @@ export default function PrintPage() {
 
                       return (
                         <tr key={tx.id || idx} className="border-b border-slate-100 hover:bg-slate-50">
-                          <td className="py-1.5 px-1 font-sans tabular-nums text-slate-650">{formatDate(tx.date)}</td>
+                          <td className="py-1.5 px-1 font-sans tracking-normal text-slate-650">{formatDate(tx.date)}</td>
                           <td className="py-1.5 px-1 font-bold text-slate-800 uppercase truncate max-w-[120px]">{project ? project.name : tx.projectId}</td>
                           <td className="py-1.5 px-1 uppercase text-[9px] text-slate-650 truncate max-w-[100px]">{platform ? platform.name : tx.platformId}</td>
                           <td className="py-1.5 px-1 font-semibold text-slate-600">{tx.type || '—'}</td>
-                          <td className="py-1.5 px-1 text-right font-sans font-bold tabular-nums text-slate-800">{formatCurrency(amount)}</td>
+                          <td className="py-1.5 px-1 text-right font-sans font-bold tracking-normal text-slate-800">{formatCurrency(amount)}</td>
                           <td className="py-1.5 px-1 text-slate-555 text-[9px] truncate max-w-[150px]" title={tx.notes}>{tx.notes || '—'}</td>
                         </tr>
                       );
@@ -4959,13 +5030,13 @@ export default function PrintPage() {
                     {pageItems.map(row => (
                       <tr key={row.year} className="border-b border-slate-100 hover:bg-slate-50">
                         <td className="py-2 px-1 text-center font-bold text-slate-700">{row.year}</td>
-                        <td className="py-2 px-1 text-right font-sans tabular-nums text-slate-650">{formatCurrency(row.reNeto)}</td>
-                        <td className="py-2 px-1 text-right font-sans tabular-nums text-slate-500">{formatCurrency(row.reAmortizacion)}</td>
-                        <td className="py-2 px-1 text-right font-sans tabular-nums text-slate-650">{formatCurrency(row.rvGains)}</td>
-                        <td className="py-2 px-1 text-right font-sans tabular-nums text-slate-650">{formatCurrency(row.rvDividends)}</td>
-                        <td className="py-2 px-1 text-right font-sans tabular-nums text-slate-650">{formatCurrency(row.cfGains)}</td>
-                        <td className="py-2 px-1 text-right font-sans font-bold tabular-nums text-blue-800 bg-blue-50/50">{formatCurrency(row.baseImponible)}</td>
-                        <td className="py-2 px-1 text-right font-sans font-bold tabular-nums text-amber-900 bg-amber-50/30">{formatCurrency(row.impuestoEstimado)}</td>
+                        <td className="py-2 px-1 text-right font-sans tracking-normal text-slate-650">{formatCurrency(row.reNeto)}</td>
+                        <td className="py-2 px-1 text-right font-sans tracking-normal text-slate-500">{formatCurrency(row.reAmortizacion)}</td>
+                        <td className="py-2 px-1 text-right font-sans tracking-normal text-slate-650">{formatCurrency(row.rvGains)}</td>
+                        <td className="py-2 px-1 text-right font-sans tracking-normal text-slate-650">{formatCurrency(row.rvDividends)}</td>
+                        <td className="py-2 px-1 text-right font-sans tracking-normal text-slate-650">{formatCurrency(row.cfGains)}</td>
+                        <td className="py-2 px-1 text-right font-sans font-bold tracking-normal text-blue-800 bg-blue-50/50">{formatCurrency(row.baseImponible)}</td>
+                        <td className="py-2 px-1 text-right font-sans font-bold tracking-normal text-amber-900 bg-amber-50/30">{formatCurrency(row.impuestoEstimado)}</td>
                       </tr>
                     ))}
                   </tbody>
@@ -5020,21 +5091,21 @@ export default function PrintPage() {
                   <tbody>
                     {pageItems.map(r => (
                       <tr key={r.id} className="border-b border-slate-100 hover:bg-slate-50">
-                        <td className="py-2 px-1 font-sans tabular-nums text-slate-650">{r.id}</td>
+                        <td className="py-2 px-1 font-sans tracking-normal text-slate-650">{r.id}</td>
                         <td className="py-2 px-1 font-bold text-slate-800 uppercase">{r.name}</td>
-                        <td className="py-2 px-1 text-right font-sans tabular-nums text-slate-650">{formatCurrency(r.ingresos)}</td>
-                        <td className="py-2 px-1 text-right font-sans tabular-nums text-slate-650">{formatCurrency(r.gastos)}</td>
-                        <td className="py-2 px-1 text-right font-sans tabular-nums text-slate-500">{formatCurrency(r.amortizacion)}</td>
-                        <td className="py-2 px-1 text-right font-sans font-bold tabular-nums text-blue-800">{formatCurrency(r.beneficioNeto)}</td>
+                        <td className="py-2 px-1 text-right font-sans tracking-normal text-slate-650">{formatCurrency(r.ingresos)}</td>
+                        <td className="py-2 px-1 text-right font-sans tracking-normal text-slate-650">{formatCurrency(r.gastos)}</td>
+                        <td className="py-2 px-1 text-right font-sans tracking-normal text-slate-500">{formatCurrency(r.amortizacion)}</td>
+                        <td className="py-2 px-1 text-right font-sans font-bold tracking-normal text-blue-800">{formatCurrency(r.beneficioNeto)}</td>
                       </tr>
                     ))}
                     {isLastPage && (
                       <tr className="bg-slate-100 font-bold border-t-2 border-slate-400 text-[11px]">
                         <td className="py-2 px-1" colSpan="2">TOTAL GENERAL:</td>
-                        <td className="py-2 px-1 text-right font-sans tabular-nums">{formatCurrency(totals.ingresos)}</td>
-                        <td className="py-2 px-1 text-right font-sans tabular-nums">{formatCurrency(totals.gastos)}</td>
-                        <td className="py-2 px-1 text-right font-sans tabular-nums text-slate-500">{formatCurrency(totals.amortizacion)}</td>
-                        <td className="py-2 px-1 text-right font-sans font-bold tabular-nums text-blue-900">{formatCurrency(totals.beneficioNeto)}</td>
+                        <td className="py-2 px-1 text-right font-sans tracking-normal">{formatCurrency(totals.ingresos)}</td>
+                        <td className="py-2 px-1 text-right font-sans tracking-normal">{formatCurrency(totals.gastos)}</td>
+                        <td className="py-2 px-1 text-right font-sans tracking-normal text-slate-500">{formatCurrency(totals.amortizacion)}</td>
+                        <td className="py-2 px-1 text-right font-sans font-bold tracking-normal text-blue-900">{formatCurrency(totals.beneficioNeto)}</td>
                       </tr>
                     )}
                   </tbody>
@@ -5094,12 +5165,12 @@ export default function PrintPage() {
                   <tbody>
                     {pageItems.map((r, idx) => (
                       <tr key={idx} className="border-b border-slate-100 hover:bg-slate-50">
-                        <td className="py-1.5 px-1 font-sans tabular-nums text-slate-650">{formatDate(r.date)}</td>
+                        <td className="py-1.5 px-1 font-sans tracking-normal text-slate-650">{formatDate(r.date)}</td>
                         <td className="py-1.5 px-1 font-bold text-slate-800 uppercase truncate max-w-[120px]">{r.assetName} ({r.assetId})</td>
-                        <td className="py-1.5 px-1 text-right font-sans tabular-nums">{(r.qty || 0).toFixed(4)}</td>
-                        <td className="py-1.5 px-1 text-right font-sans tabular-nums">{formatCurrency(r.sellPriceEUR)}</td>
-                        <td className="py-1.5 px-1 text-right font-sans tabular-nums">{formatCurrency(r.sellTotal)}</td>
-                        <td className="py-1.5 px-1 text-right font-sans tabular-nums">{formatCurrency(r.costBasis)}</td>
+                        <td className="py-1.5 px-1 text-right font-sans tracking-normal">{(r.qty || 0).toFixed(4)}</td>
+                        <td className="py-1.5 px-1 text-right font-sans tracking-normal">{formatCurrency(r.sellPriceEUR)}</td>
+                        <td className="py-1.5 px-1 text-right font-sans tracking-normal">{formatCurrency(r.sellTotal)}</td>
+                        <td className="py-1.5 px-1 text-right font-sans tracking-normal">{formatCurrency(r.costBasis)}</td>
                         <td className={`py-1.5 px-1 text-right font-sans font-bold ${r.gain >= 0 ? 'text-green-700' : 'text-red-700'}`}>{formatCurrency(r.gain)}</td>
                         <td className="py-1.5 px-1 text-right font-sans font-bold text-amber-900">{formatCurrency(r.tax)}</td>
                       </tr>
@@ -5151,12 +5222,12 @@ export default function PrintPage() {
                   <tbody>
                     {pageItems.map((r, idx) => (
                       <tr key={idx} className="border-b border-slate-100 hover:bg-slate-50">
-                        <td className="py-1.5 px-1 font-sans tabular-nums text-slate-650">{formatDate(r.date)}</td>
+                        <td className="py-1.5 px-1 font-sans tracking-normal text-slate-650">{formatDate(r.date)}</td>
                         <td className="py-1.5 px-1 font-bold text-slate-800 uppercase truncate max-w-[180px]">{r.assetName} ({r.assetId})</td>
-                        <td className="py-1.5 px-1 text-right font-sans tabular-nums">{formatCurrency(r.gross)}</td>
-                        <td className="py-1.5 px-1 text-right font-sans tabular-nums text-red-650">{formatCurrency(r.withholding)}</td>
-                        <td className="py-1.5 px-1 text-right font-sans tabular-nums text-green-700 font-semibold">{formatCurrency(r.net)}</td>
-                        <td className="py-1.5 px-1 text-right font-sans font-bold tabular-nums text-amber-900">{formatCurrency(r.tax)}</td>
+                        <td className="py-1.5 px-1 text-right font-sans tracking-normal">{formatCurrency(r.gross)}</td>
+                        <td className="py-1.5 px-1 text-right font-sans tracking-normal text-red-650">{formatCurrency(r.withholding)}</td>
+                        <td className="py-1.5 px-1 text-right font-sans tracking-normal text-green-700 font-semibold">{formatCurrency(r.net)}</td>
+                        <td className="py-1.5 px-1 text-right font-sans font-bold tracking-normal text-amber-900">{formatCurrency(r.tax)}</td>
                       </tr>
                     ))}
                     {isLastPage && (
@@ -5224,13 +5295,13 @@ export default function PrintPage() {
                   <tbody>
                     {pageItems.map((r, idx) => (
                       <tr key={idx} className="border-b border-slate-100 hover:bg-slate-50">
-                        <td className="py-1.5 px-1 font-sans tabular-nums text-slate-650">{formatDate(r.endDate)}</td>
+                        <td className="py-1.5 px-1 font-sans tracking-normal text-slate-650">{formatDate(r.endDate)}</td>
                         <td className="py-1.5 px-1 font-bold text-slate-800 uppercase truncate max-w-[120px]">{r.projectName}</td>
                         <td className="py-1.5 px-1 uppercase text-[9px] text-slate-600 truncate max-w-[90px]">{r.platformName}</td>
-                        <td className="py-1.5 px-1 text-right font-sans tabular-nums">{formatCurrency(r.invested)}</td>
-                        <td className="py-1.5 px-1 text-right font-sans tabular-nums">{formatCurrency(r.received)}</td>
-                        <td className={`py-1.5 px-1 text-right font-sans font-bold tabular-nums ${r.gain >= 0 ? 'text-green-700' : 'text-red-700'}`}>{formatCurrency(r.gain)}</td>
-                        <td className="py-1.5 px-1 text-right font-sans font-bold tabular-nums text-amber-900">{formatCurrency(r.tax)}</td>
+                        <td className="py-1.5 px-1 text-right font-sans tracking-normal">{formatCurrency(r.invested)}</td>
+                        <td className="py-1.5 px-1 text-right font-sans tracking-normal">{formatCurrency(r.received)}</td>
+                        <td className={`py-1.5 px-1 text-right font-sans font-bold tracking-normal ${r.gain >= 0 ? 'text-green-700' : 'text-red-700'}`}>{formatCurrency(r.gain)}</td>
+                        <td className="py-1.5 px-1 text-right font-sans font-bold tracking-normal text-amber-900">{formatCurrency(r.tax)}</td>
                       </tr>
                     ))}
                     {isLastPage && (
@@ -5282,10 +5353,10 @@ export default function PrintPage() {
                       <tr key={idx} className="border-b border-slate-100 hover:bg-slate-50">
                         <td className="py-1.5 px-1 font-bold text-slate-800 uppercase truncate max-w-[140px]">{r.projectName}</td>
                         <td className="py-1.5 px-1 uppercase text-[9px] text-slate-600 truncate max-w-[90px]">{r.platformName}</td>
-                        <td className="py-1.5 px-1 text-right font-sans tabular-nums">{formatCurrency(r.invested)}</td>
-                        <td className="py-1.5 px-1 text-center font-sans tabular-nums">{(r.rate || 0).toFixed(2)}%</td>
-                        <td className="py-1.5 px-1 text-right font-sans tabular-nums text-green-700 font-semibold">{formatCurrency(r.expectedGain)}</td>
-                        <td className="py-1.5 px-1 text-right font-sans font-bold tabular-nums text-amber-900">{formatCurrency(r.expectedTax)}</td>
+                        <td className="py-1.5 px-1 text-right font-sans tracking-normal">{formatCurrency(r.invested)}</td>
+                        <td className="py-1.5 px-1 text-center font-sans tracking-normal">{(r.rate || 0).toFixed(2)}%</td>
+                        <td className="py-1.5 px-1 text-right font-sans tracking-normal text-green-700 font-semibold">{formatCurrency(r.expectedGain)}</td>
+                        <td className="py-1.5 px-1 text-right font-sans font-bold tracking-normal text-amber-900">{formatCurrency(r.expectedTax)}</td>
                       </tr>
                     ))}
                     {isLastPage && (
@@ -5483,11 +5554,11 @@ export default function PrintPage() {
                       return (
                         <tr key={idx} className="font-bold text-slate-900 text-[10.5px] uppercase bg-white">
                           <td className="py-2 px-1 font-bold">{row.label}</td>
-                          <td className="py-2 px-1 text-right font-sans tabular-nums">
+                          <td className="py-2 px-1 text-right font-sans tracking-normal">
                             {formatValue(row.value, row.divisor)}
                           </td>
                           {showVerticalPercentage && (
-                            <td className="py-2 px-1 text-right font-sans tabular-nums text-slate-500 pr-5">
+                            <td className="py-2 px-1 text-right font-sans tracking-normal text-slate-500 pr-5">
                               {mainPct}
                             </td>
                           )}
@@ -5497,11 +5568,11 @@ export default function PrintPage() {
                             const pct = div ? `${((val / div) * 100).toFixed(1)}%` : '0.0%';
                             return (
                               <Fragment key={yr}>
-                                <td className="py-2 px-1 text-right font-sans tabular-nums">
+                                <td className="py-2 px-1 text-right font-sans tracking-normal">
                                   {formatValue(val, div)}
                                 </td>
                                 {showVerticalPercentage && (
-                                  <td className="py-2 px-1 text-right font-sans tabular-nums text-slate-500 pr-5">
+                                  <td className="py-2 px-1 text-right font-sans tracking-normal text-slate-500 pr-5">
                                     {pct}
                                   </td>
                                 )}
@@ -5515,11 +5586,11 @@ export default function PrintPage() {
                       return (
                         <tr key={idx} className="font-bold text-slate-750 bg-slate-100/30 text-[9.5px] uppercase">
                           <td className="py-1.5 px-2 font-bold">{row.label}</td>
-                          <td className="py-1.5 px-1 text-right font-sans tabular-nums">
+                          <td className="py-1.5 px-1 text-right font-sans tracking-normal">
                             {formatValue(row.value, row.divisor)}
                           </td>
                           {showVerticalPercentage && (
-                            <td className="py-1.5 px-1 text-right font-sans tabular-nums text-slate-500 pr-5">
+                            <td className="py-1.5 px-1 text-right font-sans tracking-normal text-slate-500 pr-5">
                               {mainPct}
                             </td>
                           )}
@@ -5529,11 +5600,11 @@ export default function PrintPage() {
                             const pct = div ? `${((val / div) * 100).toFixed(1)}%` : '0.0%';
                             return (
                               <Fragment key={yr}>
-                                <td className="py-1.5 px-1 text-right font-sans tabular-nums">
+                                <td className="py-1.5 px-1 text-right font-sans tracking-normal">
                                   {formatValue(val, div)}
                                 </td>
                                 {showVerticalPercentage && (
-                                  <td className="py-1.5 px-1 text-right font-sans tabular-nums text-slate-500 pr-5">
+                                  <td className="py-1.5 px-1 text-right font-sans tracking-normal text-slate-500 pr-5">
                                     {pct}
                                   </td>
                                 )}
@@ -5547,11 +5618,11 @@ export default function PrintPage() {
                       return (
                         <tr key={idx} className="font-semibold text-slate-700 bg-slate-50/20 text-[9px]">
                           <td className="py-1 px-3 font-semibold">{row.label}</td>
-                          <td className="py-1 px-1 text-right font-sans tabular-nums">
+                          <td className="py-1 px-1 text-right font-sans tracking-normal">
                             {formatValue(row.value, row.divisor)}
                           </td>
                           {showVerticalPercentage && (
-                            <td className="py-1 px-1 text-right font-sans tabular-nums text-slate-500 pr-5">
+                            <td className="py-1 px-1 text-right font-sans tracking-normal text-slate-500 pr-5">
                               {mainPct}
                             </td>
                           )}
@@ -5561,11 +5632,11 @@ export default function PrintPage() {
                             const pct = div ? `${((val / div) * 100).toFixed(1)}%` : '0.0%';
                             return (
                               <Fragment key={yr}>
-                                <td className="py-1 px-1 text-right font-sans tabular-nums">
+                                <td className="py-1 px-1 text-right font-sans tracking-normal">
                                   {formatValue(val, div)}
                                 </td>
                                 {showVerticalPercentage && (
-                                  <td className="py-1 px-1 text-right font-sans tabular-nums text-slate-500 pr-5">
+                                  <td className="py-1 px-1 text-right font-sans tracking-normal text-slate-500 pr-5">
                                     {pct}
                                   </td>
                                 )}
@@ -5579,11 +5650,11 @@ export default function PrintPage() {
                       return (
                         <tr key={idx} className="text-slate-600 text-[8px]">
                           <td className="py-0.5 px-8 font-normal text-slate-650">{row.code} - {row.name}</td>
-                          <td className="py-0.5 px-1 text-right font-sans tabular-nums">
+                          <td className="py-0.5 px-1 text-right font-sans tracking-normal">
                             {formatValue(row.value, row.divisor)}
                           </td>
                           {showVerticalPercentage && (
-                            <td className="py-0.5 px-1 text-right font-sans tabular-nums text-slate-450 pr-5">
+                            <td className="py-0.5 px-1 text-right font-sans tracking-normal text-slate-450 pr-5">
                               {mainPct}
                             </td>
                           )}
@@ -5593,11 +5664,11 @@ export default function PrintPage() {
                             const pct = div ? `${((val / div) * 100).toFixed(1)}%` : '0.0%';
                             return (
                               <Fragment key={yr}>
-                                <td className="py-0.5 px-1 text-right font-sans tabular-nums">
+                                <td className="py-0.5 px-1 text-right font-sans tracking-normal">
                                   {formatValue(val, div)}
                                 </td>
                                 {showVerticalPercentage && (
-                                  <td className="py-0.5 px-1 text-right font-sans tabular-nums text-slate-450 pr-5">
+                                  <td className="py-0.5 px-1 text-right font-sans tracking-normal text-slate-450 pr-5">
                                     {pct}
                                   </td>
                                 )}
@@ -5702,11 +5773,11 @@ export default function PrintPage() {
                     return (
                       <tr key={idx} className="font-bold text-slate-900 text-[10.5px] uppercase bg-white">
                         <td className="py-2 px-1 font-bold">{row.label}</td>
-                        <td className="py-2 px-1 text-right font-sans tabular-nums">
+                        <td className="py-2 px-1 text-right font-sans tracking-normal">
                           {formatValue(row.value, row.divisor)}
                         </td>
                         {showVerticalPercentage && (
-                          <td className="py-2 px-1 text-right font-sans tabular-nums text-slate-500 pr-5">
+                          <td className="py-2 px-1 text-right font-sans tracking-normal text-slate-500 pr-5">
                             {mainPct}
                           </td>
                         )}
@@ -5716,11 +5787,11 @@ export default function PrintPage() {
                           const pct = div ? `${((val / div) * 100).toFixed(1)}%` : '0.0%';
                           return (
                             <Fragment key={yr}>
-                              <td className="py-2 px-1 text-right font-sans tabular-nums">
+                              <td className="py-2 px-1 text-right font-sans tracking-normal">
                                 {formatValue(val, div)}
                               </td>
                               {showVerticalPercentage && (
-                                <td className="py-2 px-1 text-right font-sans tabular-nums text-slate-500 pr-5">
+                                <td className="py-2 px-1 text-right font-sans tracking-normal text-slate-500 pr-5">
                                   {pct}
                                 </td>
                               )}
@@ -5734,11 +5805,11 @@ export default function PrintPage() {
                     return (
                       <tr key={idx} className="font-bold text-slate-750 bg-slate-100/30 text-[9.5px] uppercase">
                         <td className="py-1.5 px-2 font-bold">{row.label}</td>
-                        <td className="py-1.5 px-1 text-right font-sans tabular-nums">
+                        <td className="py-1.5 px-1 text-right font-sans tracking-normal">
                           {formatValue(row.value, row.divisor)}
                         </td>
                         {showVerticalPercentage && (
-                          <td className="py-1.5 px-1 text-right font-sans tabular-nums text-slate-500 pr-5">
+                          <td className="py-1.5 px-1 text-right font-sans tracking-normal text-slate-500 pr-5">
                             {mainPct}
                           </td>
                         )}
@@ -5748,11 +5819,11 @@ export default function PrintPage() {
                           const pct = div ? `${((val / div) * 100).toFixed(1)}%` : '0.0%';
                           return (
                             <Fragment key={yr}>
-                              <td className="py-1.5 px-1 text-right font-sans tabular-nums">
+                              <td className="py-1.5 px-1 text-right font-sans tracking-normal">
                                 {formatValue(val, div)}
                               </td>
                               {showVerticalPercentage && (
-                                <td className="py-1.5 px-1 text-right font-sans tabular-nums text-slate-500 pr-5">
+                                <td className="py-1.5 px-1 text-right font-sans tracking-normal text-slate-500 pr-5">
                                   {pct}
                                 </td>
                               )}
@@ -5766,11 +5837,11 @@ export default function PrintPage() {
                     return (
                       <tr key={idx} className="font-semibold text-slate-700 bg-slate-50/20 text-[9px]">
                         <td className="py-1 px-3 font-semibold">{row.label}</td>
-                        <td className="py-1 px-1 text-right font-sans tabular-nums">
+                        <td className="py-1 px-1 text-right font-sans tracking-normal">
                           {formatValue(row.value, row.divisor)}
                         </td>
                         {showVerticalPercentage && (
-                          <td className="py-1 px-1 text-right font-sans tabular-nums text-slate-500 pr-5">
+                          <td className="py-1 px-1 text-right font-sans tracking-normal text-slate-500 pr-5">
                             {mainPct}
                           </td>
                         )}
@@ -5780,11 +5851,11 @@ export default function PrintPage() {
                           const pct = div ? `${((val / div) * 100).toFixed(1)}%` : '0.0%';
                           return (
                             <Fragment key={yr}>
-                              <td className="py-1 px-1 text-right font-sans tabular-nums">
+                              <td className="py-1 px-1 text-right font-sans tracking-normal">
                                 {formatValue(val, div)}
                               </td>
                               {showVerticalPercentage && (
-                                <td className="py-1 px-1 text-right font-sans tabular-nums text-slate-500 pr-5">
+                                <td className="py-1 px-1 text-right font-sans tracking-normal text-slate-500 pr-5">
                                   {pct}
                                 </td>
                               )}
@@ -5798,11 +5869,11 @@ export default function PrintPage() {
                     return (
                       <tr key={idx} className="font-bold text-slate-800 bg-slate-100/50 text-[9.5px] border-t border-slate-350">
                         <td className="py-1.5 px-3 font-bold">{row.label}</td>
-                        <td className="py-1.5 px-1 text-right font-sans tabular-nums">
+                        <td className="py-1.5 px-1 text-right font-sans tracking-normal">
                           {formatValue(row.value, row.divisor)}
                         </td>
                         {showVerticalPercentage && (
-                          <td className="py-1.5 px-1 text-right font-sans tabular-nums text-slate-500 pr-5">
+                          <td className="py-1.5 px-1 text-right font-sans tracking-normal text-slate-500 pr-5">
                             {mainPct}
                           </td>
                         )}
@@ -5812,11 +5883,11 @@ export default function PrintPage() {
                           const pct = div ? `${((val / div) * 100).toFixed(1)}%` : '0.0%';
                           return (
                             <Fragment key={yr}>
-                              <td className="py-1.5 px-1 text-right font-sans tabular-nums">
+                              <td className="py-1.5 px-1 text-right font-sans tracking-normal">
                                 {formatValue(val, div)}
                               </td>
                               {showVerticalPercentage && (
-                                <td className="py-1.5 px-1 text-right font-sans tabular-nums text-slate-500 pr-5">
+                                <td className="py-1.5 px-1 text-right font-sans tracking-normal text-slate-500 pr-5">
                                   {pct}
                                 </td>
                               )}
@@ -5916,11 +5987,11 @@ export default function PrintPage() {
                     return (
                       <tr key={idx} className="font-bold text-slate-900 text-[10.5px] uppercase bg-white">
                         <td className="py-2 px-1 font-bold">{row.label}</td>
-                        <td className="py-2 px-1 text-right font-sans tabular-nums">
+                        <td className="py-2 px-1 text-right font-sans tracking-normal">
                           {formatValue(row.value, row.divisor)}
                         </td>
                         {showVerticalPercentage && (
-                          <td className="py-2 px-1 text-right font-sans tabular-nums text-slate-500 pr-5">
+                          <td className="py-2 px-1 text-right font-sans tracking-normal text-slate-500 pr-5">
                             {mainPct}
                           </td>
                         )}
@@ -5930,11 +6001,11 @@ export default function PrintPage() {
                           const pct = div ? `${((val / div) * 100).toFixed(1)}%` : '0.0%';
                           return (
                             <Fragment key={yr}>
-                              <td className="py-2 px-1 text-right font-sans tabular-nums">
+                              <td className="py-2 px-1 text-right font-sans tracking-normal">
                                 {formatValue(val, div)}
                               </td>
                               {showVerticalPercentage && (
-                                <td className="py-2 px-1 text-right font-sans tabular-nums text-slate-500 pr-5">
+                                <td className="py-2 px-1 text-right font-sans tracking-normal text-slate-500 pr-5">
                                   {pct}
                                 </td>
                               )}
@@ -5948,11 +6019,11 @@ export default function PrintPage() {
                     return (
                       <tr key={idx} className="font-bold text-slate-750 bg-slate-100/30 text-[9.5px] uppercase">
                         <td className="py-1.5 px-2 font-bold">{row.label}</td>
-                        <td className="py-1.5 px-1 text-right font-sans tabular-nums">
+                        <td className="py-1.5 px-1 text-right font-sans tracking-normal">
                           {formatValue(row.value, row.divisor)}
                         </td>
                         {showVerticalPercentage && (
-                          <td className="py-1.5 px-1 text-right font-sans tabular-nums text-slate-500 pr-5">
+                          <td className="py-1.5 px-1 text-right font-sans tracking-normal text-slate-500 pr-5">
                             {mainPct}
                           </td>
                         )}
@@ -5962,11 +6033,11 @@ export default function PrintPage() {
                           const pct = div ? `${((val / div) * 100).toFixed(1)}%` : '0.0%';
                           return (
                             <Fragment key={yr}>
-                              <td className="py-1.5 px-1 text-right font-sans tabular-nums">
+                              <td className="py-1.5 px-1 text-right font-sans tracking-normal">
                                 {formatValue(val, div)}
                               </td>
                               {showVerticalPercentage && (
-                                <td className="py-1.5 px-1 text-right font-sans tabular-nums text-slate-500 pr-5">
+                                <td className="py-1.5 px-1 text-right font-sans tracking-normal text-slate-500 pr-5">
                                   {pct}
                                 </td>
                               )}
@@ -5980,11 +6051,11 @@ export default function PrintPage() {
                     return (
                       <tr key={idx} className="font-semibold text-slate-700 bg-slate-50/20 text-[9px]">
                         <td className="py-1 px-3 font-semibold">{row.label}</td>
-                        <td className="py-1 px-1 text-right font-sans tabular-nums">
+                        <td className="py-1 px-1 text-right font-sans tracking-normal">
                           {formatValue(row.value, row.divisor)}
                         </td>
                         {showVerticalPercentage && (
-                          <td className="py-1 px-1 text-right font-sans tabular-nums text-slate-500 pr-5">
+                          <td className="py-1 px-1 text-right font-sans tracking-normal text-slate-500 pr-5">
                             {mainPct}
                           </td>
                         )}
@@ -5994,11 +6065,11 @@ export default function PrintPage() {
                           const pct = div ? `${((val / div) * 100).toFixed(1)}%` : '0.0%';
                           return (
                             <Fragment key={yr}>
-                              <td className="py-1 px-1 text-right font-sans tabular-nums">
+                              <td className="py-1 px-1 text-right font-sans tracking-normal">
                                 {formatValue(val, div)}
                               </td>
                               {showVerticalPercentage && (
-                                <td className="py-1 px-1 text-right font-sans tabular-nums text-slate-500 pr-5">
+                                <td className="py-1 px-1 text-right font-sans tracking-normal text-slate-500 pr-5">
                                   {pct}
                                 </td>
                               )}
@@ -6012,11 +6083,11 @@ export default function PrintPage() {
                     return (
                       <tr key={idx} className="font-bold text-slate-800 bg-slate-100/50 text-[9.5px] border-t border-slate-350">
                         <td className="py-1.5 px-3 font-bold">{row.label}</td>
-                        <td className="py-1.5 px-1 text-right font-sans tabular-nums">
+                        <td className="py-1.5 px-1 text-right font-sans tracking-normal">
                           {formatValue(row.value, row.divisor)}
                         </td>
                         {showVerticalPercentage && (
-                          <td className="py-1.5 px-1 text-right font-sans tabular-nums text-slate-500 pr-5">
+                          <td className="py-1.5 px-1 text-right font-sans tracking-normal text-slate-500 pr-5">
                             {mainPct}
                           </td>
                         )}
@@ -6026,11 +6097,11 @@ export default function PrintPage() {
                           const pct = div ? `${((val / div) * 100).toFixed(1)}%` : '0.0%';
                           return (
                             <Fragment key={yr}>
-                              <td className="py-1.5 px-1 text-right font-sans tabular-nums">
+                              <td className="py-1.5 px-1 text-right font-sans tracking-normal">
                                 {formatValue(val, div)}
                               </td>
                               {showVerticalPercentage && (
-                                <td className="py-1.5 px-1 text-right font-sans tabular-nums text-slate-500 pr-5">
+                                <td className="py-1.5 px-1 text-right font-sans tracking-normal text-slate-500 pr-5">
                                   {pct}
                                 </td>
                               )}
@@ -6150,7 +6221,7 @@ export default function PrintPage() {
 
       {/* Left panel - Templates list */}
       {showLeftPanel && (
-        <div className="w-60 bg-[#f0f0f0] border border-[#808080] shrink-0 p-2 flex flex-col gap-3 win-bevel no-print overflow-y-auto max-h-full">
+        <ResizableSidebar defaultWidth={240} minWidth={200} maxWidth={400} position="left" className="bg-[#f0f0f0] border border-[#808080] p-2 flex flex-col gap-3 win-bevel no-print overflow-y-auto max-h-full">
           <div className="bg-white border border-[#a0a0a0] flex flex-col">
             <div className="bg-[#cbd5e0] font-bold p-1.5 uppercase text-[10px] border-b border-[#a0a0a0] text-slate-700">
               Plantillas Disponibles
@@ -6243,7 +6314,7 @@ export default function PrintPage() {
               </div>
             </div>
           </div>
-        </div>
+        </ResizableSidebar>
       )}
 
 
@@ -6302,7 +6373,7 @@ export default function PrintPage() {
 
       {/* Right panel - Filters list */}
       {showRightPanel && (
-        <div className="w-64 bg-[#f0f0f0] border border-[#808080] shrink-0 p-2 flex flex-col gap-3 win-bevel no-print overflow-y-auto max-h-full">
+        <ResizableSidebar defaultWidth={256} minWidth={200} maxWidth={400} position="right" className="bg-[#f0f0f0] border border-[#808080] p-2 flex flex-col gap-3 win-bevel no-print overflow-y-auto max-h-full">
           <div className="bg-[#cbd5e0] font-bold p-1.5 uppercase text-[10px] border-b border-[#a0a0a0] text-slate-700 flex justify-between items-center">
             <span>Filtros Disponibles</span>
             <div className="flex items-center gap-1.5">
@@ -6344,7 +6415,7 @@ export default function PrintPage() {
           </div>
 
           {/* Timeline Period Selection inside Right Panel */}
-          {['diario', 'mayor', 'sumas_saldos', 'rv_transactions', 'cf_transactions', 'taxes_total', 'taxes_real_estate', 'taxes_rv', 'taxes_cf', 'balance_situacion', 'cuenta_resultados', 'flujo_caja', 'activos', 'alquileres', 'extracto_propietarios', 'metricas_inversion'].includes(selectedTemplate) && (
+          {['diario', 'mayor', 'sumas_saldos', 'rv_transactions', 'cf_transactions', 'taxes_total', 'taxes_real_estate', 'taxes_rv', 'taxes_cf', 'balance_situacion', 'cuenta_resultados', 'flujo_caja', 'activos', 'alquileres', 'extracto_propietarios', 'metricas_inversion', 'rv_portfolio'].includes(selectedTemplate) && (
             <div className="bg-white border border-[#a0a0a0] p-3 flex flex-col gap-2">
               <div 
                 className="text-[10px] font-bold text-slate-500 uppercase flex items-center justify-between cursor-pointer select-none hover:text-slate-800"
@@ -6461,7 +6532,7 @@ export default function PrintPage() {
           )}
 
           {/* Filtros Inmobiliarios (Multiselección) */}
-          {['activos', 'alquileres', 'clientes', 'extracto_propietarios', 'metricas_inversion', 'rv_transactions', 'rv_portfolio'].includes(selectedTemplate) && (
+          {['activos', 'alquileres', 'clientes', 'extracto_propietarios', 'metricas_inversion'].includes(selectedTemplate) && (
             <div className="bg-white border border-[#a0a0a0] p-3 flex flex-col gap-3">
               <div
                 className="text-[10px] font-bold text-slate-500 uppercase flex items-center justify-between cursor-pointer select-none hover:text-slate-800"
@@ -6705,7 +6776,7 @@ export default function PrintPage() {
 
           
                   {/* RV Metrics Filters for PrintPage */}
-                  {selectedTemplate === 'rv_portfolio' && rvChartType === 'historical_advanced' && (
+                  {selectedTemplate === 'rv_portfolio' && rvChartTypes.includes('historical_advanced') && (
                     <div className="mt-4 space-y-3 p-3 bg-white border border-slate-200 rounded-md shadow-sm">
                       <span className="text-[10px] font-bold text-slate-400 uppercase">Filtros Histórico</span>
                       
@@ -7070,21 +7141,38 @@ export default function PrintPage() {
                     >
                       <option value="none">Sin Agrupar</option>
                       <option value="brokerId">Agrupar por Broker</option>
-                      <option value="assetId">Agrupar por Acciones (Ticker)</option>
+                      <option value="symbol">Agrupar por Acciones (Ticker)</option>
                     </select>
                   </div>
                                     {selectedTemplate === 'rv_portfolio' && (
                   <div className="flex flex-col gap-1 border-t border-slate-100 pt-2">
                     <span className="text-[9px] font-bold text-slate-400 uppercase">Gráficos del Histórico</span>
-                    <label className="flex items-center gap-2 cursor-pointer select-none text-[10px] font-semibold text-slate-600 font-sans">
-                      <input 
-                        type="checkbox"
-                        checked={showRvChart}
-                        onChange={(e) => setShowRvChart(e.target.checked)}
-                        className="w-3 h-3"
-                      />
-                      <span>Mostrar Gráficos</span>
-                    </label>
+                    <div className="flex flex-col gap-2 mt-2">
+                      <label className="flex items-center space-x-2 text-[11px] text-slate-600 font-medium cursor-pointer">
+                        <input 
+                          type="checkbox"
+                          checked={rvChartTypes.includes('evolucion')}
+                          onChange={(e) => {
+                            if (e.target.checked) setRvChartTypes([...rvChartTypes, 'evolucion']);
+                            else setRvChartTypes(rvChartTypes.filter(t => t !== 'evolucion'));
+                          }}
+                          className="rounded text-indigo-600 focus:ring-indigo-500"
+                        />
+                        <span>Histórico de Compras</span>
+                      </label>
+                      <label className="flex items-center space-x-2 text-[11px] text-slate-600 font-medium cursor-pointer">
+                        <input 
+                          type="checkbox"
+                          checked={rvChartTypes.includes('historical_advanced')}
+                          onChange={(e) => {
+                            if (e.target.checked) setRvChartTypes([...rvChartTypes, 'historical_advanced']);
+                            else setRvChartTypes(rvChartTypes.filter(t => t !== 'historical_advanced'));
+                          }}
+                          className="rounded text-indigo-600 focus:ring-indigo-500"
+                        />
+                        <span>Métricas Históricas (Avanzadas)</span>
+                      </label>
+                    </div>
                   </div>
                   )}
                 </div>
@@ -7553,7 +7641,7 @@ export default function PrintPage() {
           )}
 
 
-        </div>
+        </ResizableSidebar>
       )}
     </div>
   );

@@ -10,8 +10,10 @@ import { useTableColumns } from '../hooks/useTableColumns';
 import { exportToPDF } from '../utils/pdfExport';
 import EditableCell from '../components/EditableCell';
 import ResizableSidebar from '../components/ResizableSidebar';
+import { useOutletContext } from 'react-router-dom';
 
 export default function RvAssets() {
+  const { tableZoom } = useOutletContext() || { tableZoom: 1 };
   const { user, queryUserIds } = useAuth();
   const [assets, setAssets] = useState([]);
   const [selectedAsset, setSelectedAsset] = useState(null);
@@ -728,7 +730,7 @@ export default function RvAssets() {
           </div>
 
           <div className="win-table-container">
-            <table className="clean-table">
+            <table style={{ zoom: tableZoom }} className="clean-table">
               <thead>
                 <tr>
                   {visibleColumns.includes('id') && <th style={{ width: columnWidths['id'] || '100px' }}>Ticker</th>}
@@ -977,7 +979,7 @@ export default function RvAssets() {
                           </span>
                         </div>
                         <div className="flex-1 overflow-auto border border-gray-300 rounded-sm">
-                          <table className="clean-table">
+                          <table style={{ zoom: tableZoom }} className="clean-table">
                             <thead className="sticky top-0 bg-[#f8fafc] z-10">
                               <tr>
                                 <th>Fecha</th>
@@ -1057,6 +1059,11 @@ export default function RvAssets() {
           </Window>
         </div>
       )}
-    </div>
+    
+      {/* Bottom Bar for Zoom */}
+      <div className="flex justify-end bg-[#f0f0f0] p-1 border-t border-gray-300 shrink-0 mt-auto w-full z-50">
+        <ZoomControl />
+      </div>
+</div>
   );
 }

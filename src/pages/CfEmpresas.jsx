@@ -1,4 +1,6 @@
 import { useState, useEffect } from 'react';
+import ZoomControl from '../components/ZoomControl';
+import { useOutletContext } from 'react-router-dom';
 import { db } from '../firebase/config';
 import { collection, query, where, onSnapshot, doc, setDoc, deleteDoc } from 'firebase/firestore';
 import { useAuth } from '../context/AuthContext';
@@ -96,7 +98,12 @@ function SearchableSelect({ options, value, onChange, placeholder }) {
           </div>
         </div>
       )}
-    </div>
+    
+      {/* Bottom Bar for Zoom */}
+      <div className="flex justify-end bg-[#f0f0f0] p-1 border-t border-gray-300 shrink-0 mt-auto w-full z-50">
+        <ZoomControl />
+      </div>
+</div>
   );
 }
 
@@ -114,6 +121,7 @@ const EMPTY_FORM = {
 };
 
 export default function CfEmpresas() {
+  const { tableZoom } = useOutletContext() || { tableZoom: 1 };
   const { user, queryUserIds } = useAuth();
   const [platforms, setPlatforms] = useState([]);
   const [selectedPlatform, setSelectedPlatform] = useState(null);
@@ -482,7 +490,7 @@ export default function CfEmpresas() {
           </div>
 
           <div className="win-table-container">
-            <table className="clean-table">
+            <table style={{ zoom: tableZoom }} className="clean-table">
               <thead>
                 <tr>
                   {visibleColumns.includes('id') && <th style={{ width: columnWidths['id'] || '100px' }}>ID</th>}

@@ -13,8 +13,10 @@ import { useTableColumns } from '../hooks/useTableColumns';
 import { exportToPDF } from '../utils/pdfExport';
 import { PieChart, Pie, Cell, BarChart as ReBarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, Legend, ResponsiveContainer } from 'recharts';
 import ResizableSidebar from '../components/ResizableSidebar';
+import { useOutletContext } from 'react-router-dom';
 
 export default function Portfolio() {
+  const { tableZoom } = useOutletContext() || { tableZoom: 1 };
   const { user, queryUserIds } = useAuth();
   
   // State variables
@@ -840,7 +842,7 @@ export default function Portfolio() {
           {/* Holdings View */}
           {portfolioTab === 'posiciones' && (
             <div className="win-table-container">
-              <table className="clean-table">
+              <table style={{ zoom: tableZoom }} className="clean-table">
                 <thead>
                   <tr>
                     {visColsPortfolio.includes('symbol') && <th style={{ width: '80px' }}>Ticker</th>}
@@ -1177,6 +1179,11 @@ export default function Portfolio() {
           </Window>
         </div>
       )}
-    </div>
+    
+      {/* Bottom Bar for Zoom */}
+      <div className="flex justify-end bg-[#f0f0f0] p-1 border-t border-gray-300 shrink-0 mt-auto w-full z-50">
+        <ZoomControl />
+      </div>
+</div>
   );
 }

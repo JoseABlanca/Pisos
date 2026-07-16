@@ -1,5 +1,6 @@
 import { useState, useEffect } from 'react';
-import { useSearchParams } from 'react-router-dom';
+import ZoomControl from '../components/ZoomControl';
+import { useSearchParams, useOutletContext } from 'react-router-dom';
 import * as XLSX from 'xlsx';
 import { db } from '../firebase/config';
 import { collection, query, where, getDocs, doc, setDoc, deleteDoc, writeBatch } from 'firebase/firestore';
@@ -341,6 +342,7 @@ function getAccountTypeByCode(code) {
 }
 
 export default function Importer() {
+  const { tableZoom } = useOutletContext() || { tableZoom: 1 };
   const { user, queryUserIds } = useAuth();
   const [searchParams, setSearchParams] = useSearchParams();
   const activeSubTab = searchParams.get('tab') === 'plantillas' ? 'plantillas' : 'importaciones';
@@ -1023,7 +1025,7 @@ export default function Importer() {
               </div>
               
               <div className="flex-1 overflow-auto">
-                <table className="clean-table w-full">
+                <table style={{ zoom: tableZoom }} className="clean-table w-full">
                   <thead>
                     <tr className="sticky top-0 bg-gray-100 shadow-[inset_0_-1px_0_#ccc]">
                       {selectedTable.headers.map(h => (
@@ -1087,6 +1089,11 @@ export default function Importer() {
           </div>
         </Window>
       )}
-    </div>
+    
+      {/* Bottom Bar for Zoom */}
+      <div className="flex justify-end bg-[#f0f0f0] p-1 border-t border-gray-300 shrink-0 mt-auto w-full z-50">
+        <ZoomControl />
+      </div>
+</div>
   );
 }

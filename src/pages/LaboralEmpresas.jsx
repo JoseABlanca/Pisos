@@ -1,4 +1,5 @@
 import { useState, useEffect, useMemo } from 'react';
+import { useOutletContext } from 'react-router-dom';
 import { Search, Trash2, X, FileText, Building2 } from 'lucide-react';
 import { db } from '../firebase/config';
 import { collection, query, where, onSnapshot, doc, setDoc, deleteDoc } from 'firebase/firestore';
@@ -12,6 +13,7 @@ import { handleExportFormat } from '../utils/exportUtils';
 import ZoomControl from '../components/ZoomControl';
 
 export default function LaboralEmpresas() {
+  const { tableZoom } = useOutletContext() || { tableZoom: 1 };
   const { user, queryUserIds } = useAuth();
   const [empresas, setEmpresas] = useState([]);
   const [selectedEmpresa, setSelectedEmpresa] = useState(null);
@@ -136,7 +138,7 @@ export default function LaboralEmpresas() {
             </div>
           </div>
           <div className="flex-1 overflow-auto">
-            <table className="clean-table">
+            <table style={{ zoom: tableZoom }} className="clean-table">
               <thead>
                 <tr className="sticky top-0 z-10">
                   {visibleColumns.includes('id') && <TableHeaderWithFilter label="ID" columnKey="id" data={empresas} tableId="laboral-empresas" className="w-16" />}

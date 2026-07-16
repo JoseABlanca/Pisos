@@ -1,4 +1,5 @@
 import { useState, useEffect } from 'react';
+import { useOutletContext } from 'react-router-dom';
 import { db } from '../firebase/config';
 import { collection, query, where, onSnapshot, doc, setDoc, deleteDoc } from 'firebase/firestore';
 import { useAuth } from '../context/AuthContext';
@@ -27,6 +28,7 @@ const EMPTY_FORM = {
 };
 
 export default function CfTransactions() {
+  const { tableZoom } = useOutletContext() || { tableZoom: 1 };
   const { user, queryUserIds } = useAuth();
   
   // Data State
@@ -330,7 +332,7 @@ export default function CfTransactions() {
 
           {/* Table Container */}
           <div className="flex-1 overflow-auto border-b border-gray-200 bg-white relative">
-            <table className="clean-table">
+            <table style={{ zoom: tableZoom }} className="clean-table">
               <thead>
                 <tr>
                   {visibleColumns.includes('id') && <th style={{ width: columnWidths['id'] || '90px' }}>ID</th>}

@@ -1,4 +1,5 @@
 import { useState, useEffect, useMemo } from 'react';
+import ZoomControl from '../components/ZoomControl';
 import { db } from '../firebase/config';
 import { collection, query, where, onSnapshot } from 'firebase/firestore';
 import { useAuth } from '../context/AuthContext';
@@ -36,6 +37,7 @@ function calcTax(gain) {
 }
 
 export default function TaxesRv() {
+  const { tableZoom } = useOutletContext() || { tableZoom: 1 };
   const { user, queryUserIds } = useAuth();
   const { taxYear } = useOutletContext();
 
@@ -302,7 +304,7 @@ export default function TaxesRv() {
 
           {/* ── PLUSVALÍAS ─────────────────────────────────────────────── */}
           {view === 'assets' && (
-            <table className="clean-table w-full">
+            <table style={{ zoom: tableZoom }} className="clean-table w-full">
               <thead>
                 <tr>
                   <th className="p-2 text-left font-bold uppercase">Activo</th>
@@ -358,7 +360,7 @@ export default function TaxesRv() {
 
           {/* ── DIVIDENDOS ─────────────────────────────────────────────── */}
           {view === 'dividends' && (
-            <table className="clean-table w-full">
+            <table style={{ zoom: tableZoom }} className="clean-table w-full">
               <thead>
                 <tr>
                   <th className="p-2 text-left font-bold uppercase">Activo</th>
@@ -405,7 +407,7 @@ export default function TaxesRv() {
 
           {/* ── RESUMEN POR AÑO ────────────────────────────────────────── */}
           {view === 'summary' && (
-            <table className="clean-table w-full">
+            <table style={{ zoom: tableZoom }} className="clean-table w-full">
               <thead>
                 <tr>
                   <th className="p-2 text-center font-bold uppercase w-20">Año</th>
@@ -467,6 +469,11 @@ export default function TaxesRv() {
         </div>
         <div className="text-gray-500">IRPF · Base del ahorro 2024</div>
       </div>
-    </div>
+    
+      {/* Bottom Bar for Zoom */}
+      <div className="flex justify-end bg-[#f0f0f0] p-1 border-t border-gray-300 shrink-0 mt-auto w-full z-50">
+        <ZoomControl />
+      </div>
+</div>
   );
 }

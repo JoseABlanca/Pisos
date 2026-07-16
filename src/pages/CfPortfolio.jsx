@@ -1,4 +1,5 @@
 import { useState, useEffect, useMemo } from 'react';
+import { useOutletContext } from 'react-router-dom';
 import { db } from '../firebase/config';
 import { collection, query, where, onSnapshot } from 'firebase/firestore';
 import { useAuth } from '../context/AuthContext';
@@ -15,6 +16,7 @@ const fmt = (v, dec = 2) =>
 const STATUSES = ['activo', 'finalizado', 'moroso', 'amortizado'];
 
 export default function CfPortfolio() {
+  const { tableZoom } = useOutletContext() || { tableZoom: 1 };
   const { user, queryUserIds } = useAuth();
   
   // Data State
@@ -490,7 +492,7 @@ export default function CfPortfolio() {
 
           {/* Table Container */}
           <div className="flex-1 overflow-auto border-b border-gray-200 bg-white relative">
-            <table className="clean-table">
+            <table style={{ zoom: tableZoom }} className="clean-table">
               <thead>
                 <tr>
                   {visibleColumns.includes('groupName') && (

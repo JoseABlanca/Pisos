@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react';
-import { useNavigate, useSearchParams } from 'react-router-dom';
+import { useNavigate, useSearchParams, useOutletContext } from 'react-router-dom';
 import { db } from '../firebase/config';
 import { collection, query, where, onSnapshot, doc, setDoc, deleteDoc } from 'firebase/firestore';
 import { useAuth } from '../context/AuthContext';
@@ -20,6 +20,7 @@ import EditableCell from '../components/EditableCell';
 import ResizableSidebar from '../components/ResizableSidebar';
 
 export default function Customers() {
+  const { tableZoom } = useOutletContext() || { tableZoom: 1 };
   const [showForm, setShowForm] = useState(false);
   const [selectedCustomer, setSelectedCustomer] = useState(null);
   const [isEditing, setIsEditing] = useState(false);
@@ -599,7 +600,7 @@ export default function Customers() {
             onClick={(e) => e.stopPropagation()}
           >
             {renderFilterMenu()}
-            <table className="clean-table">
+            <table style={{ zoom: tableZoom }} className="clean-table">
               <thead>
                 <tr className="sticky top-0 z-10">
                   {visibleColumns.includes('id') && <TableHeaderWithFilter label="CUENTA" columnKey="id" data={filteredCustomers} tableId="customers" className="w-20" />}
@@ -903,7 +904,7 @@ export default function Customers() {
                           }
                         }}
                       >
-                        <table className="win-table min-w-full">
+                        <table style={{ zoom: tableZoom }} className="win-table min-w-full">
                         <thead>
                           <tr>
                             <th>Nombre del Archivo</th>
@@ -978,7 +979,7 @@ export default function Customers() {
                           <Plus className="w-3 h-3 mr-1" /> Añadir Transacción
                         </button>
                       </div>
-                      <table className="win-table">
+                      <table style={{ zoom: tableZoom }} className="win-table">
                         <thead>
                           <tr>
                             <th className="w-24">Fecha</th>

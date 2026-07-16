@@ -10,8 +10,10 @@ import { useTableColumns } from '../hooks/useTableColumns';
 import { exportToPDF } from '../utils/pdfExport';
 import EditableCell from '../components/EditableCell';
 import ResizableSidebar from '../components/ResizableSidebar';
+import { useOutletContext } from 'react-router-dom';
 
 export default function RvTransactions() {
+  const { tableZoom } = useOutletContext() || { tableZoom: 1 };
   const { user, queryUserIds } = useAuth();
   
   // Data State
@@ -484,7 +486,7 @@ export default function RvTransactions() {
           </div>
 
           <div className="win-table-container">
-            <table className="clean-table">
+            <table style={{ zoom: tableZoom }} className="clean-table">
               <thead>
                 <tr>
                   {visibleColumns.includes('id') && <th style={{ width: columnWidths['id'] || '100px' }}>ID Transacción</th>}

@@ -18,6 +18,7 @@ import EditableCell from '../components/EditableCell';
 
 
 export default function Partners() {
+  const { tableZoom } = useOutletContext() || { tableZoom: 1 };
   const [showForm, setShowForm] = useState(false);
   const [selectedPartner, setSelectedPartner] = useState(null);
   const [isEditing, setIsEditing] = useState(false);
@@ -400,7 +401,7 @@ export default function Partners() {
             onClick={(e) => e.stopPropagation()}
           >
             {renderFilterMenu()}
-            <table className="clean-table">
+            <table style={{ zoom: tableZoom }} className="clean-table">
               <thead>
                 <tr className="sticky top-0 z-10">
                   {visibleColumns.includes('id') && <TableHeaderWithFilter label="ID" columnKey="id" data={filteredPartners} tableId="partners" className="w-24" />}
@@ -605,7 +606,7 @@ export default function Partners() {
                     </div>
 
                     <div className="overflow-x-auto border border-[#808080]">
-                      <table className="win-table w-full">
+                      <table style={{ zoom: tableZoom }} className="win-table w-full">
                         <thead>
                           <tr>
                             <th>Inmueble</th>
@@ -744,7 +745,7 @@ export default function Partners() {
                       </label>
                     </div>
                     <div className="border border-[#808080] bg-white min-h-[150px]">
-                      <table className="win-table w-full">
+                      <table style={{ zoom: tableZoom }} className="win-table w-full">
                         <thead>
                           <tr>
                             <th>Documento</th>
@@ -850,6 +851,11 @@ export default function Partners() {
           </Window>
         </div>
       )}
-    </div>
+    
+      {/* Bottom Bar for Zoom */}
+      <div className="flex justify-end bg-[#f0f0f0] p-1 border-t border-gray-300 shrink-0 mt-auto w-full z-50">
+        <ZoomControl />
+      </div>
+</div>
   );
 }

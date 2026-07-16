@@ -1,14 +1,18 @@
 import React, { useState, useEffect, useMemo } from 'react';
+import ZoomControl from '../components/ZoomControl';
+import { useOutletContext } from 'react-router-dom';
 import { collection, query, where, onSnapshot, writeBatch, doc } from 'firebase/firestore';
 import { db } from '../firebase/config';
 import { useAuth } from '../context/AuthContext';
 import ResizableSidebar from '../components/ResizableSidebar';
+import { useRvHistoricalData } from '../hooks/useRvHistoricalData';
 import { 
   LineChart, Line, BarChart, Bar, XAxis, YAxis, CartesianGrid, 
   Tooltip, Legend, ResponsiveContainer, ReferenceLine, ComposedChart, Area, AreaChart
 } from 'recharts';
 
 export default function RvMetrics() {
+  const { tableZoom } = useOutletContext() || { tableZoom: 1 };
   const { user } = useAuth();
   const [transactions, setTransactions] = useState([]);
   const [assets, setAssets] = useState({});
@@ -220,7 +224,7 @@ export default function RvMetrics() {
     transactions, history, assets, rvBrokers, config,
     selectedTickers, selectedBrokers, selectedAccounts,
     startDate, endDate, linePeriod, barPeriod, histPeriod, histBins,
-    drawdownPeriod, isAccumulated, unit, activeView
+    drawdownPeriod, isAccumulated, unit, activeView, kpiBenefitType
   });
 
   const tickersToRender = selectedTickers.includes('ALL') ? tickers : selectedTickers;
@@ -428,7 +432,7 @@ export default function RvMetrics() {
                 </h2>
                 
                 <div className="overflow-x-auto font-sans">
-                  <table className="w-full text-[12px] text-left border-collapse">
+                  <table style={{ zoom: tableZoom }} className="w-full text-[12px] text-left border-collapse">
                     <thead>
                       <tr className="bg-[#f2f2f2] text-slate-700 font-bold border-b border-slate-300">
                         <th className="py-2.5 px-4 font-bold">Métrica</th>
@@ -1106,6 +1110,11 @@ export default function RvMetrics() {
 
         </div>
       </div>
-    </div>
+    
+      {/* Bottom Bar for Zoom */}
+      <div className="flex justify-end bg-[#f0f0f0] p-1 border-t border-gray-300 shrink-0 mt-auto w-full z-50">
+        <ZoomControl />
+      </div>
+</div>
   );
 }

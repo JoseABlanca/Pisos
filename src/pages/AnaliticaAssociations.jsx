@@ -1,4 +1,6 @@
 import { useState, useEffect, useMemo, useRef } from 'react';
+import ZoomControl from '../components/ZoomControl';
+import { useOutletContext } from 'react-router-dom';
 import { db } from '../firebase/config';
 import { collection, query, where, onSnapshot, addDoc, doc, updateDoc, deleteDoc } from 'firebase/firestore';
 import { useAuth } from '../context/AuthContext';
@@ -79,7 +81,12 @@ function AccountSelectorModal({ onSelect, onClose }) {
           <Accounts isModal={true} onAccountSelect={(code, name) => { onSelect({ code, name }); onClose(); }} />
         </div>
       </div>
-    </div>
+    
+      {/* Bottom Bar for Zoom */}
+      <div className="flex justify-end bg-[#f0f0f0] p-1 border-t border-gray-300 shrink-0 mt-auto w-full z-50">
+        <ZoomControl />
+      </div>
+</div>
   );
 }
 
@@ -120,7 +127,7 @@ function CenterSelectorModal({ type, items, onSelect, onClose }) {
         </div>
 
         <div className="flex-1 overflow-auto p-1">
-          <table className="w-full border-collapse text-[11px] text-left">
+          <table style={{ zoom: tableZoom }} className="w-full border-collapse text-[11px] text-left">
             <thead>
               <tr className="sticky top-0 bg-[#f2f2f2] border-b border-slate-300 font-bold text-slate-700">
                 <th className="py-2 px-3 font-bold">Código</th>
@@ -274,6 +281,7 @@ function AssocModal({ initial, cebes, cecos, onSave, onClose }) {
    MAIN COMPONENT
    ═══════════════════════════════════════════════════════════════════════════════ */
 export default function AnaliticaAssociations() {
+  const { tableZoom } = useOutletContext() || { tableZoom: 1 };
   const { user, queryUserIds } = useAuth();
   const [associations, setAssociations] = useState([]);
   const [cebes, setCebes] = useState([]);
@@ -363,7 +371,7 @@ export default function AnaliticaAssociations() {
 
       {/* Table */}
       <div className="flex-1 overflow-auto" onClick={() => setSelected(null)}>
-        <table className="w-full border-collapse text-[11px]">
+        <table style={{ zoom: tableZoom }} className="w-full border-collapse text-[11px]">
           <thead>
             <tr className="sticky top-0 bg-white border-b border-[#d6d6d6] z-10">
               <th className="text-left font-normal text-[#555] text-[10px] uppercase py-[5px] px-2 w-[110px]">CUENTA</th>

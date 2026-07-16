@@ -1,5 +1,5 @@
 import { useState, useEffect, useMemo } from 'react';
-import { useNavigate } from 'react-router-dom';
+import { useNavigate, useOutletContext } from 'react-router-dom';
 import { db } from '../firebase/config';
 import { collection, query, where, onSnapshot, doc, setDoc, deleteDoc, updateDoc } from 'firebase/firestore';
 import { deleteJournalEntry } from '../services/accounting';
@@ -20,8 +20,10 @@ import EditableCell from '../components/EditableCell';
 import Accounts from './Accounts';
 import ExtractoContableTab from '../components/ExtractoContableTab';
 import ResizableSidebar from '../components/ResizableSidebar';
+import ZoomControl from '../components/ZoomControl';
 
 export default function Rentals() {
+  const { tableZoom } = useOutletContext() || { tableZoom: 1 };
   const { user, queryUserIds } = useAuth();
   const navigate = useNavigate();
   const [rentals, setRentals] = useState([]);
@@ -550,7 +552,7 @@ export default function Rentals() {
 
           <div className="flex-1 overflow-auto bg-white relative" onClick={(e) => e.stopPropagation()}>
             {renderFilterMenu()}
-            <table className="clean-table">
+            <table style={{ zoom: tableZoom }} className="clean-table">
               <thead>
                 <tr className="sticky top-0 z-10">
                   {visibleColumns.includes('id') && <TableHeaderWithFilter label="ID" columnKey="id" data={rentals.map(r => ({ ...r, id: r._originalId || r.id || '' }))} tableId="rentals" className="w-24" />}
@@ -1181,7 +1183,7 @@ export default function Rentals() {
                             </button>
                           </div>
                           
-                          <table className="w-full text-[11px] border-collapse bg-white border border-gray-300">
+                          <table style={{ zoom: tableZoom }} className="w-full text-[11px] border-collapse bg-white border border-gray-300">
                             <thead className="bg-[#f0f0f0]">
                               <tr>
                                 <th className="border border-gray-300 p-1.5 text-left">Concepto</th>
@@ -1314,7 +1316,7 @@ export default function Rentals() {
                           return (
                             <div className="mt-6 border-t border-[#a0a0a0] pt-4">
                               <h3 className="text-[11px] font-bold text-slate-800 uppercase mb-2">Ingreso Neto de Propietarios</h3>
-                              <table className="w-full text-[11px] border-collapse bg-white border border-gray-300">
+                              <table style={{ zoom: tableZoom }} className="w-full text-[11px] border-collapse bg-white border border-gray-300">
                                 <thead className="bg-[#e0e0e0]">
                                   <tr>
                                     <th className="border border-gray-300 p-1.5 text-left">Propietario</th>
@@ -1401,7 +1403,7 @@ export default function Rentals() {
                             }
                           }}
                         >
-                          <table className="win-table min-w-full">
+                          <table style={{ zoom: tableZoom }} className="win-table min-w-full">
                           <thead>
                             <tr>
                               <th>Nombre del Archivo</th>
@@ -1572,7 +1574,12 @@ export default function Rentals() {
           </div>
         </div>
       )}
-    </div>
+    
+      {/* Bottom Bar for Zoom */}
+      <div className="flex justify-end bg-[#f0f0f0] p-1 border-t border-gray-300 shrink-0 mt-auto w-full z-50">
+        <ZoomControl />
+      </div>
+</div>
   );
 }
 
@@ -1737,7 +1744,7 @@ function AnalyticsJournalViewer({ type, value, userIds, setPreviewDocument }) {
         <p className="text-[11px] text-gray-500 italic">No hay asientos contables registrados para este {type.toUpperCase()}.</p>
       ) : (
         <div className="overflow-x-auto border border-[#808080]">
-          <table className="w-full win-table bg-white">
+          <table style={{ zoom: tableZoom }} className="w-full win-table bg-white">
             <thead className="bg-[#e7e1d3] sticky top-0">
               <tr>
                 <th className="text-left p-1.5 w-20 text-[10px]">Fecha</th>

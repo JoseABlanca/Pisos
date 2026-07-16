@@ -18,7 +18,8 @@ export function useRvHistoricalData({
   drawdownPeriod = 'DAY',
   isAccumulated = true,
   unit = 'EUR',
-  activeView = 'resumen'
+  activeView = 'resumen',
+  kpiBenefitType = 'TOTAL'
 }) {
   return useMemo(() => {
     if (!transactions.length) return { lineData: [], barData: [], histogramData: [], drawdownData: [], summary: {} };

@@ -1,4 +1,5 @@
 import React, { useState, useEffect } from 'react';
+import { useOutletContext } from 'react-router-dom';
 import { db } from '../firebase/config';
 import { collection, query, where, onSnapshot, addDoc, updateDoc, deleteDoc, doc } from 'firebase/firestore';
 import { useAuth } from '../context/AuthContext';
@@ -7,6 +8,7 @@ import { CustomIcon } from '../components/CustomIcons';
 import ZoomControl from '../components/ZoomControl';
 
 export default function AnalyticalCenters({ type, isModal = false, onSelect = null }) {
+  const { tableZoom } = useOutletContext() || { tableZoom: 1 };
   const { user, queryUserIds } = useAuth();
   const [centers, setCenters] = useState([]);
   const [flatDocs, setFlatDocs] = useState([]);
@@ -453,7 +455,7 @@ export default function AnalyticalCenters({ type, isModal = false, onSelect = nu
             </div>
             {/* Table wrapper */}
             <div className="flex-1 overflow-auto bg-white relative">
-              <table className="w-full border-collapse">
+              <table style={{ zoom: tableZoom }} className="w-full border-collapse">
               <thead className="sticky top-0 bg-white shadow-[0_1px_0_#d1d5db] z-10">
                 <tr className="text-gray-700">
                   <th className="px-3 py-2 text-left text-[11px] font-normal border-r border-[#d1d5db] uppercase w-48">CÓDIGO</th>

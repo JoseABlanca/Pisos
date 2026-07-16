@@ -2,7 +2,7 @@ import { useState, useEffect } from 'react';
 import { db } from '../firebase/config';
 import { collection, query, where, onSnapshot, doc, addDoc, updateDoc, deleteDoc, getDocs } from 'firebase/firestore';
 import { useAuth } from '../context/AuthContext';
-import { useLocation } from 'react-router-dom';
+import { useLocation, useOutletContext } from 'react-router-dom';
 import {
   ChevronRight,
   ChevronDown,
@@ -106,6 +106,7 @@ const getAccountDescription = (code) => {
 };
 
 export default function Accounts({ isModal = false, onAccountSelect = null }) {
+  const { tableZoom } = useOutletContext() || { tableZoom: 1 };
   const { user, queryUserIds } = useAuth();
   const location = useLocation();
   const [activeTab, setActiveTab] = useState(location.pathname === '/pgc' ? 'pgc' : 'tree');
@@ -807,7 +808,7 @@ export default function Accounts({ isModal = false, onAccountSelect = null }) {
               {/* Table */}
               <div className="flex-1 flex overflow-hidden">
                 <div className="flex-1 overflow-auto">
-                  <table className="w-full text-left text-[11px] whitespace-nowrap">
+                  <table style={{ zoom: tableZoom }} className="w-full text-left text-[11px] whitespace-nowrap">
                     <thead className="sticky top-0 bg-white shadow-[0_1px_0_#d1d5db] z-10">
                       <tr className="text-gray-700">
                         <th className="px-3 py-2 font-normal border-r border-[#d1d5db] uppercase">Cuenta</th>

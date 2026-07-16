@@ -1,6 +1,6 @@
 import { useState, useEffect, useMemo, useCallback } from 'react';
 import { Search, Download, Trash2, X, FileArchive, FileText, Building2, User, Landmark, Zap, Users as UsersIcon, Wrench, UserCircle, PieChart, Eye } from 'lucide-react';
-import { useNavigate } from 'react-router-dom';
+import { useNavigate, useOutletContext } from 'react-router-dom';
 import { db } from '../firebase/config';
 import { collection, query, where, getDocs, onSnapshot, doc, setDoc, deleteDoc, enableNetwork, disableNetwork } from 'firebase/firestore';
 import { useAuth } from '../context/AuthContext';
@@ -25,6 +25,7 @@ import ZoomControl from '../components/ZoomControl';
 import { DEFAULT_PROPERTIES } from '../utils/defaultData';
 
 export default function RealEstate() {
+  const { tableZoom } = useOutletContext() || { tableZoom: 1 };
   const { user, queryUserIds } = useAuth();
   const [showForm, setShowForm] = useState(false);
   const navigate = useNavigate();
@@ -947,7 +948,7 @@ export default function RealEstate() {
           </div>
           <div className="flex-1 overflow-auto">
             {renderFilterMenu()}
-            <table className="clean-table">
+            <table style={{ zoom: tableZoom }} className="clean-table">
               <thead>
                 <tr className="sticky top-0 z-10">
                   {visibleColumns.includes('id') && <TableHeaderWithFilter label="ID" columnKey="id" data={propertiesWithCalculatedRentals} tableId="properties" className="w-16 md:w-20" />}

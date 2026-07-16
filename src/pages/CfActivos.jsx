@@ -1,4 +1,6 @@
 import { useState, useEffect, useMemo } from 'react';
+import ZoomControl from '../components/ZoomControl';
+import { useOutletContext } from 'react-router-dom';
 import { db } from '../firebase/config';
 import { collection, query, where, onSnapshot, doc, setDoc, deleteDoc, updateDoc } from 'firebase/firestore';
 import { useAuth } from '../context/AuthContext';
@@ -44,6 +46,7 @@ const EMPTY_FORM = {
 };
 
 export default function CfActivos() {
+  const { tableZoom } = useOutletContext() || { tableZoom: 1 };
   const { user, queryUserIds } = useAuth();
   const [projects, setProjects] = useState([]);
   const [platforms, setPlatforms] = useState([]);
@@ -516,7 +519,7 @@ export default function CfActivos() {
           </div>
 
           <div className="win-table-container">
-            <table className="clean-table">
+            <table style={{ zoom: tableZoom }} className="clean-table">
               <thead>
                 <tr>
                   {visibleColumns.includes('id') && <th style={{ width: columnWidths['id'] || '80px' }}>ID</th>}
@@ -855,7 +858,7 @@ export default function CfActivos() {
                         <div className="space-y-1.5 shrink-0">
                           <label className="text-[10px] font-bold text-slate-700 uppercase select-none">Historial de Transacciones (Capital):</label>
                           <div className="border border-gray-300 max-h-[160px] overflow-auto bg-white rounded-sm">
-                            <table className="clean-table select-none w-full text-[11px]">
+                            <table style={{ zoom: tableZoom }} className="clean-table select-none w-full text-[11px]">
                               <thead>
                                 <tr>
                                   <th className="px-2 py-1 text-left w-24">Fecha</th>
@@ -950,7 +953,12 @@ export default function CfActivos() {
           </div>
         </div>
       )}
-    </div>
+    
+      {/* Bottom Bar for Zoom */}
+      <div className="flex justify-end bg-[#f0f0f0] p-1 border-t border-gray-300 shrink-0 mt-auto w-full z-50">
+        <ZoomControl />
+      </div>
+</div>
   );
 }
 
@@ -1174,7 +1182,7 @@ function AnalyticsJournalViewer({ type, value, userIds, setPreviewDocument }) {
         <p className="text-[11px] text-gray-500 italic">No hay asientos contables registrados.</p>
       ) : (
         <div className="overflow-x-auto border border-[#808080]">
-          <table className="w-full win-table bg-white">
+          <table style={{ zoom: tableZoom }} className="w-full win-table bg-white">
             <thead className="bg-[#d4d0c8] select-none text-[10px]">
               <tr className="border-b border-[#808080]">
                 <th className="p-1.5 text-left font-bold border-r border-[#808080]">Fecha</th>
