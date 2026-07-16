@@ -522,7 +522,7 @@ export default function Journal() {
 
         {/* Table View */}
         <div className="flex-1 overflow-auto bg-white flex flex-col">
-          <table className="w-full text-left border-collapse text-[11px] font-sans">
+          <table className="w-full h-full text-left border-collapse text-[11px] font-sans">
             <thead className="bg-white sticky top-0 z-10">
               <tr>
                 <th className="border-b border-gray-300 px-2 py-1.5 text-center w-8">
@@ -607,6 +607,9 @@ export default function Journal() {
                   </tr>
                 ))
               )}
+              <tr className="h-full">
+                <td colSpan="14"></td>
+              </tr>
             </tbody>
             <tfoot className="sticky bottom-0 z-10 bg-[#f8f9fa] border-t-2 border-gray-300 shadow-[0_-2px_10px_rgba(0,0,0,0.05)] select-none">
               <tr className="font-bold text-gray-800 border-t border-gray-300">
