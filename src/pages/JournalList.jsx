@@ -416,6 +416,14 @@ export default function Journal() {
       {/* Header title inside the view */}
       <div className="absolute top-0 left-0 w-full h-8 bg-white border-b border-gray-200 flex items-center px-4 z-20">
         <h2 className="text-sm font-bold text-[#2a3042]">CONSULTA DE DIARIO</h2>
+        <div className="ml-4 flex-1 max-w-md flex items-center border-b border-gray-300 px-1">
+          <input 
+            type="text" 
+            placeholder="Buscar en el fichero (Alt+B)" 
+            className="w-full text-[12px] py-0.5 outline-none bg-transparent" 
+          />
+          <Search className="w-4 h-4 text-gray-400 ml-1" />
+        </div>
         <div className="ml-auto flex items-center space-x-2">
            {selectedEntryIds.size === 1 && (
              <button 
@@ -467,17 +475,7 @@ export default function Journal() {
                   ))}
                 </div>
               </div>
-              <div>
-                <h3 className="font-bold mb-1.5 text-[#2a3042]">DIARIO</h3>
-                <select className="w-full border border-gray-300 rounded px-1.5 py-1 mb-2 text-[11px] bg-white outline-none focus:border-blue-400 focus:ring-1 focus:ring-blue-400 uppercase">
-                  <option>TODOS</option>
-                </select>
-                <div className="flex justify-end">
-                  <button className="border border-gray-400 bg-gray-100 px-4 py-1 rounded hover:bg-gray-200 text-[11px] hover:border-gray-500 shadow-sm transition-colors uppercase">
-                    VER
-                  </button>
-                </div>
-              </div>
+              {/* Removed DIARIO section as per user request */}
             </div>
           </ResizableSidebar>
         )}
@@ -541,7 +539,6 @@ export default function Journal() {
                     checked={finalFilteredHistory.length > 0 && selectedEntryIds.size === new Set(finalFilteredHistory.map(i => i.entryId)).size}
                   />
                 </th>
-                <th className="border-b border-gray-300 px-2 py-1.5 font-normal text-gray-600 w-16 text-center uppercase">DIARIO</th>
                 <th className="border-b border-gray-300 px-2 py-1.5 font-normal text-gray-600 w-24 text-center uppercase">FECHA</th>
                 <th className="border-b border-gray-300 px-2 py-1.5 font-normal text-gray-600 w-16 text-center uppercase">ASI.</th>
                 <th className="border-b border-gray-300 px-2 py-1.5 font-normal text-gray-600 w-16 text-center uppercase">ORD.</th>
@@ -586,7 +583,6 @@ export default function Journal() {
                         }}
                       />
                     </td>
-                    <td className="px-2 py-1 text-center text-gray-700">1</td>
                     <td className="px-2 py-1 text-center text-gray-700">{new Date(item.date).toLocaleDateString('es-ES', {day: '2-digit', month: '2-digit', year: '2-digit'})}</td>
                     <td className="px-2 py-1 text-center text-gray-700">{item.shortId}</td>
                     <td className="px-2 py-1 text-center text-gray-700">{idx + 1}</td>

@@ -516,16 +516,7 @@ export default function Ledger({ initialMode }) {
                   </div>
                 </div>
 
-                {/* Otros Filtros */}
-                <div className="p-2">
-                  <div className="bg-gray-200 px-2 py-1 mb-2 font-bold">OTROS FILTROS</div>
-                  <div className="flex items-center space-x-2 px-2">
-                    <span>NATURALEZA:</span>
-                    <select className="flex-1 border border-gray-300 px-1 py-0.5 outline-none">
-                      <option>SIN FILTRO</option>
-                    </select>
-                  </div>
-                </div>
+                {/* Otros Filtros (Removed per user request) */}
               </div>
             </ResizableSidebar>
           )}

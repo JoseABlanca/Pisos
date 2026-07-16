@@ -750,16 +750,18 @@ export default function Accounts({ isModal = false, onAccountSelect = null }) {
                 <div className="my-3 border-t border-gray-300"></div>
                 
                 <label className="flex items-center space-x-2 cursor-pointer">
-                  <input type="checkbox" checked={showPGC} onChange={(e) => setShowPGC(e.target.checked)} />
+                  <input type="checkbox" checked={showPGC} onChange={(e) => {
+                    if (e.target.checked) setShowPGC(true);
+                    else if (showAuxiliary) setShowPGC(false);
+                  }} />
                   <span>Mostrar cuentas del PGC</span>
                 </label>
                 <label className="flex items-center space-x-2 cursor-pointer">
-                  <input type="checkbox" checked={showAuxiliary} onChange={(e) => setShowAuxiliary(e.target.checked)} />
-                  <span className="font-medium text-blue-800">Mostrar cuentas auxiliares</span>
-                </label>
-                <label className="flex items-center space-x-2 cursor-pointer">
-                  <input type="checkbox" checked={showObsolete} onChange={(e) => setShowObsolete(e.target.checked)} />
-                  <span>Mostrar cuentas obsoletas</span>
+                  <input type="checkbox" checked={showAuxiliary} onChange={(e) => {
+                    if (e.target.checked) setShowAuxiliary(true);
+                    else if (showPGC) setShowAuxiliary(false);
+                  }} />
+                  <span>Mostrar cuentas auxiliares</span>
                 </label>
               </div>
 
