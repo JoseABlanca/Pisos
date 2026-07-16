@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react';
-import { useNavigate } from 'react-router-dom';
+import { useNavigate, useOutletContext } from 'react-router-dom';
 import { db } from '../firebase/config';
 import { collection, query, where, onSnapshot, orderBy, doc, updateDoc } from 'firebase/firestore';
 import ZoomControl from '../components/ZoomControl';
@@ -118,6 +118,7 @@ function AccountSelector({ accounts, value, onChange }) {
 export default function Journal() {
   const { user, queryUserIds } = useAuth();
   const navigate = useNavigate();
+  const { tableZoom } = useOutletContext() || { tableZoom: 1 };
 
   const handleEditEntry = () => {
     if (selectedEntryIds.size !== 1) return;
@@ -522,7 +523,7 @@ export default function Journal() {
 
         {/* Table View */}
         <div className="flex-1 overflow-auto bg-white flex flex-col">
-          <table className="w-full h-full text-left border-collapse text-[11px] font-sans">
+          <table className="w-full h-full text-left border-collapse text-[11px] font-sans" style={{ zoom: tableZoom }}>
             <thead className="bg-white sticky top-0 z-10">
               <tr>
                 <th className="border-b border-gray-300 px-2 py-1.5 text-center w-8">
