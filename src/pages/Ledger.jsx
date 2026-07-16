@@ -1,4 +1,5 @@
 import { useState, useEffect, useMemo } from 'react';
+import { useOutletContext } from 'react-router-dom';
 import { db } from '../firebase/config';
 import { collection, query, where, onSnapshot, orderBy } from 'firebase/firestore';
 import { useAuth } from '../context/AuthContext';
@@ -19,6 +20,8 @@ export default function Ledger({ initialMode }) {
   const [accounts, setAccounts] = useState([]);
   const [journalEntries, setJournalEntries] = useState([]);
   const [selectedAccountId, setSelectedAccountId] = useState('');
+
+  const { tableZoom } = useOutletContext() || { tableZoom: 1 };
   const [loading, setLoading] = useState(true);
   const [searchQuery, setSearchQuery] = useState('');
   const [expandedNodes, setExpandedNodes] = useState({});
@@ -615,7 +618,7 @@ export default function Ledger({ initialMode }) {
 
           {/* Table View */}
           <div className="flex-1 overflow-auto bg-white flex flex-col">
-            <table className="w-full h-full text-left border-collapse text-[11px] font-sans">
+            <table className="w-full h-full text-left border-collapse text-[11px] font-sans" style={{ zoom: tableZoom }}>
               <thead className="bg-white sticky top-0 z-10 border-b border-gray-300 text-gray-800">
                 <tr>
                   <th className="px-2 py-1.5 font-normal w-24">FECHA</th>

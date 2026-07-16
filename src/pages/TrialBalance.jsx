@@ -419,10 +419,6 @@ export default function TrialBalance() {
                        <span className="text-transparent">_</span>
                      )}
                    </div>
-                   {/* Zoom always on the right */}
-                   <div className="border-l pl-2 border-gray-300">
-                      <ZoomControl />
-                   </div>
                 </div>
                  {/* Totals row */}
                  <div className="flex items-center w-full mt-2">
@@ -440,6 +436,11 @@ export default function TrialBalance() {
                     <div className="w-32 shrink-0 text-right font-bold text-[#0d2a63] px-2">0,00</div>
                     <div className="w-32 shrink-0 text-right font-bold text-[#0d2a63] pl-2">0,00</div>
                  </div>     
+             </div>
+             
+             {/* Bottom Bar for Zoom */}
+             <div className="flex justify-end bg-[#f0f0f0] p-1 border-t border-gray-300 mt-2">
+               <ZoomControl />
              </div>
          </div>
       </div>
