@@ -1,4 +1,4 @@
-import { useState, useEffect, useMemo } from 'react';
+import { useState, useEffect, useMemo, useRef, useCallback } from 'react';
 import { useOutletContext } from 'react-router-dom';
 import { db } from '../firebase/config';
 import { collection, query, where, onSnapshot } from 'firebase/firestore';
@@ -14,6 +14,29 @@ export default function TrialBalance() {
   const [loading, setLoading] = useState(true);
   const [isRecalculating, setIsRecalculating] = useState(false);
   const [totals, setTotals] = useState({ debit: 0, credit: 0, balance: 0 });
+
+  const [sidebarWidth, setSidebarWidth] = useState(200);
+  const isDragging = useRef(false);
+
+  const handleMouseMove = useCallback((e) => {
+    if (!isDragging.current) return;
+    const newWidth = e.clientX;
+    if (newWidth > 150 && newWidth < 600) {
+      setSidebarWidth(newWidth);
+    }
+  }, []);
+
+  const handleMouseUp = useCallback(() => {
+    isDragging.current = false;
+    document.removeEventListener('mousemove', handleMouseMove);
+    document.removeEventListener('mouseup', handleMouseUp);
+  }, [handleMouseMove]);
+
+  const handleMouseDown = useCallback((e) => {
+    isDragging.current = true;
+    document.addEventListener('mousemove', handleMouseMove);
+    document.addEventListener('mouseup', handleMouseUp);
+  }, [handleMouseMove, handleMouseUp]);
   const [selectedAccount, setSelectedAccount] = useState(null);
   const [selectedYears, setSelectedYears] = useState([]);
   const [selectedMonths, setSelectedMonths] = useState([]);
@@ -227,7 +250,11 @@ export default function TrialBalance() {
       <div className="flex flex-1 overflow-hidden relative">
         {/* Sidebar Filters */}
         {showSidebar && (
-        <div className="w-[200px] border-r border-gray-300 bg-[#f8f9fa] flex flex-col shrink-0 overflow-y-auto">
+        <>
+        <div 
+          className="border-r border-gray-300 bg-[#f8f9fa] flex flex-col shrink-0 overflow-y-auto"
+          style={{ width: sidebarWidth }}
+        >
            {/* Fechas */}
            <div className="border-b border-gray-300">
               <div className="bg-[#e9ecef] px-2 py-1 font-semibold text-[10px] text-gray-700">Fechas</div>
@@ -285,23 +312,12 @@ export default function TrialBalance() {
                  <label className="flex items-center gap-2"><input type="checkbox" checked={mostrarSinSaldo} onChange={e => setMostrarSinSaldo(e.target.checked)} /> Mostrar cuentas sin saldo</label>
               </div>
            </div>
-
-           {/* Diario */}
-           <div className="border-b border-gray-300">
-              <div className="bg-[#e9ecef] px-2 py-1 font-semibold text-[10px] text-gray-700">Diario</div>
-              <div className="p-2 text-center">
-                 <select className="border border-gray-300 px-2 py-1 w-full text-[10px]" value={filterDiario} onChange={e => setFilterDiario(e.target.value)}>
-                    <option>Todos</option>
-                 </select>
-                 <button className="mt-2 border border-gray-400 bg-gray-100 hover:bg-gray-200 px-4 py-1 text-[10px]">Ver</button>
-              </div>
-           </div>
-           
-           <div className="mt-auto flex border-t border-gray-300">
-             <div className="flex-1 text-center py-1 border-r border-gray-300 bg-[#e9ecef] cursor-pointer hover:bg-gray-200">Diario</div>
-             <div className="flex-1 text-center py-1 bg-[#e9ecef] cursor-pointer hover:bg-gray-200">Consultas</div>
-           </div>
         </div>
+        <div 
+          className="w-1 cursor-col-resize hover:bg-blue-400 active:bg-blue-600 z-10 shrink-0 border-r border-gray-300"
+          onMouseDown={handleMouseDown}
+        ></div>
+        </>
         )}
 
         {/* Quick Month Filter Bar */}
