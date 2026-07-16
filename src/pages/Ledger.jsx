@@ -265,6 +265,7 @@ export default function Ledger({ initialMode }) {
 
           // Find contrapartida (offsetting account)
           let contrapartida = '';
+          let contrapartidaName = '';
           const otherLines = lines.filter((_, idx) => idx !== index);
           if (otherLines.length > 0) {
             let offsetLine;
@@ -280,6 +281,7 @@ export default function Ledger({ initialMode }) {
               const offsetAcc = accountMap[String(offsetLine.accountId)];
               if (offsetAcc) {
                 contrapartida = offsetAcc.code;
+                contrapartidaName = offsetAcc.name;
               }
             }
           }
@@ -290,10 +292,12 @@ export default function Ledger({ initialMode }) {
             number: entry.number || (entry.id || '').toUpperCase().slice(-6),
             accountCode: accInfo ? accInfo.code : '?',
             accountName: accInfo ? accInfo.name : 'Desconocida',
-            description: entry.description || 'Movimiento contable',
+            description: entry.description,
+            document: line.document || '',
             debit: parseFloat(line.debit || 0),
             credit: parseFloat(line.credit || 0),
-            contrapartida: contrapartida || '—'
+            contrapartida: contrapartida || '-',
+            contrapartidaName: contrapartidaName || '-'
           });
         }
       });
@@ -620,38 +624,48 @@ export default function Ledger({ initialMode }) {
                   ))
                 )}
               </tbody>
-              <tfoot className="bg-white sticky bottom-0 z-10 shadow-[0_-2px_4px_rgba(0,0,0,0.05)] border-t border-gray-300 text-[10px] font-sans text-gray-800 uppercase font-medium">
+            </table>
+          </div>
+
+          {/* Totals Footer at absolute bottom */}
+          <div className="mt-auto bg-white border-t border-gray-300">
+            <table className="w-full min-w-[1000px] text-left text-[11px] font-sans">
+              <tfoot className="text-[10px] text-gray-800 uppercase font-medium">
                 <tr>
-                  <td colSpan="4" className="px-2 py-2 align-bottom font-bold text-left">{selectedAccount?.name}</td>
-                  <td className="px-2 py-2 text-right space-y-0.5 text-[#2a3042]">
+                  <td className="px-2 py-2 align-bottom font-bold text-left w-24"></td>
+                  <td className="w-12"></td>
+                  <td className="w-12"></td>
+                  <td className="flex-1 min-w-[150px]"></td>
+                  <td className="px-2 py-2 text-right space-y-0.5 text-[#2a3042] w-24">
                     <div>TOTAL:</div>
                     <div>SALDO PUNTEADO:</div>
                     <div>SALDO SIN PUNTEAR:</div>
                   </td>
-                  <td className="px-2 py-2 text-right space-y-0.5 text-red-600 font-bold">
+                  <td className="px-2 py-2 text-right space-y-0.5 text-red-600 font-bold w-24">
                     <div>{totalDebit.toLocaleString('es-ES', {minimumFractionDigits: 2})}</div>
                     <div>0,00</div>
                     <div>0,00</div>
                   </td>
-                  <td className="px-2 py-2 text-right space-y-0.5 text-red-600 font-bold">
+                  <td className="px-2 py-2 text-right space-y-0.5 text-red-600 font-bold w-24">
                     <div>{totalCredit.toLocaleString('es-ES', {minimumFractionDigits: 2})}</div>
                     <div>0,00</div>
                     <div>{totalCredit.toLocaleString('es-ES', {minimumFractionDigits: 2})}</div>
                   </td>
-                  <td className="px-2 py-2 text-right space-y-0.5 text-red-600 font-bold">
+                  <td className="px-2 py-2 text-right space-y-0.5 text-red-600 font-bold w-24">
                     <div>{endBalance.toLocaleString('es-ES', {minimumFractionDigits: 2})}{endBalance < 0 ? '-' : ''}</div>
                     <div>0,00</div>
                     <div>{endBalance.toLocaleString('es-ES', {minimumFractionDigits: 2})}{endBalance < 0 ? '-' : ''}</div>
                   </td>
-                  <td colSpan="4"></td>
+                  <td className="w-8"></td>
+                  <td className="w-8"></td>
+                  <td className="w-32"></td>
+                  <td className="w-48"></td>
                 </tr>
-                <tr className="border-t border-gray-300">
+                <tr className="border-t border-gray-300 bg-white">
                   <td colSpan="12" className="px-2 py-1 text-gray-500 font-bold">EURO</td>
                 </tr>
               </tfoot>
             </table>
-            
-            {/* Bottom Panel */}
           </div>
         </div>
 
