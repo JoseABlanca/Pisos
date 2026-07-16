@@ -617,8 +617,9 @@ export default function Ledger({ initialMode }) {
           )}
 
           {/* Table View */}
-          <div className="flex-1 overflow-auto bg-white flex flex-col">
-            <table className="w-full h-full text-left border-collapse text-[11px] font-sans" style={{ zoom: tableZoom }}>
+          <div className="flex-1 bg-white flex flex-col min-w-0">
+            <div className="flex-1 overflow-auto">
+              <table className="w-full h-full text-left border-collapse text-[11px] font-sans" style={{ zoom: tableZoom }}>
               <thead className="bg-white sticky top-0 z-10 border-b border-gray-300 text-gray-800">
                 <tr>
                   <th className="px-2 py-1.5 font-normal w-24">FECHA</th>
@@ -707,7 +708,13 @@ export default function Ledger({ initialMode }) {
                   <td colSpan="12" className="px-2 py-1 text-gray-500 font-bold">EURO</td>
                 </tr>
               </tfoot>
-            </table>
+              </table>
+            </div>
+          
+            {/* Bottom Bar for Zoom */}
+            <div className="flex justify-end bg-[#f0f0f0] p-1 border-t border-gray-300 shrink-0">
+              <ZoomControl />
+            </div>
           </div>
         </div>
 
