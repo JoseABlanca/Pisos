@@ -569,7 +569,7 @@ export default function Ledger({ initialMode }) {
                   <th className="px-2 py-1.5 font-normal w-24">FECHA</th>
                   <th className="px-2 py-1.5 font-normal w-12 text-center">ASI.</th>
                   <th className="px-2 py-1.5 font-normal w-12 text-center">ORD.</th>
-                  <th className="px-2 py-1.5 font-normal w-12 text-center">DIA.</th>
+                  
                   <th className="px-2 py-1.5 font-normal flex-1 min-w-[150px]">CONCEPTO</th>
                   <th className="px-2 py-1.5 font-normal w-24">DOCUM.</th>
                   <th className="px-2 py-1.5 font-normal w-24 text-right">DEBE</th>
@@ -578,6 +578,7 @@ export default function Ledger({ initialMode }) {
                   <th className="px-2 py-1.5 font-normal w-8 text-center">P</th>
                   <th className="px-2 py-1.5 font-normal w-8 text-center">!</th>
                   <th className="px-2 py-1.5 font-normal w-32">CONTRAPARTIDA</th>
+                  <th className="px-2 py-1.5 font-normal w-48">NOMBRE CTA. CONTRAPARTIDA</th>
                 </tr>
               </thead>
               <tbody className="text-gray-700">
@@ -603,7 +604,7 @@ export default function Ledger({ initialMode }) {
                       <td className="px-2 py-1">{new Date(m.date).toLocaleDateString('es-ES', {day: '2-digit', month: '2-digit', year: '2-digit'})}</td>
                       <td className="px-2 py-1 text-center">{m.number || '1'}</td>
                       <td className="px-2 py-1 text-center font-bold">{idx + 1}</td>
-                      <td className="px-2 py-1 text-center">1</td>
+                      
                       <td className="px-2 py-1 truncate max-w-[150px]" title={m.description}>{m.description}</td>
                       <td className="px-2 py-1"></td>
                       <td className="px-2 py-1 text-right">{m.debit > 0 ? m.debit.toLocaleString('es-ES', {minimumFractionDigits: 2}) : ''}</td>
@@ -614,49 +615,43 @@ export default function Ledger({ initialMode }) {
                       </td>
                       <td className="px-2 py-1 text-center"></td>
                       <td className="px-2 py-1 font-mono font-semibold text-slate-700">{m.contrapartida}</td>
+                      <td className="px-2 py-1 text-slate-700 truncate max-w-[200px]" title={m.contrapartidaName}>{m.contrapartidaName}</td>
                     </tr>
                   ))
                 )}
               </tbody>
+              <tfoot className="bg-white sticky bottom-0 z-10 shadow-[0_-2px_4px_rgba(0,0,0,0.05)] border-t border-gray-300 text-[10px] font-sans text-gray-800 uppercase font-medium">
+                <tr>
+                  <td colSpan="4" className="px-2 py-2 align-bottom font-bold text-left">{selectedAccount?.name}</td>
+                  <td className="px-2 py-2 text-right space-y-0.5 text-[#2a3042]">
+                    <div>TOTAL:</div>
+                    <div>SALDO PUNTEADO:</div>
+                    <div>SALDO SIN PUNTEAR:</div>
+                  </td>
+                  <td className="px-2 py-2 text-right space-y-0.5 text-red-600 font-bold">
+                    <div>{totalDebit.toLocaleString('es-ES', {minimumFractionDigits: 2})}</div>
+                    <div>0,00</div>
+                    <div>0,00</div>
+                  </td>
+                  <td className="px-2 py-2 text-right space-y-0.5 text-red-600 font-bold">
+                    <div>{totalCredit.toLocaleString('es-ES', {minimumFractionDigits: 2})}</div>
+                    <div>0,00</div>
+                    <div>{totalCredit.toLocaleString('es-ES', {minimumFractionDigits: 2})}</div>
+                  </td>
+                  <td className="px-2 py-2 text-right space-y-0.5 text-red-600 font-bold">
+                    <div>{endBalance.toLocaleString('es-ES', {minimumFractionDigits: 2})}{endBalance < 0 ? '-' : ''}</div>
+                    <div>0,00</div>
+                    <div>{endBalance.toLocaleString('es-ES', {minimumFractionDigits: 2})}{endBalance < 0 ? '-' : ''}</div>
+                  </td>
+                  <td colSpan="4"></td>
+                </tr>
+                <tr className="border-t border-gray-300">
+                  <td colSpan="12" className="px-2 py-1 text-gray-500 font-bold">EURO</td>
+                </tr>
+              </tfoot>
             </table>
             
-            {/* Totals Footer */}
-            <div className="mt-auto bg-white pt-2 border-t border-gray-300">
-              <table className="w-full text-[10px] font-sans text-gray-800">
-                <tbody>
-                  <tr>
-                    <td className="w-16 align-bottom px-2 font-bold">{selectedAccount?.name}</td>
-                    <td>
-                      <div className="flex justify-center space-x-16 py-1">
-                        <div className="text-right space-y-0.5">
-                          <div>TOTAL:</div>
-                          <div>SALDO PUNTEADO:</div>
-                          <div>SALDO SIN PUNTEAR:</div>
-                        </div>
-                        <div className="text-right space-y-0.5 text-red-600 font-bold">
-                          <div>{totalDebit.toLocaleString('es-ES', {minimumFractionDigits: 2})}</div>
-                          <div>0,00</div>
-                          <div>0,00</div>
-                        </div>
-                        <div className="text-right space-y-0.5 text-red-600 font-bold">
-                          <div>{totalCredit.toLocaleString('es-ES', {minimumFractionDigits: 2})}</div>
-                          <div>0,00</div>
-                          <div>{totalCredit.toLocaleString('es-ES', {minimumFractionDigits: 2})}</div>
-                        </div>
-                        <div className="text-right space-y-0.5 text-red-600 font-bold">
-                          <div>{endBalance.toLocaleString('es-ES', {minimumFractionDigits: 2})}{endBalance < 0 ? '-' : ''}</div>
-                          <div>0,00</div>
-                          <div>{endBalance.toLocaleString('es-ES', {minimumFractionDigits: 2})}{endBalance < 0 ? '-' : ''}</div>
-                        </div>
-                      </div>
-                    </td>
-                  </tr>
-                  <tr className="border-t border-gray-300">
-                    <td className="px-2 py-1 text-gray-500 font-bold">EURO</td>
-                  </tr>
-                </tbody>
-              </table>
-            </div>
+            {/* Bottom Panel */}
           </div>
         </div>
 

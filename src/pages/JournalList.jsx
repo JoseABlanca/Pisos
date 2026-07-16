@@ -416,15 +416,15 @@ export default function Journal() {
       {/* Header title inside the view */}
       <div className="absolute top-0 left-0 w-full h-8 bg-white border-b border-gray-200 flex items-center px-4 z-20">
         <h2 className="text-sm font-bold text-[#2a3042]">CONSULTA DE DIARIO</h2>
-        <div className="ml-4 flex-1 max-w-md flex items-center border-b border-gray-300 px-1">
-          <input 
-            type="text" 
-            placeholder="Buscar en el fichero (Alt+B)" 
-            className="w-full text-[12px] py-0.5 outline-none bg-transparent" 
-          />
-          <Search className="w-4 h-4 text-gray-400 ml-1" />
-        </div>
-        <div className="ml-auto flex items-center space-x-2">
+        <div className="ml-auto flex items-center space-x-4">
+          <div className="flex items-center border-b border-gray-300 px-1 w-64">
+            <input 
+              type="text" 
+              placeholder="Buscar en el fichero (Alt+B)" 
+              className="w-full text-[12px] py-0.5 outline-none bg-transparent" 
+            />
+            <Search className="w-4 h-4 text-gray-400 ml-1" />
+          </div>
            {selectedEntryIds.size === 1 && (
              <button 
                onClick={handleEditEntry}
