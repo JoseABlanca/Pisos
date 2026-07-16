@@ -820,7 +820,7 @@ export default function Ledger({ initialMode }) {
               <thead>
                 <tr className="sticky top-0 z-10">
                   <th className="w-auto">Concepto Contable</th>
-                  <th className="w-32 text-right">Saldo Actual (€)</th>
+                  <th className="w-32 text-right">Saldo Actual</th>
                 </tr>
               </thead>
               <tbody>
@@ -878,7 +878,7 @@ export default function Ledger({ initialMode }) {
                       </td>
                       <td className={`text-right font-mono font-bold pr-4 ${textStyle} border-transparent`}>
                         <span className={selectedAccountId === node.id || node.totalBalance < 0 ? '' : 'text-blue-900 group-hover:text-white'}>
-                          {node.totalBalance.toLocaleString('es-ES', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}€
+                          {node.totalBalance.toLocaleString('es-ES', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
                         </span>
                       </td>
                     </tr>
@@ -887,7 +887,7 @@ export default function Ledger({ initialMode }) {
                 <tr className="bg-slate-800 text-white font-bold h-8">
                   <td className="pl-4 uppercase italic">Total Consolidado Patrimonio</td>
                   <td className="text-right pr-4 font-mono">
-                    {treeData.reduce((s, n) => s + (['Activo', 'Gasto'].includes(n.type) ? n.totalBalance : -n.totalBalance), 0).toLocaleString('es-ES')}€
+                    {treeData.reduce((s, n) => s + (['Activo', 'Gasto'].includes(n.type) ? n.totalBalance : -n.totalBalance), 0).toLocaleString('es-ES')}
                   </td>
                 </tr>
               </tbody>

@@ -756,7 +756,6 @@ export default function JournalEntry() {
             {totalCredit.toFixed(2)}
           </div>
           <div className="w-32 border-l border-gray-300 flex items-center justify-center">
-            <ZoomControl />
           </div>
         </div>
         <div className="flex items-center pb-1">
@@ -767,6 +766,11 @@ export default function JournalEntry() {
           <div className="w-28"></div>
           <div className="w-28"></div>
           <div className="w-32"></div>
+        </div>
+        
+        {/* Bottom Bar for Zoom */}
+        <div className="flex justify-end bg-[#f0f0f0] p-1 border-t border-gray-300 mt-2">
+          <ZoomControl />
         </div>
       </div>
       

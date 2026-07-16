@@ -1,4 +1,6 @@
 import { useState, useEffect, useMemo, useRef, Fragment } from 'react';
+import { useOutletContext } from 'react-router-dom';
+import ZoomControl from '../components/ZoomControl';
 import { db } from '../firebase/config';
 import { collection, query, where, onSnapshot, doc, setDoc, deleteDoc } from 'firebase/firestore';
 import { useAuth } from '../context/AuthContext';
@@ -390,6 +392,7 @@ const MultiSelectDropdown = ({ label, options, selected, onChange }) => {
    MAIN COMPONENT
    ═══════════════════════════════════════════════════════════════════════════════ */
 export default function Analitica() {
+  const { tableZoom } = useOutletContext() || { tableZoom: 1 };
   const { user, queryUserIds } = useAuth();
 
   const [rawAccounts, setRawAccounts] = useState([]);
@@ -1442,7 +1445,7 @@ export default function Analitica() {
           {/* Table */}
           <div className="flex-1 flex flex-col overflow-hidden bg-white" onClick={() => setSelectedRowId(null)}>
             {/* Horizontal scroll wrapper for both tables */}
-            <div className="flex-1 flex flex-col overflow-x-auto overflow-y-hidden">
+            <div className="flex-1 flex flex-col overflow-x-auto overflow-y-hidden" style={{ zoom: tableZoom }}>
               <div style={{ minWidth }} className="flex-1 flex flex-col overflow-hidden">
                 {/* Body Table */}
                 <div className="flex-1 overflow-y-auto">
@@ -1639,6 +1642,10 @@ export default function Analitica() {
                   </table>
                 </div>
               </div>
+            </div>
+            {/* Bottom Bar for Zoom */}
+            <div className="flex justify-end bg-[#f0f0f0] p-1 border-t border-gray-300 mt-2 shrink-0">
+              <ZoomControl />
             </div>
           </div>
         </div>
