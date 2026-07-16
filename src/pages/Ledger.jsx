@@ -26,6 +26,8 @@ export default function Ledger({ initialMode }) {
   // Filters
   const [showSidebar, setShowSidebar] = useState(true);
   const [dateFilter, setDateFilter] = useState('Todos');
+  const [selectedQuarterDate, setSelectedQuarterDate] = useState('1');
+  const [dateRange, setDateRange] = useState({ start: '', end: '' });
   const [selectedYears, setSelectedYears] = useState([]);
   const [selectedMonths, setSelectedMonths] = useState([]);
   const [selectedQuarters, setSelectedQuarters] = useState([]);
@@ -323,6 +325,14 @@ export default function Ledger({ initialMode }) {
           const lastMonth = new Date(today);
           lastMonth.setMonth(today.getMonth() - 1);
           if (d < lastMonth) return false;
+        } else if (dateFilter === 'Trimestre') {
+          const q = parseInt(selectedQuarterDate, 10);
+          const month = d.getMonth();
+          const qOfDate = Math.floor(month / 3) + 1;
+          if (qOfDate !== q) return false;
+        } else if (dateFilter === 'Entre') {
+          if (dateRange.start && d < new Date(dateRange.start)) return false;
+          if (dateRange.end && d > new Date(dateRange.end + 'T23:59:59')) return false;
         }
       }
 
@@ -420,21 +430,59 @@ export default function Ledger({ initialMode }) {
             
             {/* Additional Date options */}
             <div className="space-y-1.5 px-2 mt-2 pt-2 border-t border-gray-200/50">
-              <div className="flex items-center space-x-1 opacity-60">
-                <input type="radio" name="dateFilter" disabled className="w-3 h-3 text-blue-600" />
+              <label className="flex items-center space-x-1 cursor-pointer">
+                <input 
+                  type="radio" 
+                  name="dateFilter" 
+                  checked={dateFilter === 'Trimestre'} 
+                  onChange={() => setDateFilter('Trimestre')} 
+                  className="w-3 h-3 text-blue-600" 
+                />
                 <span className="w-16">TRIMESTRE:</span>
-                <select disabled className="flex-1 border border-gray-300 px-1 py-0.5 text-[10px] outline-none">
-                  <option>PRIMER TRIMESTR</option>
+                <select 
+                  className="flex-1 border border-gray-300 px-1 py-0.5 text-[10px] outline-none"
+                  value={selectedQuarterDate}
+                  onChange={(e) => {
+                    setSelectedQuarterDate(e.target.value);
+                    setDateFilter('Trimestre');
+                  }}
+                >
+                  <option value="1">PRIMER TRIMESTRE</option>
+                  <option value="2">SEGUNDO TRIMESTRE</option>
+                  <option value="3">TERCER TRIMESTRE</option>
+                  <option value="4">CUARTO TRIMESTRE</option>
                 </select>
-              </div>
-              <div className="flex items-center space-x-1 opacity-60">
-                <input type="radio" name="dateFilter" disabled className="w-3 h-3 text-blue-600" />
+              </label>
+              <label className="flex items-center space-x-1 cursor-pointer">
+                <input 
+                  type="radio" 
+                  name="dateFilter" 
+                  checked={dateFilter === 'Entre'} 
+                  onChange={() => setDateFilter('Entre')} 
+                  className="w-3 h-3 text-blue-600" 
+                />
                 <span className="w-16">ENTRE:</span>
-                <input type="date" disabled className="flex-1 border border-gray-300 px-1 py-0.5 text-[10px] outline-none" />
-              </div>
-              <div className="flex items-center space-x-1 pl-4 opacity-60">
+                <input 
+                  type="date" 
+                  className="flex-1 border border-gray-300 px-1 py-0.5 text-[10px] outline-none" 
+                  value={dateRange.start}
+                  onChange={(e) => {
+                    setDateRange({ ...dateRange, start: e.target.value });
+                    setDateFilter('Entre');
+                  }}
+                />
+              </label>
+              <div className="flex items-center space-x-1 pl-4">
                 <span className="w-13">HASTA:</span>
-                <input type="date" disabled className="flex-1 border border-gray-300 px-1 py-0.5 text-[10px] outline-none" />
+                <input 
+                  type="date" 
+                  className="flex-1 border border-gray-300 px-1 py-0.5 text-[10px] outline-none" 
+                  value={dateRange.end}
+                  onChange={(e) => {
+                    setDateRange({ ...dateRange, end: e.target.value });
+                    setDateFilter('Entre');
+                  }}
+                />
               </div>
             </div>
           </div>
@@ -567,7 +615,7 @@ export default function Ledger({ initialMode }) {
 
           {/* Table View */}
           <div className="flex-1 overflow-auto bg-white flex flex-col">
-            <table className="w-full text-left border-collapse text-[11px] font-sans">
+            <table className="w-full h-full text-left border-collapse text-[11px] font-sans">
               <thead className="bg-white sticky top-0 z-10 border-b border-gray-300 text-gray-800">
                 <tr>
                   <th className="px-2 py-1.5 font-normal w-24">FECHA</th>
@@ -623,43 +671,34 @@ export default function Ledger({ initialMode }) {
                     </tr>
                   ))
                 )}
+                <tr className="h-full">
+                  <td colSpan="12"></td>
+                </tr>
               </tbody>
-            </table>
-          </div>
-
-          {/* Totals Footer at absolute bottom */}
-          <div className="mt-auto bg-white border-t border-gray-300">
-            <table className="w-full min-w-[1000px] text-left text-[11px] font-sans">
-              <tfoot className="text-[10px] text-gray-800 uppercase font-medium">
+              <tfoot className="bg-white sticky bottom-0 z-10 shadow-[0_-2px_4px_rgba(0,0,0,0.05)] border-t border-gray-300 text-[10px] font-sans text-gray-800 uppercase font-medium">
                 <tr>
-                  <td className="px-2 py-2 align-bottom font-bold text-left w-24"></td>
-                  <td className="w-12"></td>
-                  <td className="w-12"></td>
-                  <td className="flex-1 min-w-[150px]"></td>
-                  <td className="px-2 py-2 text-right space-y-0.5 text-[#2a3042] w-24">
+                  <td colSpan="4" className="px-2 py-2 align-bottom font-bold text-left">{selectedAccount?.name}</td>
+                  <td className="px-2 py-2 text-right space-y-0.5 text-[#2a3042]">
                     <div>TOTAL:</div>
                     <div>SALDO PUNTEADO:</div>
                     <div>SALDO SIN PUNTEAR:</div>
                   </td>
-                  <td className="px-2 py-2 text-right space-y-0.5 text-red-600 font-bold w-24">
+                  <td className="px-2 py-2 text-right space-y-0.5 text-red-600 font-bold">
                     <div>{totalDebit.toLocaleString('es-ES', {minimumFractionDigits: 2})}</div>
                     <div>0,00</div>
                     <div>0,00</div>
                   </td>
-                  <td className="px-2 py-2 text-right space-y-0.5 text-red-600 font-bold w-24">
+                  <td className="px-2 py-2 text-right space-y-0.5 text-red-600 font-bold">
                     <div>{totalCredit.toLocaleString('es-ES', {minimumFractionDigits: 2})}</div>
                     <div>0,00</div>
                     <div>{totalCredit.toLocaleString('es-ES', {minimumFractionDigits: 2})}</div>
                   </td>
-                  <td className="px-2 py-2 text-right space-y-0.5 text-red-600 font-bold w-24">
+                  <td className="px-2 py-2 text-right space-y-0.5 text-red-600 font-bold">
                     <div>{endBalance.toLocaleString('es-ES', {minimumFractionDigits: 2})}{endBalance < 0 ? '-' : ''}</div>
                     <div>0,00</div>
                     <div>{endBalance.toLocaleString('es-ES', {minimumFractionDigits: 2})}{endBalance < 0 ? '-' : ''}</div>
                   </td>
-                  <td className="w-8"></td>
-                  <td className="w-8"></td>
-                  <td className="w-32"></td>
-                  <td className="w-48"></td>
+                  <td colSpan="4"></td>
                 </tr>
                 <tr className="border-t border-gray-300 bg-white">
                   <td colSpan="12" className="px-2 py-1 text-gray-500 font-bold">EURO</td>
