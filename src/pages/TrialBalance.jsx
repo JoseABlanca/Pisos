@@ -110,7 +110,7 @@ export default function TrialBalance() {
         const y = parseInt(parts[0], 10);
         const m = parseInt(parts[1], 10) - 1; // 0-based month
         
-        const months = ['Ene', 'Feb', 'Mar', 'Abr', 'May', 'Jun', 'Jul', 'Ago', 'Sep', 'Oct', 'Nov', 'Dic'];
+        const months = ['ENE', 'FEB', 'MAR', 'ABR', 'MAY', 'JUN', 'JUL', 'AGO', 'SEP', 'OCT', 'NOV', 'DIC'];
 
         if (selectedYears.length > 0) {
           if (!selectedYears.includes(String(y))) return false;
@@ -320,38 +320,43 @@ export default function TrialBalance() {
         </>
         )}
 
-        {/* Quick Month Filter Bar */}
-        <div className="w-8 border-r border-gray-300 bg-white flex flex-col items-center py-2 shrink-0 overflow-y-auto">
-           {['Ene', 'Feb', 'Mar', 'Abr', 'May', 'Jun', 'Jul', 'Ago', 'Sep', 'Oct', 'Nov', 'Dic'].map(m => (
-              <button 
-                key={m} 
-                onClick={() => setSelectedMonths(prev => prev.includes(m) ? prev.filter(x => x !== m) : [...prev, m])}
-                className={`text-[10px] w-full text-center hover:font-bold ${selectedMonths.includes(m) ? 'text-blue-600 font-bold bg-blue-50' : 'text-[#0d2a63] hover:text-blue-600'} mb-1`}
-              >
-                {m}
-              </button>
-           ))}
-           <div className="h-2 border-b border-gray-300 w-full mb-1"></div>
-           {['1T', '2T', '3T', '4T'].map(t => (
-              <button 
-                key={t} 
-                onClick={() => setSelectedQuarters(prev => prev.includes(t) ? prev.filter(x => x !== t) : [...prev, t])}
-                className={`text-[10px] w-full text-center hover:font-bold ${selectedQuarters.includes(t) ? 'text-blue-600 font-bold bg-blue-50' : 'text-[#0d2a63] hover:text-blue-600'} mb-1`}
-              >
-                {t}
-              </button>
-           ))}
-           <div className="h-2 border-b border-gray-300 w-full mb-1"></div>
-           {['2024', '2025', '2026', '2027'].map(yr => (
-              <button 
-                key={yr} 
+         {/* Quick Month Filter Bar */}
+         <div className="w-8 border-r border-gray-300 bg-white flex flex-col items-center py-2 space-y-2 text-[10px] font-bold text-gray-600 overflow-y-auto shrink-0 select-none">
+            {['ENE','FEB','MAR','ABR','MAY','JUN','JUL','AGO','SEP','OCT','NOV','DIC'].map(m => (
+               <span 
+                 key={m} 
+                 onClick={() => setSelectedMonths(prev => prev.includes(m) ? prev.filter(x => x !== m) : [...prev, m])}
+                 className={`hover:text-blue-600 cursor-pointer p-0.5 w-full text-center ${selectedMonths.includes(m) ? 'bg-blue-100 text-blue-700 font-bold' : ''}`}
+               >
+                 {m}
+               </span>
+            ))}
+            <span 
+              onClick={() => setSelectedQuarters(prev => prev.includes('1T') ? prev.filter(x => x !== '1T') : [...prev, '1T'])}
+              className={`mt-2 pt-2 border-t border-gray-300 w-full text-center hover:text-blue-600 cursor-pointer ${selectedQuarters.includes('1T') ? 'bg-blue-100 text-blue-700 font-bold' : ''}`}
+            >1T</span>
+            <span 
+              onClick={() => setSelectedQuarters(prev => prev.includes('2T') ? prev.filter(x => x !== '2T') : [...prev, '2T'])}
+              className={`w-full text-center hover:text-blue-600 cursor-pointer ${selectedQuarters.includes('2T') ? 'bg-blue-100 text-blue-700 font-bold' : ''}`}
+            >2T</span>
+            <span 
+              onClick={() => setSelectedQuarters(prev => prev.includes('3T') ? prev.filter(x => x !== '3T') : [...prev, '3T'])}
+              className={`w-full text-center hover:text-blue-600 cursor-pointer ${selectedQuarters.includes('3T') ? 'bg-blue-100 text-blue-700 font-bold' : ''}`}
+            >3T</span>
+            <span 
+              onClick={() => setSelectedQuarters(prev => prev.includes('4T') ? prev.filter(x => x !== '4T') : [...prev, '4T'])}
+              className={`w-full text-center hover:text-blue-600 cursor-pointer ${selectedQuarters.includes('4T') ? 'bg-blue-100 text-blue-700 font-bold' : ''}`}
+            >4T</span>
+            {['2024', '2025', '2026', '2027'].map((yr, idx) => (
+              <span 
+                key={yr}
                 onClick={() => setSelectedYears(prev => prev.includes(yr) ? prev.filter(x => x !== yr) : [...prev, yr])}
-                className={`text-[10px] w-full text-center hover:font-bold ${selectedYears.includes(yr) ? 'text-blue-600 font-bold bg-blue-50' : 'text-[#0d2a63] hover:text-blue-600'} mb-1`}
+                className={`w-full text-center hover:text-blue-600 cursor-pointer ${idx === 0 ? 'mt-2 pt-2 border-t border-gray-300' : ''} ${selectedYears.includes(yr) ? 'bg-blue-100 text-blue-700 font-bold' : ''}`}
               >
                 {yr}
-              </button>
-           ))}
-        </div>
+              </span>
+            ))}
+         </div>
 
         {/* Main Table Area */}
         <div className="flex-1 flex flex-col bg-white overflow-hidden relative">

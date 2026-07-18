@@ -471,7 +471,7 @@ export default function Journal() {
         </div>
       </div>
 
-      <div className="flex w-full pt-8">
+      <div className="flex w-full pt-12 h-full overflow-hidden">
         {/* Left Sidebar */}
         {showSidebar && (
           <ResizableSidebar className=" border-r border-gray-300 bg-[#f9fafc] flex flex-col shrink-0 text-[11px] text-gray-700">
@@ -499,44 +499,42 @@ export default function Journal() {
         )}
         
         {/* Timeline column */}
-        {showSidebar && (
-          <div className="w-8 border-r border-gray-300 bg-white flex flex-col items-center py-2 space-y-2 text-[10px] font-bold text-gray-600 overflow-y-auto shrink-0 select-none">
-            {['ENE','FEB','MAR','ABR','MAY','JUN','JUL','AGO','SEP','OCT','NOV','DIC'].map(m => (
-               <span 
-                 key={m} 
-                 onClick={() => setSelectedMonths(prev => prev.includes(m) ? prev.filter(x => x !== m) : [...prev, m])}
-                 className={`hover:text-blue-600 cursor-pointer p-0.5 w-full text-center ${selectedMonths.includes(m) ? 'bg-blue-100 text-blue-700 font-bold' : ''}`}
-               >
-                 {m}
-               </span>
-            ))}
+        <div className="w-8 border-r border-gray-300 bg-white flex flex-col items-center py-2 space-y-2 text-[10px] font-bold text-gray-600 overflow-y-auto shrink-0 select-none">
+          {['ENE','FEB','MAR','ABR','MAY','JUN','JUL','AGO','SEP','OCT','NOV','DIC'].map(m => (
+             <span 
+               key={m} 
+               onClick={() => setSelectedMonths(prev => prev.includes(m) ? prev.filter(x => x !== m) : [...prev, m])}
+               className={`hover:text-blue-600 cursor-pointer p-0.5 w-full text-center ${selectedMonths.includes(m) ? 'bg-blue-100 text-blue-700 font-bold' : ''}`}
+             >
+               {m}
+             </span>
+          ))}
+          <span 
+            onClick={() => setSelectedQuarters(prev => prev.includes('1T') ? prev.filter(x => x !== '1T') : [...prev, '1T'])}
+            className={`mt-2 pt-2 border-t border-gray-300 w-full text-center hover:text-blue-600 cursor-pointer ${selectedQuarters.includes('1T') ? 'bg-blue-100 text-blue-700 font-bold' : ''}`}
+          >1T</span>
+          <span 
+            onClick={() => setSelectedQuarters(prev => prev.includes('2T') ? prev.filter(x => x !== '2T') : [...prev, '2T'])}
+            className={`w-full text-center hover:text-blue-600 cursor-pointer ${selectedQuarters.includes('2T') ? 'bg-blue-100 text-blue-700 font-bold' : ''}`}
+          >2T</span>
+          <span 
+            onClick={() => setSelectedQuarters(prev => prev.includes('3T') ? prev.filter(x => x !== '3T') : [...prev, '3T'])}
+            className={`w-full text-center hover:text-blue-600 cursor-pointer ${selectedQuarters.includes('3T') ? 'bg-blue-100 text-blue-700 font-bold' : ''}`}
+          >3T</span>
+          <span 
+            onClick={() => setSelectedQuarters(prev => prev.includes('4T') ? prev.filter(x => x !== '4T') : [...prev, '4T'])}
+            className={`w-full text-center hover:text-blue-600 cursor-pointer ${selectedQuarters.includes('4T') ? 'bg-blue-100 text-blue-700 font-bold' : ''}`}
+          >4T</span>
+          {['2024', '2025', '2026', '2027'].map((yr, idx) => (
             <span 
-              onClick={() => setSelectedQuarters(prev => prev.includes('1T') ? prev.filter(x => x !== '1T') : [...prev, '1T'])}
-              className={`mt-2 pt-2 border-t border-gray-300 w-full text-center hover:text-blue-600 cursor-pointer ${selectedQuarters.includes('1T') ? 'bg-blue-100 text-blue-700 font-bold' : ''}`}
-            >1T</span>
-            <span 
-              onClick={() => setSelectedQuarters(prev => prev.includes('2T') ? prev.filter(x => x !== '2T') : [...prev, '2T'])}
-              className={`w-full text-center hover:text-blue-600 cursor-pointer ${selectedQuarters.includes('2T') ? 'bg-blue-100 text-blue-700 font-bold' : ''}`}
-            >2T</span>
-            <span 
-              onClick={() => setSelectedQuarters(prev => prev.includes('3T') ? prev.filter(x => x !== '3T') : [...prev, '3T'])}
-              className={`w-full text-center hover:text-blue-600 cursor-pointer ${selectedQuarters.includes('3T') ? 'bg-blue-100 text-blue-700 font-bold' : ''}`}
-            >3T</span>
-            <span 
-              onClick={() => setSelectedQuarters(prev => prev.includes('4T') ? prev.filter(x => x !== '4T') : [...prev, '4T'])}
-              className={`w-full text-center hover:text-blue-600 cursor-pointer ${selectedQuarters.includes('4T') ? 'bg-blue-100 text-blue-700 font-bold' : ''}`}
-            >4T</span>
-            {['2024', '2025', '2026', '2027'].map((yr, idx) => (
-              <span 
-                key={yr}
-                onClick={() => setSelectedYears(prev => prev.includes(yr) ? prev.filter(x => x !== yr) : [...prev, yr])}
-                className={`w-full text-center hover:text-blue-600 cursor-pointer ${idx === 0 ? 'mt-2 pt-2 border-t border-gray-300' : ''} ${selectedYears.includes(yr) ? 'bg-blue-100 text-blue-700 font-bold' : ''}`}
-              >
-                {yr}
-              </span>
-            ))}
-          </div>
-        )}
+              key={yr}
+              onClick={() => setSelectedYears(prev => prev.includes(yr) ? prev.filter(x => x !== yr) : [...prev, yr])}
+              className={`w-full text-center hover:text-blue-600 cursor-pointer ${idx === 0 ? 'mt-2 pt-2 border-t border-gray-300' : ''} ${selectedYears.includes(yr) ? 'bg-blue-100 text-blue-700 font-bold' : ''}`}
+            >
+              {yr}
+            </span>
+          ))}
+        </div>
 
         {/* Table View */}
         <div className="flex-1 bg-white flex flex-col min-w-0">

@@ -4,10 +4,11 @@ import ZoomControl from '../components/ZoomControl';
 import { db } from '../firebase/config';
 import { collection, query, where, onSnapshot, doc, setDoc, deleteDoc } from 'firebase/firestore';
 import { useAuth } from '../context/AuthContext';
-import { Search, X, FileText, Info } from 'lucide-react';
+import { Search, X, FileText, Info, ChevronDown, ArrowUp, ArrowDown } from 'lucide-react';
 import Accounts from './Accounts';
 import AnalyticalCenters from './AnalyticalCenters';
 import { useDragResize } from '../hooks/useDragResize';
+import { CustomIcon } from '../components/CustomIcons';
 
 /* ═══════════════════════════════════════════════════════════════════════════════
    PGC DESCRIPTIONS
@@ -1295,135 +1296,199 @@ export default function Analitica() {
     <div className="w-full h-full flex flex-col bg-white font-[Segoe_UI,Tahoma,sans-serif] text-[12px] text-[#333] select-none">
 
       {/* ── TOOLBAR (Foto 1 exact) ──────────────────────────────────────────── */}
-      <div className="bg-[#f3f3f3] border-b border-[#d6d6d6] flex items-end px-[6px] pb-[2px] pt-[6px] shrink-0">
-        <TBtn icon={IcoNuevo}  label="Nuevo"     hasChevron onClick={openNew} />
-        <TBtn icon={IcoModif}  label="Modificar" hasChevron onClick={openEdit} disabled={!selectedRowId} />
-        <TBtn icon={IcoElim}   label="Eliminar"  hasChevron onClick={openDelete} disabled={!selectedRowId} />
-        <div className="w-[1px] self-stretch my-[6px] bg-[#d6d6d6] mx-[6px]" />
-        <TBtn icon={IcoSubir}  label="Subir"  onClick={() => {}} disabled={!selectedRowId} />
-        <TBtn icon={IcoBajar}  label="Bajar"  onClick={() => {}} disabled={!selectedRowId} />
-        <div className="w-[1px] self-stretch my-[6px] bg-[#d6d6d6] mx-[6px]" />
-        <TBtn icon={IcoExpandir}  label="Expandir"  onClick={() => setCollapsed({})} />
-        <TBtn icon={IcoColapsar}  label="Colapsar"  onClick={() => {
-          const k = {};
-          const targetRows = viewMode === 'analitica' ? analyticalTreeRows : treeRows;
-          targetRows.forEach(r => { if (r.hasChildren) k[r.code] = true; });
-          setCollapsed(k);
-        }} />
+      <div className="bg-[#f3f4f6] border-b border-gray-300 flex items-center px-2 py-1 h-[80px] space-x-1 shrink-0 overflow-x-auto whitespace-nowrap">
+        <button 
+          onClick={openNew}
+          className="flex flex-col items-center justify-center min-w-[70px] hover:bg-gray-200/50 p-1 rounded cursor-pointer border border-transparent hover:border-gray-300 transition-transform hover:scale-105"
+        >
+          <CustomIcon type="Nuevo" />
+          <span className="text-[11px] text-gray-700 font-medium mt-1">Nuevo</span>
+          <ChevronDown className="w-3 h-3 text-gray-400 mt-0.5" />
+        </button>
+        <button 
+          onClick={openEdit}
+          disabled={!selectedRowId}
+          className="flex flex-col items-center justify-center min-w-[70px] hover:bg-gray-200/50 p-1 rounded cursor-pointer border border-transparent hover:border-gray-300 transition-transform hover:scale-105 disabled:opacity-30 disabled:pointer-events-none"
+        >
+          <CustomIcon type="Modificar" />
+          <span className="text-[11px] text-gray-700 font-medium mt-1">Modificar</span>
+          <ChevronDown className="w-3 h-3 text-gray-400 mt-0.5" />
+        </button>
+        <button 
+          onClick={openDelete}
+          disabled={!selectedRowId}
+          className="flex flex-col items-center justify-center min-w-[70px] hover:bg-gray-200/50 p-1 rounded cursor-pointer border border-transparent hover:border-gray-300 transition-transform hover:scale-105 disabled:opacity-30 disabled:pointer-events-none"
+        >
+          <CustomIcon type="Eliminar" />
+          <span className="text-[11px] text-gray-700 font-medium mt-1">Eliminar</span>
+          <ChevronDown className="w-3 h-3 text-gray-400 mt-0.5" />
+        </button>
+        
+        {/* Separator */}
+        <div className="w-[1px] h-12 bg-gray-300 mx-2"></div>
+        
+        <button 
+          onClick={() => {}}
+          disabled={!selectedRowId}
+          className="flex flex-col items-center justify-center min-w-[60px] hover:bg-gray-200/50 p-1 rounded cursor-pointer border border-transparent hover:border-gray-300 disabled:opacity-30 disabled:pointer-events-none"
+        >
+          <ArrowUp className="w-6 h-6 text-gray-600 mb-1" strokeWidth={1.5} />
+          <span className="text-[11px] text-gray-700">Subir</span>
+        </button>
+        <button 
+          onClick={() => {}}
+          disabled={!selectedRowId}
+          className="flex flex-col items-center justify-center min-w-[60px] hover:bg-gray-200/50 p-1 rounded cursor-pointer border border-transparent hover:border-gray-300 disabled:opacity-30 disabled:pointer-events-none"
+        >
+          <ArrowDown className="w-6 h-6 text-gray-600 mb-1" strokeWidth={1.5} />
+          <span className="text-[11px] text-gray-700">Bajar</span>
+        </button>
+        
+        {/* Separator */}
+        <div className="w-[1px] h-12 bg-gray-300 mx-2"></div>
+        
+        <button 
+          onClick={() => setCollapsed({})}
+          className="flex flex-col items-center justify-center min-w-[60px] hover:bg-gray-200/50 p-1 rounded cursor-pointer border border-transparent hover:border-gray-300 transition-transform hover:scale-105"
+        >
+          <CustomIcon type="Expandir" />
+          <span className="text-[11px] text-gray-700 mt-1">Expandir</span>
+        </button>
+        <button 
+          onClick={() => {
+            const k = {};
+            const targetRows = viewMode === 'analitica' ? analyticalTreeRows : treeRows;
+            targetRows.forEach(r => { if (r.hasChildren) k[r.code] = true; });
+            setCollapsed(k);
+          }}
+          className="flex flex-col items-center justify-center min-w-[60px] hover:bg-gray-200/50 p-1 rounded cursor-pointer border border-transparent hover:border-gray-300 transition-transform hover:scale-105"
+        >
+          <CustomIcon type="Colapsar" />
+          <span className="text-[11px] text-gray-700 mt-1">Colapsar</span>
+        </button>
       </div>
 
       {/* ── BODY ────────────────────────────────────────────────────────────── */}
       <div className="flex flex-1 overflow-hidden">
 
         {/* ── LEFT SIDEBAR (Foto 1 exact) ───────────────────────────────────── */}
-        {sidebarVisible && (
-          <div className="flex shrink-0 border-r border-[#d6d6d6] relative">
-            {/* The main sidebar */}
-            <div className="bg-[#f3f3f3] flex flex-col overflow-y-auto select-none border-r border-slate-300" style={{ width: sidebarWidth }}>
-              {/* Lista actual */}
-              <div className="bg-[#e6e8ec] text-[#333] text-[12px] font-bold px-3 py-[5px] border-b border-[#d6d6d6]">
-                Lista actual
-              </div>
-              {/* Radio buttons */}
-              <div className="px-3 pt-2 pb-1 flex flex-col">
-                <SideRadio checked={groupFilter === 'ALL'} onChange={() => setGroupFilter('ALL')} label="Todos los grupos" />
-                {['0','1','2','3','4','5','6','7','8','9'].map(n => (
-                  <SideRadio key={n} checked={groupFilter === n} onChange={() => setGroupFilter(n)} label={`Mostrar grupo ${n}`} />
-                ))}
-              </div>
-              {/* Checkboxes */}
-              <div className="px-3 pt-1 pb-2 flex flex-col border-b border-[#d6d6d6]">
-                <SideCheck checked={onlyAssigned} onChange={e => { setOnlyAssigned(e.target.checked); setCollapsed({}); }} label="Mostrar solo asignadas" bold={onlyAssigned} />
-              </div>
+        <div className="flex shrink-0 relative">
+          {sidebarVisible && (
+            <>
+              {/* The main sidebar */}
+              <div className="bg-[#f3f3f3] flex flex-col overflow-y-auto select-none border-r border-slate-300" style={{ width: sidebarWidth }}>
+                {/* Lista actual */}
+                <div className="bg-[#e6e8ec] text-[#333] text-[12px] font-bold px-3 py-[5px] border-b border-[#d6d6d6]">
+                  Lista actual
+                </div>
+                {/* Radio buttons */}
+                <div className="px-3 pt-2 pb-1 flex flex-col">
+                  <SideRadio checked={groupFilter === 'ALL'} onChange={() => setGroupFilter('ALL')} label="Todos los grupos" />
+                  {['0','1','2','3','4','5','6','7','8','9'].map(n => (
+                    <SideRadio key={n} checked={groupFilter === n} onChange={() => setGroupFilter(n)} label={`Mostrar grupo ${n}`} />
+                  ))}
+                </div>
+                {/* Checkboxes */}
+                <div className="px-3 pt-1 pb-2 flex flex-col border-b border-[#d6d6d6]">
+                  <SideCheck checked={onlyAssigned} onChange={e => { setOnlyAssigned(e.target.checked); setCollapsed({}); }} label="Mostrar solo asignadas" bold={onlyAssigned} />
+                </div>
 
-              {/* Vista selector */}
-              <div className="bg-[#e6e8ec] text-[#333] text-[12px] font-bold px-3 py-[5px] border-b border-[#d6d6d6]">
-                Vista
-              </div>
-              <div className="px-3 py-2 flex flex-col gap-1 border-b border-[#d6d6d6]">
-                <SideRadio checked={viewMode === 'contable'} onChange={() => { setViewMode('contable'); setSelectedRowId(null); setCollapsed({}); }} label="Cuentas Contables" />
-                <SideRadio checked={viewMode === 'analitica'} onChange={() => { setViewMode('analitica'); setSelectedRowId(null); setCollapsed({}); }} label="Cuenta Analítica" />
-                {viewMode === 'analitica' && (
-                  <div className="mt-2 pt-2 border-t border-slate-200 flex flex-col gap-1">
-                    <div className="text-[10px] text-gray-500 font-bold uppercase mb-1">Agrupación:</div>
-                    <SideRadio checked={analyticalGrouping === 'cebe'} onChange={() => { setAnalyticalGrouping('cebe'); setCollapsed({}); }} label="Por CEBE (CEBE > CECO)" />
-                    <SideRadio checked={analyticalGrouping === 'ceco'} onChange={() => { setAnalyticalGrouping('ceco'); setCollapsed({}); }} label="Por CECO (CECO > CEBE)" />
+                {/* Vista selector */}
+                <div className="bg-[#e6e8ec] text-[#333] text-[12px] font-bold px-3 py-[5px] border-b border-[#d6d6d6]">
+                  Vista
+                </div>
+                <div className="px-3 py-2 flex flex-col gap-1 border-b border-[#d6d6d6]">
+                  <SideRadio checked={viewMode === 'contable'} onChange={() => { setViewMode('contable'); setSelectedRowId(null); setCollapsed({}); }} label="Cuentas Contables" />
+                  <SideRadio checked={viewMode === 'analitica'} onChange={() => { setViewMode('analitica'); setSelectedRowId(null); setCollapsed({}); }} label="Cuenta Analítica" />
+                  {viewMode === 'analitica' && (
+                    <div className="mt-2 pt-2 border-t border-slate-200 flex flex-col gap-1">
+                      <div className="text-[10px] text-gray-500 font-bold uppercase mb-1">Agrupación:</div>
+                      <SideRadio checked={analyticalGrouping === 'cebe'} onChange={() => { setAnalyticalGrouping('cebe'); setCollapsed({}); }} label="Por CEBE (CEBE > CECO)" />
+                      <SideRadio checked={analyticalGrouping === 'ceco'} onChange={() => { setAnalyticalGrouping('ceco'); setCollapsed({}); }} label="Por CECO (CECO > CEBE)" />
+                    </div>
+                  )}
+                  <div className="mt-2 pt-2 border-t border-slate-200">
+                    <SideCheck checked={showDeviations} onChange={e => setShowDeviations(e.target.checked)} label="Ver desviaciones" bold={showDeviations} />
                   </div>
-                )}
-                <div className="mt-2 pt-2 border-t border-slate-200">
-                  <SideCheck checked={showDeviations} onChange={e => setShowDeviations(e.target.checked)} label="Ver desviaciones" bold={showDeviations} />
+                </div>
+                
+                {/* Filtrar Centros */}
+                <div className="bg-[#e6e8ec] text-[#333] text-[12px] font-bold px-3 py-[5px] border-b border-[#d6d6d6]">
+                  Filtrar Centros
+                </div>
+                <div className="px-3 py-2 flex flex-col border-b border-[#d6d6d6]">
+                  <MultiSelectDropdown 
+                    label="CEBE" 
+                    options={cebes} 
+                    selected={selectedCebes} 
+                    onChange={setSelectedCebes} 
+                  />
+                  <MultiSelectDropdown 
+                    label="CECO" 
+                    options={cecos} 
+                    selected={selectedCecos} 
+                    onChange={setSelectedCecos} 
+                  />
+                </div>
+                
+                {/* Bottom: Ver saldos */}
+                <div className="bg-[#e6e8ec] border-t border-[#d6d6d6] p-2 mt-auto shrink-0">
+                  <div className="text-[11px] text-[#555] mb-1">Ver saldos del diario</div>
+                  <select className="w-full border border-[#aaa] bg-white text-[11px] px-1 py-[3px] outline-none">
+                    <option>Todas</option>
+                  </select>
                 </div>
               </div>
-              
-              {/* Filtrar Centros */}
-              <div className="bg-[#e6e8ec] text-[#333] text-[12px] font-bold px-3 py-[5px] border-b border-[#d6d6d6]">
-                Filtrar Centros
-              </div>
-              <div className="px-3 py-2 flex flex-col border-b border-[#d6d6d6]">
-                <MultiSelectDropdown 
-                  label="CEBE" 
-                  options={cebes} 
-                  selected={selectedCebes} 
-                  onChange={setSelectedCebes} 
-                />
-                <MultiSelectDropdown 
-                  label="CECO" 
-                  options={cecos} 
-                  selected={selectedCecos} 
-                  onChange={setSelectedCecos} 
-                />
-              </div>
-              
-              {/* Bottom: Ver saldos */}
-              <div className="bg-[#e6e8ec] border-t border-[#d6d6d6] p-2 mt-auto shrink-0">
-                <div className="text-[11px] text-[#555] mb-1">Ver saldos del diario</div>
-                <select className="w-full border border-[#aaa] bg-white text-[11px] px-1 py-[3px] outline-none">
-                  <option>Todas</option>
-                </select>
-              </div>
-            </div>
 
-            {/* Drag Resize Handle */}
-            <div 
-              onMouseDown={handleSidebarResizeDown} 
-              className="absolute top-0 bottom-0 w-[5px] cursor-col-resize hover:bg-blue-400/40 active:bg-blue-500 z-20 select-none" 
-              style={{ left: sidebarWidth - 2 }}
-            />
+              {/* Drag Resize Handle */}
+              <div 
+                onMouseDown={handleSidebarResizeDown} 
+                className="absolute top-0 bottom-0 w-[5px] cursor-col-resize hover:bg-blue-400/40 active:bg-blue-500 z-20 select-none" 
+                style={{ left: sidebarWidth - 2 }}
+              />
+            </>
+          )}
 
-            {/* The date strip */}
-            <div className="w-[50px] bg-white flex flex-col items-center py-2 gap-1.5 shrink-0 overflow-y-auto">
-              {['ENE', 'FEB', 'MAR', 'ABR', 'MAY', 'JUN', 'JUL', 'AGO', 'SEP', 'OCT', 'NOV', 'DIC'].map((m, idx) => {
-                const active = selectedPeriods.includes(String(idx));
-                return (
-                  <button key={m} onClick={() => setSelectedPeriods(prev => prev.includes(String(idx)) ? prev.filter(p => p !== String(idx)) : [...prev, String(idx)])}
-                          className={`text-[9px] font-bold py-[3px] w-full text-center hover:bg-slate-100 ${active ? 'bg-blue-100 text-blue-700 border-r-2 border-blue-600' : 'text-slate-600'}`}>
-                    {m}
-                  </button>
-                );
-              })}
-              <div className="w-full border-t border-slate-200 my-1" />
-              {['1T', '2T', '3T', '4T'].map(q => {
-                const active = selectedPeriods.includes(q);
-                return (
-                  <button key={q} onClick={() => setSelectedPeriods(prev => prev.includes(q) ? prev.filter(p => p !== q) : [...prev, q])}
-                          className={`text-[9px] font-bold py-[3px] w-full text-center hover:bg-slate-100 ${active ? 'bg-blue-100 text-blue-700 border-r-2 border-blue-600' : 'text-slate-600'}`}>
-                    {q}
-                  </button>
-                );
-              })}
-              <div className="w-full border-t border-slate-200 my-1" />
-              {[2024, 2025, 2026, 2027].map(y => {
-                const active = selectedYear === y;
-                return (
-                  <button key={y} onClick={() => { setSelectedYear(y); setSelectedPeriods([]); }}
-                          className={`text-[9px] font-bold py-[3px] w-full text-center hover:bg-slate-100 ${active ? 'bg-blue-100 text-blue-700 border-r-2 border-blue-600' : 'text-slate-600'}`}>
-                    {y}
-                  </button>
-                );
-              })}
-            </div>
+          {/* The date strip */}
+          <div className="w-8 border-r border-gray-300 bg-white flex flex-col items-center py-2 space-y-2 text-[10px] font-bold text-gray-600 overflow-y-auto shrink-0 select-none">
+            {['ENE', 'FEB', 'MAR', 'ABR', 'MAY', 'JUN', 'JUL', 'AGO', 'SEP', 'OCT', 'NOV', 'DIC'].map((m, idx) => {
+              const active = selectedPeriods.includes(String(idx));
+              return (
+                <span 
+                  key={m} 
+                  onClick={() => setSelectedPeriods(prev => prev.includes(String(idx)) ? prev.filter(p => p !== String(idx)) : [...prev, String(idx)])}
+                  className={`hover:text-blue-600 cursor-pointer p-0.5 w-full text-center ${active ? 'bg-blue-100 text-blue-700 font-bold' : ''}`}
+                >
+                  {m}
+                </span>
+              );
+            })}
+            {['1T', '2T', '3T', '4T'].map((q, idx) => {
+              const active = selectedPeriods.includes(q);
+              return (
+                <span 
+                  key={q} 
+                  onClick={() => setSelectedPeriods(prev => prev.includes(q) ? prev.filter(p => p !== q) : [...prev, q])}
+                  className={`w-full text-center hover:text-blue-600 cursor-pointer ${idx === 0 ? 'mt-2 pt-2 border-t border-gray-300' : ''} ${active ? 'bg-blue-100 text-blue-700 font-bold' : ''}`}
+                >
+                  {q}
+                </span>
+              );
+            })}
+            {[2024, 2025, 2026, 2027].map((y, idx) => {
+              const active = selectedYear === y;
+              return (
+                <span 
+                  key={y} 
+                  onClick={() => { setSelectedYear(y); setSelectedPeriods([]); }}
+                  className={`w-full text-center hover:text-blue-600 cursor-pointer ${idx === 0 ? 'mt-2 pt-2 border-t border-gray-300' : ''} ${active ? 'bg-blue-100 text-blue-700 font-bold' : ''}`}
+                >
+                  {y}
+                </span>
+              );
+            })}
           </div>
-        )}
+        </div>
 
         {/* ── TABLE AREA ────────────────────────────────────────────────────── */}
         <div className="flex-1 flex flex-col overflow-hidden bg-white">
