@@ -516,7 +516,7 @@ export default function Rentals() {
                       className="rounded text-indigo-600 focus:ring-indigo-500 cursor-pointer"
                     />
                     <span className={propertyFilter.includes(p.name) ? 'text-indigo-700 font-medium' : 'text-slate-700'}>
-                      Mostrar {p.name}
+                      {p.name}
                     </span>
                   </label>
                 ))}
@@ -1424,12 +1424,12 @@ export default function Rentals() {
                           }}
                         >
                           <table style={{ zoom: tableZoom }} className="win-table min-w-full">
-                          <thead>
+                          <thead className="sticky top-0 bg-[#f0f0f0]">
                             <tr>
-                              <th>Nombre del Archivo</th>
-                              <th>Tipo</th>
-                              <th>Fecha</th>
-                              <th>Tamaño</th>
+                              <TableHeaderWithFilter key="name" label="Nombre del Archivo" columnKey="name" data={formData.documents} tableId="rentals-docs" />
+                              <TableHeaderWithFilter key="type" label="Tipo" columnKey="type" data={formData.documents} tableId="rentals-docs" />
+                              <TableHeaderWithFilter key="createdAt" label="Fecha" columnKey="createdAt" data={formData.documents} tableId="rentals-docs" />
+                              <TableHeaderWithFilter key="size" label="Tamaño" columnKey="size" data={formData.documents} tableId="rentals-docs" />
                               <th className="w-8"></th>
                             </tr>
                           </thead>
@@ -1439,7 +1439,7 @@ export default function Rentals() {
                                 <td colSpan="5" className="text-center text-slate-500 italic py-4">No hay documentos adjuntos</td>
                               </tr>
                             ) : (
-                              (formData.documents || []).map((doc, idx) => (
+                              applyTableFilters(formData.documents || [], 'rentals-docs').map((doc, idx) => (
                                 <tr key={idx}>
                                   <td>
                                     {doc.url ? (
@@ -1596,7 +1596,7 @@ export default function Rentals() {
       )}
     
       {/* Bottom Bar for Zoom */}
-      <div className="flex justify-end bg-[#f0f0f0] p-1 border-t border-gray-300 shrink-0 mt-auto w-full z-50">
+      <div className="flex justify-end bg-[#f0f0f0] p-1 border-t border-gray-300 shrink-0 mt-auto w-full z-10">
         <ZoomControl />
       </div>
 </div>

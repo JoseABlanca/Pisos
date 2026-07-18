@@ -180,7 +180,7 @@ export default function TaxesTotal() {
 
   return (
     <div className="flex flex-col h-full bg-[#d4d0c8] p-1 font-sans">
-      <div className="flex-1 flex flex-col bg-white overflow-hidden relative border border-gray-400">
+      <div className="flex-1 flex flex-col bg-white overflow-hidden relative border border-gray-200">
         <div className="flex-1 overflow-auto bg-white p-2">
           <table style={{ zoom: tableZoom }} className="clean-table w-full">
             <thead>
@@ -201,7 +201,7 @@ export default function TaxesTotal() {
             </thead>
             <tbody>
               {computedYears.rows.map(r => (
-                  <tr key={r.year} className="border-b border-gray-200 hover:bg-blue-50/50 transition-colors">
+                  <tr key={r.year} className="border-b border-gray-100 hover:bg-blue-50/50 transition-colors">
                     
                   {visibleColumns.map(col => {
                     switch(col) {
@@ -237,37 +237,7 @@ export default function TaxesTotal() {
                 </tr>
               )}
             </tbody>
-            {computedYears.rows.length > 0 && (
-              <tfoot>
-                <tr className="bg-gray-100 border-t-2 border-gray-400">
-                  
-                  {visibleColumns.map(col => {
-                    switch(col) {
-                    case 'year': return (<td
- key="year" className="p-2 text-center font-bold uppercase text-gray-800">Total</td>);
-                    case 'ingresos': return (<td
- key="ingresos" className="p-2 text-right font-bold text-gray-800">
-                      {computedYears.totals.ingresos.toLocaleString('es-ES', { style: 'currency', currency: 'EUR' })}
-                    </td>);
-                    case 'gastos': return (<td
- key="gastos" className="p-2 text-right font-bold text-gray-800">
-                      {computedYears.totals.gastos.toLocaleString('es-ES', { style: 'currency', currency: 'EUR' })}
-                    </td>);
-                    case 'amortizacion': return (<td
- key="amortizacion" className="p-2 text-right font-bold text-gray-800">
-                      {computedYears.totals.amortizacion.toLocaleString('es-ES', { style: 'currency', currency: 'EUR' })}
-                    </td>);
-                    case 'beneficioNeto': return (<td
- key="beneficioNeto" className="p-2 text-right font-bold text-gray-800">
-                      {computedYears.totals.beneficioNeto.toLocaleString('es-ES', { style: 'currency', currency: 'EUR' })}
-                    </td>);
-                    default: return null;
-                    }
-                  })}
-    
-                </tr>
-              </tfoot>
-            )}
+
           </table>
         </div>
       </div>

@@ -527,22 +527,14 @@ export default function CfActivos() {
                   
                   {visibleColumns.map(col => {
                     switch(col) {
-                    case 'id': return (<th
- key="id" style={{ width: columnWidths['id'] || '80px' }}>ID</th>);
-                    case 'name': return (<th
- key="name" style={{ width: columnWidths['name'] || '200px' }}>Nombre</th>);
-                    case 'platformName': return (<th
- key="platformName" style={{ width: columnWidths['platformName'] || '130px' }}>Plataforma</th>);
-                    case 'type': return (<th
- key="type" style={{ width: columnWidths['type'] || '140px' }}>Tipo</th>);
-                    case 'targetAmount': return (<th
- key="targetAmount" style={{ width: columnWidths['targetAmount'] || '120px' }} className="text-right">Objetivo (€)</th>);
-                    case 'annualRate': return (<th
- key="annualRate" style={{ width: columnWidths['annualRate'] || '110px' }} className="text-right">Tasa anual (%)</th>);
-                    case 'term': return (<th
- key="term" style={{ width: columnWidths['term'] || '80px' }} className="text-right">Plazo (m)</th>);
-                    case 'status': return (<th
- key="status" style={{ width: columnWidths['status'] || '90px' }}>Estado</th>);
+                    case 'id': return (<TableHeaderWithFilter key="id" label="ID" columnKey="id" data={filteredProjects} tableId="cf-activos-main" />);
+                    case 'name': return (<TableHeaderWithFilter key="name" label="Nombre" columnKey="name" data={filteredProjects} tableId="cf-activos-main" />);
+                    case 'platformName': return (<TableHeaderWithFilter key="platformName" label="Plataforma" columnKey="platformName" data={filteredProjects} tableId="cf-activos-main" />);
+                    case 'type': return (<TableHeaderWithFilter key="type" label="Tipo" columnKey="type" data={filteredProjects} tableId="cf-activos-main" />);
+                    case 'targetAmount': return (<TableHeaderWithFilter key="targetAmount" label="Objetivo (€)" columnKey="targetAmount" data={filteredProjects} tableId="cf-activos-main" className="text-right" />);
+                    case 'annualRate': return (<TableHeaderWithFilter key="annualRate" label="Tasa anual (%)" columnKey="annualRate" data={filteredProjects} tableId="cf-activos-main" className="text-right" />);
+                    case 'term': return (<TableHeaderWithFilter key="term" label="Plazo (m)" columnKey="term" data={filteredProjects} tableId="cf-activos-main" className="text-right" />);
+                    case 'status': return (<TableHeaderWithFilter key="status" label="Estado" columnKey="status" data={filteredProjects} tableId="cf-activos-main" />);
                     default: return null;
                     }
                   })}
@@ -557,7 +549,7 @@ export default function CfActivos() {
                     </td>
                   </tr>
                 ) : (
-                  filteredProjects.map((proj) => (
+                  applyTableFilters(filteredProjects, 'cf-activos-main').map((proj) => (
                     <tr
                       key={proj.id}
                       onClick={() => setSelectedProject(selectedProject?.id === proj.id ? null : proj)}
@@ -973,10 +965,12 @@ export default function CfActivos() {
       )}
     
       {/* Bottom Bar for Zoom */}
-      <div className="flex justify-end bg-[#f0f0f0] p-1 border-t border-gray-300 shrink-0 mt-auto w-full z-50">
+      <div className="flex justify-end bg-[#f0f0f0] p-1 border-t border-gray-300 shrink-0 mt-auto w-full z-10">
         <ZoomControl />
       </div>
-</div>
+
+      {renderFilterMenu && renderFilterMenu()}
+    </div>
   );
 }
 
@@ -1061,6 +1055,8 @@ function SearchableSelect({ options, value, onChange, placeholder }) {
           </div>
         </div>
       )}
+    
+      {renderFilterMenu && renderFilterMenu()}
     </div>
   );
 }
@@ -1289,6 +1285,8 @@ function AnalyticsJournalViewer({ type, value, userIds, setPreviewDocument }) {
           </table>
         </div>
       )}
+    
+      {renderFilterMenu && renderFilterMenu()}
     </div>
   );
 }

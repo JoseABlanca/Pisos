@@ -842,35 +842,47 @@ export default function RealEstate() {
             </div>
           </div>
           <div className="flex-1 bg-white overflow-hidden flex flex-col min-h-[200px] rounded-b-md">
-            <div className="bg-[#f0f0f0] grid grid-cols-12 gap-2 p-2 border-b border-[#808080] text-[10px] font-bold uppercase">
-              <div className="col-span-4">Documento</div>
-              <div className="col-span-4">Concepto</div>
-              <div className="col-span-2">Fecha</div>
-              <div className="col-span-2 text-center">Acción</div>
-            </div>
-            <div className="flex-1 overflow-auto p-2 space-y-2">
-              {(!formData.docs || formData.docs.length === 0) ? (
-                <div className="text-center text-slate-400 italic py-8 text-[11px]">No hay documentos asociados a este activo.</div>
-              ) : (
-                formData.docs.map((doc) => (
-                  <div key={doc.id} className="grid grid-cols-12 gap-2 items-center text-[11px] border-b border-slate-100 pb-2">
-                    <div className="col-span-4 flex items-center space-x-2 truncate">
-                      <FileText className="w-4 h-4 text-slate-400 shrink-0" />
-                      <span className="truncate" title={doc.name}>{doc.name}</span>
-                    </div>
-                    <div className="col-span-4">
-                      <input type="text" className="win-input w-full text-[11px]" value={doc.concept || ''} onChange={(e) => updateAssetDocument(doc.id, 'concept', e.target.value)} placeholder="Ej. Escritura, IBI, Plano..." />
-                    </div>
-                    <div className="col-span-2">
-                      <input type="date" className="win-input w-full text-[11px]" value={doc.date || ''} onChange={(e) => updateAssetDocument(doc.id, 'date', e.target.value)} />
-                    </div>
-                    <div className="col-span-2 flex justify-center space-x-2">
-                      <button className="p-1 hover:bg-blue-50 text-blue-600 rounded" onClick={() => setPreviewDocument(doc)} title="Previsualizar"><Eye className="w-4 h-4" /></button>
-                      <button className="p-1 hover:bg-red-50 text-red-600 rounded" onClick={() => deleteAssetDocument(doc.id)} title="Eliminar"><Trash2 className="w-4 h-4" /></button>
-                    </div>
-                  </div>
-                ))
-              )}
+            <div className="flex-1 overflow-auto">
+              <table style={{ zoom: tableZoom }} className="clean-table border-0 min-w-full">
+                <thead className="sticky top-0 bg-[#f0f0f0]">
+                  <tr>
+                    <TableHeaderWithFilter key="name" label="Documento" columnKey="name" data={formData.docs} tableId="realestate-docs" className="w-[33%]" />
+                    <TableHeaderWithFilter key="concept" label="Concepto" columnKey="concept" data={formData.docs} tableId="realestate-docs" className="w-[33%]" />
+                    <TableHeaderWithFilter key="date" label="Fecha" columnKey="date" data={formData.docs} tableId="realestate-docs" className="w-[16%]" />
+                    <th className="w-[16%] text-center uppercase font-normal text-[11px] text-gray-700">Acción</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {(!formData.docs || formData.docs.length === 0) ? (
+                    <tr>
+                      <td colSpan="4" className="text-center text-slate-400 italic py-8">No hay documentos asociados a este activo.</td>
+                    </tr>
+                  ) : (
+                    applyTableFilters(formData.docs, 'realestate-docs').map((doc) => (
+                      <tr key={doc.id}>
+                        <td>
+                          <div className="flex items-center space-x-2 truncate">
+                            <FileText className="w-4 h-4 text-slate-400 shrink-0" />
+                            <span className="truncate" title={doc.name}>{doc.name}</span>
+                          </div>
+                        </td>
+                        <td>
+                          <input type="text" className="win-input w-full text-[11px]" value={doc.concept || ''} onChange={(e) => updateAssetDocument(doc.id, 'concept', e.target.value)} placeholder="Ej. Escritura, IBI..." />
+                        </td>
+                        <td>
+                          <input type="date" className="win-input w-full text-[11px]" value={doc.date || ''} onChange={(e) => updateAssetDocument(doc.id, 'date', e.target.value)} />
+                        </td>
+                        <td>
+                          <div className="flex justify-center space-x-2">
+                            <button className="p-1 hover:bg-blue-50 text-blue-600 rounded" onClick={() => setPreviewDocument(doc)} title="Previsualizar"><Eye className="w-4 h-4" /></button>
+                            <button className="p-1 hover:bg-red-50 text-red-600 rounded" onClick={() => deleteAssetDocument(doc.id)} title="Eliminar"><Trash2 className="w-4 h-4" /></button>
+                          </div>
+                        </td>
+                      </tr>
+                    ))
+                  )}
+                </tbody>
+              </table>
             </div>
           </div>
         </div>
@@ -1152,7 +1164,7 @@ export default function RealEstate() {
       )}
       
       {/* Bottom Bar for Zoom */}
-      <div className="flex justify-end bg-[#f0f0f0] p-1 border-t border-gray-300 shrink-0 mt-auto z-50">
+      <div className="flex justify-end bg-[#f0f0f0] p-1 border-t border-gray-300 shrink-0 mt-auto z-10">
         <ZoomControl />
       </div>
     </div>

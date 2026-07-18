@@ -275,14 +275,14 @@ export default function TaxesRv() {
   const TAB_CLASSES = (active) =>
     `px-4 py-1 text-[11px] font-semibold border border-b-0 cursor-pointer select-none transition-colors ` +
     (active
-      ? 'bg-white text-[#000080] border-gray-400 border-b-white'
-      : 'bg-[#d4d0c8] text-gray-600 border-gray-400 hover:bg-[#c0bdb5]');
+      ? 'bg-white text-[#000080] border-gray-200 border-b-white'
+      : 'bg-[#d4d0c8] text-gray-600 border-gray-200 hover:bg-[#c0bdb5]');
 
   return (
     <div className="flex flex-col h-full bg-[#d4d0c8] p-1 font-sans">
 
       {/* Sub-tabs */}
-      <div className="flex gap-0 mb-0 mt-0 border-b border-gray-400">
+      <div className="flex gap-0 mb-0 mt-0 border-b border-gray-200">
         <button className={TAB_CLASSES(view === 'assets')} onClick={() => setView('assets')}>
           Plusvalías
         </button>
@@ -294,7 +294,7 @@ export default function TaxesRv() {
         </button>
       </div>
 
-      <div className="flex-1 flex flex-col bg-white overflow-hidden border border-gray-400">
+      <div className="flex-1 flex flex-col bg-white overflow-hidden border border-gray-200">
         <div className="flex-1 overflow-auto bg-white p-0">
 
           {/* ── PLUSVALÍAS ─────────────────────────────────────────────── */}
@@ -313,7 +313,7 @@ export default function TaxesRv() {
               </thead>
               <tbody>
                 {capitalGains.map((r, i) => (
-                  <tr key={i} className="border-b border-gray-200 hover:bg-blue-50/50 transition-colors">
+                  <tr key={i} className="border-b border-gray-100 hover:bg-blue-50/50 transition-colors">
                     <td className="p-2 font-medium text-[#000080]">{r.assetName}</td>
                     <td className="p-2 text-center text-gray-600">{r.date}</td>
                     <td className="p-2 text-right">{fmt(r.sellTotal)}</td>
@@ -335,7 +335,7 @@ export default function TaxesRv() {
               </tbody>
               {capitalGains.length > 0 && (
                 <tfoot>
-                  <tr className="bg-gray-100 border-t-2 border-gray-400 font-bold">
+                  <tr className="bg-gray-100 border-t border-gray-200 font-bold">
                     <td className="p-2 uppercase text-gray-800">Total</td>
                     <td />
                     <td className="p-2 text-right">{fmt(totalsGains.sellTotal)}</td>
@@ -368,7 +368,7 @@ export default function TaxesRv() {
               </thead>
               <tbody>
                 {dividends.map((r, i) => (
-                  <tr key={i} className="border-b border-gray-200 hover:bg-blue-50/50 transition-colors">
+                  <tr key={i} className="border-b border-gray-100 hover:bg-blue-50/50 transition-colors">
                     <td className="p-2 font-medium text-[#000080]">{r.assetName}</td>
                     <td className="p-2 text-center text-gray-600">{r.date}</td>
                     <td className="p-2 text-right">{fmt(r.gross)}</td>
@@ -387,7 +387,7 @@ export default function TaxesRv() {
               </tbody>
               {dividends.length > 0 && (
                 <tfoot>
-                  <tr className="bg-gray-100 border-t-2 border-gray-400 font-bold">
+                  <tr className="bg-gray-100 border-t border-gray-200 font-bold">
                     <td className="p-2 uppercase text-gray-800">Total</td>
                     <td />
                     <td className="p-2 text-right">{fmt(totalsDivs.gross)}</td>
@@ -414,7 +414,7 @@ export default function TaxesRv() {
               </thead>
               <tbody>
                 {summary.map(r => (
-                  <tr key={r.year} className="border-b border-gray-200 hover:bg-blue-50/50 transition-colors">
+                  <tr key={r.year} className="border-b border-gray-100 hover:bg-blue-50/50 transition-colors">
                     <td className="p-2 text-center font-bold text-gray-700">{r.year}</td>
                     {gainCell(r.totalGain)}
                     <td className="p-2 text-right text-green-700">{fmt(r.totalDiv)}</td>
@@ -439,7 +439,7 @@ export default function TaxesRv() {
                 const totTax  = summary.reduce((s, r) => s + r.tax, 0);
                 return (
                   <tfoot>
-                    <tr className="bg-gray-100 border-t-2 border-gray-400 font-bold">
+                    <tr className="bg-gray-100 border-t border-gray-200 font-bold">
                       <td className="p-2 text-center text-gray-800 uppercase">Total</td>
                       <td className={`p-2 text-right ${totGain >= 0 ? 'text-green-800' : 'text-red-800'}`}>{fmt(totGain)}</td>
                       <td className="p-2 text-right text-green-800">{fmt(totDiv)}</td>
@@ -466,7 +466,7 @@ export default function TaxesRv() {
       </div>
     
       {/* Bottom Bar for Zoom */}
-      <div className="flex justify-end bg-[#f0f0f0] p-1 border-t border-gray-300 shrink-0 mt-auto w-full z-50">
+      <div className="flex justify-end bg-[#f0f0f0] p-1 border-t border-gray-300 shrink-0 mt-auto w-full z-10">
         <ZoomControl />
       </div>
 </div>

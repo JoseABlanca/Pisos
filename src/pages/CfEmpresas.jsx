@@ -101,10 +101,12 @@ function SearchableSelect({ options, value, onChange, placeholder }) {
       )}
     
       {/* Bottom Bar for Zoom */}
-      <div className="flex justify-end bg-[#f0f0f0] p-1 border-t border-gray-300 shrink-0 mt-auto w-full z-50">
+      <div className="flex justify-end bg-[#f0f0f0] p-1 border-t border-gray-300 shrink-0 mt-auto w-full z-10">
         <ZoomControl />
       </div>
-</div>
+
+      {renderFilterMenu && renderFilterMenu()}
+    </div>
   );
 }
 
@@ -498,24 +500,15 @@ export default function CfEmpresas() {
                   
                   {visibleColumns.map(col => {
                     switch(col) {
-                    case 'id': return (<th
- key="id" style={{ width: columnWidths['id'] || '100px' }}>ID</th>);
-                    case 'name': return (<th
- key="name" style={{ width: columnWidths['name'] || '180px' }}>Nombre</th>);
-                    case 'type': return (<th
- key="type" style={{ width: columnWidths['type'] || '110px' }}>Tipo</th>);
-                    case 'country': return (<th
- key="country" style={{ width: columnWidths['country'] || '100px' }}>País</th>);
-                    case 'bankAccount': return (<th
- key="bankAccount" style={{ width: columnWidths['bankAccount'] || '180px' }}>Cuenta corriente</th>);
-                    case 'ceco': return (<th
- key="ceco" style={{ width: columnWidths['ceco'] || '100px' }}>CECO</th>);
-                    case 'cebe': return (<th
- key="cebe" style={{ width: columnWidths['cebe'] || '100px' }}>CEBE</th>);
-                    case 'currency': return (<th
- key="currency" style={{ width: columnWidths['currency'] || '80px' }}>Divisa</th>);
-                    case 'status': return (<th
- key="status" style={{ width: columnWidths['status'] || '80px' }}>Estado</th>);
+                    case 'id': return (<TableHeaderWithFilter key="id" label="ID" columnKey="id" data={filteredPlatforms} tableId="cf-empresas-main" />);
+                    case 'name': return (<TableHeaderWithFilter key="name" label="Nombre" columnKey="name" data={filteredPlatforms} tableId="cf-empresas-main" />);
+                    case 'type': return (<TableHeaderWithFilter key="type" label="Tipo" columnKey="type" data={filteredPlatforms} tableId="cf-empresas-main" />);
+                    case 'country': return (<TableHeaderWithFilter key="country" label="País" columnKey="country" data={filteredPlatforms} tableId="cf-empresas-main" />);
+                    case 'bankAccount': return (<TableHeaderWithFilter key="bankAccount" label="Cuenta corriente" columnKey="bankAccount" data={filteredPlatforms} tableId="cf-empresas-main" />);
+                    case 'ceco': return (<TableHeaderWithFilter key="ceco" label="CECO" columnKey="ceco" data={filteredPlatforms} tableId="cf-empresas-main" />);
+                    case 'cebe': return (<TableHeaderWithFilter key="cebe" label="CEBE" columnKey="cebe" data={filteredPlatforms} tableId="cf-empresas-main" />);
+                    case 'currency': return (<TableHeaderWithFilter key="currency" label="Divisa" columnKey="currency" data={filteredPlatforms} tableId="cf-empresas-main" />);
+                    case 'status': return (<TableHeaderWithFilter key="status" label="Estado" columnKey="status" data={filteredPlatforms} tableId="cf-empresas-main" />);
                     default: return null;
                     }
                   })}
@@ -530,7 +523,7 @@ export default function CfEmpresas() {
                     </td>
                   </tr>
                 ) : (
-                  filteredPlatforms.map((p) => (
+                  applyTableFilters(filteredPlatforms, 'cf-empresas-main').map((p) => (
                     <tr
                       key={p.id}
                       onClick={() => setSelectedPlatform(selectedPlatform?.id === p.id ? null : p)}
@@ -758,6 +751,8 @@ export default function CfEmpresas() {
           </div>
         </div>
       )}
+    
+      {renderFilterMenu && renderFilterMenu()}
     </div>
   );
 }

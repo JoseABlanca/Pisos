@@ -150,15 +150,16 @@
 
   .clean-table thead {
     @apply sticky top-0 bg-[#f8fafc] z-10;
-    box-shadow: 0 1px 0 #e2e8f0, inset 0 -1px 0 rgba(0,0,0,0.03);
+    box-shadow: 0 1px 0 #f1f5f9, inset 0 -1px 0 rgba(0,0,0,0.01);
   }
 
   .clean-table th {
-    @apply px-3 py-2 font-normal border-r border-[#d1d5db] uppercase text-gray-700;
+    @apply px-3 py-2 font-normal uppercase text-gray-700 border-r border-gray-300;
   }
 
   .clean-table th:last-child {
     @apply border-r-0;
+    width: auto !important;
   }
 
   .clean-table tr {
@@ -166,7 +167,7 @@
   }
 
   .clean-table td {
-    @apply px-3 py-1.5 border-r border-gray-100 overflow-hidden text-ellipsis text-gray-800 uppercase;
+    @apply px-3 py-1.5 overflow-hidden text-ellipsis text-gray-800 uppercase;
   }
 
   .clean-table tr:hover {

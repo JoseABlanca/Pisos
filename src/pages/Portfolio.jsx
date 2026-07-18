@@ -872,28 +872,17 @@ export default function Portfolio() {
                     
                   {visColsPortfolio.map(col => {
                     switch(col) {
-                    case 'symbol': return (<th
- key="symbol" style={{ width: '80px' }}>Ticker</th>);
-                    case 'name': return (<th
- key="name" style={{ width: '180px' }}>Nombre</th>);
-                    case 'type': return (<th
- key="type" style={{ width: '100px' }}>Tipo</th>);
-                    case 'brokerName': return (<th
- key="brokerName" style={{ width: '150px' }}>Broker</th>);
-                    case 'quantity': return (<th
- key="quantity" style={{ width: '90px' }}>Títulos</th>);
-                    case 'pmc': return (<th
- key="pmc" style={{ width: '110px' }}>P.Medio Compra</th>);
-                    case 'currentPrice': return (<th
- key="currentPrice" style={{ width: '160px' }}>Precio Mercado</th>);
-                    case 'totalCost': return (<th
- key="totalCost" style={{ width: '110px' }}>Coste Total</th>);
-                    case 'currentValue': return (<th
- key="currentValue" style={{ width: '110px' }}>Valor Actual</th>);
-                    case 'pnl': return (<th
- key="pnl" style={{ width: '110px' }}>Rentabilidad</th>);
-                    case 'pnlPercent': return (<th
- key="pnlPercent" style={{ width: '90px' }}>% PnL</th>);
+                    case 'symbol': return (<TableHeaderWithFilter key="symbol" label="Ticker" columnKey="symbol" data={filteredHoldings} tableId="portfolio" />);
+                    case 'name': return (<TableHeaderWithFilter key="name" label="Nombre" columnKey="name" data={filteredHoldings} tableId="portfolio" />);
+                    case 'type': return (<TableHeaderWithFilter key="type" label="Tipo" columnKey="type" data={filteredHoldings} tableId="portfolio" />);
+                    case 'brokerName': return (<TableHeaderWithFilter key="brokerName" label="Broker" columnKey="brokerName" data={filteredHoldings} tableId="portfolio" />);
+                    case 'quantity': return (<TableHeaderWithFilter key="quantity" label="Títulos" columnKey="quantity" data={filteredHoldings} tableId="portfolio" />);
+                    case 'pmc': return (<TableHeaderWithFilter key="pmc" label="P.Medio Compra" columnKey="pmc" data={filteredHoldings} tableId="portfolio" />);
+                    case 'currentPrice': return (<TableHeaderWithFilter key="currentPrice" label="Precio Mercado" columnKey="currentPrice" data={filteredHoldings} tableId="portfolio" />);
+                    case 'totalCost': return (<TableHeaderWithFilter key="totalCost" label="Coste Total" columnKey="totalCost" data={filteredHoldings} tableId="portfolio" />);
+                    case 'currentValue': return (<TableHeaderWithFilter key="currentValue" label="Valor Actual" columnKey="currentValue" data={filteredHoldings} tableId="portfolio" />);
+                    case 'pnl': return (<TableHeaderWithFilter key="pnl" label="Rentabilidad" columnKey="pnl" data={filteredHoldings} tableId="portfolio" />);
+                    case 'pnlPercent': return (<TableHeaderWithFilter key="pnlPercent" label="% PnL" columnKey="pnlPercent" data={filteredHoldings} tableId="portfolio" />);
                     default: return null;
                     }
                   })}
@@ -912,7 +901,7 @@ export default function Portfolio() {
                   ) : groupBy === 'acciones' ? (
                     renderGroupedByAcciones()
                   ) : (
-                    filteredHoldings.map((h) => renderRow(h))
+                    applyTableFilters(filteredHoldings, "portfolio").map((h) => renderRow(h))
                   )}
                 </tbody>
               </table>
@@ -1223,9 +1212,11 @@ export default function Portfolio() {
       )}
     
       {/* Bottom Bar for Zoom */}
-      <div className="flex justify-end bg-[#f0f0f0] p-1 border-t border-gray-300 shrink-0 mt-auto w-full z-50">
+      <div className="flex justify-end bg-[#f0f0f0] p-1 border-t border-gray-300 shrink-0 mt-auto w-full z-10">
         <ZoomControl />
       </div>
-</div>
+
+      {renderFilterMenu && renderFilterMenu()}
+    </div>
   );
 }

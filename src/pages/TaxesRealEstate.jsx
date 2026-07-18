@@ -400,7 +400,7 @@ export default function TaxesRealEstate() {
 
   return (
     <div className="flex flex-col h-full bg-[#d4d0c8] p-1 font-sans">
-      <div className="flex-1 flex flex-col bg-white overflow-hidden relative border border-gray-400">
+      <div className="flex-1 flex flex-col bg-white overflow-hidden relative border border-gray-200">
         <div className="flex-1 overflow-auto bg-white p-2">
           <table style={{ zoom: tableZoom }} className="clean-table w-full">
             <thead>
@@ -427,7 +427,7 @@ export default function TaxesRealEstate() {
                   <tr 
                     key={p.id} 
                     onClick={() => toggleSelect(p)}
-                    className={`cursor-pointer border-b border-gray-200 transition-colors
+                    className={`cursor-pointer border-b border-gray-100 transition-colors
                       ${isSelected ? 'bg-blue-100 text-blue-900' : 'hover:bg-blue-50/50'}`}
                   >
                     

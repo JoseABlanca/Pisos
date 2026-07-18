@@ -103,6 +103,7 @@ export default function RvAssets() {
 
   const updateAllPrices = useCallback(async (force = false) => {
     setIsFetchingCurrentPrice(true);
+    window.dispatchEvent(new CustomEvent('is-fetching-prices', { detail: true }));
     try {
       const assetsToUpdate = assets.filter(a => a.apiSource === 'Yahoo Finance' && (a.ticker || a.id));
       let updatedCount = 0;
@@ -135,6 +136,7 @@ export default function RvAssets() {
       console.error(e);
     } finally {
       setIsFetchingCurrentPrice(false);
+      window.dispatchEvent(new CustomEvent('is-fetching-prices', { detail: false }));
     }
   }, [assets]);
 
@@ -254,6 +256,7 @@ export default function RvAssets() {
     const updatePrice = async () => {
       if (!active) return;
       setIsFetchingCurrentPrice(true);
+    window.dispatchEvent(new CustomEvent('is-fetching-prices', { detail: true }));
       const price = await fetchCurrentPrice(ticker, source, currency);
       if (price !== null && active) {
         setFormData(prev => {
@@ -271,6 +274,7 @@ export default function RvAssets() {
         }
       }
       if (active) setIsFetchingCurrentPrice(false);
+      window.dispatchEvent(new CustomEvent('is-fetching-prices', { detail: false }));
     };
 
     // Debounce initial fetch by 800ms when typing (if creating new)
@@ -738,20 +742,13 @@ export default function RvAssets() {
                   
                   {visibleColumns.map(col => {
                     switch(col) {
-                    case 'id': return (<th
- key="id" style={{ width: columnWidths['id'] || '100px' }}>Ticker</th>);
-                    case 'name': return (<th
- key="name" style={{ width: columnWidths['name'] || '200px' }}>Nombre</th>);
-                    case 'type': return (<th
- key="type" style={{ width: columnWidths['type'] || '130px' }}>Tipo de activo</th>);
-                    case 'sector': return (<th
- key="sector" style={{ width: columnWidths['sector'] || '140px' }}>Sector</th>);
-                    case 'currency': return (<th
- key="currency" style={{ width: columnWidths['currency'] || '90px' }}>Divisa</th>);
-                    case 'currentPrice': return (<th
- key="currentPrice" style={{ width: columnWidths['currentPrice'] || '150px' }}>Precio actual</th>);
-                    case 'apiSource': return (<th
- key="apiSource" style={{ width: columnWidths['apiSource'] || '130px' }}>Origen API</th>);
+                    case 'id': return (<TableHeaderWithFilter key="id" label="Ticker" columnKey="id" data={filteredAssets} tableId="rv-assets-main" />);
+                    case 'name': return (<TableHeaderWithFilter key="name" label="Nombre" columnKey="name" data={filteredAssets} tableId="rv-assets-main" />);
+                    case 'type': return (<TableHeaderWithFilter key="type" label="Tipo de activo" columnKey="type" data={filteredAssets} tableId="rv-assets-main" />);
+                    case 'sector': return (<TableHeaderWithFilter key="sector" label="Sector" columnKey="sector" data={filteredAssets} tableId="rv-assets-main" />);
+                    case 'currency': return (<TableHeaderWithFilter key="currency" label="Divisa" columnKey="currency" data={filteredAssets} tableId="rv-assets-main" />);
+                    case 'currentPrice': return (<TableHeaderWithFilter key="currentPrice" label="Precio actual" columnKey="currentPrice" data={filteredAssets} tableId="rv-assets-main" />);
+                    case 'apiSource': return (<TableHeaderWithFilter key="apiSource" label="Origen API" columnKey="apiSource" data={filteredAssets} tableId="rv-assets-main" />);
                     default: return null;
                     }
                   })}
@@ -766,7 +763,7 @@ export default function RvAssets() {
                     </td>
                   </tr>
                 ) : (
-                  filteredAssets.map((asset) => (
+                  applyTableFilters(filteredAssets, 'rv-assets-main').map((asset) => (
                     <tr
                       key={asset.id}
                       onClick={() => setSelectedAsset(selectedAsset?.id === asset.id ? null : asset)}
@@ -776,7 +773,7 @@ export default function RvAssets() {
                   {visibleColumns.map(col => {
                     switch(col) {
                     case 'id': return (<td
- key="id" className="font-mono font-bold">{asset.id}</td>);
+ key="id" className="font-mono">{asset.id}</td>);
                     case 'name': return (<EditableCell
  key="name" value={asset.name} onSave={(val) => handleSaveField(asset, 'name', val)} />);
                     case 'type': return (<EditableCell
@@ -1091,9 +1088,11 @@ export default function RvAssets() {
       )}
     
       {/* Bottom Bar for Zoom */}
-      <div className="flex justify-end bg-[#f0f0f0] p-1 border-t border-gray-300 shrink-0 mt-auto w-full z-50">
+      <div className="flex justify-end bg-[#f0f0f0] p-1 border-t border-gray-300 shrink-0 mt-auto w-full z-10">
         <ZoomControl />
       </div>
-</div>
+
+      {renderFilterMenu && renderFilterMenu()}
+    </div>
   );
 }

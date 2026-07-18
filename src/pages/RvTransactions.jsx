@@ -494,28 +494,17 @@ export default function RvTransactions() {
                   
                   {visibleColumns.map(col => {
                     switch(col) {
-                    case 'id': return (<th
- key="id" style={{ width: columnWidths['id'] || '100px' }}>ID Transacción</th>);
-                    case 'date': return (<th
- key="date" style={{ width: columnWidths['date'] || '110px' }}>Fecha</th>);
-                    case 'assetId': return (<th
- key="assetId" style={{ width: columnWidths['assetId'] || '110px' }}>Activo (Ticker)</th>);
-                    case 'brokerName': return (<th
- key="brokerName" style={{ width: columnWidths['brokerName'] || '180px' }}>Broker</th>);
-                    case 'type': return (<th
- key="type" style={{ width: columnWidths['type'] || '100px' }}>Tipo</th>);
-                    case 'quantity': return (<th
- key="quantity" style={{ width: columnWidths['quantity'] || '100px', textAlign: 'right' }}>Cantidad</th>);
-                    case 'price': return (<th
- key="price" style={{ width: columnWidths['price'] || '110px', textAlign: 'right' }}>Precio Unit.</th>);
-                    case 'fee': return (<th
- key="fee" style={{ width: columnWidths['fee'] || '90px', textAlign: 'right' }}>Comisiones</th>);
-                    case 'currency': return (<th
- key="currency" style={{ width: columnWidths['currency'] || '80px' }}>Divisa</th>);
-                    case 'exchangeRate': return (<th
- key="exchangeRate" style={{ width: columnWidths['exchangeRate'] || '90px', textAlign: 'right' }}>Cambio</th>);
-                    case 'totalAmount': return (<th
- key="totalAmount" style={{ width: columnWidths['totalAmount'] || '130px', textAlign: 'right' }}>Total</th>);
+                    case 'id': return (<TableHeaderWithFilter key="id" label="ID Transacción" columnKey="id" data={filteredTransactions} tableId="rv-tx-main" />);
+                    case 'date': return (<TableHeaderWithFilter key="date" label="Fecha" columnKey="date" data={filteredTransactions} tableId="rv-tx-main" />);
+                    case 'assetId': return (<TableHeaderWithFilter key="assetId" label="Activo (Ticker)" columnKey="assetId" data={filteredTransactions} tableId="rv-tx-main" />);
+                    case 'brokerName': return (<TableHeaderWithFilter key="brokerName" label="Broker" columnKey="brokerName" data={filteredTransactions} tableId="rv-tx-main" />);
+                    case 'type': return (<TableHeaderWithFilter key="type" label="Tipo" columnKey="type" data={filteredTransactions} tableId="rv-tx-main" />);
+                    case 'quantity': return (<TableHeaderWithFilter key="quantity" label="Cantidad" columnKey="quantity" data={filteredTransactions} tableId="rv-tx-main" className="text-right" />);
+                    case 'price': return (<TableHeaderWithFilter key="price" label="Precio Unit." columnKey="price" data={filteredTransactions} tableId="rv-tx-main" className="text-right" />);
+                    case 'fee': return (<TableHeaderWithFilter key="fee" label="Comisiones" columnKey="fee" data={filteredTransactions} tableId="rv-tx-main" className="text-right" />);
+                    case 'currency': return (<TableHeaderWithFilter key="currency" label="Divisa" columnKey="currency" data={filteredTransactions} tableId="rv-tx-main" />);
+                    case 'exchangeRate': return (<TableHeaderWithFilter key="exchangeRate" label="Cambio" columnKey="exchangeRate" data={filteredTransactions} tableId="rv-tx-main" className="text-right" />);
+                    case 'totalAmount': return (<TableHeaderWithFilter key="totalAmount" label="Total" columnKey="totalAmount" data={filteredTransactions} tableId="rv-tx-main" className="text-right" />);
                     default: return null;
                     }
                   })}
@@ -530,7 +519,7 @@ export default function RvTransactions() {
                     </td>
                   </tr>
                 ) : (
-                  filteredTransactions.map((tx) => (
+                  applyTableFilters(filteredTransactions, 'rv-tx-main').map((tx) => (
                     <tr
                       key={tx.id}
                       onClick={() => setSelectedTx(selectedTx?.id === tx.id ? null : tx)}
@@ -550,7 +539,7 @@ export default function RvTransactions() {
                         />);
                     case 'assetId': return (<EditableCell
  key="assetId"
-                          className="font-bold"
+                          
                           value={tx.assetId}
                           options={assets.map((a) => ({ id: a.id, name: `${a.id} - ${a.name}` }))}
                           onSave={(val) => handleSaveField(tx, 'assetId', val)}
@@ -567,17 +556,7 @@ export default function RvTransactions() {
                           options={['Compra', 'Venta', 'Dividendo']}
                           onSave={(val) => handleSaveField(tx, 'type', val)}
                         >
-                          <span
-                            className={`px-1.5 py-0.5 rounded-sm text-[8px] font-bold uppercase tracking-wider ${
-                              tx.type === 'Compra'
-                                ? 'bg-blue-100 text-blue-800 border border-blue-200'
-                                : tx.type === 'Venta'
-                                ? 'bg-orange-100 text-orange-800 border border-orange-200'
-                                : 'bg-green-100 text-green-800 border border-green-200'
-                            }`}
-                          >
-                            {tx.type}
-                          </span>
+                          <span className="uppercase">{tx.type}</span>
                         </EditableCell>);
                     case 'quantity': return (<EditableCell
  key="quantity"
@@ -586,16 +565,15 @@ export default function RvTransactions() {
                           value={tx.quantity}
                           onSave={(val) => handleSaveField(tx, 'quantity', val)}
                         >
-                          {tx.quantity.toLocaleString('es-ES', { minimumFractionDigits: 0, maximumFractionDigits: 6 })}
+                          {(tx.quantity ?? 0).toLocaleString('es-ES', { minimumFractionDigits: 0, maximumFractionDigits: 6 })}
                         </EditableCell>);
                     case 'price': return (<EditableCell
- key="price"
                           type="number"
                           className="font-mono text-right"
                           value={tx.price}
                           onSave={(val) => handleSaveField(tx, 'price', val)}
                         >
-                          {tx.price.toLocaleString('es-ES', { minimumFractionDigits: 2, maximumFractionDigits: 4 })}
+                          {(tx.price ?? 0).toLocaleString('es-ES', { minimumFractionDigits: 2, maximumFractionDigits: 4 })}
                         </EditableCell>);
                     case 'fee': return (<EditableCell
  key="fee"
@@ -604,7 +582,7 @@ export default function RvTransactions() {
                           value={tx.fee}
                           onSave={(val) => handleSaveField(tx, 'fee', val)}
                         >
-                          {tx.fee.toLocaleString('es-ES', { minimumFractionDigits: 2 })}
+                          {(tx.fee ?? 0).toLocaleString('es-ES', { minimumFractionDigits: 2 })}
                         </EditableCell>);
                     case 'currency': return (<EditableCell
  key="currency"
@@ -619,11 +597,11 @@ export default function RvTransactions() {
                           value={tx.exchangeRate}
                           onSave={(val) => handleSaveField(tx, 'exchangeRate', val)}
                         >
-                          {tx.exchangeRate.toLocaleString('es-ES', { minimumFractionDigits: 2, maximumFractionDigits: 4 })}
+                          {(tx.exchangeRate ?? 1).toLocaleString('es-ES', { minimumFractionDigits: 2, maximumFractionDigits: 4 })}
                         </EditableCell>);
                     case 'totalAmount': return (<td
- key="totalAmount" className="font-mono text-right font-bold text-slate-800">
-                          {tx.totalAmount.toLocaleString('es-ES', { minimumFractionDigits: 2, maximumFractionDigits: 2 })} {tx.currency}
+ key="totalAmount" className="font-mono text-right text-slate-800">
+                          {(tx.totalAmount ?? 0).toLocaleString('es-ES', { minimumFractionDigits: 2, maximumFractionDigits: 2 })} {tx.currency}
                         </td>);
                     default: return null;
                     }
@@ -839,6 +817,8 @@ export default function RvTransactions() {
         </div>
       )}
 
+    
+      {renderFilterMenu && renderFilterMenu()}
     </div>
   );
 }

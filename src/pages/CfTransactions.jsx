@@ -340,20 +340,13 @@ export default function CfTransactions() {
                   
                   {visibleColumns.map(col => {
                     switch(col) {
-                    case 'id': return (<th
- key="id" style={{ width: columnWidths['id'] || '90px' }}>ID</th>);
-                    case 'date': return (<th
- key="date" style={{ width: columnWidths['date'] || '100px' }}>Fecha</th>);
-                    case 'projectName': return (<th
- key="projectName" style={{ width: columnWidths['projectName'] || '150px' }}>Activo / Proyecto</th>);
-                    case 'platformName': return (<th
- key="platformName" style={{ width: columnWidths['platformName'] || '150px' }}>Plataforma</th>);
-                    case 'type': return (<th
- key="type" style={{ width: columnWidths['type'] || '100px' }}>Tipo</th>);
-                    case 'amount': return (<th
- key="amount" style={{ width: columnWidths['amount'] || '110px' }} className="text-right">Importe (€)</th>);
-                    case 'notes': return (<th
- key="notes" style={{ width: columnWidths['notes'] || '200px' }}>Notas</th>);
+                    case 'id': return (<TableHeaderWithFilter key="id" label="ID" columnKey="id" data={filteredTransactions} tableId="cf-tx" />);
+                    case 'date': return (<TableHeaderWithFilter key="date" label="Fecha" columnKey="date" data={filteredTransactions} tableId="cf-tx" />);
+                    case 'projectName': return (<TableHeaderWithFilter key="projectName" label="Activo / Proyecto" columnKey="projectName" data={filteredTransactions} tableId="cf-tx" />);
+                    case 'platformName': return (<TableHeaderWithFilter key="platformName" label="Plataforma" columnKey="platformName" data={filteredTransactions} tableId="cf-tx" />);
+                    case 'type': return (<TableHeaderWithFilter key="type" label="Tipo" columnKey="type" data={filteredTransactions} tableId="cf-tx" />);
+                    case 'amount': return (<TableHeaderWithFilter key="amount" label="Importe (€)" columnKey="amount" data={filteredTransactions} tableId="cf-tx" className="text-right" />);
+                    case 'notes': return (<TableHeaderWithFilter key="notes" label="Notas" columnKey="notes" data={filteredTransactions} tableId="cf-tx" />);
                     default: return null;
                     }
                   })}
@@ -366,7 +359,7 @@ export default function CfTransactions() {
                     <td colSpan={visibleColumns.length} className="text-center py-8 text-gray-400 font-medium">No se encontraron transacciones.</td>
                   </tr>
                 ) : (
-                  filteredTransactions.map((tx) => (
+                  applyTableFilters(filteredTransactions, "cf-tx").map((tx) => (
                     <tr
                       key={tx.id}
                       onDoubleClick={() => handleEdit(tx)}
@@ -543,6 +536,8 @@ export default function CfTransactions() {
         </div>
       )}
 
+    
+      {renderFilterMenu && renderFilterMenu()}
     </div>
   );
 }

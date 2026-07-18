@@ -180,8 +180,8 @@ export default function TaxesCf() {
   const TAB_CLASSES = (active) =>
     `px-4 py-1 text-[11px] font-semibold border border-b-0 cursor-pointer select-none transition-colors ` +
     (active
-      ? 'bg-white text-[#000080] border-gray-400'
-      : 'bg-[#d4d0c8] text-gray-600 border-gray-400 hover:bg-[#c0bdb5]');
+      ? 'bg-white text-[#000080] border-gray-200'
+      : 'bg-[#d4d0c8] text-gray-600 border-gray-200 hover:bg-[#c0bdb5]');
 
   const gainCell = (v) => (
     <td className={`p-2 text-right font-semibold ${v >= 0 ? 'text-green-700' : 'text-red-700'}`}>{fmt(v)}</td>
@@ -197,7 +197,7 @@ export default function TaxesCf() {
 
 
       {/* Sub-tabs */}
-      <div className="flex gap-0 border-b border-gray-400">
+      <div className="flex gap-0 border-b border-gray-200">
         <button className={TAB_CLASSES(view === 'rendimientos')} onClick={() => setView('rendimientos')}>
           Rendimientos realizados
         </button>
@@ -209,7 +209,7 @@ export default function TaxesCf() {
         </button>
       </div>
 
-      <div className="flex-1 flex flex-col bg-white overflow-hidden border border-gray-400">
+      <div className="flex-1 flex flex-col bg-white overflow-hidden border border-gray-200">
         <div className="flex-1 overflow-auto">
 
           {/* ── RENDIMIENTOS REALIZADOS ─────────────────────────────────── */}
@@ -237,7 +237,7 @@ export default function TaxesCf() {
                     </td>
                   </tr>
                 ) : rendimientos.map((r, i) => (
-                  <tr key={i} className="border-b border-gray-200 hover:bg-blue-50/50 transition-colors">
+                  <tr key={i} className="border-b border-gray-100 hover:bg-blue-50/50 transition-colors">
                     <td className="p-2 font-medium text-[#000080]">
                       <div className="font-mono font-bold text-[10px] text-gray-500">{r.id}</div>
                       <div>{r.projectName}</div>
@@ -256,7 +256,7 @@ export default function TaxesCf() {
               </tbody>
               {rendimientos.length > 0 && (
                 <tfoot>
-                  <tr className="bg-gray-100 border-t-2 border-gray-400 font-bold">
+                  <tr className="bg-gray-100 border-t border-gray-200 font-bold">
                     <td className="p-2 uppercase text-gray-800" colSpan={5}>Total</td>
                     <td className="p-2 text-right text-gray-600">{fmt(totRend.invested)}</td>
                     <td className="p-2 text-right">{fmt(totRend.received)}</td>
@@ -291,7 +291,7 @@ export default function TaxesCf() {
                     </td>
                   </tr>
                 ) : porPlataforma.map((r, i) => (
-                  <tr key={i} className="border-b border-gray-200 hover:bg-blue-50/50 transition-colors">
+                  <tr key={i} className="border-b border-gray-100 hover:bg-blue-50/50 transition-colors">
                     <td className="p-2 font-medium text-[#000080]">{r.platformName}</td>
                     <td className="p-2 text-center font-bold text-gray-700">{r.count}</td>
                     <td className="p-2 text-right">{fmt(r.invested)}</td>
@@ -302,7 +302,7 @@ export default function TaxesCf() {
               </tbody>
               {porPlataforma.length > 0 && (
                 <tfoot>
-                  <tr className="bg-gray-100 border-t-2 border-gray-400 font-bold">
+                  <tr className="bg-gray-100 border-t border-gray-200 font-bold">
                     <td className="p-2 uppercase text-gray-800">Total</td>
                     <td className="p-2 text-center">{porPlataforma.reduce((s, r) => s + r.count, 0)}</td>
                     <td className="p-2 text-right">{fmt(porPlataforma.reduce((s, r) => s + r.invested, 0))}</td>
@@ -327,14 +327,14 @@ export default function TaxesCf() {
                 </tr>
               </thead>
               <tbody>
-                <tr className="border-b border-gray-200 hover:bg-blue-50/50">
+                <tr className="border-b border-gray-100 hover:bg-blue-50/50">
                   <td className="p-2 font-medium">Rendimientos realizados <span className="text-[10px] text-gray-500">(finalizados/amortizados)</span></td>
                   <td className="p-2 text-right">{fmt(totRend.invested)}</td>
                   {gainCell(totRend.gain)}
                   <td className={`p-2 text-right font-semibold ${totRend.gain >= 0 ? 'text-gray-800' : 'text-red-700'}`}>{fmt(totRend.gain)}</td>
                   <td className="p-2 text-right text-[#8B0000] font-bold">{totRend.gain > 0 ? fmt(totRend.tax) : '—'}</td>
                 </tr>
-                <tr className="border-b border-gray-200 hover:bg-blue-50/50 bg-amber-50/30">
+                <tr className="border-b border-gray-100 hover:bg-blue-50/50 bg-amber-50/30">
                   <td className="p-2 font-medium text-amber-800">Inversiones activas <span className="text-[10px] text-amber-600">(rendimiento esperado — orientativo)</span></td>
                   <td className="p-2 text-right">{fmt(totActivas.invested)}</td>
                   <td className="p-2 text-right text-amber-700 font-semibold">{fmt(totActivas.expectedGain)}</td>
@@ -343,7 +343,7 @@ export default function TaxesCf() {
                 </tr>
               </tbody>
               <tfoot>
-                <tr className="bg-gray-100 border-t-2 border-gray-400 font-bold">
+                <tr className="bg-gray-100 border-t border-gray-200 font-bold">
                   <td className="p-2 uppercase text-gray-800">Total global</td>
                   <td className="p-2 text-right">{fmt(totRend.invested + totActivas.invested)}</td>
                   <td className={`p-2 text-right ${(totRend.gain + totActivas.expectedGain) >= 0 ? 'text-green-800' : 'text-red-800'}`}>{fmt(totRend.gain + totActivas.expectedGain)}</td>
@@ -368,7 +368,7 @@ export default function TaxesCf() {
       </div>
     
       {/* Bottom Bar for Zoom */}
-      <div className="flex justify-end bg-[#f0f0f0] p-1 border-t border-gray-300 shrink-0 mt-auto w-full z-50">
+      <div className="flex justify-end bg-[#f0f0f0] p-1 border-t border-gray-300 shrink-0 mt-auto w-full z-10">
         <ZoomControl />
       </div>
 </div>

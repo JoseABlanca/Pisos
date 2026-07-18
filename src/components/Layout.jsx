@@ -321,6 +321,13 @@ export default function Layout() {
   const [rvBrokers, setRvBrokers] = useState([]);
   const [cfProjects, setCfProjects] = useState([]);
   const [cfPlatforms, setCfPlatforms] = useState([]);
+  const [isFetchingPrices, setIsFetchingPrices] = useState(false);
+
+  useEffect(() => {
+    const handleFetchPrices = (e) => setIsFetchingPrices(e.detail);
+    window.addEventListener('is-fetching-prices', handleFetchPrices);
+    return () => window.removeEventListener('is-fetching-prices', handleFetchPrices);
+  }, []);
 
   useEffect(() => {
     if (user?.uid) {
@@ -1354,7 +1361,7 @@ export default function Layout() {
         <div className={`bg-[#f3f4f6] border-b border-gray-300 flex h-[95px] overflow-x-auto overflow-y-hidden whitespace-nowrap shrink-0 shadow-sm select-none relative w-full scrollbar-hide ${isHomePage ? 'hidden' : ''}`}>
           {tabRibbons[activeTab] && tabRibbons[activeTab].map((group, gIdx) => (
             <div key={gIdx} className="flex flex-col border-r border-gray-300">
-              <div className="flex-1 flex items-stretch px-1 pt-1">
+              <div className="flex-1 flex items-stretch px-1 pt-4">
               {group.items.map((item, iIdx) => {
                 const isActive = !item.action && item.path && item.path !== '#' && location.pathname + location.search === item.path;
                 const isExport = item.name === 'Exportar';
@@ -1408,7 +1415,7 @@ export default function Layout() {
                         {item.customIcon ? (
                           <RibbonCustomIcon type={item.customIcon} />
                         ) : (
-                          <item.icon className="w-5 h-5 text-[#4e80c8]" strokeWidth={1.5} />
+                          <item.icon className={`w-5 h-5 text-[#4e80c8] ${item.action === 'rv-asset:refresh-prices' && isFetchingPrices ? 'animate-spin' : ''}`} strokeWidth={1.5} />
                         )}
                       </div>
                       <span className="text-[10px] leading-[1.1] text-gray-700 font-medium text-center whitespace-pre-wrap flex flex-col items-center justify-center">

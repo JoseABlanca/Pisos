@@ -555,7 +555,7 @@ export default function Customers() {
                     className="rounded text-indigo-600 focus:ring-indigo-500 cursor-pointer"
                   />
                   <span className={propertyFilter.includes(p.name) ? 'text-indigo-700 font-medium' : 'text-slate-700'}>
-                    Mostrar {p.name}
+                    {p.name}
                   </span>
                 </label>
               ))}

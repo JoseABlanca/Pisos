@@ -514,7 +514,6 @@ export default function Ledger({ initialMode }) {
              >
                <PanelLeft className="w-4 h-4" />
              </button>
-             <button className="text-gray-400 hover:text-blue-600"><RefreshCw className="w-4 h-4" /></button>
           </div>
         </div>
 

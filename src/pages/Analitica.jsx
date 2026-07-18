@@ -1429,17 +1429,23 @@ export default function Analitica() {
         <div className="flex-1 flex flex-col overflow-hidden bg-white">
 
           {/* Thin bar above table with sidebar toggle and search */}
-          <div className="flex items-center justify-between border-b border-[#e0e0e0] bg-[#f8f9fa] px-2 py-[4px] shrink-0">
-            <button onClick={() => setSidebarVisible(p => !p)} title="Ocultar/Mostrar filtros"
-                    className="hover:bg-[#e0e0e0] p-[2px] rounded-[2px] text-[#333] flex items-center justify-center border border-[#bbb] bg-white shadow-sm active:bg-[#ccc]">
+          <div className="flex items-center justify-end border-b border-[#e0e0e0] bg-[#f8f9fa] px-4 py-1 shrink-0 space-x-3">
+            <div className="relative" onClick={e => e.stopPropagation()}>
+              <input 
+                type="text" 
+                placeholder="Buscar en el fichero (Alt+B)"
+                value={searchQuery} onChange={e => setSearchQuery(e.target.value)}
+                className="pl-2 pr-8 py-1 border-b border-gray-400 text-[12px] w-64 outline-none focus:border-blue-500 bg-transparent text-[#333] placeholder:text-gray-400"
+              />
+              <Search className="w-4 h-4 absolute right-1 top-1/2 -translate-y-1/2 text-gray-400 pointer-events-none" />
+            </div>
+            <button 
+              onClick={(e) => { e.stopPropagation(); setSidebarVisible(p => !p); }}
+              className="p-1 hover:bg-gray-200 rounded text-gray-500 border border-transparent hover:border-gray-400"
+              title="Ocultar/Mostrar filtros"
+            >
               <IcoSidebarToggle />
             </button>
-            <div className="relative flex items-center">
-              <input type="text" placeholder="Buscar en el fichero (Alt+B)"
-                     value={searchQuery} onChange={e => setSearchQuery(e.target.value)}
-                     className="w-[220px] pr-5 py-[2px] text-[11px] text-right border-b border-[#aaa] outline-none focus:border-b-[#4472c4] bg-transparent placeholder:text-[#aaa]" />
-              <Search size={13} className="absolute right-0 text-[#aaa] pointer-events-none" />
-            </div>
           </div>
 
           {/* Table */}

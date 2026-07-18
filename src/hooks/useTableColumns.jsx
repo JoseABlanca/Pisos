@@ -41,7 +41,8 @@ export const useTableColumns = (tableId, defaultColumns) => {
 
   const reorderColumn = useCallback((draggedId, targetId) => {
     setVisibleColumns(prev => {
-      const draggedIndex = prev.indexOf(draggedId);
+      
+        const draggedIndex = prev.indexOf(draggedId);
       const targetIndex = prev.indexOf(targetId);
       if (draggedIndex === -1 || targetIndex === -1) return prev;
       
@@ -85,12 +86,14 @@ export const useTableColumns = (tableId, defaultColumns) => {
     const handleToggle = (e) => {
       const { columnId, action } = e.detail;
       // If action is provided, only react if it matches this table's action prefix
+      
       if (action && myAction && !action.startsWith(myAction)) return;
       toggleColumn(columnId);
     };
 
     const handleReorder = (e) => {
       const { draggedId, targetId, action } = e.detail;
+      
       if (action && myAction && !action.startsWith(myAction)) return;
       reorderColumn(draggedId, targetId);
     };

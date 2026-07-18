@@ -132,7 +132,7 @@ export const useTableFilters = ({ columnWidths = {}, updateColumnWidth = null } 
     const isActive = filterState !== undefined;
     
     const width = columnWidths[columnKey] || null;
-    const style = width ? { width: `${width}px`, minWidth: `${width}px`, maxWidth: `${width}px` } : {};
+    const style = width ? { width: `${width}px`, minWidth: `${width}px` } : {};
 
     const handleMouseDown = (e) => {
       e.preventDefault();
@@ -150,7 +150,7 @@ export const useTableFilters = ({ columnWidths = {}, updateColumnWidth = null } 
         const newWidth = Math.max(30, startWidth + (moveEvent.clientX - startX));
         th.style.width = `${newWidth}px`;
         th.style.minWidth = `${newWidth}px`;
-        th.style.maxWidth = `${newWidth}px`;
+        th.style.maxWidth = '';
       };
 
       const handleMouseUp = (upEvent) => {
@@ -171,7 +171,7 @@ export const useTableFilters = ({ columnWidths = {}, updateColumnWidth = null } 
           if (originalWidth) {
             th.style.width = `${originalWidth}px`;
             th.style.minWidth = `${originalWidth}px`;
-            th.style.maxWidth = `${originalWidth}px`;
+            th.style.maxWidth = '';
           } else {
             th.style.width = '';
             th.style.minWidth = '';
@@ -185,10 +185,37 @@ export const useTableFilters = ({ columnWidths = {}, updateColumnWidth = null } 
     };
     
     return (
-      <th className={`${className} group relative`} style={style}>
-        <div className="flex items-center justify-between h-full min-w-0 overflow-hidden">
-          <span className="truncate flex-1 pr-1 min-w-0 block">{label}</span>
-          <button 
+      <th 
+        className={`${className} group relative hover:bg-slate-100 cursor-move select-none`} 
+        style={style}
+      >
+        <div
+          className="w-full h-full"
+          draggable
+          onDragStart={(e) => {
+            globalDraggedColumnKey = columnKey;
+            e.dataTransfer.setData('text/plain', columnKey);
+            e.dataTransfer.effectAllowed = 'move';
+          }}
+          onDragEnter={(e) => e.preventDefault()}
+          onDragEnd={() => { globalDraggedColumnKey = null; }}
+          onDragOver={(e) => {
+            e.preventDefault();
+            e.dataTransfer.dropEffect = 'move';
+          }}
+          onDrop={(e) => {
+            e.preventDefault();
+            const draggedId = e.dataTransfer.getData('text/plain') || globalDraggedColumnKey;
+            if (draggedId && draggedId !== columnKey) {
+              window.dispatchEvent(new CustomEvent('reorder-column', { 
+                detail: { draggedId, targetId: columnKey, tableId } 
+              }));
+            }
+          }}
+        >
+          <div className="flex items-center justify-between h-full min-w-0 overflow-hidden">
+            <span className="truncate flex-1 pr-1 min-w-0 block pointer-events-none">{label}</span>
+            <button 
             className={`p-0.5 rounded-sm hover:bg-slate-300 transition-colors filter-btn flex-shrink-0 mr-1 ${isActive ? 'bg-blue-100 text-blue-700' : 'text-slate-400'}`}
             onClick={(e) => {
               e.stopPropagation();
@@ -210,6 +237,7 @@ export const useTableFilters = ({ columnWidths = {}, updateColumnWidth = null } 
           className="absolute right-[-6px] top-0 bottom-0 w-3 cursor-col-resize hover:bg-blue-400/30 active:bg-blue-500/50 z-20"
           onMouseDown={handleMouseDown}
         />
+        </div>
       </th>
     );
   };
@@ -229,9 +257,9 @@ export const useTableFilters = ({ columnWidths = {}, updateColumnWidth = null } 
         className="fixed z-50 bg-white border border-[#808080] shadow-lg win-bevel filter-menu-popup"
         style={{ left: Math.min(x, window.innerWidth - 250), top: y, width: 220 }}
       >
-        <div className="bg-[#5c5c9a] text-white p-1 text-xs font-bold flex justify-between items-center cursor-default">
+        <div className="bg-[#f8fafc] text-gray-700 p-1 text-[11px] font-bold flex justify-between items-center cursor-default border-b border-[#d1d5db]">
           <span>Filtro: {columnKey}</span>
-          <button onClick={() => setOpenFilterMenu(null)} className="hover:bg-red-500 px-1 rounded">
+          <button onClick={() => setOpenFilterMenu(null)} className="hover:bg-gray-200 text-gray-500 px-1 rounded">
             <X className="w-3 h-3" />
           </button>
         </div>
@@ -263,14 +291,14 @@ export const useTableFilters = ({ columnWidths = {}, updateColumnWidth = null } 
             {filteredValues.map(val => {
               const isChecked = selectedValues === undefined || selectedValues.includes(val);
               return (
-                <label key={val} className="flex items-center space-x-2 hover:bg-[#0a246a] hover:text-white px-1 cursor-pointer py-0.5 group">
+                <label key={val} className="flex items-center space-x-2 hover:bg-[#e0e0e0] text-[#333] px-1 cursor-pointer py-0.5 group">
                   <input 
                     type="checkbox" 
                     className="w-3 h-3"
                     checked={isChecked}
                     onChange={() => handleToggleFilterValue(tableId, columnKey, val, allValues)}
                   />
-                  <span className="text-[10px] truncate">{val}</span>
+                  <span className="text-[10px] truncate font-normal">{val}</span>
                 </label>
               );
             })}

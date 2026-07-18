@@ -377,16 +377,11 @@ export default function Broker() {
                   
                   {visibleColumns.map(col => {
                     switch(col) {
-                    case 'id': return (<th
- key="id" style={{ width: columnWidths['id'] || '80px' }}>ID Broker</th>);
-                    case 'name': return (<th
- key="name" style={{ width: columnWidths['name'] || '200px' }}>Nombre Broker</th>);
-                    case 'accountNumber': return (<th
- key="accountNumber" style={{ width: columnWidths['accountNumber'] || '180px' }}>Número de cuenta</th>);
-                    case 'currency': return (<th
- key="currency" style={{ width: columnWidths['currency'] || '100px' }}>Tipo de divisa</th>);
-                    case 'status': return (<th
- key="status" style={{ width: columnWidths['status'] || '90px' }}>Estado</th>);
+                    case 'id': return (<TableHeaderWithFilter key="id" label="ID Broker" columnKey="id" data={filteredBrokers} tableId="brokers-main" />);
+                    case 'name': return (<TableHeaderWithFilter key="name" label="Nombre Broker" columnKey="name" data={filteredBrokers} tableId="brokers-main" />);
+                    case 'accountNumber': return (<TableHeaderWithFilter key="accountNumber" label="Número de cuenta" columnKey="accountNumber" data={filteredBrokers} tableId="brokers-main" />);
+                    case 'currency': return (<TableHeaderWithFilter key="currency" label="Tipo de divisa" columnKey="currency" data={filteredBrokers} tableId="brokers-main" />);
+                    case 'status': return (<TableHeaderWithFilter key="status" label="Estado" columnKey="status" data={filteredBrokers} tableId="brokers-main" />);
                     default: return null;
                     }
                   })}
@@ -401,7 +396,7 @@ export default function Broker() {
                     </td>
                   </tr>
                 ) : (
-                  filteredBrokers.map((broker) => (
+                  applyTableFilters(filteredBrokers, 'brokers-main').map((broker) => (
                     <tr
                       key={broker.id}
                       onClick={() => setSelectedBroker(selectedBroker?.id === broker.id ? null : broker)}
@@ -559,12 +554,12 @@ export default function Broker() {
                           <table style={{ zoom: tableZoom }} className="clean-table">
                             <thead className="sticky top-0 bg-[#f8fafc] z-10">
                               <tr>
-                                <th style={{ width: '90px' }}>Fecha</th>
-                                <th style={{ width: '80px' }}>Activo</th>
-                                <th style={{ width: '80px' }}>Tipo</th>
-                                <th style={{ width: '90px' }}>Cantidad</th>
-                                <th style={{ width: '100px' }}>Precio</th>
-                                <th style={{ width: '110px' }}>Total</th>
+                                <TableHeaderWithFilter key="date" label="Fecha" columnKey="date" data={brokerTransactions} tableId="broker" className="w-24" />
+                                <TableHeaderWithFilter key="assetId" label="Activo" columnKey="assetId" data={brokerTransactions} tableId="broker" className="w-24" />
+                                <TableHeaderWithFilter key="type" label="Tipo" columnKey="type" data={brokerTransactions} tableId="broker" className="w-24" />
+                                <TableHeaderWithFilter key="quantity" label="Cantidad" columnKey="quantity" data={brokerTransactions} tableId="broker" className="w-24" />
+                                <TableHeaderWithFilter key="price" label="Precio" columnKey="price" data={brokerTransactions} tableId="broker" className="w-24" />
+                                <TableHeaderWithFilter key="totalAmount" label="Total" columnKey="totalAmount" data={brokerTransactions} tableId="broker" className="w-32 text-right" />
                               </tr>
                             </thead>
                             <tbody>
@@ -575,7 +570,7 @@ export default function Broker() {
                                   </td>
                                 </tr>
                               ) : (
-                                brokerTransactions.map((tx) => (
+                                applyTableFilters(brokerTransactions, "broker").map((tx) => (
                                   <tr key={tx.id}>
                                     <td>{tx.date}</td>
                                     <td className="font-bold">{tx.assetId}</td>
@@ -648,9 +643,10 @@ export default function Broker() {
       )}
     
       {/* Bottom Bar for Zoom */}
-      <div className="flex justify-end bg-[#f0f0f0] p-1 border-t border-gray-300 shrink-0 mt-auto w-full z-50">
+      <div className="flex justify-end bg-[#f0f0f0] p-1 border-t border-gray-300 shrink-0 mt-auto w-full z-10">
         <ZoomControl />
       </div>
-</div>
+      {renderFilterMenu && renderFilterMenu()}
+    </div>
   );
 }

@@ -578,6 +578,8 @@ export default function CfPortfolio() {
 
       </div>
 
+    
+      {renderFilterMenu && renderFilterMenu()}
     </div>
   );
 }
