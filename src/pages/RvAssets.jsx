@@ -1,4 +1,5 @@
 import { useState, useEffect, useMemo, useCallback } from 'react';
+import { useTableFilters } from '../hooks/useTableFilters';
 import { db } from '../firebase/config';
 import { collection, query, where, onSnapshot, doc, setDoc, deleteDoc, writeBatch } from 'firebase/firestore';
 import { useAuth } from '../context/AuthContext';
@@ -51,6 +52,7 @@ export default function RvAssets() {
 
   const DEFAULT_COLUMNS = ['id', 'name', 'type', 'sector', 'currency', 'apiSource'];
   const { visibleColumns, toggleColumn, columnWidths, updateColumnWidth } = useTableColumns('rv-assets', DEFAULT_COLUMNS);
+  const { applyTableFilters, TableHeaderWithFilter, renderFilterMenu } = useTableFilters({ columnWidths, updateColumnWidth });
 
   // Filter and search computation - declared early to avoid Temporal Dead Zone (TDZ)
   const filteredAssets = assets.filter((asset) => {
@@ -733,13 +735,27 @@ export default function RvAssets() {
             <table style={{ zoom: tableZoom }} className="clean-table">
               <thead>
                 <tr>
-                  {visibleColumns.includes('id') && <th style={{ width: columnWidths['id'] || '100px' }}>Ticker</th>}
-                  {visibleColumns.includes('name') && <th style={{ width: columnWidths['name'] || '200px' }}>Nombre</th>}
-                  {visibleColumns.includes('type') && <th style={{ width: columnWidths['type'] || '130px' }}>Tipo de activo</th>}
-                  {visibleColumns.includes('sector') && <th style={{ width: columnWidths['sector'] || '140px' }}>Sector</th>}
-                  {visibleColumns.includes('currency') && <th style={{ width: columnWidths['currency'] || '90px' }}>Divisa</th>}
-                  {visibleColumns.includes('currentPrice') && <th style={{ width: columnWidths['currentPrice'] || '150px' }}>Precio actual</th>}
-                  {visibleColumns.includes('apiSource') && <th style={{ width: columnWidths['apiSource'] || '130px' }}>Origen API</th>}
+                  
+                  {visibleColumns.map(col => {
+                    switch(col) {
+                    case 'id': return (<th
+ key="id" style={{ width: columnWidths['id'] || '100px' }}>Ticker</th>);
+                    case 'name': return (<th
+ key="name" style={{ width: columnWidths['name'] || '200px' }}>Nombre</th>);
+                    case 'type': return (<th
+ key="type" style={{ width: columnWidths['type'] || '130px' }}>Tipo de activo</th>);
+                    case 'sector': return (<th
+ key="sector" style={{ width: columnWidths['sector'] || '140px' }}>Sector</th>);
+                    case 'currency': return (<th
+ key="currency" style={{ width: columnWidths['currency'] || '90px' }}>Divisa</th>);
+                    case 'currentPrice': return (<th
+ key="currentPrice" style={{ width: columnWidths['currentPrice'] || '150px' }}>Precio actual</th>);
+                    case 'apiSource': return (<th
+ key="apiSource" style={{ width: columnWidths['apiSource'] || '130px' }}>Origen API</th>);
+                    default: return null;
+                    }
+                  })}
+    
                 </tr>
               </thead>
               <tbody>
@@ -756,13 +772,27 @@ export default function RvAssets() {
                       onClick={() => setSelectedAsset(selectedAsset?.id === asset.id ? null : asset)}
                       className={selectedAsset?.id === asset.id ? 'selected' : ''}
                     >
-                      {visibleColumns.includes('id') && <td className="font-mono font-bold">{asset.id}</td>}
-                      {visibleColumns.includes('name') && <EditableCell value={asset.name} onSave={(val) => handleSaveField(asset, 'name', val)} />}
-                      {visibleColumns.includes('type') && <EditableCell value={asset.type} options={['Acción', 'Fondo', 'ETF', 'Cripto', 'Otros']} onSave={(val) => handleSaveField(asset, 'type', val)} />}
-                      {visibleColumns.includes('sector') && <EditableCell value={asset.sector} options={['Tecnología', 'Financiero', 'Consumo', 'Industrial', 'Energía', 'Salud', 'Telecomunicaciones', 'Inmobiliario', 'Materiales Básicos', 'Otros']} onSave={(val) => handleSaveField(asset, 'sector', val)} />}
-                      {visibleColumns.includes('currency') && <EditableCell value={asset.currency} options={['EUR', 'USD', 'GBP', 'CHF', 'JPY']} onSave={(val) => handleSaveField(asset, 'currency', val)} />}
-                      {visibleColumns.includes('currentPrice') && <td className="font-mono text-right">{asset.currentPrice ? `${parseFloat(asset.currentPrice).toLocaleString('es-ES', { minimumFractionDigits: 2, maximumFractionDigits: 4 })} ${asset.currency || ''}` : '-'}</td>}
-                      {visibleColumns.includes('apiSource') && <EditableCell className="text-gray-500" value={asset.apiSource} options={['Yahoo Finance', 'Manual']} onSave={(val) => handleSaveField(asset, 'apiSource', val)} />}
+                      
+                  {visibleColumns.map(col => {
+                    switch(col) {
+                    case 'id': return (<td
+ key="id" className="font-mono font-bold">{asset.id}</td>);
+                    case 'name': return (<EditableCell
+ key="name" value={asset.name} onSave={(val) => handleSaveField(asset, 'name', val)} />);
+                    case 'type': return (<EditableCell
+ key="type" value={asset.type} options={['Acción', 'Fondo', 'ETF', 'Cripto', 'Otros']} onSave={(val) => handleSaveField(asset, 'type', val)} />);
+                    case 'sector': return (<EditableCell
+ key="sector" value={asset.sector} options={['Tecnología', 'Financiero', 'Consumo', 'Industrial', 'Energía', 'Salud', 'Telecomunicaciones', 'Inmobiliario', 'Materiales Básicos', 'Otros']} onSave={(val) => handleSaveField(asset, 'sector', val)} />);
+                    case 'currency': return (<EditableCell
+ key="currency" value={asset.currency} options={['EUR', 'USD', 'GBP', 'CHF', 'JPY']} onSave={(val) => handleSaveField(asset, 'currency', val)} />);
+                    case 'currentPrice': return (<td
+ key="currentPrice" className="font-mono text-right">{asset.currentPrice ? `${parseFloat(asset.currentPrice).toLocaleString('es-ES', { minimumFractionDigits: 2, maximumFractionDigits: 4 })} ${asset.currency || ''}` : '-'}</td>);
+                    case 'apiSource': return (<EditableCell
+ key="apiSource" className="text-gray-500" value={asset.apiSource} options={['Yahoo Finance', 'Manual']} onSave={(val) => handleSaveField(asset, 'apiSource', val)} />);
+                    default: return null;
+                    }
+                  })}
+    
                     </tr>
                   ))
                 )}

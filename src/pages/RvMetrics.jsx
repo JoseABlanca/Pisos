@@ -1109,12 +1109,12 @@ export default function RvMetrics() {
           )}
 
         </div>
+        
+        {/* Bottom Bar for Zoom */}
+        <div className="flex justify-end bg-[#f0f0f0] p-1 border-t border-gray-300 shrink-0 mt-auto w-full z-50">
+          <ZoomControl />
+        </div>
       </div>
-    
-      {/* Bottom Bar for Zoom */}
-      <div className="flex justify-end bg-[#f0f0f0] p-1 border-t border-gray-300 shrink-0 mt-auto w-full z-50">
-        <ZoomControl />
-      </div>
-</div>
+    </div>
   );
 }

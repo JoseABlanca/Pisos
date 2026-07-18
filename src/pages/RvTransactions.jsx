@@ -1,4 +1,5 @@
 import { useState, useEffect, useMemo } from 'react';
+import { useTableFilters } from '../hooks/useTableFilters';
 import { db } from '../firebase/config';
 import { collection, query, where, onSnapshot, doc, setDoc, deleteDoc } from 'firebase/firestore';
 import { useAuth } from '../context/AuthContext';
@@ -51,6 +52,7 @@ export default function RvTransactions() {
 
   const DEFAULT_COLUMNS = ['id', 'date', 'assetId', 'brokerName', 'type', 'quantity', 'price', 'fee', 'currency', 'exchangeRate', 'totalAmount'];
   const { visibleColumns, toggleColumn, columnWidths, updateColumnWidth } = useTableColumns('rv-transactions', DEFAULT_COLUMNS);
+  const { applyTableFilters, TableHeaderWithFilter, renderFilterMenu } = useTableFilters({ columnWidths, updateColumnWidth });
 
   useEffect(() => {
     const handleResize = () => setIsMobile(window.innerWidth < 768);
@@ -489,17 +491,35 @@ export default function RvTransactions() {
             <table style={{ zoom: tableZoom }} className="clean-table">
               <thead>
                 <tr>
-                  {visibleColumns.includes('id') && <th style={{ width: columnWidths['id'] || '100px' }}>ID Transacción</th>}
-                  {visibleColumns.includes('date') && <th style={{ width: columnWidths['date'] || '110px' }}>Fecha</th>}
-                  {visibleColumns.includes('assetId') && <th style={{ width: columnWidths['assetId'] || '110px' }}>Activo (Ticker)</th>}
-                  {visibleColumns.includes('brokerName') && <th style={{ width: columnWidths['brokerName'] || '180px' }}>Broker</th>}
-                  {visibleColumns.includes('type') && <th style={{ width: columnWidths['type'] || '100px' }}>Tipo</th>}
-                  {visibleColumns.includes('quantity') && <th style={{ width: columnWidths['quantity'] || '100px', textAlign: 'right' }}>Cantidad</th>}
-                  {visibleColumns.includes('price') && <th style={{ width: columnWidths['price'] || '110px', textAlign: 'right' }}>Precio Unit.</th>}
-                  {visibleColumns.includes('fee') && <th style={{ width: columnWidths['fee'] || '90px', textAlign: 'right' }}>Comisiones</th>}
-                  {visibleColumns.includes('currency') && <th style={{ width: columnWidths['currency'] || '80px' }}>Divisa</th>}
-                  {visibleColumns.includes('exchangeRate') && <th style={{ width: columnWidths['exchangeRate'] || '90px', textAlign: 'right' }}>Cambio</th>}
-                  {visibleColumns.includes('totalAmount') && <th style={{ width: columnWidths['totalAmount'] || '130px', textAlign: 'right' }}>Total</th>}
+                  
+                  {visibleColumns.map(col => {
+                    switch(col) {
+                    case 'id': return (<th
+ key="id" style={{ width: columnWidths['id'] || '100px' }}>ID Transacción</th>);
+                    case 'date': return (<th
+ key="date" style={{ width: columnWidths['date'] || '110px' }}>Fecha</th>);
+                    case 'assetId': return (<th
+ key="assetId" style={{ width: columnWidths['assetId'] || '110px' }}>Activo (Ticker)</th>);
+                    case 'brokerName': return (<th
+ key="brokerName" style={{ width: columnWidths['brokerName'] || '180px' }}>Broker</th>);
+                    case 'type': return (<th
+ key="type" style={{ width: columnWidths['type'] || '100px' }}>Tipo</th>);
+                    case 'quantity': return (<th
+ key="quantity" style={{ width: columnWidths['quantity'] || '100px', textAlign: 'right' }}>Cantidad</th>);
+                    case 'price': return (<th
+ key="price" style={{ width: columnWidths['price'] || '110px', textAlign: 'right' }}>Precio Unit.</th>);
+                    case 'fee': return (<th
+ key="fee" style={{ width: columnWidths['fee'] || '90px', textAlign: 'right' }}>Comisiones</th>);
+                    case 'currency': return (<th
+ key="currency" style={{ width: columnWidths['currency'] || '80px' }}>Divisa</th>);
+                    case 'exchangeRate': return (<th
+ key="exchangeRate" style={{ width: columnWidths['exchangeRate'] || '90px', textAlign: 'right' }}>Cambio</th>);
+                    case 'totalAmount': return (<th
+ key="totalAmount" style={{ width: columnWidths['totalAmount'] || '130px', textAlign: 'right' }}>Total</th>);
+                    default: return null;
+                    }
+                  })}
+    
                 </tr>
               </thead>
               <tbody>
@@ -517,31 +537,32 @@ export default function RvTransactions() {
                       onDoubleClick={() => handleEdit(tx)}
                       className={selectedTx?.id === tx.id ? 'selected' : ''}
                     >
-                      {visibleColumns.includes('id') && <td className="font-mono">{tx.id}</td>}
-                      {visibleColumns.includes('date') && (
-                        <EditableCell
+                      
+                  {visibleColumns.map(col => {
+                    switch(col) {
+                    case 'id': return (<td
+ key="id" className="font-mono">{tx.id}</td>);
+                    case 'date': return (<EditableCell
+ key="date"
                           type="date"
                           value={tx.date}
                           onSave={(val) => handleSaveField(tx, 'date', val)}
-                        />
-                      )}
-                      {visibleColumns.includes('assetId') && (
-                        <EditableCell
+                        />);
+                    case 'assetId': return (<EditableCell
+ key="assetId"
                           className="font-bold"
                           value={tx.assetId}
                           options={assets.map((a) => ({ id: a.id, name: `${a.id} - ${a.name}` }))}
                           onSave={(val) => handleSaveField(tx, 'assetId', val)}
-                        />
-                      )}
-                      {visibleColumns.includes('brokerName') && (
-                        <EditableCell
+                        />);
+                    case 'brokerName': return (<EditableCell
+ key="brokerName"
                           value={tx.brokerId}
                           options={brokers.map((b) => ({ id: b.id, name: b.name }))}
                           onSave={(val) => handleSaveField(tx, 'brokerId', val)}
-                        />
-                      )}
-                      {visibleColumns.includes('type') && (
-                        <EditableCell
+                        />);
+                    case 'type': return (<EditableCell
+ key="type"
                           value={tx.type}
                           options={['Compra', 'Venta', 'Dividendo']}
                           onSave={(val) => handleSaveField(tx, 'type', val)}
@@ -557,60 +578,57 @@ export default function RvTransactions() {
                           >
                             {tx.type}
                           </span>
-                        </EditableCell>
-                      )}
-                      {visibleColumns.includes('quantity') && (
-                        <EditableCell
+                        </EditableCell>);
+                    case 'quantity': return (<EditableCell
+ key="quantity"
                           type="number"
                           className="font-mono text-right"
                           value={tx.quantity}
                           onSave={(val) => handleSaveField(tx, 'quantity', val)}
                         >
                           {tx.quantity.toLocaleString('es-ES', { minimumFractionDigits: 0, maximumFractionDigits: 6 })}
-                        </EditableCell>
-                      )}
-                      {visibleColumns.includes('price') && (
-                        <EditableCell
+                        </EditableCell>);
+                    case 'price': return (<EditableCell
+ key="price"
                           type="number"
                           className="font-mono text-right"
                           value={tx.price}
                           onSave={(val) => handleSaveField(tx, 'price', val)}
                         >
                           {tx.price.toLocaleString('es-ES', { minimumFractionDigits: 2, maximumFractionDigits: 4 })}
-                        </EditableCell>
-                      )}
-                      {visibleColumns.includes('fee') && (
-                        <EditableCell
+                        </EditableCell>);
+                    case 'fee': return (<EditableCell
+ key="fee"
                           type="number"
                           className="font-mono text-right"
                           value={tx.fee}
                           onSave={(val) => handleSaveField(tx, 'fee', val)}
                         >
                           {tx.fee.toLocaleString('es-ES', { minimumFractionDigits: 2 })}
-                        </EditableCell>
-                      )}
-                      {visibleColumns.includes('currency') && (
-                        <EditableCell
+                        </EditableCell>);
+                    case 'currency': return (<EditableCell
+ key="currency"
                           value={tx.currency}
                           options={['EUR', 'USD', 'GBP', 'CHF']}
                           onSave={(val) => handleSaveField(tx, 'currency', val)}
-                        />
-                      )}
-                      {visibleColumns.includes('exchangeRate') && (
-                        <EditableCell
+                        />);
+                    case 'exchangeRate': return (<EditableCell
+ key="exchangeRate"
                           type="number"
                           className="font-mono text-right"
                           value={tx.exchangeRate}
                           onSave={(val) => handleSaveField(tx, 'exchangeRate', val)}
                         >
                           {tx.exchangeRate.toLocaleString('es-ES', { minimumFractionDigits: 2, maximumFractionDigits: 4 })}
-                        </EditableCell>
-                      )}
-                      {visibleColumns.includes('totalAmount') && (
-                        <td className="font-mono text-right font-bold text-slate-800">
+                        </EditableCell>);
+                    case 'totalAmount': return (<td
+ key="totalAmount" className="font-mono text-right font-bold text-slate-800">
                           {tx.totalAmount.toLocaleString('es-ES', { minimumFractionDigits: 2, maximumFractionDigits: 2 })} {tx.currency}
-                        </td>
-                      )}
+                        </td>);
+                    default: return null;
+                    }
+                  })}
+    
                     </tr>
                   ))
                 )}

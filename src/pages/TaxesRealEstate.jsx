@@ -1,4 +1,5 @@
 import { useState, useEffect, useMemo } from 'react';
+import { useTableFilters } from '../hooks/useTableFilters';
 import { db } from '../firebase/config';
 import { collection, query, where, onSnapshot, doc, updateDoc } from 'firebase/firestore';
 import { useAuth } from '../context/AuthContext';
@@ -7,6 +8,7 @@ import TaxesExtractModal from '../components/TaxesExtractModal';
 import { useTableColumns } from '../hooks/useTableColumns';
 import { exportToPDF } from '../utils/pdfExport';
 import { handleExportFormat } from '../utils/exportUtils';
+import ZoomControl from '../components/ZoomControl';
 
 export default function TaxesRealEstate() {
   const { user, queryUserIds } = useAuth();
@@ -50,7 +52,8 @@ export default function TaxesRealEstate() {
   }, [user, queryUserIds]);
 
   const DEFAULT_COLUMNS = ['id', 'name', 'ingresos', 'gastos', 'amortizacion', 'beneficioNeto'];
-  const { visibleColumns } = useTableColumns('taxesRealEstate', DEFAULT_COLUMNS);
+  const { visibleColumns , columnWidths, updateColumnWidth} = useTableColumns('taxesRealEstate', DEFAULT_COLUMNS);
+  const { applyTableFilters, TableHeaderWithFilter, renderFilterMenu } = useTableFilters({ columnWidths, updateColumnWidth });
 
   // Compute values for each property
   const computedProperties = useMemo(() => {
@@ -399,15 +402,22 @@ export default function TaxesRealEstate() {
     <div className="flex flex-col h-full bg-[#d4d0c8] p-1 font-sans">
       <div className="flex-1 flex flex-col bg-white overflow-hidden relative border border-gray-400">
         <div className="flex-1 overflow-auto bg-white p-2">
-          <table className="clean-table w-full">
+          <table style={{ zoom: tableZoom }} className="clean-table w-full">
             <thead>
               <tr>
-                {visibleColumns.includes('id') && <th className="p-2 font-bold uppercase w-16 text-center">ID</th>}
-                {visibleColumns.includes('name') && <th className="p-2 font-bold uppercase text-left">Nombre del Activo</th>}
-                {visibleColumns.includes('ingresos') && <th className="p-2 font-bold uppercase text-right">Ingresos ({taxYear})</th>}
-                {visibleColumns.includes('gastos') && <th className="p-2 font-bold uppercase text-right">Gastos ({taxYear})</th>}
-                {visibleColumns.includes('amortizacion') && <th className="p-2 font-bold uppercase text-right">Amortización ({taxYear})</th>}
-                {visibleColumns.includes('beneficioNeto') && <th className="p-2 font-bold uppercase text-right">Rendimiento Neto</th>}
+                
+                  {visibleColumns.map(col => {
+                    switch(col) {
+                    case 'id': return (<TableHeaderWithFilter key="id" label="ID" columnKey="id" data={computedProperties} tableId="taxesRealEstate" />);
+                    case 'name': return (<TableHeaderWithFilter key="name" label="Nombre del Activo" columnKey="name" data={computedProperties} tableId="taxesRealEstate" />);
+                    case 'ingresos': return (<TableHeaderWithFilter key="ingresos" label="Ingresos" columnKey="ingresos" data={computedProperties} tableId="taxesRealEstate" />);
+                    case 'gastos': return (<TableHeaderWithFilter key="gastos" label="Gastos" columnKey="gastos" data={computedProperties} tableId="taxesRealEstate" />);
+                    case 'amortizacion': return (<TableHeaderWithFilter key="amortizacion" label="Amortización" columnKey="amortizacion" data={computedProperties} tableId="taxesRealEstate" />);
+                    case 'beneficioNeto': return (<TableHeaderWithFilter key="beneficioNeto" label="Rendimiento Neto" columnKey="beneficioNeto" data={computedProperties} tableId="taxesRealEstate" />);
+                    default: return null;
+                    }
+                  })}
+    
               </tr>
             </thead>
             <tbody>
@@ -420,28 +430,33 @@ export default function TaxesRealEstate() {
                     className={`cursor-pointer border-b border-gray-200 transition-colors
                       ${isSelected ? 'bg-blue-100 text-blue-900' : 'hover:bg-blue-50/50'}`}
                   >
-                    {visibleColumns.includes('id') && <td className="p-2 text-center text-gray-500">{p.id.slice(0,5)}</td>}
-                    {visibleColumns.includes('name') && <td className="p-2">{p.name || p.address}</td>}
-                    {visibleColumns.includes('ingresos') && (
-                      <td className="p-2 text-right">
+                    
+                  {visibleColumns.map(col => {
+                    switch(col) {
+                    case 'id': return (<td
+ key="id" className="p-2 text-center text-gray-500">{p.id.slice(0,5)}</td>);
+                    case 'name': return (<td
+ key="name" className="p-2">{p.name || p.address}</td>);
+                    case 'ingresos': return (<td
+ key="ingresos" className="p-2 text-right">
                         {p.ingresos.toLocaleString('es-ES', { style: 'currency', currency: 'EUR' })}
-                      </td>
-                    )}
-                    {visibleColumns.includes('gastos') && (
-                      <td className="p-2 text-right">
+                      </td>);
+                    case 'gastos': return (<td
+ key="gastos" className="p-2 text-right">
                         {p.gastos.toLocaleString('es-ES', { style: 'currency', currency: 'EUR' })}
-                      </td>
-                    )}
-                    {visibleColumns.includes('amortizacion') && (
-                      <td className="p-2 text-right">
+                      </td>);
+                    case 'amortizacion': return (<td
+ key="amortizacion" className="p-2 text-right">
                         {p.amortizacion.toLocaleString('es-ES', { style: 'currency', currency: 'EUR' })}
-                      </td>
-                    )}
-                    {visibleColumns.includes('beneficioNeto') && (
-                      <td className="p-2 text-right">
+                      </td>);
+                    case 'beneficioNeto': return (<td
+ key="beneficioNeto" className="p-2 text-right">
                         {p.beneficioNeto.toLocaleString('es-ES', { style: 'currency', currency: 'EUR' })}
-                      </td>
-                    )}
+                      </td>);
+                    default: return null;
+                    }
+                  })}
+    
                   </tr>
                 );
               })}
@@ -461,6 +476,7 @@ export default function TaxesRealEstate() {
 
       <div className="flex justify-between items-center bg-[#f0f0f0] p-1 border-t border-[#808080] text-[10px] shrink-0">
         <div>{computedProperties.length} activos encontrados</div>
+        <ZoomControl />
       </div>
 
       <TaxesExtractModal 

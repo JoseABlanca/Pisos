@@ -1,4 +1,5 @@
 import { useState, useEffect } from 'react';
+import { useTableFilters } from '../hooks/useTableFilters';
 import { db } from '../firebase/config';
 import { collection, query, where, onSnapshot, doc, setDoc, deleteDoc } from 'firebase/firestore';
 import { useAuth } from '../context/AuthContext';
@@ -41,6 +42,7 @@ export default function Broker() {
 
   const DEFAULT_COLUMNS = ['id', 'name', 'accountNumber', 'currency', 'status'];
   const { visibleColumns, toggleColumn, columnWidths, updateColumnWidth } = useTableColumns('rv-brokers', DEFAULT_COLUMNS);
+  const { applyTableFilters, TableHeaderWithFilter, renderFilterMenu } = useTableFilters({ columnWidths, updateColumnWidth });
 
   // Filter and search computation - declared early to avoid Temporal Dead Zone (TDZ)
   const filteredBrokers = brokers.filter((broker) => {
@@ -372,11 +374,23 @@ export default function Broker() {
             <table style={{ zoom: tableZoom }} className="clean-table">
               <thead>
                 <tr>
-                  {visibleColumns.includes('id') && <th style={{ width: columnWidths['id'] || '80px' }}>ID Broker</th>}
-                  {visibleColumns.includes('name') && <th style={{ width: columnWidths['name'] || '200px' }}>Nombre Broker</th>}
-                  {visibleColumns.includes('accountNumber') && <th style={{ width: columnWidths['accountNumber'] || '180px' }}>Número de cuenta</th>}
-                  {visibleColumns.includes('currency') && <th style={{ width: columnWidths['currency'] || '100px' }}>Tipo de divisa</th>}
-                  {visibleColumns.includes('status') && <th style={{ width: columnWidths['status'] || '90px' }}>Estado</th>}
+                  
+                  {visibleColumns.map(col => {
+                    switch(col) {
+                    case 'id': return (<th
+ key="id" style={{ width: columnWidths['id'] || '80px' }}>ID Broker</th>);
+                    case 'name': return (<th
+ key="name" style={{ width: columnWidths['name'] || '200px' }}>Nombre Broker</th>);
+                    case 'accountNumber': return (<th
+ key="accountNumber" style={{ width: columnWidths['accountNumber'] || '180px' }}>Número de cuenta</th>);
+                    case 'currency': return (<th
+ key="currency" style={{ width: columnWidths['currency'] || '100px' }}>Tipo de divisa</th>);
+                    case 'status': return (<th
+ key="status" style={{ width: columnWidths['status'] || '90px' }}>Estado</th>);
+                    default: return null;
+                    }
+                  })}
+    
                 </tr>
               </thead>
               <tbody>
@@ -393,11 +407,23 @@ export default function Broker() {
                       onClick={() => setSelectedBroker(selectedBroker?.id === broker.id ? null : broker)}
                       className={selectedBroker?.id === broker.id ? 'selected' : ''}
                     >
-                      {visibleColumns.includes('id') && <td>{broker.id}</td>}
-                      {visibleColumns.includes('name') && <EditableCell value={broker.name} onSave={(val) => handleSaveField(broker, 'name', val)} />}
-                      {visibleColumns.includes('accountNumber') && <EditableCell value={broker.accountNumber} onSave={(val) => handleSaveField(broker, 'accountNumber', val)} />}
-                      {visibleColumns.includes('currency') && <EditableCell value={broker.currency} options={['EUR', 'USD', 'GBP', 'CHF', 'JPY']} onSave={(val) => handleSaveField(broker, 'currency', val)} />}
-                      {visibleColumns.includes('status') && <EditableCell className="text-center" value={broker.status} options={['activo', 'inactivo']} onSave={(val) => handleSaveField(broker, 'status', val)} />}
+                      
+                  {visibleColumns.map(col => {
+                    switch(col) {
+                    case 'id': return (<td
+ key="id">{broker.id}</td>);
+                    case 'name': return (<EditableCell
+ key="name" value={broker.name} onSave={(val) => handleSaveField(broker, 'name', val)} />);
+                    case 'accountNumber': return (<EditableCell
+ key="accountNumber" value={broker.accountNumber} onSave={(val) => handleSaveField(broker, 'accountNumber', val)} />);
+                    case 'currency': return (<EditableCell
+ key="currency" value={broker.currency} options={['EUR', 'USD', 'GBP', 'CHF', 'JPY']} onSave={(val) => handleSaveField(broker, 'currency', val)} />);
+                    case 'status': return (<EditableCell
+ key="status" className="text-center" value={broker.status} options={['activo', 'inactivo']} onSave={(val) => handleSaveField(broker, 'status', val)} />);
+                    default: return null;
+                    }
+                  })}
+    
                     </tr>
                   ))
                 )}

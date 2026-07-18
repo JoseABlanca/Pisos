@@ -10,6 +10,7 @@ import {
 import { handleExportFormat } from '../utils/exportUtils';
 import ZoomControl from '../components/ZoomControl';
 import { useTableColumns } from '../hooks/useTableColumns';
+import { useTableFilters } from '../hooks/useTableFilters';
 import { exportToPDF } from '../utils/pdfExport';
 import { PieChart, Pie, Cell, BarChart as ReBarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, Legend, ResponsiveContainer } from 'recharts';
 import ResizableSidebar from '../components/ResizableSidebar';
@@ -51,7 +52,8 @@ export default function Portfolio() {
   });
 
   const DEFAULT_COLUMNS_PORTFOLIO = ['symbol', 'name', 'type', 'brokerName', 'quantity', 'pmc', 'currentPrice', 'totalCost', 'currentValue', 'pnl', 'pnlPercent'];
-  const { visibleColumns: visColsPortfolio, toggleColumn: toggleColPortfolio } = useTableColumns('rv-portfolio', DEFAULT_COLUMNS_PORTFOLIO);
+  const { visibleColumns: visColsPortfolio, toggleColumn: toggleColPortfolio , columnWidths, updateColumnWidth} = useTableColumns('rv-portfolio', DEFAULT_COLUMNS_PORTFOLIO);
+  const { applyTableFilters, TableHeaderWithFilter, renderFilterMenu } = useTableFilters({ columnWidths, updateColumnWidth });
 
   const DEFAULT_COLUMNS_TX = ['id', 'date', 'assetId', 'brokerName', 'type', 'quantity', 'price', 'fee', 'currency', 'exchangeRate', 'totalAmount'];
   const { visibleColumns: visColsTx, toggleColumn: toggleColTx } = useTableColumns('rv-transactions-grid', DEFAULT_COLUMNS_TX);
@@ -486,18 +488,25 @@ export default function Portfolio() {
         onClick={() => setSelectedHolding(selectedHolding?.symbol === h.symbol && selectedHolding?.brokerId === h.brokerId ? null : h)}
         className={selectedHolding?.symbol === h.symbol && selectedHolding?.brokerId === h.brokerId ? 'selected' : ''}
       >
-        {visColsPortfolio.includes('symbol') && <td className="font-mono font-bold">{h.symbol}</td>}
-        {visColsPortfolio.includes('name') && <td>{h.name}</td>}
-        {visColsPortfolio.includes('type') && <td>{h.type}</td>}
-        {visColsPortfolio.includes('brokerName') && <td>{h.brokerName}</td>}
-        {visColsPortfolio.includes('quantity') && <td className="font-mono text-right">{h.quantity}</td>}
-        {visColsPortfolio.includes('pmc') && (
-          <td className="font-mono text-right">
+        
+                  {visColsPortfolio.map(col => {
+                    switch(col) {
+                    case 'symbol': return (<td
+ key="symbol" className="font-mono font-bold">{h.symbol}</td>);
+                    case 'name': return (<td
+ key="name">{h.name}</td>);
+                    case 'type': return (<td
+ key="type">{h.type}</td>);
+                    case 'brokerName': return (<td
+ key="brokerName">{h.brokerName}</td>);
+                    case 'quantity': return (<td
+ key="quantity" className="font-mono text-right">{h.quantity}</td>);
+                    case 'pmc': return (<td
+ key="pmc" className="font-mono text-right">
             {h.pmc.toLocaleString('es-ES', { minimumFractionDigits: 2, maximumFractionDigits: 4 })} €
-          </td>
-        )}
-        {visColsPortfolio.includes('currentPrice') && (
-          <td className="font-mono text-right">
+          </td>);
+                    case 'currentPrice': return (<td
+ key="currentPrice" className="font-mono text-right">
             {h.currency !== 'EUR' && h.currentPriceRaw !== undefined && h.currentPriceRaw !== null ? (
               <span className="text-[10px] text-gray-500 mr-1.5">
                 ({h.currentPriceRaw.toLocaleString('es-ES', { minimumFractionDigits: 2, maximumFractionDigits: 4 })} {h.currency})
@@ -506,28 +515,27 @@ export default function Portfolio() {
             <span>
               {h.currentPrice.toLocaleString('es-ES', { minimumFractionDigits: 2, maximumFractionDigits: 4 })} €
             </span>
-          </td>
-        )}
-        {visColsPortfolio.includes('totalCost') && (
-          <td className="font-mono text-right">
+          </td>);
+                    case 'totalCost': return (<td
+ key="totalCost" className="font-mono text-right">
             {h.totalCost.toLocaleString('es-ES', { minimumFractionDigits: 2, maximumFractionDigits: 2 })} €
-          </td>
-        )}
-        {visColsPortfolio.includes('currentValue') && (
-          <td className="font-mono text-right font-bold text-slate-700">
+          </td>);
+                    case 'currentValue': return (<td
+ key="currentValue" className="font-mono text-right font-bold text-slate-700">
             {h.currentValue.toLocaleString('es-ES', { minimumFractionDigits: 2, maximumFractionDigits: 2 })} €
-          </td>
-        )}
-        {visColsPortfolio.includes('pnl') && (
-          <td className={`font-mono text-right font-bold ${h.pnl >= 0 ? 'text-green-700' : 'text-red-600'}`}>
+          </td>);
+                    case 'pnl': return (<td
+ key="pnl" className={`font-mono text-right font-bold ${h.pnl >= 0 ? 'text-green-700' : 'text-red-600'}`}>
             {h.pnl >= 0 ? '+' : ''}{h.pnl.toLocaleString('es-ES', { minimumFractionDigits: 2, maximumFractionDigits: 2 })} €
-          </td>
-        )}
-        {visColsPortfolio.includes('pnlPercent') && (
-          <td className={`font-mono text-right font-bold ${h.pnl >= 0 ? 'text-green-700' : 'text-red-600'}`}>
+          </td>);
+                    case 'pnlPercent': return (<td
+ key="pnlPercent" className={`font-mono text-right font-bold ${h.pnl >= 0 ? 'text-green-700' : 'text-red-600'}`}>
             {h.pnl >= 0 ? '+' : ''}{h.pnlPercent.toFixed(2)}%
-          </td>
-        )}
+          </td>);
+                    default: return null;
+                    }
+                  })}
+    
       </tr>
     );
   };
@@ -560,33 +568,43 @@ export default function Portfolio() {
           </tr>
           {items.map(h => renderRow(h))}
           <tr className="bg-slate-50 font-bold border-b border-gray-300 text-slate-700">
-            {visColsPortfolio.includes('symbol') && <td></td>}
-            {visColsPortfolio.includes('name') && <td className="text-right italic">Subtotal {brokerName}:</td>}
-            {visColsPortfolio.includes('type') && <td></td>}
-            {visColsPortfolio.includes('brokerName') && <td></td>}
-            {visColsPortfolio.includes('quantity') && <td></td>}
-            {visColsPortfolio.includes('pmc') && <td></td>}
-            {visColsPortfolio.includes('currentPrice') && <td></td>}
-            {visColsPortfolio.includes('totalCost') && (
-              <td className="font-mono text-right border-t border-gray-400">
+            
+                  {visColsPortfolio.map(col => {
+                    switch(col) {
+                    case 'symbol': return (<td
+ key="symbol"></td>);
+                    case 'name': return (<td
+ key="name" className="text-right italic">Subtotal {brokerName}:</td>);
+                    case 'type': return (<td
+ key="type"></td>);
+                    case 'brokerName': return (<td
+ key="brokerName"></td>);
+                    case 'quantity': return (<td
+ key="quantity"></td>);
+                    case 'pmc': return (<td
+ key="pmc"></td>);
+                    case 'currentPrice': return (<td
+ key="currentPrice"></td>);
+                    case 'totalCost': return (<td
+ key="totalCost" className="font-mono text-right border-t border-gray-400">
                 {groupCost.toLocaleString('es-ES', { minimumFractionDigits: 2, maximumFractionDigits: 2 })} €
-              </td>
-            )}
-            {visColsPortfolio.includes('currentValue') && (
-              <td className="font-mono text-right border-t border-gray-400">
+              </td>);
+                    case 'currentValue': return (<td
+ key="currentValue" className="font-mono text-right border-t border-gray-400">
                 {groupValue.toLocaleString('es-ES', { minimumFractionDigits: 2, maximumFractionDigits: 2 })} €
-              </td>
-            )}
-            {visColsPortfolio.includes('pnl') && (
-              <td className={`font-mono text-right border-t border-gray-400 ${groupPnL >= 0 ? 'text-green-700' : 'text-red-600'}`}>
+              </td>);
+                    case 'pnl': return (<td
+ key="pnl" className={`font-mono text-right border-t border-gray-400 ${groupPnL >= 0 ? 'text-green-700' : 'text-red-600'}`}>
                 {groupPnL >= 0 ? '+' : ''}{groupPnL.toLocaleString('es-ES', { minimumFractionDigits: 2, maximumFractionDigits: 2 })} €
-              </td>
-            )}
-            {visColsPortfolio.includes('pnlPercent') && (
-              <td className={`font-mono text-right border-t border-gray-400 ${groupPnL >= 0 ? 'text-green-700' : 'text-red-600'}`}>
+              </td>);
+                    case 'pnlPercent': return (<td
+ key="pnlPercent" className={`font-mono text-right border-t border-gray-400 ${groupPnL >= 0 ? 'text-green-700' : 'text-red-600'}`}>
                 {groupPnL >= 0 ? '+' : ''}{groupPnLPercent.toFixed(2)}%
-              </td>
-            )}
+              </td>);
+                    default: return null;
+                    }
+                  })}
+    
           </tr>
         </React.Fragment>
       );
@@ -620,41 +638,47 @@ export default function Portfolio() {
           </tr>
           {items.map(h => renderRow(h))}
           <tr className="bg-slate-50 font-bold border-b border-gray-300 text-slate-700">
-            {visColsPortfolio.includes('symbol') && <td></td>}
-            {visColsPortfolio.includes('name') && <td className="text-right italic">Subtotal {sym}:</td>}
-            {visColsPortfolio.includes('type') && <td></td>}
-            {visColsPortfolio.includes('brokerName') && <td></td>}
-            {visColsPortfolio.includes('quantity') && (
-              <td className="font-mono text-right border-t border-gray-400">
+            
+                  {visColsPortfolio.map(col => {
+                    switch(col) {
+                    case 'symbol': return (<td
+ key="symbol"></td>);
+                    case 'name': return (<td
+ key="name" className="text-right italic">Subtotal {sym}:</td>);
+                    case 'type': return (<td
+ key="type"></td>);
+                    case 'brokerName': return (<td
+ key="brokerName"></td>);
+                    case 'quantity': return (<td
+ key="quantity" className="font-mono text-right border-t border-gray-400">
                 {groupQty}
-              </td>
-            )}
-            {visColsPortfolio.includes('pmc') && (
-              <td className="font-mono text-right border-t border-gray-400">
+              </td>);
+                    case 'pmc': return (<td
+ key="pmc" className="font-mono text-right border-t border-gray-400">
                 {groupQty > 0 ? (groupCost / groupQty).toLocaleString('es-ES', { minimumFractionDigits: 2, maximumFractionDigits: 4 }) : '0,00'} €
-              </td>
-            )}
-            {visColsPortfolio.includes('currentPrice') && <td></td>}
-            {visColsPortfolio.includes('totalCost') && (
-              <td className="font-mono text-right border-t border-gray-400">
+              </td>);
+                    case 'currentPrice': return (<td
+ key="currentPrice"></td>);
+                    case 'totalCost': return (<td
+ key="totalCost" className="font-mono text-right border-t border-gray-400">
                 {groupCost.toLocaleString('es-ES', { minimumFractionDigits: 2, maximumFractionDigits: 2 })} €
-              </td>
-            )}
-            {visColsPortfolio.includes('currentValue') && (
-              <td className="font-mono text-right border-t border-gray-400">
+              </td>);
+                    case 'currentValue': return (<td
+ key="currentValue" className="font-mono text-right border-t border-gray-400">
                 {groupValue.toLocaleString('es-ES', { minimumFractionDigits: 2, maximumFractionDigits: 2 })} €
-              </td>
-            )}
-            {visColsPortfolio.includes('pnl') && (
-              <td className={`font-mono text-right border-t border-gray-400 ${groupPnL >= 0 ? 'text-green-700' : 'text-red-600'}`}>
+              </td>);
+                    case 'pnl': return (<td
+ key="pnl" className={`font-mono text-right border-t border-gray-400 ${groupPnL >= 0 ? 'text-green-700' : 'text-red-600'}`}>
                 {groupPnL >= 0 ? '+' : ''}{groupPnL.toLocaleString('es-ES', { minimumFractionDigits: 2, maximumFractionDigits: 2 })} €
-              </td>
-            )}
-            {visColsPortfolio.includes('pnlPercent') && (
-              <td className={`font-mono text-right border-t border-gray-400 ${groupPnL >= 0 ? 'text-green-700' : 'text-red-600'}`}>
+              </td>);
+                    case 'pnlPercent': return (<td
+ key="pnlPercent" className={`font-mono text-right border-t border-gray-400 ${groupPnL >= 0 ? 'text-green-700' : 'text-red-600'}`}>
                 {groupPnL >= 0 ? '+' : ''}{groupPnLPercent.toFixed(2)}%
-              </td>
-            )}
+              </td>);
+                    default: return null;
+                    }
+                  })}
+    
           </tr>
         </React.Fragment>
       );
@@ -845,17 +869,35 @@ export default function Portfolio() {
               <table style={{ zoom: tableZoom }} className="clean-table">
                 <thead>
                   <tr>
-                    {visColsPortfolio.includes('symbol') && <th style={{ width: '80px' }}>Ticker</th>}
-                    {visColsPortfolio.includes('name') && <th style={{ width: '180px' }}>Nombre</th>}
-                    {visColsPortfolio.includes('type') && <th style={{ width: '100px' }}>Tipo</th>}
-                    {visColsPortfolio.includes('brokerName') && <th style={{ width: '150px' }}>Broker</th>}
-                    {visColsPortfolio.includes('quantity') && <th style={{ width: '90px' }}>Títulos</th>}
-                    {visColsPortfolio.includes('pmc') && <th style={{ width: '110px' }}>P.Medio Compra</th>}
-                    {visColsPortfolio.includes('currentPrice') && <th style={{ width: '160px' }}>Precio Mercado</th>}
-                    {visColsPortfolio.includes('totalCost') && <th style={{ width: '110px' }}>Coste Total</th>}
-                    {visColsPortfolio.includes('currentValue') && <th style={{ width: '110px' }}>Valor Actual</th>}
-                    {visColsPortfolio.includes('pnl') && <th style={{ width: '110px' }}>Rentabilidad</th>}
-                    {visColsPortfolio.includes('pnlPercent') && <th style={{ width: '90px' }}>% PnL</th>}
+                    
+                  {visColsPortfolio.map(col => {
+                    switch(col) {
+                    case 'symbol': return (<th
+ key="symbol" style={{ width: '80px' }}>Ticker</th>);
+                    case 'name': return (<th
+ key="name" style={{ width: '180px' }}>Nombre</th>);
+                    case 'type': return (<th
+ key="type" style={{ width: '100px' }}>Tipo</th>);
+                    case 'brokerName': return (<th
+ key="brokerName" style={{ width: '150px' }}>Broker</th>);
+                    case 'quantity': return (<th
+ key="quantity" style={{ width: '90px' }}>Títulos</th>);
+                    case 'pmc': return (<th
+ key="pmc" style={{ width: '110px' }}>P.Medio Compra</th>);
+                    case 'currentPrice': return (<th
+ key="currentPrice" style={{ width: '160px' }}>Precio Mercado</th>);
+                    case 'totalCost': return (<th
+ key="totalCost" style={{ width: '110px' }}>Coste Total</th>);
+                    case 'currentValue': return (<th
+ key="currentValue" style={{ width: '110px' }}>Valor Actual</th>);
+                    case 'pnl': return (<th
+ key="pnl" style={{ width: '110px' }}>Rentabilidad</th>);
+                    case 'pnlPercent': return (<th
+ key="pnlPercent" style={{ width: '90px' }}>% PnL</th>);
+                    default: return null;
+                    }
+                  })}
+    
                   </tr>
                 </thead>
                 <tbody>

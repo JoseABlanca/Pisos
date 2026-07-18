@@ -555,10 +555,17 @@ export default function Rentals() {
             <table style={{ zoom: tableZoom }} className="clean-table">
               <thead>
                 <tr className="sticky top-0 z-10">
-                  {visibleColumns.includes('id') && <TableHeaderWithFilter label="ID" columnKey="id" data={rentals.map(r => ({ ...r, id: r._originalId || r.id || '' }))} tableId="rentals" className="w-24" />}
-                  {visibleColumns.includes('reference') && <TableHeaderWithFilter label="Referencia" columnKey="reference" data={rentals} tableId="rentals" className="w-32" />}
-                  {visibleColumns.includes('propertyDisplay') && <TableHeaderWithFilter label="Propiedad" columnKey="propertyDisplay" data={rentals.map(r => { const p = properties.find(p => p.id === r.propertyId); return { ...r, propertyDisplay: p ? p.name : r.propertyName || r.propertyId || 'Desconocido' }; })} tableId="rentals" className="w-48" />}
-                  {visibleColumns.includes('tenantDisplay') && <TableHeaderWithFilter label="Inquilino" columnKey="tenantDisplay" data={rentals.map(r => { 
+                  
+                  {visibleColumns.map(col => {
+                    switch(col) {
+                    case 'id': return (<TableHeaderWithFilter
+ key="id" label="ID" columnKey="id" data={rentals.map(r => ({ ...r, id: r._originalId || r.id || '' }))} tableId="rentals" className="w-24" />);
+                    case 'reference': return (<TableHeaderWithFilter
+ key="reference" label="Referencia" columnKey="reference" data={rentals} tableId="rentals" className="w-32" />);
+                    case 'propertyDisplay': return (<TableHeaderWithFilter
+ key="propertyDisplay" label="Propiedad" columnKey="propertyDisplay" data={rentals.map(r => { const p = properties.find(p => p.id === r.propertyId); return { ...r, propertyDisplay: p ? p.name : r.propertyName || r.propertyId || 'Desconocido' }; })} tableId="rentals" className="w-48" />);
+                    case 'tenantDisplay': return (<TableHeaderWithFilter
+ key="tenantDisplay" label="Inquilino" columnKey="tenantDisplay" data={rentals.map(r => { 
                     const cust = customers.find(c => c.id === r.tenantId); 
                     const display = r.rentalType === 'alquiler por habitaciones' && r.rooms?.length > 0 
                       ? r.rooms.filter(rm => rm.status === 'ocupada').map(rm => {
@@ -567,16 +574,29 @@ export default function Rentals() {
                         }).filter(Boolean).join(', ') || 'Ninguno'
                       : (r.tenants?.length > 0 ? r.tenants.map(t => t.name).join(', ') : (cust ? cust.name : 'Ninguno'));
                     return { ...r, tenantDisplay: display }; 
-                  })} tableId="rentals" className="w-48" />}
-                  {visibleColumns.includes('rentalType') && <TableHeaderWithFilter label="Tipo Alquiler" columnKey="rentalType" data={rentals} tableId="rentals" className="w-32" />}
-                  {visibleColumns.includes('duration') && <TableHeaderWithFilter label="Duración" columnKey="duration" data={rentals} tableId="rentals" className="w-24 text-center" />}
-                  {visibleColumns.includes('startDate') && <TableHeaderWithFilter label="Inicio" columnKey="startDate" data={rentals} tableId="rentals" className="w-32 text-center" />}
-                  {visibleColumns.includes('endDate') && <TableHeaderWithFilter label="Fin" columnKey="endDate" data={rentals} tableId="rentals" className="w-32 text-center" />}
-                  {visibleColumns.includes('status') && <TableHeaderWithFilter label="Estado" columnKey="status" data={rentals} tableId="rentals" className="w-24 text-center" />}
-                  {visibleColumns.includes('deposit') && <TableHeaderWithFilter label="Fianza" columnKey="deposit" data={rentals.map(r => ({ ...r, deposit: Number(r.depositAmount || 0).toLocaleString('es-ES', { minimumFractionDigits: 2 }) }))} tableId="rentals" className="w-32 text-right" />}
-                  {visibleColumns.includes('rent') && <TableHeaderWithFilter label="Renta" columnKey="rent" data={rentals.map(r => ({ ...r, rent: Number(r.rentAmount || 0).toLocaleString('es-ES', { minimumFractionDigits: 2 }) }))} tableId="rentals" className="w-32 text-right" />}
-                  {visibleColumns.includes('paymentMethod') && <TableHeaderWithFilter label="Forma Pago" columnKey="paymentMethod" data={rentals} tableId="rentals" className="w-32" />}
-                  {visibleColumns.includes('actualizaIpc') && <TableHeaderWithFilter label="Actualiza IPC" columnKey="actualizaIpc" data={rentals} tableId="rentals" className="w-24 text-center" />}
+                  })} tableId="rentals" className="w-48" />);
+                    case 'rentalType': return (<TableHeaderWithFilter
+ key="rentalType" label="Tipo Alquiler" columnKey="rentalType" data={rentals} tableId="rentals" className="w-32" />);
+                    case 'duration': return (<TableHeaderWithFilter
+ key="duration" label="Duración" columnKey="duration" data={rentals} tableId="rentals" className="w-24 text-center" />);
+                    case 'startDate': return (<TableHeaderWithFilter
+ key="startDate" label="Inicio" columnKey="startDate" data={rentals} tableId="rentals" className="w-32 text-center" />);
+                    case 'endDate': return (<TableHeaderWithFilter
+ key="endDate" label="Fin" columnKey="endDate" data={rentals} tableId="rentals" className="w-32 text-center" />);
+                    case 'status': return (<TableHeaderWithFilter
+ key="status" label="Estado" columnKey="status" data={rentals} tableId="rentals" className="w-24 text-center" />);
+                    case 'deposit': return (<TableHeaderWithFilter
+ key="deposit" label="Fianza" columnKey="deposit" data={rentals.map(r => ({ ...r, deposit: Number(r.depositAmount || 0).toLocaleString('es-ES', { minimumFractionDigits: 2 }) }))} tableId="rentals" className="w-32 text-right" />);
+                    case 'rent': return (<TableHeaderWithFilter
+ key="rent" label="Renta" columnKey="rent" data={rentals.map(r => ({ ...r, rent: Number(r.rentAmount || 0).toLocaleString('es-ES', { minimumFractionDigits: 2 }) }))} tableId="rentals" className="w-32 text-right" />);
+                    case 'paymentMethod': return (<TableHeaderWithFilter
+ key="paymentMethod" label="Forma Pago" columnKey="paymentMethod" data={rentals} tableId="rentals" className="w-32" />);
+                    case 'actualizaIpc': return (<TableHeaderWithFilter
+ key="actualizaIpc" label="Actualiza IPC" columnKey="actualizaIpc" data={rentals} tableId="rentals" className="w-24 text-center" />);
+                    default: return null;
+                    }
+                  })}
+    
                 </tr>
               </thead>
               <tbody>
@@ -615,89 +635,89 @@ export default function Rentals() {
                   onClick={(e) => { e.stopPropagation(); setSelectedRental(rental); }}
                   onDoubleClick={() => handleEdit(rental)}
                 >
-                  {visibleColumns.includes('id') && <td>{rental.id}</td>}
-                  {visibleColumns.includes('reference') && <td>{rental.reference || '---'}</td>}
-                  {visibleColumns.includes('propertyDisplay') && (
-                    <EditableCell 
+                  
+                  {visibleColumns.map(col => {
+                    switch(col) {
+                    case 'id': return (<td
+ key="id">{rental.id}</td>);
+                    case 'reference': return (<td
+ key="reference">{rental.reference || '---'}</td>);
+                    case 'propertyDisplay': return (<EditableCell
+ key="propertyDisplay" 
                       value={rental.propertyId} 
                       options={properties.map(p => ({ id: p.id, name: p.name || p.address }))} 
                       onSave={(val) => handleSaveField(rental, 'propertyId', val)} 
-                    />
-                  )}
-                  {visibleColumns.includes('tenantDisplay') && <td>{rental.tenantDisplay}</td>}
-                  {visibleColumns.includes('rentalType') && (
-                    <EditableCell 
+                    />);
+                    case 'tenantDisplay': return (<td
+ key="tenantDisplay">{rental.tenantDisplay}</td>);
+                    case 'rentalType': return (<EditableCell
+ key="rentalType" 
                       className="capitalize" 
                       value={rental.rentalType} 
                       options={['vivienda habitual', 'alquiler por habitaciones', 'comercial', 'otro']} 
                       onSave={(val) => handleSaveField(rental, 'rentalType', val)} 
-                    />
-                  )}
-                  {visibleColumns.includes('duration') && (
-                    <EditableCell 
+                    />);
+                    case 'duration': return (<EditableCell
+ key="duration" 
                       className="text-center capitalize" 
                       value={rental.duration} 
                       options={['fijo', 'temporal']} 
                       onSave={(val) => handleSaveField(rental, 'duration', val)} 
-                    />
-                  )}
-                  {visibleColumns.includes('startDate') && (
-                    <EditableCell 
+                    />);
+                    case 'startDate': return (<EditableCell
+ key="startDate" 
                       className="text-center" 
                       type="date" 
                       value={rental.startDate} 
                       onSave={(val) => handleSaveField(rental, 'startDate', val)} 
-                    />
-                  )}
-                  {visibleColumns.includes('endDate') && (
-                    <EditableCell 
+                    />);
+                    case 'endDate': return (<EditableCell
+ key="endDate" 
                       className="text-center" 
                       type="date" 
                       value={rental.endDate} 
                       onSave={(val) => handleSaveField(rental, 'endDate', val)} 
                     >
                       {rental.endDate || '--'}
-                    </EditableCell>
-                  )}
-                  {visibleColumns.includes('status') && (
-                    <EditableCell 
+                    </EditableCell>);
+                    case 'status': return (<EditableCell
+ key="status" 
                       className="text-center uppercase" 
                       value={rental.status || 'activo'} 
                       options={['activo', 'inactivo']} 
                       onSave={(val) => handleSaveField(rental, 'status', val)} 
-                    />
-                  )}
-                  {visibleColumns.includes('deposit') && (
-                    <EditableCell 
+                    />);
+                    case 'deposit': return (<EditableCell
+ key="deposit" 
                       className="text-right" 
                       type="number" 
                       value={rental.depositAmount} 
                       onSave={(val) => handleSaveField(rental, 'depositAmount', val)} 
-                    />
-                  )}
-                  {visibleColumns.includes('rent') && (
-                    <EditableCell 
+                    />);
+                    case 'rent': return (<EditableCell
+ key="rent" 
                       className="text-right" 
                       type="number" 
                       value={rental.rentAmount} 
                       onSave={(val) => handleSaveField(rental, 'rentAmount', val)} 
-                    />
-                  )}
-                  {visibleColumns.includes('paymentMethod') && (
-                    <EditableCell 
+                    />);
+                    case 'paymentMethod': return (<EditableCell
+ key="paymentMethod" 
                       value={rental.paymentPeriod || 'mensual'} 
                       options={['mensual', 'trimestral', 'anual']} 
                       onSave={(val) => handleSaveField(rental, 'paymentPeriod', val)} 
-                    />
-                  )}
-                  {visibleColumns.includes('actualizaIpc') && (
-                    <EditableCell 
+                    />);
+                    case 'actualizaIpc': return (<EditableCell
+ key="actualizaIpc" 
                       className="text-center font-bold" 
                       value={rental.actualizaIpc ? 'SÍ' : 'NO'} 
                       options={['SÍ', 'NO']} 
                       onSave={(val) => handleSaveField(rental, 'actualizaIpc', val)} 
-                    />
-                  )}
+                    />);
+                    default: return null;
+                    }
+                  })}
+    
                 </tr>
                 ))}
             {rentals.length === 0 && (

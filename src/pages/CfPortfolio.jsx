@@ -1,4 +1,5 @@
 import { useState, useEffect, useMemo } from 'react';
+import { useTableFilters } from '../hooks/useTableFilters';
 import { useOutletContext } from 'react-router-dom';
 import { db } from '../firebase/config';
 import { collection, query, where, onSnapshot } from 'firebase/firestore';
@@ -43,7 +44,8 @@ export default function CfPortfolio() {
     'yieldGross',
     'yieldNet'
   ];
-  const { visibleColumns, columnWidths } = useTableColumns('cf-portfolio', DEFAULT_COLUMNS);
+  const { visibleColumns, columnWidths , updateColumnWidth} = useTableColumns('cf-portfolio', DEFAULT_COLUMNS);
+  const { applyTableFilters, TableHeaderWithFilter, renderFilterMenu } = useTableFilters({ columnWidths, updateColumnWidth });
 
   useEffect(() => {
     const handleResize = () => setIsMobile(window.innerWidth < 768);
@@ -495,19 +497,33 @@ export default function CfPortfolio() {
             <table style={{ zoom: tableZoom }} className="clean-table">
               <thead>
                 <tr>
-                  {visibleColumns.includes('groupName') && (
-                    <th style={{ width: columnWidths['groupName'] || '250px' }}>
+                  
+                  {visibleColumns.map(col => {
+                    switch(col) {
+                    case 'groupName': return (<th
+ key="groupName" style={{ width: columnWidths['groupName'] || '250px' }}>
                       {groupBy === 'plataforma' ? 'Plataforma' : 'Activo / Proyecto'}
-                    </th>
-                  )}
-                  {visibleColumns.includes('investment') && <th style={{ width: columnWidths['investment'] || '120px' }} className="text-right">Inversión</th>}
-                  {visibleColumns.includes('grossRents') && <th style={{ width: columnWidths['grossRents'] || '120px' }} className="text-right">Rentas Brutas</th>}
-                  {visibleColumns.includes('expenses') && <th style={{ width: columnWidths['expenses'] || '110px' }} className="text-right">Gastos</th>}
-                  {visibleColumns.includes('netRents') && <th style={{ width: columnWidths['netRents'] || '120px' }} className="text-right">Rentas Netas</th>}
-                  {visibleColumns.includes('totalGross') && <th style={{ width: columnWidths['totalGross'] || '135px' }} className="text-right">Importe Total</th>}
-                  {visibleColumns.includes('totalNet') && <th style={{ width: columnWidths['totalNet'] || '145px' }} className="text-right">Imp. Total Neto</th>}
-                  {visibleColumns.includes('yieldGross') && <th style={{ width: columnWidths['yieldGross'] || '110px' }} className="text-right">Rent. Bruta</th>}
-                  {visibleColumns.includes('yieldNet') && <th style={{ width: columnWidths['yieldNet'] || '110px' }} className="text-right">Rent. Neta</th>}
+                    </th>);
+                    case 'investment': return (<th
+ key="investment" style={{ width: columnWidths['investment'] || '120px' }} className="text-right">Inversión</th>);
+                    case 'grossRents': return (<th
+ key="grossRents" style={{ width: columnWidths['grossRents'] || '120px' }} className="text-right">Rentas Brutas</th>);
+                    case 'expenses': return (<th
+ key="expenses" style={{ width: columnWidths['expenses'] || '110px' }} className="text-right">Gastos</th>);
+                    case 'netRents': return (<th
+ key="netRents" style={{ width: columnWidths['netRents'] || '120px' }} className="text-right">Rentas Netas</th>);
+                    case 'totalGross': return (<th
+ key="totalGross" style={{ width: columnWidths['totalGross'] || '135px' }} className="text-right">Importe Total</th>);
+                    case 'totalNet': return (<th
+ key="totalNet" style={{ width: columnWidths['totalNet'] || '145px' }} className="text-right">Imp. Total Neto</th>);
+                    case 'yieldGross': return (<th
+ key="yieldGross" style={{ width: columnWidths['yieldGross'] || '110px' }} className="text-right">Rent. Bruta</th>);
+                    case 'yieldNet': return (<th
+ key="yieldNet" style={{ width: columnWidths['yieldNet'] || '110px' }} className="text-right">Rent. Neta</th>);
+                    default: return null;
+                    }
+                  })}
+    
                 </tr>
               </thead>
               <tbody>
@@ -520,15 +536,31 @@ export default function CfPortfolio() {
                 ) : (
                   rows.map((row) => (
                     <tr key={row.id}>
-                      {visibleColumns.includes('groupName') && <td className="font-semibold text-slate-700">{row.groupName}</td>}
-                      {visibleColumns.includes('investment') && <td className="text-right font-mono">{fmt(row.investment)} €</td>}
-                      {visibleColumns.includes('grossRents') && <td className="text-right font-mono text-green-600">{fmt(row.grossRents)} €</td>}
-                      {visibleColumns.includes('expenses') && <td className="text-right font-mono text-red-500">{fmt(row.expenses)} €</td>}
-                      {visibleColumns.includes('netRents') && <td className="text-right font-mono text-green-700 font-bold">{fmt(row.netRents)} €</td>}
-                      {visibleColumns.includes('totalGross') && <td className="text-right font-mono">{fmt(row.totalGross)} €</td>}
-                      {visibleColumns.includes('totalNet') && <td className="text-right font-mono font-bold text-slate-900">{fmt(row.totalNet)} €</td>}
-                      {visibleColumns.includes('yieldGross') && <td className="text-right font-mono text-blue-600">{fmt(row.yieldGross)} %</td>}
-                      {visibleColumns.includes('yieldNet') && <td className="text-right font-mono text-blue-800 font-bold">{fmt(row.yieldNet)} %</td>}
+                      
+                  {visibleColumns.map(col => {
+                    switch(col) {
+                    case 'groupName': return (<td
+ key="groupName" className="font-semibold text-slate-700">{row.groupName}</td>);
+                    case 'investment': return (<td
+ key="investment" className="text-right font-mono">{fmt(row.investment)} €</td>);
+                    case 'grossRents': return (<td
+ key="grossRents" className="text-right font-mono text-green-600">{fmt(row.grossRents)} €</td>);
+                    case 'expenses': return (<td
+ key="expenses" className="text-right font-mono text-red-500">{fmt(row.expenses)} €</td>);
+                    case 'netRents': return (<td
+ key="netRents" className="text-right font-mono text-green-700 font-bold">{fmt(row.netRents)} €</td>);
+                    case 'totalGross': return (<td
+ key="totalGross" className="text-right font-mono">{fmt(row.totalGross)} €</td>);
+                    case 'totalNet': return (<td
+ key="totalNet" className="text-right font-mono font-bold text-slate-900">{fmt(row.totalNet)} €</td>);
+                    case 'yieldGross': return (<td
+ key="yieldGross" className="text-right font-mono text-blue-600">{fmt(row.yieldGross)} %</td>);
+                    case 'yieldNet': return (<td
+ key="yieldNet" className="text-right font-mono text-blue-800 font-bold">{fmt(row.yieldNet)} %</td>);
+                    default: return null;
+                    }
+                  })}
+    
                     </tr>
                   ))
                 )}

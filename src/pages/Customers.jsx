@@ -603,16 +603,33 @@ export default function Customers() {
             <table style={{ zoom: tableZoom }} className="clean-table">
               <thead>
                 <tr className="sticky top-0 z-10">
-                  {visibleColumns.includes('id') && <TableHeaderWithFilter label="CUENTA" columnKey="id" data={filteredCustomers} tableId="customers" className="w-20" />}
-                  {visibleColumns.includes('name') && <TableHeaderWithFilter label="DESCRIPCIÓN" columnKey="name" data={filteredCustomers} tableId="customers" className="w-48" />}
-                  {visibleColumns.includes('address') && <TableHeaderWithFilter label="DIRECCIÓN" columnKey="address" data={filteredCustomers} tableId="customers" className="w-48" />}
-                  {visibleColumns.includes('dni') && <TableHeaderWithFilter label="DNI/NIF" columnKey="dni" data={filteredCustomers} tableId="customers" className="w-32" />}
-                  {visibleColumns.includes('phone') && <TableHeaderWithFilter label="TELÉFONO" columnKey="phone" data={filteredCustomers} tableId="customers" className="w-32" />}
-                  {visibleColumns.includes('email') && <TableHeaderWithFilter label="EMAIL" columnKey="email" data={filteredCustomers} tableId="customers" className="w-48" />}
-                  {visibleColumns.includes('city') && <TableHeaderWithFilter label="POBLACIÓN" columnKey="city" data={filteredCustomers} tableId="customers" className="w-32" />}
-                  {visibleColumns.includes('cp') && <TableHeaderWithFilter label="CP" columnKey="cp" data={filteredCustomers} tableId="customers" className="w-24" />}
-                  {visibleColumns.includes('status') && <TableHeaderWithFilter label="ESTADO" columnKey="status" data={filteredCustomers} tableId="customers" className="w-24" />}
-                  {visibleColumns.includes('notes') && <TableHeaderWithFilter label="NOTAS" columnKey="notes" data={filteredCustomers} tableId="customers" className="w-48" />}
+                  
+                  {visibleColumns.map(col => {
+                    switch(col) {
+                    case 'id': return (<TableHeaderWithFilter
+ key="id" label="CUENTA" columnKey="id" data={filteredCustomers} tableId="customers" className="w-20" />);
+                    case 'name': return (<TableHeaderWithFilter
+ key="name" label="DESCRIPCIÓN" columnKey="name" data={filteredCustomers} tableId="customers" className="w-48" />);
+                    case 'address': return (<TableHeaderWithFilter
+ key="address" label="DIRECCIÓN" columnKey="address" data={filteredCustomers} tableId="customers" className="w-48" />);
+                    case 'dni': return (<TableHeaderWithFilter
+ key="dni" label="DNI/NIF" columnKey="dni" data={filteredCustomers} tableId="customers" className="w-32" />);
+                    case 'phone': return (<TableHeaderWithFilter
+ key="phone" label="TELÉFONO" columnKey="phone" data={filteredCustomers} tableId="customers" className="w-32" />);
+                    case 'email': return (<TableHeaderWithFilter
+ key="email" label="EMAIL" columnKey="email" data={filteredCustomers} tableId="customers" className="w-48" />);
+                    case 'city': return (<TableHeaderWithFilter
+ key="city" label="POBLACIÓN" columnKey="city" data={filteredCustomers} tableId="customers" className="w-32" />);
+                    case 'cp': return (<TableHeaderWithFilter
+ key="cp" label="CP" columnKey="cp" data={filteredCustomers} tableId="customers" className="w-24" />);
+                    case 'status': return (<TableHeaderWithFilter
+ key="status" label="ESTADO" columnKey="status" data={filteredCustomers} tableId="customers" className="w-24" />);
+                    case 'notes': return (<TableHeaderWithFilter
+ key="notes" label="NOTAS" columnKey="notes" data={filteredCustomers} tableId="customers" className="w-48" />);
+                    default: return null;
+                    }
+                  })}
+    
                 </tr>
               </thead>
               <tbody>
@@ -623,16 +640,33 @@ export default function Customers() {
                     onClick={() => setSelectedCustomer(c)}
                     onDoubleClick={handleEdit}
                   >
-                    {visibleColumns.includes('id') && <td>{c.id}</td>}
-                    {visibleColumns.includes('name') && <EditableCell value={c.name} onSave={(val) => handleSaveField(c, 'name', val)} />}
-                    {visibleColumns.includes('address') && <EditableCell value={c.address} onSave={(val) => handleSaveField(c, 'address', val)} />}
-                    {visibleColumns.includes('dni') && <EditableCell value={c.dni} onSave={(val) => handleSaveField(c, 'dni', val)} />}
-                    {visibleColumns.includes('phone') && <EditableCell value={c.phone} onSave={(val) => handleSaveField(c, 'phone', val)} />}
-                    {visibleColumns.includes('email') && <EditableCell value={c.email} onSave={(val) => handleSaveField(c, 'email', val)} />}
-                    {visibleColumns.includes('city') && <EditableCell value={c.city} onSave={(val) => handleSaveField(c, 'city', val)} />}
-                    {visibleColumns.includes('cp') && <EditableCell value={c.cp} onSave={(val) => handleSaveField(c, 'cp', val)} />}
-                    {visibleColumns.includes('status') && <EditableCell value={c.status || 'activo'} options={['activo', 'inactivo']} onSave={(val) => handleSaveField(c, 'status', val)} />}
-                    {visibleColumns.includes('notes') && <EditableCell value={c.notes} onSave={(val) => handleSaveField(c, 'notes', val)} />}
+                    
+                  {visibleColumns.map(col => {
+                    switch(col) {
+                    case 'id': return (<td
+ key="id">{c.id}</td>);
+                    case 'name': return (<EditableCell
+ key="name" value={c.name} onSave={(val) => handleSaveField(c, 'name', val)} />);
+                    case 'address': return (<EditableCell
+ key="address" value={c.address} onSave={(val) => handleSaveField(c, 'address', val)} />);
+                    case 'dni': return (<EditableCell
+ key="dni" value={c.dni} onSave={(val) => handleSaveField(c, 'dni', val)} />);
+                    case 'phone': return (<EditableCell
+ key="phone" value={c.phone} onSave={(val) => handleSaveField(c, 'phone', val)} />);
+                    case 'email': return (<EditableCell
+ key="email" value={c.email} onSave={(val) => handleSaveField(c, 'email', val)} />);
+                    case 'city': return (<EditableCell
+ key="city" value={c.city} onSave={(val) => handleSaveField(c, 'city', val)} />);
+                    case 'cp': return (<EditableCell
+ key="cp" value={c.cp} onSave={(val) => handleSaveField(c, 'cp', val)} />);
+                    case 'status': return (<EditableCell
+ key="status" value={c.status || 'activo'} options={['activo', 'inactivo']} onSave={(val) => handleSaveField(c, 'status', val)} />);
+                    case 'notes': return (<EditableCell
+ key="notes" value={c.notes} onSave={(val) => handleSaveField(c, 'notes', val)} />);
+                    default: return null;
+                    }
+                  })}
+    
                   </tr>
                 ))}
               </tbody>

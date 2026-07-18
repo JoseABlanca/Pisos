@@ -607,7 +607,7 @@ export default function Accounts({ isModal = false, onAccountSelect = null }) {
   const rootGroups = accounts.length;
 
   return (
-    <div className={`w-full h-full relative ${isModal ? 'p-0' : 'p-4'}`}>
+    <div className={`w-full h-full relative p-0`}>
       {/* Delete Confirmation Dialog */}
       {deleteConfirm && (
         <div className="fixed inset-0 bg-black/40 backdrop-blur-sm z-[9999] flex items-center justify-center" onClick={() => setDeleteConfirm(null)}>

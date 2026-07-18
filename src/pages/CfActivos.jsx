@@ -1,4 +1,5 @@
 import { useState, useEffect, useMemo } from 'react';
+import { useTableFilters } from '../hooks/useTableFilters';
 import ZoomControl from '../components/ZoomControl';
 import { useOutletContext } from 'react-router-dom';
 import { db } from '../firebase/config';
@@ -77,7 +78,8 @@ export default function CfActivos() {
   const [previewDocument, setPreviewDocument] = useState(null);
 
   const DEFAULT_COLUMNS = ['id', 'name', 'platformName', 'type', 'targetAmount', 'annualRate', 'term', 'status'];
-  const { visibleColumns, columnWidths } = useTableColumns('cf-activos', DEFAULT_COLUMNS);
+  const { visibleColumns, columnWidths , updateColumnWidth} = useTableColumns('cf-activos', DEFAULT_COLUMNS);
+  const { applyTableFilters, TableHeaderWithFilter, renderFilterMenu } = useTableFilters({ columnWidths, updateColumnWidth });
 
   const netRentsSum = useMemo(() => {
     if (!formData.incomeCebeId && !formData.expenseCecoId) return 0;
@@ -522,14 +524,29 @@ export default function CfActivos() {
             <table style={{ zoom: tableZoom }} className="clean-table">
               <thead>
                 <tr>
-                  {visibleColumns.includes('id') && <th style={{ width: columnWidths['id'] || '80px' }}>ID</th>}
-                  {visibleColumns.includes('name') && <th style={{ width: columnWidths['name'] || '200px' }}>Nombre</th>}
-                  {visibleColumns.includes('platformName') && <th style={{ width: columnWidths['platformName'] || '130px' }}>Plataforma</th>}
-                  {visibleColumns.includes('type') && <th style={{ width: columnWidths['type'] || '140px' }}>Tipo</th>}
-                  {visibleColumns.includes('targetAmount') && <th style={{ width: columnWidths['targetAmount'] || '120px' }} className="text-right">Objetivo (€)</th>}
-                  {visibleColumns.includes('annualRate') && <th style={{ width: columnWidths['annualRate'] || '110px' }} className="text-right">Tasa anual (%)</th>}
-                  {visibleColumns.includes('term') && <th style={{ width: columnWidths['term'] || '80px' }} className="text-right">Plazo (m)</th>}
-                  {visibleColumns.includes('status') && <th style={{ width: columnWidths['status'] || '90px' }}>Estado</th>}
+                  
+                  {visibleColumns.map(col => {
+                    switch(col) {
+                    case 'id': return (<th
+ key="id" style={{ width: columnWidths['id'] || '80px' }}>ID</th>);
+                    case 'name': return (<th
+ key="name" style={{ width: columnWidths['name'] || '200px' }}>Nombre</th>);
+                    case 'platformName': return (<th
+ key="platformName" style={{ width: columnWidths['platformName'] || '130px' }}>Plataforma</th>);
+                    case 'type': return (<th
+ key="type" style={{ width: columnWidths['type'] || '140px' }}>Tipo</th>);
+                    case 'targetAmount': return (<th
+ key="targetAmount" style={{ width: columnWidths['targetAmount'] || '120px' }} className="text-right">Objetivo (€)</th>);
+                    case 'annualRate': return (<th
+ key="annualRate" style={{ width: columnWidths['annualRate'] || '110px' }} className="text-right">Tasa anual (%)</th>);
+                    case 'term': return (<th
+ key="term" style={{ width: columnWidths['term'] || '80px' }} className="text-right">Plazo (m)</th>);
+                    case 'status': return (<th
+ key="status" style={{ width: columnWidths['status'] || '90px' }}>Estado</th>);
+                    default: return null;
+                    }
+                  })}
+    
                 </tr>
               </thead>
               <tbody>
@@ -547,66 +564,67 @@ export default function CfActivos() {
                       onDoubleClick={() => handleEdit(proj)}
                       className={selectedProject?.id === proj.id ? 'selected' : ''}
                     >
-                      {visibleColumns.includes('id') && <td className="font-mono">{proj.id}</td>}
-                      {visibleColumns.includes('name') && (
-                        <EditableCell
+                      
+                  {visibleColumns.map(col => {
+                    switch(col) {
+                    case 'id': return (<td
+ key="id" className="font-mono">{proj.id}</td>);
+                    case 'name': return (<EditableCell
+ key="name"
                           value={proj.name}
                           onSave={(val) => handleSaveField(proj, 'name', val)}
-                        />
-                      )}
-                      {visibleColumns.includes('platformName') && (
-                        <EditableCell
+                        />);
+                    case 'platformName': return (<EditableCell
+ key="platformName"
                           value={proj.platformId}
                           options={platforms.map(p => ({ id: p.id, name: p.name }))}
                           onSave={(val) => handleSaveField(proj, 'platformId', val)}
-                        />
-                      )}
-                      {visibleColumns.includes('type') && (
-                        <EditableCell
+                        />);
+                    case 'type': return (<EditableCell
+ key="type"
                           value={proj.type}
                           options={TYPES}
                           onSave={(val) => handleSaveField(proj, 'type', val)}
                         >
                           <span>{proj.type}</span>
-                        </EditableCell>
-                      )}
-                      {visibleColumns.includes('targetAmount') && (
-                        <EditableCell
+                        </EditableCell>);
+                    case 'targetAmount': return (<EditableCell
+ key="targetAmount"
                           type="number"
                           className="font-mono text-right"
                           value={proj.targetAmount}
                           onSave={(val) => handleSaveField(proj, 'targetAmount', val)}
                         >
                           {fmt(parseFloat(proj.targetAmount) || 0)}
-                        </EditableCell>
-                      )}
-                      {visibleColumns.includes('annualRate') && (
-                        <EditableCell
+                        </EditableCell>);
+                    case 'annualRate': return (<EditableCell
+ key="annualRate"
                           type="number"
                           className="font-mono text-right"
                           value={proj.annualRate}
                           onSave={(val) => handleSaveField(proj, 'annualRate', val)}
                         >
                           {fmt(parseFloat(proj.annualRate) || 0)} %
-                        </EditableCell>
-                      )}
-                      {visibleColumns.includes('term') && (
-                        <EditableCell
+                        </EditableCell>);
+                    case 'term': return (<EditableCell
+ key="term"
                           type="number"
                           className="font-mono text-right"
                           value={proj.term}
                           onSave={(val) => handleSaveField(proj, 'term', val)}
-                        />
-                      )}
-                      {visibleColumns.includes('status') && (
-                        <EditableCell
+                        />);
+                    case 'status': return (<EditableCell
+ key="status"
                           value={proj.status}
                           options={STATUSES}
                           onSave={(val) => handleSaveField(proj, 'status', val)}
                         >
                           <span className="uppercase">{proj.status}</span>
-                        </EditableCell>
-                      )}
+                        </EditableCell>);
+                    default: return null;
+                    }
+                  })}
+    
                     </tr>
                   ))
                 )}
@@ -1023,7 +1041,7 @@ function SearchableSelect({ options, value, onChange, placeholder }) {
               >
                 -- Ninguno --
               </div>
-              {filtered.map(opt => (
+              {applyTableFilters(filtered, 'cf-activos').map(opt => (
                 <div 
                   key={opt.id}
                   onClick={() => {

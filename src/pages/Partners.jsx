@@ -1,4 +1,5 @@
 import { useState, useEffect } from 'react';
+import { useOutletContext } from 'react-router-dom';
 import { db } from '../firebase/config';
 import { collection, query, where, onSnapshot, doc, setDoc, deleteDoc } from 'firebase/firestore';
 import { useAuth } from '../context/AuthContext';
@@ -11,6 +12,7 @@ import {
 } from 'lucide-react';
 import { handleExportFormat } from '../utils/exportUtils';
 import { uploadFileToStorage } from '../utils/storageUtils';
+import ZoomControl from '../components/ZoomControl';
 import { useTableColumns } from '../hooks/useTableColumns';
 import { useTableFilters } from '../hooks/useTableFilters';
 import { exportToPDF } from '../utils/pdfExport';
@@ -361,7 +363,7 @@ export default function Partners() {
   }, [selectedPartner, filteredPartners, partners, user]);
 
   return (
-    <div className={`w-full h-full bg-[#d4d0c8] min-h-screen font-sans flex flex-col p-1 overflow-hidden`}>
+    <div className={`w-full h-full bg-[#d4d0c8] font-sans flex flex-col p-1 overflow-hidden`}>
 
       <div className="flex flex-row flex-1 overflow-hidden bg-white relative">
 
@@ -373,13 +375,6 @@ export default function Partners() {
           {/* Header with Title and Search */}
           <div className="flex justify-between items-center px-4 py-2 border-b border-gray-200">
             <div className="flex items-center space-x-3">
-              <button 
-                onClick={(e) => { e.stopPropagation(); setShowSidebar(!showSidebar); }}
-                className="p-1.5 hover:bg-gray-100 rounded text-gray-500 border border-transparent hover:border-gray-300"
-                title={showSidebar ? "Ocultar panel" : "Mostrar panel"}
-              >
-                <PanelLeft className="w-4 h-4" />
-              </button>
             </div>
 
             <div className="relative" onClick={e => e.stopPropagation()}>
@@ -397,22 +392,38 @@ export default function Partners() {
             </div>
           </div>
           <div 
-            className="flex-1 overflow-auto bg-white relative"
+            className="flex-1 overflow-y-auto overflow-x-hidden bg-white relative"
             onClick={(e) => e.stopPropagation()}
           >
             {renderFilterMenu()}
             <table style={{ zoom: tableZoom }} className="clean-table">
               <thead>
                 <tr className="sticky top-0 z-10">
-                  {visibleColumns.includes('id') && <TableHeaderWithFilter label="ID" columnKey="id" data={filteredPartners} tableId="partners" className="w-24" />}
-                  {visibleColumns.includes('dni') && <TableHeaderWithFilter label="DNI" columnKey="dni" data={filteredPartners} tableId="partners" className="w-24" />}
-                  {visibleColumns.includes('name') && <TableHeaderWithFilter label="Nombre / Razón Social" columnKey="name" data={filteredPartners} tableId="partners" className="w-auto" />}
-                  {visibleColumns.includes('email') && !isMobile && <TableHeaderWithFilter label="Email" columnKey="email" data={filteredPartners} tableId="partners" className="w-48" />}
-                  {visibleColumns.includes('phone') && !isMobile && <TableHeaderWithFilter label="Teléfono" columnKey="phone" data={filteredPartners} tableId="partners" className="w-32" />}
-                  {visibleColumns.includes('address') && <TableHeaderWithFilter label="Dirección" columnKey="address" data={filteredPartners} tableId="partners" className="w-48" />}
-                  {visibleColumns.includes('iban') && <TableHeaderWithFilter label="IBAN" columnKey="iban" data={filteredPartners} tableId="partners" className="w-48" />}
-                  {visibleColumns.includes('ownership') && <TableHeaderWithFilter label="% Propiedad" columnKey="ownership" data={filteredPartners} tableId="partners" className="w-24" />}
-                  {visibleColumns.includes('status') && <TableHeaderWithFilter label="Estado" columnKey="status" data={filteredPartners} tableId="partners" className="w-24 text-center" />}
+                  
+                  {visibleColumns.map(col => {
+                    switch(col) {
+                    case 'id': return (<TableHeaderWithFilter
+ key="id" label="ID" columnKey="id" data={filteredPartners} tableId="partners" className="w-24" />);
+                    case 'dni': return (<TableHeaderWithFilter
+ key="dni" label="DNI" columnKey="dni" data={filteredPartners} tableId="partners" className="w-24" />);
+                    case 'name': return (<TableHeaderWithFilter
+ key="name" label="Nombre / Razón Social" columnKey="name" data={filteredPartners} tableId="partners" className="w-auto" />);
+                    case 'email': return (!isMobile && <TableHeaderWithFilter
+ key="email" label="Email" columnKey="email" data={filteredPartners} tableId="partners" className="w-48" />);
+                    case 'phone': return (!isMobile && <TableHeaderWithFilter
+ key="phone" label="Teléfono" columnKey="phone" data={filteredPartners} tableId="partners" className="w-32" />);
+                    case 'address': return (<TableHeaderWithFilter
+ key="address" label="Dirección" columnKey="address" data={filteredPartners} tableId="partners" className="w-48" />);
+                    case 'iban': return (<TableHeaderWithFilter
+ key="iban" label="IBAN" columnKey="iban" data={filteredPartners} tableId="partners" className="w-48" />);
+                    case 'ownership': return (<TableHeaderWithFilter
+ key="ownership" label="% Propiedad" columnKey="ownership" data={filteredPartners} tableId="partners" className="w-24" />);
+                    case 'status': return (<TableHeaderWithFilter
+ key="status" label="Estado" columnKey="status" data={filteredPartners} tableId="partners" className="w-24 text-center" />);
+                    default: return null;
+                    }
+                  })}
+    
                 </tr>
               </thead>
               <tbody>
@@ -427,15 +438,31 @@ export default function Partners() {
                     onClick={() => setSelectedPartner(partner)}
                     onDoubleClick={() => handleEdit(partner)}
                   >
-                    {visibleColumns.includes('id') && <td className="font-mono">{partner.id}</td>}
-                    {visibleColumns.includes('dni') && <EditableCell className="font-mono" value={partner.dni} onSave={(val) => handleSaveField(partner, 'dni', val)} />}
-                    {visibleColumns.includes('name') && <EditableCell value={partner.name} onSave={(val) => handleSaveField(partner, 'name', val)} />}
-                    {visibleColumns.includes('email') && !isMobile && <EditableCell className="lowercase normal-case" value={partner.email} onSave={(val) => handleSaveField(partner, 'email', val)} />}
-                    {visibleColumns.includes('phone') && !isMobile && <EditableCell value={partner.phone} onSave={(val) => handleSaveField(partner, 'phone', val)} />}
-                    {visibleColumns.includes('address') && <EditableCell value={partner.address} onSave={(val) => handleSaveField(partner, 'address', val)} />}
-                    {visibleColumns.includes('iban') && <EditableCell value={partner.iban} onSave={(val) => handleSaveField(partner, 'iban', val)} />}
-                    {visibleColumns.includes('ownership') && <EditableCell type="number" value={partner.ownership} onSave={(val) => handleSaveField(partner, 'ownership', val)} />}
-                    {visibleColumns.includes('status') && <EditableCell className="text-center" value={partner.status} options={['activo', 'inactivo']} onSave={(val) => handleSaveField(partner, 'status', val)} />}
+                    
+                  {visibleColumns.map(col => {
+                    switch(col) {
+                    case 'id': return (<td
+ key="id" className="font-mono">{partner.id}</td>);
+                    case 'dni': return (<EditableCell
+ key="dni" className="font-mono" value={partner.dni} onSave={(val) => handleSaveField(partner, 'dni', val)} />);
+                    case 'name': return (<EditableCell
+ key="name" value={partner.name} onSave={(val) => handleSaveField(partner, 'name', val)} />);
+                    case 'email': return (!isMobile && <EditableCell
+ key="email" className="lowercase normal-case" value={partner.email} onSave={(val) => handleSaveField(partner, 'email', val)} />);
+                    case 'phone': return (!isMobile && <EditableCell
+ key="phone" value={partner.phone} onSave={(val) => handleSaveField(partner, 'phone', val)} />);
+                    case 'address': return (<EditableCell
+ key="address" value={partner.address} onSave={(val) => handleSaveField(partner, 'address', val)} />);
+                    case 'iban': return (<EditableCell
+ key="iban" value={partner.iban} onSave={(val) => handleSaveField(partner, 'iban', val)} />);
+                    case 'ownership': return (<EditableCell
+ key="ownership" type="number" value={partner.ownership} onSave={(val) => handleSaveField(partner, 'ownership', val)} />);
+                    case 'status': return (<EditableCell
+ key="status" className="text-center" value={partner.status} options={['activo', 'inactivo']} onSave={(val) => handleSaveField(partner, 'status', val)} />);
+                    default: return null;
+                    }
+                  })}
+    
                   </tr>
                 ))}
               </tbody>

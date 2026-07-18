@@ -1,4 +1,5 @@
 import { useState, useEffect } from 'react';
+import { useTableFilters } from '../hooks/useTableFilters';
 import ZoomControl from '../components/ZoomControl';
 import { useOutletContext } from 'react-router-dom';
 import { db } from '../firebase/config';
@@ -78,7 +79,7 @@ function SearchableSelect({ options, value, onChange, placeholder }) {
               >
                 -- Ninguno --
               </div>
-              {filtered.map(opt => (
+              {applyTableFilters(filtered, 'cf-empresas').map(opt => (
                 <div 
                   key={opt.id}
                   onClick={() => {
@@ -142,7 +143,8 @@ export default function CfEmpresas() {
   const [bankAccountBalance, setBankAccountBalance] = useState(0);
 
   const DEFAULT_COLUMNS = ['id', 'name', 'type', 'country', 'bankAccount', 'ceco', 'cebe', 'currency', 'status'];
-  const { visibleColumns, columnWidths } = useTableColumns('cf-empresas', DEFAULT_COLUMNS);
+  const { visibleColumns, columnWidths , updateColumnWidth} = useTableColumns('cf-empresas', DEFAULT_COLUMNS);
+  const { applyTableFilters, TableHeaderWithFilter, renderFilterMenu } = useTableFilters({ columnWidths, updateColumnWidth });
 
   // Fetch CEBEs and CECOs
   useEffect(() => {
@@ -493,15 +495,31 @@ export default function CfEmpresas() {
             <table style={{ zoom: tableZoom }} className="clean-table">
               <thead>
                 <tr>
-                  {visibleColumns.includes('id') && <th style={{ width: columnWidths['id'] || '100px' }}>ID</th>}
-                  {visibleColumns.includes('name') && <th style={{ width: columnWidths['name'] || '180px' }}>Nombre</th>}
-                  {visibleColumns.includes('type') && <th style={{ width: columnWidths['type'] || '110px' }}>Tipo</th>}
-                  {visibleColumns.includes('country') && <th style={{ width: columnWidths['country'] || '100px' }}>País</th>}
-                  {visibleColumns.includes('bankAccount') && <th style={{ width: columnWidths['bankAccount'] || '180px' }}>Cuenta corriente</th>}
-                  {visibleColumns.includes('ceco') && <th style={{ width: columnWidths['ceco'] || '100px' }}>CECO</th>}
-                  {visibleColumns.includes('cebe') && <th style={{ width: columnWidths['cebe'] || '100px' }}>CEBE</th>}
-                  {visibleColumns.includes('currency') && <th style={{ width: columnWidths['currency'] || '80px' }}>Divisa</th>}
-                  {visibleColumns.includes('status') && <th style={{ width: columnWidths['status'] || '80px' }}>Estado</th>}
+                  
+                  {visibleColumns.map(col => {
+                    switch(col) {
+                    case 'id': return (<th
+ key="id" style={{ width: columnWidths['id'] || '100px' }}>ID</th>);
+                    case 'name': return (<th
+ key="name" style={{ width: columnWidths['name'] || '180px' }}>Nombre</th>);
+                    case 'type': return (<th
+ key="type" style={{ width: columnWidths['type'] || '110px' }}>Tipo</th>);
+                    case 'country': return (<th
+ key="country" style={{ width: columnWidths['country'] || '100px' }}>País</th>);
+                    case 'bankAccount': return (<th
+ key="bankAccount" style={{ width: columnWidths['bankAccount'] || '180px' }}>Cuenta corriente</th>);
+                    case 'ceco': return (<th
+ key="ceco" style={{ width: columnWidths['ceco'] || '100px' }}>CECO</th>);
+                    case 'cebe': return (<th
+ key="cebe" style={{ width: columnWidths['cebe'] || '100px' }}>CEBE</th>);
+                    case 'currency': return (<th
+ key="currency" style={{ width: columnWidths['currency'] || '80px' }}>Divisa</th>);
+                    case 'status': return (<th
+ key="status" style={{ width: columnWidths['status'] || '80px' }}>Estado</th>);
+                    default: return null;
+                    }
+                  })}
+    
                 </tr>
               </thead>
               <tbody>
@@ -519,66 +537,66 @@ export default function CfEmpresas() {
                       onDoubleClick={() => handleEdit(p)}
                       className={selectedPlatform?.id === p.id ? 'selected' : ''}
                     >
-                      {visibleColumns.includes('id') && <td className="font-mono">{p.id}</td>}
-                      {visibleColumns.includes('name') && (
-                        <EditableCell
+                      
+                  {visibleColumns.map(col => {
+                    switch(col) {
+                    case 'id': return (<td
+ key="id" className="font-mono">{p.id}</td>);
+                    case 'name': return (<EditableCell
+ key="name"
                           value={p.name}
                           onSave={(val) => handleSaveField(p, 'name', val)}
-                        />
-                      )}
-                      {visibleColumns.includes('type') && (
-                        <EditableCell
+                        />);
+                    case 'type': return (<EditableCell
+ key="type"
                           value={p.type}
                           options={TYPES}
                           onSave={(val) => handleSaveField(p, 'type', val)}
                         >
                           <span>{p.type}</span>
-                        </EditableCell>
-                      )}
-                      {visibleColumns.includes('country') && (
-                        <EditableCell
+                        </EditableCell>);
+                    case 'country': return (<EditableCell
+ key="country"
                           value={p.country}
                           onSave={(val) => handleSaveField(p, 'country', val)}
-                        />
-                      )}
-                      {visibleColumns.includes('bankAccount') && (
-                        <EditableCell
+                        />);
+                    case 'bankAccount': return (<EditableCell
+ key="bankAccount"
                           className="font-mono text-gray-700"
                           value={p.bankAccount || ''}
                           onSave={(val) => handleSaveField(p, 'bankAccount', val)}
-                        />
-                      )}
-                      {visibleColumns.includes('ceco') && (
-                        <EditableCell
+                        />);
+                    case 'ceco': return (<EditableCell
+ key="ceco"
                           value={p.ceco || ''}
                           options={cecos.map(c => ({ id: c.code, name: `${c.code} - ${c.name}` }))}
                           onSave={(val) => handleSaveField(p, 'ceco', val)}
-                        />
-                      )}
-                      {visibleColumns.includes('cebe') && (
-                        <EditableCell
+                        />);
+                    case 'cebe': return (<EditableCell
+ key="cebe"
                           value={p.cebe || ''}
                           options={cebes.map(c => ({ id: c.code, name: `${c.code} - ${c.name}` }))}
                           onSave={(val) => handleSaveField(p, 'cebe', val)}
-                        />
-                      )}
-                      {visibleColumns.includes('currency') && (
-                        <EditableCell
+                        />);
+                    case 'currency': return (<EditableCell
+ key="currency"
                           className="font-mono"
                           value={p.currency}
                           options={CURRENCIES}
                           onSave={(val) => handleSaveField(p, 'currency', val)}
-                        />
-                      )}
-                      {visibleColumns.includes('status') && (
-                        <EditableCell
+                        />);
+                    case 'status': return (<EditableCell
+ key="status"
                           value={p.status}
                           options={STATUSES}
                           onSave={(val) => handleSaveField(p, 'status', val)}
                         >
                           <span className="uppercase">{p.status}</span>
-                        </EditableCell>
-                      )}
+                        </EditableCell>);
+                    default: return null;
+                    }
+                  })}
+    
                     </tr>
                   ))
                 )}

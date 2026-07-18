@@ -141,16 +141,33 @@ export default function LaboralEmpresas() {
             <table style={{ zoom: tableZoom }} className="clean-table">
               <thead>
                 <tr className="sticky top-0 z-10">
-                  {visibleColumns.includes('id') && <TableHeaderWithFilter label="ID" columnKey="id" data={empresas} tableId="laboral-empresas" className="w-16" />}
-                  {visibleColumns.includes('nombre') && <TableHeaderWithFilter label="Nombre" columnKey="nombre" data={empresas} tableId="laboral-empresas" className="w-48" />}
-                  {visibleColumns.includes('razonSocial') && <TableHeaderWithFilter label="Razón Social" columnKey="razonSocial" data={empresas} tableId="laboral-empresas" className="w-48" />}
-                  {visibleColumns.includes('cif') && <TableHeaderWithFilter label="CIF/NIF" columnKey="cif" data={empresas} tableId="laboral-empresas" className="w-32" />}
-                  {visibleColumns.includes('sector') && <TableHeaderWithFilter label="Sector" columnKey="sector" data={empresas} tableId="laboral-empresas" className="w-32" />}
-                  {visibleColumns.includes('telefono') && <TableHeaderWithFilter label="Teléfono" columnKey="telefono" data={empresas} tableId="laboral-empresas" />}
-                  {visibleColumns.includes('email') && <TableHeaderWithFilter label="Email" columnKey="email" data={empresas} tableId="laboral-empresas" />}
-                  {visibleColumns.includes('direccion') && <TableHeaderWithFilter label="Dirección" columnKey="direccion" data={empresas} tableId="laboral-empresas" />}
-                  {visibleColumns.includes('ciudad') && <TableHeaderWithFilter label="Ciudad" columnKey="ciudad" data={empresas} tableId="laboral-empresas" />}
-                  {visibleColumns.includes('web') && <TableHeaderWithFilter label="Web" columnKey="web" data={empresas} tableId="laboral-empresas" />}
+                  
+                  {visibleColumns.map(col => {
+                    switch(col) {
+                    case 'id': return (<TableHeaderWithFilter
+ key="id" label="ID" columnKey="id" data={empresas} tableId="laboral-empresas" className="w-16" />);
+                    case 'nombre': return (<TableHeaderWithFilter
+ key="nombre" label="Nombre" columnKey="nombre" data={empresas} tableId="laboral-empresas" className="w-48" />);
+                    case 'razonSocial': return (<TableHeaderWithFilter
+ key="razonSocial" label="Razón Social" columnKey="razonSocial" data={empresas} tableId="laboral-empresas" className="w-48" />);
+                    case 'cif': return (<TableHeaderWithFilter
+ key="cif" label="CIF/NIF" columnKey="cif" data={empresas} tableId="laboral-empresas" className="w-32" />);
+                    case 'sector': return (<TableHeaderWithFilter
+ key="sector" label="Sector" columnKey="sector" data={empresas} tableId="laboral-empresas" className="w-32" />);
+                    case 'telefono': return (<TableHeaderWithFilter
+ key="telefono" label="Teléfono" columnKey="telefono" data={empresas} tableId="laboral-empresas" />);
+                    case 'email': return (<TableHeaderWithFilter
+ key="email" label="Email" columnKey="email" data={empresas} tableId="laboral-empresas" />);
+                    case 'direccion': return (<TableHeaderWithFilter
+ key="direccion" label="Dirección" columnKey="direccion" data={empresas} tableId="laboral-empresas" />);
+                    case 'ciudad': return (<TableHeaderWithFilter
+ key="ciudad" label="Ciudad" columnKey="ciudad" data={empresas} tableId="laboral-empresas" />);
+                    case 'web': return (<TableHeaderWithFilter
+ key="web" label="Web" columnKey="web" data={empresas} tableId="laboral-empresas" />);
+                    default: return null;
+                    }
+                  })}
+    
                 </tr>
               </thead>
               <tbody>
@@ -161,16 +178,33 @@ export default function LaboralEmpresas() {
                     <tr key={emp.id} className={selectedEmpresa?.id === emp.id ? 'selected' : ''}
                       onClick={e => { e.stopPropagation(); setSelectedEmpresa(emp); }}
                       onDoubleClick={() => handleEdit(emp)}>
-                      {visibleColumns.includes('id') && <td className="font-mono text-xs">{emp.id}</td>}
-                      {visibleColumns.includes('nombre') && <EditableCell value={emp.nombre} onSave={val => handleSaveField(emp, 'nombre', val)} />}
-                      {visibleColumns.includes('razonSocial') && <EditableCell value={emp.razonSocial} onSave={val => handleSaveField(emp, 'razonSocial', val)} />}
-                      {visibleColumns.includes('cif') && <EditableCell value={emp.cif} onSave={val => handleSaveField(emp, 'cif', val)} />}
-                      {visibleColumns.includes('sector') && <EditableCell value={emp.sector} onSave={val => handleSaveField(emp, 'sector', val)} />}
-                      {visibleColumns.includes('telefono') && <EditableCell value={emp.telefono} onSave={val => handleSaveField(emp, 'telefono', val)} />}
-                      {visibleColumns.includes('email') && <EditableCell value={emp.email} onSave={val => handleSaveField(emp, 'email', val)} />}
-                      {visibleColumns.includes('direccion') && <EditableCell value={emp.direccion} onSave={val => handleSaveField(emp, 'direccion', val)} />}
-                      {visibleColumns.includes('ciudad') && <EditableCell value={emp.ciudad} onSave={val => handleSaveField(emp, 'ciudad', val)} />}
-                      {visibleColumns.includes('web') && <EditableCell value={emp.web} onSave={val => handleSaveField(emp, 'web', val)} />}
+                      
+                  {visibleColumns.map(col => {
+                    switch(col) {
+                    case 'id': return (<td
+ key="id" className="font-mono text-xs">{emp.id}</td>);
+                    case 'nombre': return (<EditableCell
+ key="nombre" value={emp.nombre} onSave={val => handleSaveField(emp, 'nombre', val)} />);
+                    case 'razonSocial': return (<EditableCell
+ key="razonSocial" value={emp.razonSocial} onSave={val => handleSaveField(emp, 'razonSocial', val)} />);
+                    case 'cif': return (<EditableCell
+ key="cif" value={emp.cif} onSave={val => handleSaveField(emp, 'cif', val)} />);
+                    case 'sector': return (<EditableCell
+ key="sector" value={emp.sector} onSave={val => handleSaveField(emp, 'sector', val)} />);
+                    case 'telefono': return (<EditableCell
+ key="telefono" value={emp.telefono} onSave={val => handleSaveField(emp, 'telefono', val)} />);
+                    case 'email': return (<EditableCell
+ key="email" value={emp.email} onSave={val => handleSaveField(emp, 'email', val)} />);
+                    case 'direccion': return (<EditableCell
+ key="direccion" value={emp.direccion} onSave={val => handleSaveField(emp, 'direccion', val)} />);
+                    case 'ciudad': return (<EditableCell
+ key="ciudad" value={emp.ciudad} onSave={val => handleSaveField(emp, 'ciudad', val)} />);
+                    case 'web': return (<EditableCell
+ key="web" value={emp.web} onSave={val => handleSaveField(emp, 'web', val)} />);
+                    default: return null;
+                    }
+                  })}
+    
                     </tr>
                   ))
                 )}

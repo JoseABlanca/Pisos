@@ -280,11 +280,6 @@ export default function TaxesRv() {
 
   return (
     <div className="flex flex-col h-full bg-[#d4d0c8] p-1 font-sans">
-      {/* Info banner */}
-      <div className="mb-1 px-2 py-1 bg-[#fffbe6] border border-[#f0c040] text-[10px] text-[#7a6000] flex items-center gap-2 rounded-sm">
-        <span className="font-bold">ℹ</span>
-        Cálculos orientativos según IRPF 2024 (base del ahorro). Consulte a un asesor fiscal.
-      </div>
 
       {/* Sub-tabs */}
       <div className="flex gap-0 mb-0 mt-0 border-b border-gray-400">

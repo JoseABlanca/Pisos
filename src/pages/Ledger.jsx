@@ -704,9 +704,6 @@ export default function Ledger({ initialMode }) {
                   </td>
                   <td colSpan="4"></td>
                 </tr>
-                <tr className="border-t border-gray-300 bg-white">
-                  <td colSpan="12" className="px-2 py-1 text-gray-500 font-bold">EURO</td>
-                </tr>
               </tfoot>
               </table>
             </div>

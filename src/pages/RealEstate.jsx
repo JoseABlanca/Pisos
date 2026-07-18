@@ -946,7 +946,7 @@ export default function RealEstate() {
               <Search className="w-4 h-4 absolute right-1 top-1/2 -translate-y-1/2 text-gray-500" />
             </div>
           </div>
-          <div className="flex-1 overflow-auto">
+          <div className="flex-1 overflow-y-auto overflow-x-hidden">
             {renderFilterMenu()}
             <table style={{ zoom: tableZoom }} className="clean-table">
               <thead>
@@ -1038,7 +1038,6 @@ export default function RealEstate() {
 
       <div className="flex justify-between items-center bg-[#f0f0f0] p-1 border-t border-[#808080] text-[10px]">
         <div>{filteredProperties.length} activos encontrados</div>
-        <ZoomControl />
       </div>
 
       {/* Excel-style Filter Menu */}
@@ -1151,6 +1150,11 @@ export default function RealEstate() {
           </div>
         </ErrorBoundary>
       )}
+      
+      {/* Bottom Bar for Zoom */}
+      <div className="flex justify-end bg-[#f0f0f0] p-1 border-t border-gray-300 shrink-0 mt-auto z-50">
+        <ZoomControl />
+      </div>
     </div>
   );
 }

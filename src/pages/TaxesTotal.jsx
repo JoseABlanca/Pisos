@@ -1,10 +1,12 @@
 import { useState, useEffect, useMemo } from 'react';
+import { useTableFilters } from '../hooks/useTableFilters';
 import { db } from '../firebase/config';
 import { collection, query, where, onSnapshot } from 'firebase/firestore';
 import { useAuth } from '../context/AuthContext';
 import { useOutletContext } from 'react-router-dom';
 import { useTableColumns } from '../hooks/useTableColumns';
 import { exportToPDF } from '../utils/pdfExport';
+import ZoomControl from '../components/ZoomControl';
 import { handleExportFormat } from '../utils/exportUtils';
 
 export default function TaxesTotal() {
@@ -39,7 +41,8 @@ export default function TaxesTotal() {
   }, [user, queryUserIds]);
 
   const DEFAULT_COLUMNS = ['year', 'ingresos', 'gastos', 'amortizacion', 'beneficioNeto'];
-  const { visibleColumns } = useTableColumns('taxesTotal', DEFAULT_COLUMNS);
+  const { visibleColumns , columnWidths, updateColumnWidth} = useTableColumns('taxesTotal', DEFAULT_COLUMNS);
+  const { applyTableFilters, TableHeaderWithFilter, renderFilterMenu } = useTableFilters({ columnWidths, updateColumnWidth });
 
   // Compute aggregate totals per year
   const computedYears = useMemo(() => {
@@ -179,40 +182,51 @@ export default function TaxesTotal() {
     <div className="flex flex-col h-full bg-[#d4d0c8] p-1 font-sans">
       <div className="flex-1 flex flex-col bg-white overflow-hidden relative border border-gray-400">
         <div className="flex-1 overflow-auto bg-white p-2">
-          <table className="clean-table w-full">
+          <table style={{ zoom: tableZoom }} className="clean-table w-full">
             <thead>
               <tr>
-                {visibleColumns.includes('year') && <th className="p-2 font-bold uppercase w-24 text-center">Año</th>}
-                {visibleColumns.includes('ingresos') && <th className="p-2 font-bold uppercase text-right">Ingresos</th>}
-                {visibleColumns.includes('gastos') && <th className="p-2 font-bold uppercase text-right">Gastos</th>}
-                {visibleColumns.includes('amortizacion') && <th className="p-2 font-bold uppercase text-right">Amortización</th>}
-                {visibleColumns.includes('beneficioNeto') && <th className="p-2 font-bold uppercase text-right">Rendimiento Neto</th>}
+                
+                  {visibleColumns.map(col => {
+                    switch(col) {
+                    case 'year': return (<TableHeaderWithFilter key="year" label="Año" columnKey="year" data={computedYears.rows} tableId="taxesTotal" />);
+                    case 'ingresos': return (<TableHeaderWithFilter key="ingresos" label="Ingresos" columnKey="ingresos" data={computedYears.rows} tableId="taxesTotal" />);
+                    case 'gastos': return (<TableHeaderWithFilter key="gastos" label="Gastos" columnKey="gastos" data={computedYears.rows} tableId="taxesTotal" />);
+                    case 'amortizacion': return (<TableHeaderWithFilter key="amortizacion" label="Amortización" columnKey="amortizacion" data={computedYears.rows} tableId="taxesTotal" />);
+                    case 'beneficioNeto': return (<TableHeaderWithFilter key="beneficioNeto" label="Rendimiento Neto" columnKey="beneficioNeto" data={computedYears.rows} tableId="taxesTotal" />);
+                    default: return null;
+                    }
+                  })}
+    
               </tr>
             </thead>
             <tbody>
               {computedYears.rows.map(r => (
                   <tr key={r.year} className="border-b border-gray-200 hover:bg-blue-50/50 transition-colors">
-                    {visibleColumns.includes('year') && <td className="p-2 text-center font-bold text-gray-700">{r.year}</td>}
-                    {visibleColumns.includes('ingresos') && (
-                      <td className="p-2 text-right">
+                    
+                  {visibleColumns.map(col => {
+                    switch(col) {
+                    case 'year': return (<td
+ key="year" className="p-2 text-center font-bold text-gray-700">{r.year}</td>);
+                    case 'ingresos': return (<td
+ key="ingresos" className="p-2 text-right">
                         {r.ingresos.toLocaleString('es-ES', { style: 'currency', currency: 'EUR' })}
-                      </td>
-                    )}
-                    {visibleColumns.includes('gastos') && (
-                      <td className="p-2 text-right">
+                      </td>);
+                    case 'gastos': return (<td
+ key="gastos" className="p-2 text-right">
                         {r.gastos.toLocaleString('es-ES', { style: 'currency', currency: 'EUR' })}
-                      </td>
-                    )}
-                    {visibleColumns.includes('amortizacion') && (
-                      <td className="p-2 text-right">
+                      </td>);
+                    case 'amortizacion': return (<td
+ key="amortizacion" className="p-2 text-right">
                         {r.amortizacion.toLocaleString('es-ES', { style: 'currency', currency: 'EUR' })}
-                      </td>
-                    )}
-                    {visibleColumns.includes('beneficioNeto') && (
-                      <td className="p-2 text-right">
+                      </td>);
+                    case 'beneficioNeto': return (<td
+ key="beneficioNeto" className="p-2 text-right">
                         {r.beneficioNeto.toLocaleString('es-ES', { style: 'currency', currency: 'EUR' })}
-                      </td>
-                    )}
+                      </td>);
+                    default: return null;
+                    }
+                  })}
+    
                   </tr>
               ))}
               {computedYears.rows.length === 0 && (
@@ -226,27 +240,31 @@ export default function TaxesTotal() {
             {computedYears.rows.length > 0 && (
               <tfoot>
                 <tr className="bg-gray-100 border-t-2 border-gray-400">
-                  {visibleColumns.includes('year') && <td className="p-2 text-center font-bold uppercase text-gray-800">Total</td>}
-                  {visibleColumns.includes('ingresos') && (
-                    <td className="p-2 text-right font-bold text-gray-800">
+                  
+                  {visibleColumns.map(col => {
+                    switch(col) {
+                    case 'year': return (<td
+ key="year" className="p-2 text-center font-bold uppercase text-gray-800">Total</td>);
+                    case 'ingresos': return (<td
+ key="ingresos" className="p-2 text-right font-bold text-gray-800">
                       {computedYears.totals.ingresos.toLocaleString('es-ES', { style: 'currency', currency: 'EUR' })}
-                    </td>
-                  )}
-                  {visibleColumns.includes('gastos') && (
-                    <td className="p-2 text-right font-bold text-gray-800">
+                    </td>);
+                    case 'gastos': return (<td
+ key="gastos" className="p-2 text-right font-bold text-gray-800">
                       {computedYears.totals.gastos.toLocaleString('es-ES', { style: 'currency', currency: 'EUR' })}
-                    </td>
-                  )}
-                  {visibleColumns.includes('amortizacion') && (
-                    <td className="p-2 text-right font-bold text-gray-800">
+                    </td>);
+                    case 'amortizacion': return (<td
+ key="amortizacion" className="p-2 text-right font-bold text-gray-800">
                       {computedYears.totals.amortizacion.toLocaleString('es-ES', { style: 'currency', currency: 'EUR' })}
-                    </td>
-                  )}
-                  {visibleColumns.includes('beneficioNeto') && (
-                    <td className="p-2 text-right font-bold text-gray-800">
+                    </td>);
+                    case 'beneficioNeto': return (<td
+ key="beneficioNeto" className="p-2 text-right font-bold text-gray-800">
                       {computedYears.totals.beneficioNeto.toLocaleString('es-ES', { style: 'currency', currency: 'EUR' })}
-                    </td>
-                  )}
+                    </td>);
+                    default: return null;
+                    }
+                  })}
+    
                 </tr>
               </tfoot>
             )}
@@ -255,6 +273,7 @@ export default function TaxesTotal() {
       </div>
       <div className="flex justify-between items-center bg-[#f0f0f0] p-1 border-t border-[#808080] text-[10px]">
         <div>{computedYears.rows.length} años listados</div>
+        <ZoomControl />
       </div>
     </div>
   );

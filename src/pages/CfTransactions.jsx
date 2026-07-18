@@ -1,4 +1,5 @@
 import { useState, useEffect } from 'react';
+import { useTableFilters } from '../hooks/useTableFilters';
 import { useOutletContext } from 'react-router-dom';
 import { db } from '../firebase/config';
 import { collection, query, where, onSnapshot, doc, setDoc, deleteDoc } from 'firebase/firestore';
@@ -51,7 +52,8 @@ export default function CfTransactions() {
   const [isMobile, setIsMobile] = useState(window.innerWidth < 768);
 
   const DEFAULT_COLUMNS = ['id', 'date', 'projectName', 'platformName', 'type', 'amount', 'notes'];
-  const { visibleColumns, columnWidths } = useTableColumns('cf-transactions', DEFAULT_COLUMNS);
+  const { visibleColumns, columnWidths , updateColumnWidth} = useTableColumns('cf-transactions', DEFAULT_COLUMNS);
+  const { applyTableFilters, TableHeaderWithFilter, renderFilterMenu } = useTableFilters({ columnWidths, updateColumnWidth });
 
   useEffect(() => {
     const handleResize = () => setIsMobile(window.innerWidth < 768);
@@ -335,13 +337,27 @@ export default function CfTransactions() {
             <table style={{ zoom: tableZoom }} className="clean-table">
               <thead>
                 <tr>
-                  {visibleColumns.includes('id') && <th style={{ width: columnWidths['id'] || '90px' }}>ID</th>}
-                  {visibleColumns.includes('date') && <th style={{ width: columnWidths['date'] || '100px' }}>Fecha</th>}
-                  {visibleColumns.includes('projectName') && <th style={{ width: columnWidths['projectName'] || '150px' }}>Activo / Proyecto</th>}
-                  {visibleColumns.includes('platformName') && <th style={{ width: columnWidths['platformName'] || '150px' }}>Plataforma</th>}
-                  {visibleColumns.includes('type') && <th style={{ width: columnWidths['type'] || '100px' }}>Tipo</th>}
-                  {visibleColumns.includes('amount') && <th style={{ width: columnWidths['amount'] || '110px' }} className="text-right">Importe (€)</th>}
-                  {visibleColumns.includes('notes') && <th style={{ width: columnWidths['notes'] || '200px' }}>Notas</th>}
+                  
+                  {visibleColumns.map(col => {
+                    switch(col) {
+                    case 'id': return (<th
+ key="id" style={{ width: columnWidths['id'] || '90px' }}>ID</th>);
+                    case 'date': return (<th
+ key="date" style={{ width: columnWidths['date'] || '100px' }}>Fecha</th>);
+                    case 'projectName': return (<th
+ key="projectName" style={{ width: columnWidths['projectName'] || '150px' }}>Activo / Proyecto</th>);
+                    case 'platformName': return (<th
+ key="platformName" style={{ width: columnWidths['platformName'] || '150px' }}>Plataforma</th>);
+                    case 'type': return (<th
+ key="type" style={{ width: columnWidths['type'] || '100px' }}>Tipo</th>);
+                    case 'amount': return (<th
+ key="amount" style={{ width: columnWidths['amount'] || '110px' }} className="text-right">Importe (€)</th>);
+                    case 'notes': return (<th
+ key="notes" style={{ width: columnWidths['notes'] || '200px' }}>Notas</th>);
+                    default: return null;
+                    }
+                  })}
+    
                 </tr>
               </thead>
               <tbody>
@@ -357,29 +373,33 @@ export default function CfTransactions() {
                       onClick={() => setSelectedTx(selectedTx?.id === tx.id ? null : tx)}
                       className={selectedTx?.id === tx.id ? 'selected' : ''}
                     >
-                      {visibleColumns.includes('id') && <td className="font-mono">{tx.id}</td>}
-                      {visibleColumns.includes('date') && <td className="font-mono">{new Date(tx.date).toLocaleDateString()}</td>}
-                      {visibleColumns.includes('projectName') && (
-                        <td>
+                      
+                  {visibleColumns.map(col => {
+                    switch(col) {
+                    case 'id': return (<td
+ key="id" className="font-mono">{tx.id}</td>);
+                    case 'date': return (<td
+ key="date" className="font-mono">{new Date(tx.date).toLocaleDateString()}</td>);
+                    case 'projectName': return (<td
+ key="projectName">
                           <EditableCell
                             value={tx.projectName}
                             onSave={(val) => handleSaveField(tx, 'projectId', val)}
                             isEditing={false}
                           />
-                        </td>
-                      )}
-                      {visibleColumns.includes('platformName') && (
-                        <td>
+                        </td>);
+                    case 'platformName': return (<td
+ key="platformName">
                           <EditableCell
                             value={tx.platformName}
                             onSave={(val) => handleSaveField(tx, 'platformId', val)}
                             isEditing={false}
                           />
-                        </td>
-                      )}
-                      {visibleColumns.includes('type') && <td>{tx.type}</td>}
-                      {visibleColumns.includes('amount') && (
-                        <td className="text-right font-mono font-bold">
+                        </td>);
+                    case 'type': return (<td
+ key="type">{tx.type}</td>);
+                    case 'amount': return (<td
+ key="amount" className="text-right font-mono font-bold">
                           <EditableCell
                             value={tx.amount}
                             type="number"
@@ -387,17 +407,19 @@ export default function CfTransactions() {
                             isEditing={false}
                             formatter={(v) => fmt(v, 2)}
                           />
-                        </td>
-                      )}
-                      {visibleColumns.includes('notes') && (
-                        <td className="max-w-[200px] truncate" title={tx.notes}>
+                        </td>);
+                    case 'notes': return (<td
+ key="notes" className="max-w-[200px] truncate" title={tx.notes}>
                           <EditableCell
                             value={tx.notes || ''}
                             onSave={(val) => handleSaveField(tx, 'notes', val)}
                             isEditing={false}
                           />
-                        </td>
-                      )}
+                        </td>);
+                    default: return null;
+                    }
+                  })}
+    
                     </tr>
                   ))
                 )}

@@ -378,6 +378,7 @@ export default function Layout() {
   const [taxYear, setTaxYear] = useState(new Date().getFullYear());
   const [activeColumns, setActiveColumns] = useState({});
   const [tableZoom, setTableZoom] = useState(1);
+  const [draggedColId, setDraggedColId] = useState(null);
 
   useEffect(() => {
     document.documentElement.style.setProperty('--table-zoom', tableZoom);
@@ -1241,7 +1242,7 @@ export default function Layout() {
             </button>
             {dropdownOpen && (
               <>
-                <div className="fixed inset-0 bg-black/20 backdrop-blur-sm z-[9998]" onClick={closeDropdowns}></div>
+                <div className="fixed top-0 left-0 w-[100vw] h-[100vh] bg-black/50 backdrop-blur-sm z-[9998]" onClick={closeDropdowns}></div>
                 <div className="fixed top-0 left-0 h-screen w-64 bg-[#4e80c8] text-white shadow-2xl z-[9999] flex flex-col font-sans">
                   <div className="flex items-center justify-end px-6 pt-4 pb-2">
                   <button 
@@ -1460,12 +1461,28 @@ export default function Layout() {
                     return (
                       <div 
                         key={col.id}
-                        className="px-4 py-1.5 hover:bg-gray-100 cursor-pointer text-left flex items-center" 
+                        draggable
+                        onDragStart={(e) => {
+                          setDraggedColId(col.id);
+                          e.dataTransfer.effectAllowed = 'move';
+                        }}
+                        onDragOver={(e) => {
+                          e.preventDefault();
+                          e.dataTransfer.dropEffect = 'move';
+                        }}
+                        onDrop={(e) => {
+                          e.preventDefault();
+                          if (draggedColId && draggedColId !== col.id) {
+                            window.dispatchEvent(new CustomEvent('reorder-column', { detail: { draggedId: draggedColId, targetId: col.id, action: dropdownConfig.action } }));
+                          }
+                          setDraggedColId(null);
+                        }}
+                        className={`px-4 py-1.5 cursor-move text-left flex items-center ${draggedColId === col.id ? 'opacity-50' : 'hover:bg-gray-100'}`} 
                         onClick={() => { 
                           window.dispatchEvent(new CustomEvent('toggle-column', { detail: { columnId: col.id, action: dropdownConfig.action } })); 
                         }}
                       >
-                        <input type="checkbox" checked={!!isVisible} readOnly className="mr-2 pointer-events-none" />
+                        <input type="checkbox" checked={!!isVisible} readOnly className="mr-2 pointer-events-none cursor-move" />
                         <span>{col.name}</span>
                       </div>
                     )
@@ -1478,12 +1495,28 @@ export default function Layout() {
               return (
                 <div 
                   key={col.id}
-                  className="px-3 py-1.5 hover:bg-gray-100 cursor-pointer text-left flex items-center" 
+                  draggable
+                  onDragStart={(e) => {
+                    setDraggedColId(col.id);
+                    e.dataTransfer.effectAllowed = 'move';
+                  }}
+                  onDragOver={(e) => {
+                    e.preventDefault();
+                    e.dataTransfer.dropEffect = 'move';
+                  }}
+                  onDrop={(e) => {
+                    e.preventDefault();
+                    if (draggedColId && draggedColId !== col.id) {
+                      window.dispatchEvent(new CustomEvent('reorder-column', { detail: { draggedId: draggedColId, targetId: col.id, action: dropdownConfig.action } }));
+                    }
+                    setDraggedColId(null);
+                  }}
+                  className={`px-3 py-1.5 cursor-move text-left flex items-center ${draggedColId === col.id ? 'opacity-50' : 'hover:bg-gray-100'}`} 
                   onClick={() => { 
                     window.dispatchEvent(new CustomEvent('toggle-column', { detail: { columnId: col.id, action: dropdownConfig.action } })); 
                   }}
                 >
-                  <input type="checkbox" checked={!!isVisible} readOnly className="mr-2 pointer-events-none" />
+                  <input type="checkbox" checked={!!isVisible} readOnly className="mr-2 pointer-events-none cursor-move" />
                   <span>{col.name}</span>
                 </div>
               )
@@ -1681,7 +1714,7 @@ export default function Layout() {
         </div>
       )}
 
-      <main className="flex-1 overflow-auto relative bg-white m-1">
+      <main className="flex-1 overflow-auto relative bg-white">
         <div className="h-full">
           <Outlet context={{ tableZoom, setTableZoom, taxYear }} />
         </div>

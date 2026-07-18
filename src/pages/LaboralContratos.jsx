@@ -312,14 +312,29 @@ export default function LaboralContratos() {
             <table style={{ zoom: tableZoom }} className="clean-table">
               <thead>
                 <tr className="sticky top-0 z-10">
-                  {visibleColumns.includes('id') && <TableHeaderWithFilter label="ID" columnKey="id" data={contratosConNombre} tableId="laboral-contratos" className="w-16" />}
-                  {visibleColumns.includes('empresaId') && <TableHeaderWithFilter label="Empresa" columnKey="empresaNombre" data={contratosConNombre} tableId="laboral-contratos" className="w-32" />}
-                  {visibleColumns.includes('puesto') && <TableHeaderWithFilter label="Puesto" columnKey="puesto" data={contratosConNombre} tableId="laboral-contratos" className="w-48" />}
-                  {visibleColumns.includes('fechaInicio') && <TableHeaderWithFilter label="Fecha Inicio" columnKey="fechaInicio" data={contratosConNombre} tableId="laboral-contratos" />}
-                  {visibleColumns.includes('fechaFin') && <TableHeaderWithFilter label="Fecha Fin" columnKey="fechaFin" data={contratosConNombre} tableId="laboral-contratos" />}
-                  {visibleColumns.includes('ingresoMensual') && <TableHeaderWithFilter label="Ingreso Mensual" columnKey="ingresoMensual" data={contratosConNombre} tableId="laboral-contratos" className="text-right" />}
-                  {visibleColumns.includes('tipoJornada') && <TableHeaderWithFilter label="Tipo Jornada" columnKey="tipoJornada" data={contratosConNombre} tableId="laboral-contratos" />}
-                  {visibleColumns.includes('referencia') && <TableHeaderWithFilter label="Referencia" columnKey="referencia" data={contratosConNombre} tableId="laboral-contratos" />}
+                  
+                  {visibleColumns.map(col => {
+                    switch(col) {
+                    case 'id': return (<TableHeaderWithFilter
+ key="id" label="ID" columnKey="id" data={contratosConNombre} tableId="laboral-contratos" className="w-16" />);
+                    case 'empresaId': return (<TableHeaderWithFilter
+ key="empresaId" label="Empresa" columnKey="empresaNombre" data={contratosConNombre} tableId="laboral-contratos" className="w-32" />);
+                    case 'puesto': return (<TableHeaderWithFilter
+ key="puesto" label="Puesto" columnKey="puesto" data={contratosConNombre} tableId="laboral-contratos" className="w-48" />);
+                    case 'fechaInicio': return (<TableHeaderWithFilter
+ key="fechaInicio" label="Fecha Inicio" columnKey="fechaInicio" data={contratosConNombre} tableId="laboral-contratos" />);
+                    case 'fechaFin': return (<TableHeaderWithFilter
+ key="fechaFin" label="Fecha Fin" columnKey="fechaFin" data={contratosConNombre} tableId="laboral-contratos" />);
+                    case 'ingresoMensual': return (<TableHeaderWithFilter
+ key="ingresoMensual" label="Ingreso Mensual" columnKey="ingresoMensual" data={contratosConNombre} tableId="laboral-contratos" className="text-right" />);
+                    case 'tipoJornada': return (<TableHeaderWithFilter
+ key="tipoJornada" label="Tipo Jornada" columnKey="tipoJornada" data={contratosConNombre} tableId="laboral-contratos" />);
+                    case 'referencia': return (<TableHeaderWithFilter
+ key="referencia" label="Referencia" columnKey="referencia" data={contratosConNombre} tableId="laboral-contratos" />);
+                    default: return null;
+                    }
+                  })}
+    
                 </tr>
               </thead>
               <tbody>
@@ -330,14 +345,29 @@ export default function LaboralContratos() {
                     <tr key={c.id} className={selectedContrato?.id === c.id ? 'selected' : ''}
                       onClick={e => { e.stopPropagation(); setSelectedContrato(c); }}
                       onDoubleClick={() => handleEdit(c)}>
-                      {visibleColumns.includes('id') && <td className="font-mono text-xs">{c.id}</td>}
-                      {visibleColumns.includes('empresaId') && <td className="text-[12px]">{c.empresaNombre}</td>}
-                      {visibleColumns.includes('puesto') && <EditableCell value={c.puesto} onSave={val => handleSaveField(c, 'puesto', val)} />}
-                      {visibleColumns.includes('fechaInicio') && <td className="text-[12px]">{c.fechaInicio}</td>}
-                      {visibleColumns.includes('fechaFin') && <td className="text-[12px]">{c.fechaFin}</td>}
-                      {visibleColumns.includes('ingresoMensual') && <td className="text-right font-mono text-[12px]">{c.ingresoMensual ? parseFloat(c.ingresoMensual).toLocaleString('es-ES', { minimumFractionDigits: 2 }) + ' €' : '-'}</td>}
-                      {visibleColumns.includes('tipoJornada') && <td className="text-[12px]">{c.tipoJornada}</td>}
-                      {visibleColumns.includes('referencia') && <td className="text-[12px]">{c.referencia}</td>}
+                      
+                  {visibleColumns.map(col => {
+                    switch(col) {
+                    case 'id': return (<td
+ key="id" className="font-mono text-xs">{c.id}</td>);
+                    case 'empresaId': return (<td
+ key="empresaId" className="text-[12px]">{c.empresaNombre}</td>);
+                    case 'puesto': return (<EditableCell
+ key="puesto" value={c.puesto} onSave={val => handleSaveField(c, 'puesto', val)} />);
+                    case 'fechaInicio': return (<td
+ key="fechaInicio" className="text-[12px]">{c.fechaInicio}</td>);
+                    case 'fechaFin': return (<td
+ key="fechaFin" className="text-[12px]">{c.fechaFin}</td>);
+                    case 'ingresoMensual': return (<td
+ key="ingresoMensual" className="text-right font-mono text-[12px]">{c.ingresoMensual ? parseFloat(c.ingresoMensual).toLocaleString('es-ES', { minimumFractionDigits: 2 }) + ' €' : '-'}</td>);
+                    case 'tipoJornada': return (<td
+ key="tipoJornada" className="text-[12px]">{c.tipoJornada}</td>);
+                    case 'referencia': return (<td
+ key="referencia" className="text-[12px]">{c.referencia}</td>);
+                    default: return null;
+                    }
+                  })}
+    
                     </tr>
                   ))
                 )}

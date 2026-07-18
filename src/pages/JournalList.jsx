@@ -151,6 +151,7 @@ export default function Journal() {
   const [isEditing, setIsEditing] = useState(false);
   const [isMobile, setIsMobile] = useState(window.innerWidth < 768);
   const [showSidebar, setShowSidebar] = useState(true);
+  const [globalSearch, setGlobalSearch] = useState('');
   const [dateFilter, setDateFilter] = useState('Todos');
   const [selectedYears, setSelectedYears] = useState([]);
   const [selectedMonths, setSelectedMonths] = useState([]);
@@ -325,6 +326,20 @@ export default function Journal() {
   const baseHistory = flattenHistory();
 
   const filteredHistory = baseHistory.filter(item => {
+    if (globalSearch) {
+      const q = globalSearch.toLowerCase();
+      const matchesSearch = 
+        (item.shortId && String(item.shortId).toLowerCase().includes(q)) ||
+        (item.description && String(item.description).toLowerCase().includes(q)) ||
+        (item.accountCode && String(item.accountCode).toLowerCase().includes(q)) ||
+        (item.accountName && String(item.accountName).toLowerCase().includes(q)) ||
+        (item.ceco && String(item.ceco).toLowerCase().includes(q)) ||
+        (item.cebe && String(item.cebe).toLowerCase().includes(q)) ||
+        String(item.debit).includes(q) ||
+        String(item.credit).includes(q);
+      if (!matchesSearch) return false;
+    }
+
     // 1. Top Bar search (existing logic)
     if (isFilterActive && filterValue) {
       let val = String(item[filterColumn] || '').toLowerCase();
@@ -422,7 +437,9 @@ export default function Journal() {
             <input 
               type="text" 
               placeholder="Buscar en el fichero (Alt+B)" 
-              className="w-full text-[12px] py-0.5 outline-none bg-transparent" 
+              className="w-full text-[12px] py-0.5 outline-none bg-transparent"
+              value={globalSearch}
+              onChange={(e) => setGlobalSearch(e.target.value)}
             />
             <Search className="w-4 h-4 text-gray-400 ml-1" />
           </div>
@@ -615,9 +632,9 @@ export default function Journal() {
             </tbody>
             <tfoot className="sticky bottom-0 z-10 bg-[#f8f9fa] border-t-2 border-gray-300 shadow-[0_-2px_10px_rgba(0,0,0,0.05)] select-none">
               <tr className="font-bold text-gray-800 border-t border-gray-300">
-                <td colSpan="10" className="px-2 py-2 text-right">TOTALES:</td>
-                <td className="px-2 py-2 text-right text-red-600 font-sans tabular-nums">{totalFilteredDebit.toLocaleString('es-ES', {minimumFractionDigits: 2})}</td>
-                <td className="px-2 py-2 text-right text-red-600 font-sans tabular-nums">{totalFilteredCredit.toLocaleString('es-ES', {minimumFractionDigits: 2})}</td>
+                <td colSpan="9" className="px-2 py-2 text-right">TOTALES:</td>
+                <td className="px-2 py-2 text-right text-red-600 font-sans tabular-nums">{totalFilteredDebit.toLocaleString('es-ES', {minimumFractionDigits: 2, maximumFractionDigits: 2})}</td>
+                <td className="px-2 py-2 text-right text-red-600 font-sans tabular-nums">{totalFilteredCredit.toLocaleString('es-ES', {minimumFractionDigits: 2, maximumFractionDigits: 2})}</td>
                 <td colSpan="2"></td>
               </tr>
               <tr className="text-[10px] text-gray-600 border-t border-gray-200">

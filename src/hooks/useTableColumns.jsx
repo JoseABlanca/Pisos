@@ -39,6 +39,25 @@ export const useTableColumns = (tableId, defaultColumns) => {
     });
   }, [userPreferences, prefKey, updatePreferences]);
 
+  const reorderColumn = useCallback((draggedId, targetId) => {
+    setVisibleColumns(prev => {
+      const draggedIndex = prev.indexOf(draggedId);
+      const targetIndex = prev.indexOf(targetId);
+      if (draggedIndex === -1 || targetIndex === -1) return prev;
+      
+      const newColumns = [...prev];
+      newColumns.splice(draggedIndex, 1);
+      newColumns.splice(targetIndex, 0, draggedId);
+      
+      updatePreferences({
+        ...userPreferences,
+        [prefKey]: newColumns
+      });
+      
+      return newColumns;
+    });
+  }, [userPreferences, prefKey, updatePreferences]);
+
   // Sincronizar con el menú principal de añadir columnas
   useEffect(() => {
     // Map tableId to the action prefix used in Layout ribbon items
@@ -69,10 +88,20 @@ export const useTableColumns = (tableId, defaultColumns) => {
       if (action && myAction && !action.startsWith(myAction)) return;
       toggleColumn(columnId);
     };
+
+    const handleReorder = (e) => {
+      const { draggedId, targetId, action } = e.detail;
+      if (action && myAction && !action.startsWith(myAction)) return;
+      reorderColumn(draggedId, targetId);
+    };
     
     window.addEventListener('toggle-column', handleToggle);
-    return () => window.removeEventListener('toggle-column', handleToggle);
-  }, [toggleColumn, tableId]);
+    window.addEventListener('reorder-column', handleReorder);
+    return () => {
+      window.removeEventListener('toggle-column', handleToggle);
+      window.removeEventListener('reorder-column', handleReorder);
+    };
+  }, [toggleColumn, reorderColumn, tableId]);
 
   useEffect(() => {
     let tab = 'Clientes';
@@ -106,5 +135,6 @@ export const useTableColumns = (tableId, defaultColumns) => {
     });
   };
 
-  return { visibleColumns, toggleColumn, columnWidths, updateColumnWidth };
+  return { visibleColumns, toggleColumn, reorderColumn, columnWidths, updateColumnWidth };
 };
+
