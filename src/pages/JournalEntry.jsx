@@ -5,6 +5,7 @@ import { db } from '../firebase/config';
 import { collection, query, where, onSnapshot, doc, getDoc, setDoc, addDoc, serverTimestamp, writeBatch, increment } from 'firebase/firestore';
 import { Save, Plus, Trash2, X, Search, Edit2, Minus, FilePlus, RefreshCw } from 'lucide-react';
 import Accounts from './Accounts'; // Import Accounts to use as modal
+import AnalyticalCenters from './AnalyticalCenters'; // Import AnalyticalCenters to use as modal
 import ZoomControl from '../components/ZoomControl';
 import { registerJournalEntry, updateJournalEntry } from '../services/accounting';
 import { uploadFileToStorage } from '../utils/storageUtils';
@@ -36,47 +37,149 @@ const parseAmount = (val) => {
   return evaluateMathExpression(val);
 };
 
-function SearchableSelector({ items, value, onChange, placeholder, type }) {
-  const [isOpen, setIsOpen] = useState(false);
-  const [search, setSearch] = useState('');
+function SearchableSelector({ items, value, onChange, placeholder, type, id, onKeyDown, onOpenModal }) {
+  const [isOpen, setIsOpen] = useState(false); // full search popup
+  const [search, setSearch] = useState('');     // search for full popup
+  const [inputValue, setInputValue] = useState(value || '');
+  const [suggestions, setSuggestions] = useState([]);
+  const [focusedSuggestionIdx, setFocusedSuggestionIdx] = useState(-1);
+  const [showSuggestions, setShowSuggestions] = useState(false);
   const [dropdownPos, setDropdownPos] = useState({ top: 0, left: 0, width: 0 });
+  
   const containerRef = useRef(null);
+  const inputRef = useRef(null);
 
-  const filtered = items.filter(item => {
+  useEffect(() => {
+    setInputValue(value || '');
+  }, [value]);
+
+  const handleOpenFullSearch = () => {
+    if (!inputRef.current) return;
+    const rect = inputRef.current.getBoundingClientRect();
+    setDropdownPos({
+      top: rect.bottom + window.scrollY,
+      left: rect.left + window.scrollX,
+      width: Math.max(rect.width, 220)
+    });
+    setSearch('');
+    setIsOpen(true);
+    setShowSuggestions(false);
+  };
+
+  const handleInputChange = (val) => {
+    setInputValue(val);
+    onChange(val); // update state in parent
+    if (!val) {
+      setSuggestions([]);
+      setShowSuggestions(false);
+      return;
+    }
+    const filtered = items.filter(item => 
+      (item.code && item.code.toLowerCase().includes(val.toLowerCase())) || 
+      (item.name && item.name.toLowerCase().includes(val.toLowerCase()))
+    ).slice(0, 10);
+    setSuggestions(filtered);
+    setShowSuggestions(true);
+    setFocusedSuggestionIdx(-1);
+  };
+
+  const handleInputBlur = () => {
+    setTimeout(() => {
+      setShowSuggestions(false);
+      setSuggestions([]);
+    }, 250);
+  };
+
+  const selectItem = (item) => {
+    onChange(item.code);
+    setInputValue(item.code);
+    setShowSuggestions(false);
+    setSuggestions([]);
+    setFocusedSuggestionIdx(-1);
+  };
+
+  const handleInputKeyDown = (e) => {
+    if (e.key === 'F3') {
+      e.preventDefault();
+      handleOpenFullSearch();
+      return;
+    }
+    
+    if (showSuggestions && suggestions.length > 0) {
+      if (e.key === 'ArrowDown') {
+        e.preventDefault();
+        setFocusedSuggestionIdx(prev => (prev + 1) % suggestions.length);
+        return;
+      }
+      if (e.key === 'ArrowUp') {
+        e.preventDefault();
+        setFocusedSuggestionIdx(prev => (prev - 1 + suggestions.length) % suggestions.length);
+        return;
+      }
+      if (e.key === 'Enter') {
+        if (focusedSuggestionIdx >= 0 && focusedSuggestionIdx < suggestions.length) {
+          e.preventDefault();
+          selectItem(suggestions[focusedSuggestionIdx]);
+          return;
+        }
+      }
+      if (e.key === 'Escape') {
+        e.preventDefault();
+        setShowSuggestions(false);
+        setSuggestions([]);
+        return;
+      }
+    }
+
+    // Forward to parent keydown for grid navigation
+    if (onKeyDown) {
+      onKeyDown(e);
+    }
+  };
+
+  const filteredFull = items.filter(item => {
     const code = String(item.code || '').toLowerCase();
     const name = String(item.name || '').toLowerCase();
     const query = search.toLowerCase();
     return code.includes(query) || name.includes(query);
   });
 
-  const selectedItem = items.find(item => item.code === value);
-
-  const handleOpen = (e) => {
-    const rect = e.currentTarget.getBoundingClientRect();
-    setDropdownPos({
-      top: rect.bottom + window.scrollY,
-      left: rect.left + window.scrollX,
-      width: Math.max(rect.width, 220)
-    });
-    setIsOpen(true);
-  };
-
   return (
     <div ref={containerRef} className="w-full h-full relative">
-      <div 
-        onClick={handleOpen}
-        className="w-full h-full flex items-center justify-between px-2 py-1.5 bg-white cursor-pointer hover:bg-blue-50 text-[11px]"
-      >
-        <div className="flex-1 truncate font-mono text-left">
-          {selectedItem ? (
-            <span className="font-bold text-blue-900">{selectedItem.code}</span>
-          ) : (
-            <span className="text-slate-400 italic font-sans">{placeholder}</span>
-          )}
-        </div>
-        <span className="text-[9px] text-gray-400 font-sans ml-1">▼</span>
-      </div>
+      <input
+        ref={inputRef}
+        id={id}
+        type="text"
+        value={inputValue}
+        onChange={(e) => handleInputChange(e.target.value)}
+        onKeyDown={handleInputKeyDown}
+        onDoubleClick={handleOpenFullSearch}
+        onBlur={handleInputBlur}
+        className="w-full h-full px-2 py-1.5 outline-none focus:bg-blue-50 focus:ring-1 focus:ring-blue-400 font-mono text-[11px]"
+        placeholder={placeholder}
+        autoComplete="off"
+      />
 
+      {/* Inline Suggestions Dropdown */}
+      {showSuggestions && suggestions.length > 0 && (
+        <div className="absolute left-0 top-full mt-1 w-64 bg-white border border-gray-300 shadow-lg rounded z-30 max-h-48 overflow-y-auto">
+          {suggestions.map((suggestion, sIdx) => (
+            <div
+              key={suggestion.id}
+              onClick={() => selectItem(suggestion)}
+              onMouseEnter={() => setFocusedSuggestionIdx(sIdx)}
+              className={`px-3 py-1.5 cursor-pointer text-[10px] flex justify-between items-center ${
+                focusedSuggestionIdx === sIdx ? 'bg-blue-100 text-blue-700 font-semibold' : 'text-gray-700 hover:bg-gray-50'
+              }`}
+            >
+              <span className="font-mono font-bold">{suggestion.code}</span>
+              <span className="truncate text-gray-500 max-w-[120px] normal-case">{suggestion.name}</span>
+            </div>
+          ))}
+        </div>
+      )}
+
+      {/* Full Modal-Like Search Overlay (via Double Click / F3) */}
       {isOpen && (
         <div className="fixed inset-0 z-[10000]" onClick={() => setIsOpen(false)}>
           <div 
@@ -96,12 +199,18 @@ function SearchableSelector({ items, value, onChange, placeholder, type }) {
               className="w-full text-[11px] px-1.5 py-1 border border-gray-400 outline-none mb-1 shadow-inner focus:bg-yellow-50 normal-case font-sans"
               value={search}
               onChange={(e) => setSearch(e.target.value)}
+              onKeyDown={(e) => {
+                if (e.key === 'Escape') {
+                  setIsOpen(false);
+                }
+              }}
             />
 
             <div className="max-h-[150px] overflow-y-auto bg-white border border-gray-300">
               <div 
                 onClick={() => {
                   onChange('');
+                  setInputValue('');
                   setIsOpen(false);
                   setSearch('');
                 }}
@@ -109,14 +218,14 @@ function SearchableSelector({ items, value, onChange, placeholder, type }) {
               >
                 -- SIN {type === 'cebe' ? 'CEBE' : 'CECO'} --
               </div>
-              {filtered.length === 0 ? (
+              {filteredFull.length === 0 ? (
                 <div className="p-2 text-center text-slate-400 italic text-[10px]">Sin resultados</div>
               ) : (
-                filtered.sort((a,b) => a.code.localeCompare(b.code)).map(item => (
+                filteredFull.sort((a,b) => a.code.localeCompare(b.code)).map(item => (
                   <div 
                     key={item.id}
                     onClick={() => {
-                      onChange(item.code);
+                      selectItem(item);
                       setIsOpen(false);
                       setSearch('');
                     }}
@@ -194,6 +303,12 @@ export default function JournalEntry() {
   const [activeLineIndex, setActiveLineIndex] = useState(null);
   
   const [accounts, setAccounts] = useState([]);
+  const [activeDropdownIndex, setActiveDropdownIndex] = useState(null);
+  const [suggestions, setSuggestions] = useState([]);
+  const [focusedSuggestionIdx, setFocusedSuggestionIdx] = useState(-1);
+  const [hasCleanedCebes, setHasCleanedCebes] = useState(false);
+  const [showCebeModal, setShowCebeModal] = useState(false);
+  const [showCecoModal, setShowCecoModal] = useState(false);
   
   useEffect(() => {
     if (!user) return;
@@ -238,6 +353,7 @@ export default function JournalEntry() {
 
   useEffect(() => {
     if (location.state?.editEntry && accounts.length > 0) {
+      setHasCleanedCebes(false);
       const { editEntry } = location.state;
       setEntryId(editEntry.id);
       setIsEditing(true);
@@ -297,7 +413,7 @@ export default function JournalEntry() {
 
   // Clean invalid line-level CEBE/CECO codes once master lists are loaded
   useEffect(() => {
-    if (lines.length === 0) return;
+    if (lines.length === 0 || cebes.length === 0 || cecos.length === 0 || hasCleanedCebes) return;
     
     let changed = false;
     const newLines = lines.map(line => {
@@ -341,7 +457,8 @@ export default function JournalEntry() {
     if (changed) {
       setLines(newLines);
     }
-  }, [cebes, cecos, lines]);
+    setHasCleanedCebes(true);
+  }, [cebes, cecos, lines, hasCleanedCebes]);
 
   const updateLine = (index, field, value) => {
     const newLines = [...lines];
@@ -380,14 +497,21 @@ export default function JournalEntry() {
     setLines([...lines, { id: maxId + 1, account: '', description: '', document: '', ceco: '', cebe: '', debit: 0, credit: 0, image: null, documentUrl: null, documentName: null }]);
   };
   
-  const removeLine = (index) => {
+  const removeLine = (index, field = 'account') => {
     if (index === null || index === undefined) return;
+    if (lines.length <= 1) return;
+    
     setLines(lines.filter((_, i) => i !== index));
     if (selectedLineIndex === index) {
       setSelectedLineIndex(null);
     } else if (selectedLineIndex > index) {
       setSelectedLineIndex(selectedLineIndex - 1);
     }
+
+    const targetIdx = index >= lines.length - 1 ? lines.length - 2 : index;
+    setTimeout(() => {
+      document.getElementById(`${field}-${targetIdx}`)?.focus();
+    }, 50);
   };
   
   const totalDebit = lines.reduce((sum, l) => sum + parseAmount(l.debit), 0);
@@ -474,7 +598,84 @@ export default function JournalEntry() {
     }
   };
 
+  const handleAccountChange = (idx, value) => {
+    updateLine(idx, 'account', value);
+    if (!value) {
+      setSuggestions([]);
+      setActiveDropdownIndex(null);
+      setFocusedSuggestionIdx(-1);
+      return;
+    }
+    const filtered = accounts.filter(a => 
+      (a.code && a.code.toLowerCase().includes(value.toLowerCase())) || 
+      (a.name && a.name.toLowerCase().includes(value.toLowerCase()))
+    ).slice(0, 10);
+    setSuggestions(filtered);
+    setActiveDropdownIndex(idx);
+    setFocusedSuggestionIdx(-1);
+  };
+
+  const selectSuggestion = (idx, selectedAccount) => {
+    const newLines = [...lines];
+    newLines[idx].account = selectedAccount.code;
+    if (!newLines[idx].description) {
+      newLines[idx].description = selectedAccount.name;
+    }
+    setLines(newLines);
+    setActiveDropdownIndex(null);
+    setSuggestions([]);
+    setFocusedSuggestionIdx(-1);
+  };
+
+  const handleAccountBlur = () => {
+    setTimeout(() => {
+      setActiveDropdownIndex(null);
+      setSuggestions([]);
+      setFocusedSuggestionIdx(-1);
+    }, 200);
+  };
+
   const handleKeyDown = (e, index, field) => {
+    if (e.ctrlKey && e.key === 'Delete') {
+      e.preventDefault();
+      removeLine(index, field);
+      return;
+    }
+
+    if (field === 'account') {
+      if (e.key === 'F3') {
+        e.preventDefault();
+        openAccountSelector(e, index);
+        return;
+      }
+      if (activeDropdownIndex === index && suggestions.length > 0) {
+        if (e.key === 'ArrowDown') {
+          e.preventDefault();
+          setFocusedSuggestionIdx(prev => (prev + 1) % suggestions.length);
+          return;
+        }
+        if (e.key === 'ArrowUp') {
+          e.preventDefault();
+          setFocusedSuggestionIdx(prev => (prev - 1 + suggestions.length) % suggestions.length);
+          return;
+        }
+        if (e.key === 'Enter') {
+          if (focusedSuggestionIdx >= 0 && focusedSuggestionIdx < suggestions.length) {
+            e.preventDefault();
+            selectSuggestion(index, suggestions[focusedSuggestionIdx]);
+            return;
+          }
+        }
+        if (e.key === 'Escape') {
+          e.preventDefault();
+          setActiveDropdownIndex(null);
+          setSuggestions([]);
+          setFocusedSuggestionIdx(-1);
+          return;
+        }
+      }
+    }
+
     if (e.key === 'Enter' || e.key === 'ArrowDown') {
       e.preventDefault();
       if (index === lines.length - 1) {
@@ -512,6 +713,34 @@ export default function JournalEntry() {
       setLines(newLines);
     }
     setShowAccountsModal(false);
+  };
+
+  const openCebeSelector = (index) => {
+    setActiveLineIndex(index);
+    setShowCebeModal(true);
+  };
+
+  const handleCebeSelect = (selectedCebeCode) => {
+    if (activeLineIndex !== null) {
+      const newLines = [...lines];
+      newLines[activeLineIndex].cebe = selectedCebeCode;
+      setLines(newLines);
+    }
+    setShowCebeModal(false);
+  };
+
+  const openCecoSelector = (index) => {
+    setActiveLineIndex(index);
+    setShowCecoModal(true);
+  };
+
+  const handleCecoSelect = (selectedCecoCode) => {
+    if (activeLineIndex !== null) {
+      const newLines = [...lines];
+      newLines[activeLineIndex].ceco = selectedCecoCode;
+      setLines(newLines);
+    }
+    setShowCecoModal(false);
   };
 
   return (
@@ -611,11 +840,12 @@ export default function JournalEntry() {
                       id={`account-${idx}`}
                       type="text" 
                       value={line.account}
-                      onChange={(e) => updateLine(idx, 'account', e.target.value)}
+                      onChange={(e) => handleAccountChange(idx, e.target.value)}
                       onKeyDown={(e) => handleKeyDown(e, idx, 'account')}
                       onDoubleClick={(e) => openAccountSelector(e, idx)}
+                      onBlur={handleAccountBlur}
                       className="w-full h-full px-2 py-1.5 outline-none focus:bg-blue-50 focus:ring-1 focus:ring-blue-400 font-mono"
-                      placeholder="Doble clic..."
+                      placeholder="Doble clic o F3..."
                       autoComplete="off"
                     />
                     <button 
@@ -625,6 +855,25 @@ export default function JournalEntry() {
                     >
                       <Search className="w-3 h-3" />
                     </button>
+
+                    {/* Suggestions Dropdown */}
+                    {activeDropdownIndex === idx && suggestions.length > 0 && (
+                      <div className="absolute left-0 top-full mt-1 w-72 bg-white border border-gray-300 shadow-lg rounded z-30 max-h-48 overflow-y-auto">
+                        {suggestions.map((suggestion, sIdx) => (
+                          <div
+                            key={suggestion.id}
+                            onClick={() => selectSuggestion(idx, suggestion)}
+                            onMouseEnter={() => setFocusedSuggestionIdx(sIdx)}
+                            className={`px-3 py-1.5 cursor-pointer text-[11px] flex justify-between items-center ${
+                              focusedSuggestionIdx === sIdx ? 'bg-blue-100 text-blue-700 font-semibold' : 'text-gray-700 hover:bg-gray-50'
+                            }`}
+                          >
+                            <span className="font-mono font-bold">{suggestion.code}</span>
+                            <span className="truncate text-gray-500 max-w-[160px]">{suggestion.name}</span>
+                          </div>
+                        ))}
+                      </div>
+                    )}
                   </td>
                   <td className="px-2 py-1.5 truncate text-gray-600 bg-gray-50/50" onDoubleClick={(e) => openAccountSelector(e, idx)}>
                     {acctName}
@@ -641,18 +890,24 @@ export default function JournalEntry() {
                   </td>
                   <td className="p-0">
                     <SearchableSelector 
+                      id={`cebe-${idx}`}
                       items={cebes} 
                       value={line.cebe} 
                       onChange={(val) => updateLine(idx, 'cebe', val)}
+                      onKeyDown={(e) => handleKeyDown(e, idx, 'cebe')}
+                      onOpenModal={() => openCebeSelector(idx)}
                       placeholder="Sin CEBE" 
                       type="cebe" 
                     />
                   </td>
                   <td className="p-0">
                     <SearchableSelector 
+                      id={`ceco-${idx}`}
                       items={cecos} 
                       value={line.ceco} 
                       onChange={(val) => updateLine(idx, 'ceco', val)}
+                      onKeyDown={(e) => handleKeyDown(e, idx, 'ceco')}
+                      onOpenModal={() => openCecoSelector(idx)}
                       placeholder="Sin CECO" 
                       type="ceco" 
                     />
@@ -797,6 +1052,40 @@ export default function JournalEntry() {
               {/* Pass an onSelect prop if Accounts supported it, otherwise we intercept double clicks via a wrapper if needed */}
               {/* To ensure it works perfectly, we can pass an optional onAccountSelect prop to Accounts */}
               <Accounts isModal={true} onAccountSelect={handleAccountSelect} />
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* CEBE Modal */}
+      {showCebeModal && (
+        <div className="fixed inset-0 bg-black/5 backdrop-blur-sm0 flex items-center justify-center z-[9999] p-4">
+          <div className="bg-white shadow-2xl rounded-lg flex flex-col w-[90vw] h-[90vh] overflow-hidden max-w-[1200px] border border-gray-400">
+            <div className="flex justify-between items-center px-4 py-2 bg-[#4e80c8] text-white select-none">
+              <h2 className="font-bold text-[13px] tracking-wide uppercase">SELECCIÓN DE CEBE</h2>
+              <button onClick={() => setShowCebeModal(false)} className="hover:bg-white/20 p-1 rounded">
+                <X className="w-5 h-5" />
+              </button>
+            </div>
+            <div className="flex-1 overflow-hidden relative">
+              <AnalyticalCenters type="cebe" isModal={true} onSelect={handleCebeSelect} />
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* CECO Modal */}
+      {showCecoModal && (
+        <div className="fixed inset-0 bg-black/5 backdrop-blur-sm0 flex items-center justify-center z-[9999] p-4">
+          <div className="bg-white shadow-2xl rounded-lg flex flex-col w-[90vw] h-[90vh] overflow-hidden max-w-[1200px] border border-gray-400">
+            <div className="flex justify-between items-center px-4 py-2 bg-[#4e80c8] text-white select-none">
+              <h2 className="font-bold text-[13px] tracking-wide uppercase">SELECCIÓN DE CECO</h2>
+              <button onClick={() => setShowCecoModal(false)} className="hover:bg-white/20 p-1 rounded">
+                <X className="w-5 h-5" />
+              </button>
+            </div>
+            <div className="flex-1 overflow-hidden relative">
+              <AnalyticalCenters type="ceco" isModal={true} onSelect={handleCecoSelect} />
             </div>
           </div>
         </div>

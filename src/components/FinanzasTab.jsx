@@ -5,6 +5,7 @@ import { uploadFileToStorage } from '../utils/storageUtils';
 export default function FinanzasTab({ formData, setFormData, rentals, user, setPreviewDocument }) {
   const [activeSubTab, setActiveSubTab] = useState('Datos');
   const [isUploading, setIsUploading] = useState(false);
+  const [isFocused, setIsFocused] = useState(false);
   
   // Ensure adquisition expenses array exists
   const adquisitionExpenses = Array.isArray(formData.adquisitionExpenses) ? formData.adquisitionExpenses : [];
@@ -122,15 +123,37 @@ export default function FinanzasTab({ formData, setFormData, rentals, user, setP
               </div>
             </div>
             <div className="space-y-1">
-              <label className="text-[10px] font-bold text-slate-700 uppercase" title="Suma de Capital Aportado, Gastos de Adquisición y Reformas Capitalizables">Total Inversión:</label>
+              <label className="text-[10px] font-bold text-slate-700 uppercase" title="Suma de Capital Aportado, Gastos de Adquisición y Reformas Capitalizables. Escribe para sobrescribir manualmente.">Total Inversión:</label>
               <div className="relative">
                 <input 
-                  type="text" 
-                  className="win-input w-full text-right pr-6 bg-blue-50 text-blue-900 font-bold cursor-not-allowed" 
-                  value={((parseFloat(formData.investedCapital) || 0) + totalCapitalizedReforms + totalAdquisitionExpenses).toLocaleString('es-ES', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
-                  readOnly 
+                  type={isFocused ? "number" : "text"} 
+                  step="any"
+                  className="win-input w-full text-right pr-6 bg-blue-50 text-blue-900 font-bold focus:bg-blue-100" 
+                  value={
+                    isFocused
+                      ? (formData.totalInversionOverride !== undefined && formData.totalInversionOverride !== null ? formData.totalInversionOverride : ((parseFloat(formData.investedCapital) || 0) + totalCapitalizedReforms + totalAdquisitionExpenses).toFixed(2))
+                      : (formData.totalInversionOverride !== undefined && formData.totalInversionOverride !== '' && formData.totalInversionOverride !== null
+                          ? (parseFloat(formData.totalInversionOverride) || 0).toLocaleString('es-ES', { minimumFractionDigits: 2, maximumFractionDigits: 2 })
+                          : ((parseFloat(formData.investedCapital) || 0) + totalCapitalizedReforms + totalAdquisitionExpenses).toLocaleString('es-ES', { minimumFractionDigits: 2, maximumFractionDigits: 2 }))
+                  }
+                  onChange={e => setFormData({ ...formData, totalInversionOverride: e.target.value })}
+                  onFocus={() => setIsFocused(true)}
+                  onBlur={() => setIsFocused(false)}
                 />
-                <span className="absolute right-2 top-1/2 -translate-y-1/2 text-[11px] text-blue-900 font-bold">€</span>
+                {formData.totalInversionOverride !== undefined && formData.totalInversionOverride !== '' && formData.totalInversionOverride !== null && (
+                  <button 
+                    type="button"
+                    onMouseDown={e => {
+                      e.preventDefault();
+                      setFormData({ ...formData, totalInversionOverride: '' });
+                    }}
+                    className="absolute left-2 top-1/2 -translate-y-1/2 text-[9px] text-red-500 hover:text-red-700 font-bold bg-white border border-red-200 rounded px-1"
+                    title="Restaurar valor autocalculado"
+                  >
+                    RESET
+                  </button>
+                )}
+                <span className="absolute right-2 top-1/2 -translate-y-1/2 text-[11px] text-blue-900 font-bold pointer-events-none">€</span>
               </div>
             </div>
             <div className="space-y-1">

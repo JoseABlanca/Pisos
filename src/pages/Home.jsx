@@ -113,37 +113,6 @@ export default function Home() {
       else if (isPasivo) totalPasivo += amt;
     });
 
-    journalEntries.forEach(entry => {
-      entry.lines?.forEach(l => {
-        const accId = String(l.accountId || '');
-        const accCode = String(l.accountCode || '');
-        const debit = parseFloat(l.debit) || 0;
-        const credit = parseFloat(l.credit) || 0;
-
-        // For bank balance
-        if (bankAccIds.has(accId) || bankAccCodes.has(accCode) || accCode.startsWith('572') || accCode.startsWith('570')) {
-          bankBalance += (debit - credit);
-          if (accCode.startsWith('572')) {
-            bankBalance572 += (debit - credit);
-          }
-        }
-
-        // For Patrimonio Neto
-        const acc = accounts.find(a => a.id === accId || a.code === accCode);
-        if (acc) {
-          const code = String(acc.code || '');
-          const isActivo = acc.type === 'Activo';
-          const isPasivo = acc.type === 'Pasivo' && !(code.startsWith('10') || code.startsWith('11') || code.startsWith('12') || code.startsWith('13'));
-          
-          if (isActivo) {
-            totalActivo += (debit - credit);
-          } else if (isPasivo) {
-            totalPasivo += (credit - debit);
-          }
-        }
-      });
-    });
-
     const patrimonioNeto = totalActivo - totalPasivo;
 
     // 2. Real estate (Inmuebles) values & mortgages

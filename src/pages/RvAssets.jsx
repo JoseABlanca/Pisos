@@ -350,6 +350,117 @@ export default function RvAssets() {
     return () => window.removeEventListener('keydown', handleKeyDown);
   }, [selectedAsset, filteredAssets, assets, user]);
 
+  
+  const handleDownloadHistory = async () => {
+    if (!assets || assets.length === 0) {
+      alert('No hay activos para descargar.');
+      return;
+    }
+
+    if (!window.confirm(`¿Desea descargar el histórico de todos los activos (${assets.length}) desde su fecha de inicio hasta hoy?`)) return;
+
+    window.dispatchEvent(new CustomEvent('rv-asset:download-progress', { detail: { current: 0, total: assets.length } }));
+    
+    let currentCount = 0;
+    for (const asset of assets) {
+      const start = new Date(asset.startDate || '2024-01-01');
+      const end = new Date();
+      const ticker = (asset.id || '').trim().toUpperCase();
+      
+      if (!ticker || asset.apiSource !== 'Yahoo Finance') {
+        currentCount++;
+        window.dispatchEvent(new CustomEvent('rv-asset:download-progress', { detail: { current: currentCount, total: assets.length } }));
+        continue;
+      }
+      
+      try {
+        const period1 = Math.floor(start.getTime() / 1000);
+        const period2 = Math.floor(end.getTime() / 1000);
+
+        const yahooUrl1 = `https://query1.finance.yahoo.com/v8/finance/chart/${ticker}?period1=${period1}&period2=${period2}&interval=1d&events=history&includeAdjustedClose=true`;
+        const yahooUrl2 = `https://query2.finance.yahoo.com/v8/finance/chart/${ticker}?period1=${period1}&period2=${period2}&interval=1d&events=history&includeAdjustedClose=true`;
+        
+        const proxies = [
+          { url: `https://api.allorigins.win/raw?url=${encodeURIComponent(yahooUrl1)}`, mode: 'direct' },
+          { url: `https://api.allorigins.win/raw?url=${encodeURIComponent(yahooUrl2)}`, mode: 'direct' },
+          { url: `https://api.codetabs.com/v1/proxy?quest=${encodeURIComponent(yahooUrl1)}`, mode: 'direct' },
+          { url: `https://api.codetabs.com/v1/proxy?quest=${encodeURIComponent(yahooUrl2)}`, mode: 'direct' },
+          { url: `https://api.allorigins.win/get?url=${encodeURIComponent(yahooUrl1)}`, mode: 'wrapped' },
+          { url: `https://api.allorigins.win/get?url=${encodeURIComponent(yahooUrl2)}`, mode: 'wrapped' },
+        ];
+        
+        let json = null;
+        for (const proxy of proxies) {
+          try {
+            const resp = await fetch(proxy.url, { signal: AbortSignal.timeout(10000) });
+            if (!resp.ok) continue;
+            const text = await resp.text();
+            if (proxy.mode === 'wrapped') {
+              const outer = JSON.parse(text);
+              json = JSON.parse(outer.contents);
+            } else {
+              json = JSON.parse(text);
+            }
+            if (json?.chart?.result) break;
+            json = null;
+          } catch (e) {
+            continue;
+          }
+        }
+        
+        const result = json?.chart?.result?.[0];
+        if (result) {
+          const timestamps = result.timestamp || [];
+          const closes = result.indicators?.quote?.[0]?.close || [];
+          
+          const chunks = [];
+          for (let i = 0; i < timestamps.length; i += 400) {
+              chunks.push({
+                  timestamps: timestamps.slice(i, i + 400),
+                  closes: closes.slice(i, i + 400)
+              });
+          }
+          
+          for (const chunk of chunks) {
+              const batch = writeBatch(db);
+              let batchCount = 0;
+              chunk.timestamps.forEach((ts, i) => {
+                if (chunk.closes[i] != null) {
+                  const dateStr = new Date(ts * 1000).toISOString().split('T')[0];
+                  const closeVal = parseFloat(chunk.closes[i].toFixed(4));
+                  const recId = `${ticker}_${dateStr}`;
+                  const ref = doc(db, 'rv_asset_history', recId);
+                  batch.set(ref, {
+                    id: recId,
+                    assetId: ticker,
+                    date: dateStr,
+                    close: closeVal,
+                    userId: user.uid,
+                    updatedAt: new Date().toISOString()
+                  });
+                  batchCount++;
+                }
+              });
+              if (batchCount > 0) {
+                 await batch.commit();
+              }
+          }
+        }
+      } catch (e) {
+         console.error(`Error downloading history for ${ticker}:`, e);
+      }
+
+      currentCount++;
+      window.dispatchEvent(new CustomEvent('rv-asset:download-progress', { detail: { current: currentCount, total: assets.length } }));
+    }
+    
+    setTimeout(() => {
+      window.dispatchEvent(new CustomEvent('rv-asset:download-progress', { detail: null }));
+      alert('Descarga de histórico completada.');
+    }, 1000);
+  };
+
+
   // Handle ribbon actions
   useEffect(() => {
     const onNew = () => handleNew();
@@ -385,12 +496,15 @@ export default function RvAssets() {
     window.addEventListener('rv-asset:edit', onEdit);
     window.addEventListener('rv-asset:delete', onDelete);
     window.addEventListener('rv-asset:export', onExport);
+    const onDownloadHistory = () => handleDownloadHistory();
+    window.addEventListener('rv-asset:download-history', onDownloadHistory);
 
     return () => {
       window.removeEventListener('rv-asset:new', onNew);
       window.removeEventListener('rv-asset:edit', onEdit);
       window.removeEventListener('rv-asset:delete', onDelete);
       window.removeEventListener('rv-asset:export', onExport);
+      window.removeEventListener('rv-asset:download-history', onDownloadHistory);
     };
   }, [assets, selectedAsset, filteredAssets, visibleColumns]);
 
@@ -424,7 +538,7 @@ export default function RvAssets() {
       ...asset,
       apiSource: asset.apiSource || 'Yahoo Finance',
       startDate: asset.startDate || '2024-01-01',
-      endDate: asset.endDate || new Date().toISOString().split('T')[0]
+      endDate: new Date().toISOString().split('T')[0]
     });
     setShowForm(true);
   };

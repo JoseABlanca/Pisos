@@ -297,7 +297,7 @@ export default function Ledger({ initialMode }) {
             number: entry.number || (entry.id || '').toUpperCase().slice(-6),
             accountCode: accInfo ? accInfo.code : '?',
             accountName: accInfo ? accInfo.name : 'Desconocida',
-            description: entry.description,
+            description: line.description || entry.description,
             document: line.document || '',
             debit: parseFloat(line.debit || 0),
             credit: parseFloat(line.credit || 0),

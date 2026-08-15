@@ -322,11 +322,17 @@ export default function Layout() {
   const [cfProjects, setCfProjects] = useState([]);
   const [cfPlatforms, setCfPlatforms] = useState([]);
   const [isFetchingPrices, setIsFetchingPrices] = useState(false);
+  const [downloadProgress, setDownloadProgress] = useState(null);
 
   useEffect(() => {
     const handleFetchPrices = (e) => setIsFetchingPrices(e.detail);
+    const handleDownloadProgress = (e) => setDownloadProgress(e.detail);
     window.addEventListener('is-fetching-prices', handleFetchPrices);
-    return () => window.removeEventListener('is-fetching-prices', handleFetchPrices);
+    window.addEventListener('rv-asset:download-progress', handleDownloadProgress);
+    return () => {
+      window.removeEventListener('is-fetching-prices', handleFetchPrices);
+      window.removeEventListener('rv-asset:download-progress', handleDownloadProgress);
+    };
   }, []);
 
   useEffect(() => {
@@ -1043,16 +1049,17 @@ export default function Layout() {
         ] 
       },
       {
-        group: 'Procesos',
-        items: [
-          { name: 'Actualizar precios', action: 'rv-asset:refresh-prices', icon: RefreshCw, path: '/rv-assets' }
-        ]
-      },
-      {
         group: 'Acciones',
         items: [
           { name: 'Añadir columna', action: 'rv-asset:columns', path: '/rv-assets', customIcon: 'AddColumn' },
           { name: 'Exportar', action: 'rv-asset:export', path: '/rv-assets', customIcon: 'Exportar' }
+        ]
+      },
+      {
+        group: 'Procesos',
+        items: [
+          { name: 'Actualizar precios', action: 'rv-asset:refresh-prices', icon: RefreshCw, path: '/rv-assets' },
+          { name: 'Descargar histórico', action: 'rv-asset:download-history', icon: Download, path: '/rv-assets' }
         ]
       }
     ],
@@ -1422,6 +1429,11 @@ export default function Layout() {
                         {item.name} 
                         {(isExport || isAddColumn || item.action === 'dashboard:contabilidad' || item.action === 'dashboard:inversiones' || item.action === 'dashboard:rv' || item.action === 'dashboard:cf' || item.action?.startsWith('print:')) && <ChevronDown className="w-3 h-3 mt-0.5" />}
                       </span>
+                      {item.action === 'rv-asset:download-history' && downloadProgress && (
+                        <div className="absolute bottom-0 left-0 w-full h-1 bg-gray-200 rounded-b overflow-hidden">
+                          <div className="h-full bg-blue-500 transition-all duration-300" style={{ width: `${(downloadProgress.current / downloadProgress.total) * 100}%` }}></div>
+                        </div>
+                      )}
                     </button>
                   </div>
                 )

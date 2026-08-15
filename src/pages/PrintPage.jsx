@@ -96,6 +96,23 @@ const isAccountMatched = (accountCodeOrId, selectedAccounts, accountsList) => {
   });
 };
 
+const getGroupAccountName = (code, accountsList = []) => {
+  const customAcc = accountsList.find(a => a.code && String(a.code).trim() === String(code).trim());
+  if (customAcc && customAcc.name) {
+    return customAcc.name.toUpperCase();
+  }
+  if (SpanishAccountingNames[code]) {
+    return SpanishAccountingNames[code].toUpperCase();
+  }
+  for (let l = code.length - 1; l > 0; l--) {
+    const prefix = code.slice(0, l);
+    if (SpanishAccountingNames[prefix]) {
+      return SpanishAccountingNames[prefix].toUpperCase();
+    }
+  }
+  return `CUENTA ${code}`;
+};
+
 const getPropertyMetrics = (p, entriesList, selectedCecos = []) => {
   const propertyCebe = String(p.cebe || '').trim();
   const normalizedPropCebe = propertyCebe ? propertyCebe.replace(/^(CEBE|CECO)/i, '').trim().toLowerCase() : '';
@@ -295,6 +312,7 @@ const templatesByCategory = {
   contabilidad_anuales: [
     { id: 'balance_situacion', name: 'Balance de Situación', icon: FileSpreadsheet },
     { id: 'cuenta_resultados', name: 'Cuenta de Resultados', icon: FileSpreadsheet },
+    { id: 'analitica', name: 'Analítica', icon: TrendingUp },
     { id: 'flujo_caja', name: 'Estado de Flujos de Caja', icon: FileSpreadsheet }
   ],
   inversiones: [
@@ -399,6 +417,16 @@ export default function PrintPage() {
     const saved = localStorage.getItem('print_maxDigits');
     return saved ? parseInt(saved, 10) : 10;
   });
+  const [selectedDepths, setSelectedDepths] = useState(() => {
+    const saved = localStorage.getItem('print_selectedDepths');
+    return saved ? JSON.parse(saved) : [];
+  });
+  const [analiticaGrouping, setAnaliticaGrouping] = useState(() => {
+    return localStorage.getItem('print_analiticaGrouping') || 'cuentas';
+  });
+  const [showAnaliticaIds, setShowAnaliticaIds] = useState(() => {
+    return localStorage.getItem('print_showAnaliticaIds') !== 'false';
+  });
   const [isDatesCollapsed, setIsDatesCollapsed] = useState(true);
   const [isFiltersInmobCollapsed, setIsFiltersInmobCollapsed] = useState(false);
   
@@ -412,6 +440,7 @@ export default function PrintPage() {
   const [isOptsPropietariosCollapsed, setIsOptsPropietariosCollapsed] = useState(false);
   const [isOptsContabilidadCollapsed, setIsOptsContabilidadCollapsed] = useState(false);
   const [isProfundidadCollapsed, setIsProfundidadCollapsed] = useState(false);
+  const [isDepthDropdownOpen, setIsDepthDropdownOpen] = useState(false);
   const [hideZeroBalances, setHideZeroBalances] = useState(() => {
     return localStorage.getItem('print_hideZeroBalances') === 'true';
   });
@@ -1286,7 +1315,13 @@ export default function PrintPage() {
       if (colId === 'activeTenant') return getActiveClientDisplayConsolidated(item);
       if (colId === 'capitalReformas') return consolidated.capitalizedReforms;
       if (colId === 'capitalAportado') return consolidated.investedCapital;
-      if (colId === 'totalInversion') return consolidated.investedCapital + consolidated.capitalizedReforms;
+      if (colId === 'totalInversion') {
+        const override = item.totalInversionOverride || item.financials?.totalInversionOverride;
+        if (override !== undefined && override !== '' && override !== null) {
+          return parseFloat(override) || 0;
+        }
+        return consolidated.investedCapital + consolidated.capitalizedReforms + consolidated.adquisitionExpenses;
+      }
       if (colId === 'theoreticalSalePrice') return consolidated.theoreticalSalePrice;
       if (colId === 'gastosCompraVenta') return consolidated.adquisitionExpenses;
     }
@@ -1510,7 +1545,10 @@ export default function PrintPage() {
     localStorage.setItem('print_groupByOwner', groupByOwner.toString());
     localStorage.setItem('print_filterImpuesto', filterImpuesto.toString());
     localStorage.setItem('print_maxDigits', maxDigits.toString());
+    localStorage.setItem('print_selectedDepths', JSON.stringify(selectedDepths));
     localStorage.setItem('print_groupAccessoryAssets', groupAccessoryAssets.toString());
+    localStorage.setItem('print_analiticaGrouping', analiticaGrouping);
+    localStorage.setItem('print_showAnaliticaIds', showAnaliticaIds.toString());
     
     // Serialize visibleColumns Sets to Arrays
     const serializedCols = Object.fromEntries(
@@ -1524,7 +1562,7 @@ export default function PrintPage() {
     selectedCebes, selectedCecos, selectedDocuments, hideZeroBalances, showVerticalPercentage, showHorizontalPercentage,
     displayMode, selectedComparisonYears, selectedFilterProperties, selectedFilterRentals,
     selectedFilterOwners, sortCol1, sortDir1, sortCol2, sortDir2, showSecondSortLevel, groupByOwner,
-    filterImpuesto, maxDigits, groupAccessoryAssets, visibleColumns, columnOrder
+    filterImpuesto, maxDigits, selectedDepths, groupAccessoryAssets, visibleColumns, columnOrder, analiticaGrouping, showAnaliticaIds
   ]);
 
   
@@ -1533,6 +1571,7 @@ export default function PrintPage() {
   const [cebes, setCebes] = useState([]);
   const [cecos, setCecos] = useState([]);
   const [journalEntries, setJournalEntries] = useState([]);
+  const [budgets, setBudgets] = useState([]);
   const [properties, setProperties] = useState([]);
   const [rentals, setRentals] = useState([]);
   const [customers, setCustomers] = useState([]);
@@ -1573,6 +1612,13 @@ export default function PrintPage() {
     
     setLoading(true);
     
+    const unsubBudgets = onSnapshot(
+      query(collection(db, 'budgets'), where('userId', 'in', userIds)),
+      (snap) => {
+        setBudgets(snap.docs.map(doc => ({ id: doc.id, ...doc.data() })));
+      }
+    );
+
     const unsubAccounts = onSnapshot(
       query(collection(db, 'accounts'), where('userId', 'in', userIds)),
       (snap) => {
@@ -1688,6 +1734,7 @@ export default function PrintPage() {
     const timer = setTimeout(() => setLoading(false), 800);
 
     return () => {
+      unsubBudgets();
       unsubAccounts();
       unsubEntries();
       unsubProperties();
@@ -2306,12 +2353,14 @@ export default function PrintPage() {
   const computedAnnualAccounts = useMemo(() => {
     const directMap = {};
     const aggregatedMap = {};
+    const budgetDirectMap = {};
+    const budgetAggregatedMap = {};
     
-    const startLimit = new Date(selectedYear, 0, 1);
+    let startLimit = new Date(selectedYear, 0, 1);
     let endLimit = new Date(selectedYear, 11, 31, 23, 59, 59);
+    const monthNames = ['Ene', 'Feb', 'Mar', 'Abr', 'May', 'Jun', 'Jul', 'Ago', 'Sep', 'Oct', 'Nov', 'Dic'];
 
     if (selectedMonths.length > 0) {
-      const monthNames = ['Ene', 'Feb', 'Mar', 'Abr', 'May', 'Jun', 'Jul', 'Ago', 'Sep', 'Oct', 'Nov', 'Dic'];
       let maxMonthIndex = 0;
       selectedMonths.forEach(m => {
         const idx = monthNames.indexOf(m);
@@ -2334,13 +2383,36 @@ export default function PrintPage() {
       journalEntries.forEach(entry => {
         const entryDate = new Date(entry.date);
         const isIncomeExpense = ['Ingreso', 'Gasto'].includes(account.type);
-        const isInRange = isIncomeExpense 
-          ? (entryDate >= startLimit && entryDate <= endLimit)
-          : (entryDate <= endLimit);
+        
+        let isInRange = false;
+        if (isIncomeExpense) {
+          if (selectedMonths.length > 0 || selectedQuarters.length > 0) {
+            const mIdx = entryDate.getMonth();
+            const mStr = monthNames[mIdx];
+            let matchQ = false;
+            if (selectedQuarters.includes('1T') && mIdx >= 0 && mIdx <= 2) matchQ = true;
+            if (selectedQuarters.includes('2T') && mIdx >= 3 && mIdx <= 5) matchQ = true;
+            if (selectedQuarters.includes('3T') && mIdx >= 6 && mIdx <= 8) matchQ = true;
+            if (selectedQuarters.includes('4T') && mIdx >= 9 && mIdx <= 11) matchQ = true;
+            
+            if ((selectedMonths.length > 0 && selectedMonths.includes(mStr)) || (selectedQuarters.length > 0 && matchQ)) {
+              isInRange = (entryDate.getFullYear() === selectedYear);
+            }
+          } else {
+            isInRange = (entryDate >= startLimit && entryDate <= endLimit);
+          }
+        } else {
+          isInRange = (entryDate <= endLimit);
+        }
 
         if (isInRange && entry.lines) {
           entry.lines.forEach(line => {
             if (line.accountId === account.id) {
+              const cebe = line.cebe || entry.cebe || '';
+              const ceco = line.ceco || entry.ceco || '';
+              if (selectedCebes.length > 0 && !selectedCebes.includes(cebe)) return;
+              if (selectedCecos.length > 0 && !selectedCecos.includes(ceco)) return;
+
               const debit = parseFloat(line.debit) || 0;
               const credit = parseFloat(line.credit) || 0;
               const isAssetOrExpense = ['Activo', 'Gasto'].includes(account.type);
@@ -2350,16 +2422,52 @@ export default function PrintPage() {
         }
       });
       directMap[account.id] = movementSum;
+
+      // Calculate budget for this account
+      let budgetSum = 0;
+      budgets.forEach(b => {
+        if (b.year !== selectedYear) return;
+        if (b.accountId !== account.id && b.accountCode !== account.code) return;
+        
+        const bCebe = (b.cebe || '').replace(/^(CEBE|CECO)/i, '').trim();
+        const bCeco = (b.ceco || '').replace(/^(CEBE|CECO)/i, '').trim();
+        if (selectedCebes.length > 0 && !selectedCebes.some(sc => sc.replace(/^(CEBE|CECO)/i, '').trim() === bCebe)) return;
+        if (selectedCecos.length > 0 && !selectedCecos.some(sc => sc.replace(/^(CEBE|CECO)/i, '').trim() === bCeco)) return;
+
+        if (selectedMonths.length > 0) {
+          selectedMonths.forEach(m => {
+            const mIdx = monthNames.indexOf(m);
+            if (mIdx !== -1) budgetSum += (parseFloat(b.months?.[mIdx]) || 0);
+          });
+        } else if (selectedQuarters.length > 0) {
+          [0,1,2,3,4,5,6,7,8,9,10,11].forEach(mIdx => {
+            let matchQ = false;
+            if (selectedQuarters.includes('1T') && mIdx >= 0 && mIdx <= 2) matchQ = true;
+            if (selectedQuarters.includes('2T') && mIdx >= 3 && mIdx <= 5) matchQ = true;
+            if (selectedQuarters.includes('3T') && mIdx >= 6 && mIdx <= 8) matchQ = true;
+            if (selectedQuarters.includes('4T') && mIdx >= 9 && mIdx <= 11) matchQ = true;
+            if (matchQ) budgetSum += (parseFloat(b.months?.[mIdx]) || 0);
+          });
+        } else {
+          [0,1,2,3,4,5,6,7,8,9,10,11].forEach(mIdx => {
+            budgetSum += (parseFloat(b.months?.[mIdx]) || 0);
+          });
+        }
+      });
+      budgetDirectMap[account.id] = budgetSum;
     });
 
     const calcAggregated = (id) => {
       if (aggregatedMap[id] !== undefined) return aggregatedMap[id];
       let sum = directMap[id] || 0;
+      let bSum = budgetDirectMap[id] || 0;
       const children = accounts.filter(a => String(a.parentId) === String(id));
       for (const child of children) {
         sum += calcAggregated(child.id);
+        bSum += budgetAggregatedMap[child.id];
       }
       aggregatedMap[id] = sum;
+      budgetAggregatedMap[id] = bSum;
       return sum;
     };
 
@@ -2373,9 +2481,9 @@ export default function PrintPage() {
       const cy = parseInt(compYrStr);
       const compStartLimit = new Date(cy, 0, 1);
       let compEndLimit = new Date(cy, 11, 31, 23, 59, 59);
+      const monthNames = ['Ene', 'Feb', 'Mar', 'Abr', 'May', 'Jun', 'Jul', 'Ago', 'Sep', 'Oct', 'Nov', 'Dic'];
 
       if (selectedMonths.length > 0) {
-        const monthNames = ['Ene', 'Feb', 'Mar', 'Abr', 'May', 'Jun', 'Jul', 'Ago', 'Sep', 'Oct', 'Nov', 'Dic'];
         let maxMonthIndex = 0;
         selectedMonths.forEach(m => {
           const idx = monthNames.indexOf(m);
@@ -2399,9 +2507,27 @@ export default function PrintPage() {
         journalEntries.forEach(entry => {
           const entryDate = new Date(entry.date);
           const isIncomeExpense = ['Ingreso', 'Gasto'].includes(account.type);
-          const isInRange = isIncomeExpense 
-            ? (entryDate >= compStartLimit && entryDate <= compEndLimit)
-            : (entryDate <= compEndLimit);
+          
+          let isInRange = false;
+          if (isIncomeExpense) {
+            if (selectedMonths.length > 0 || selectedQuarters.length > 0) {
+              const mIdx = entryDate.getMonth();
+              const mStr = monthNames[mIdx];
+              let matchQ = false;
+              if (selectedQuarters.includes('1T') && mIdx >= 0 && mIdx <= 2) matchQ = true;
+              if (selectedQuarters.includes('2T') && mIdx >= 3 && mIdx <= 5) matchQ = true;
+              if (selectedQuarters.includes('3T') && mIdx >= 6 && mIdx <= 8) matchQ = true;
+              if (selectedQuarters.includes('4T') && mIdx >= 9 && mIdx <= 11) matchQ = true;
+              
+              if ((selectedMonths.length > 0 && selectedMonths.includes(mStr)) || (selectedQuarters.length > 0 && matchQ)) {
+                isInRange = (entryDate.getFullYear() === cy);
+              }
+            } else {
+              isInRange = (entryDate >= compStartLimit && entryDate <= compEndLimit);
+            }
+          } else {
+            isInRange = (entryDate <= compEndLimit);
+          }
 
           if (isInRange && entry.lines) {
             entry.lines.forEach(line => {
@@ -2490,6 +2616,16 @@ export default function PrintPage() {
       return compValues;
     };
 
+    const getGroupBudget = (groupObj, categoryKey) => {
+      if (groupObj.isProfitLoss) {
+        const revenues = accounts.filter(a => a.type === 'Ingreso').reduce((sum, a) => sum + (budgetDirectMap[a.id] || 0), 0);
+        const expenses = accounts.filter(a => a.type === 'Gasto').reduce((sum, a) => sum + (budgetDirectMap[a.id] || 0), 0);
+        return revenues - expenses;
+      }
+      const groupAccounts = getAccountsForGroup(groupObj, categoryKey);
+      return groupAccounts.reduce((sum, a) => sum + (budgetDirectMap[a.id] || 0), 0);
+    };
+
     const getAccountsForCategoryItem = (item, categoryKey) => {
       if (item.isProfitLoss) {
         return [];
@@ -2511,13 +2647,19 @@ export default function PrintPage() {
           const isEquity = acc.type === 'Patrimonio' || (acc.type === 'Pasivo' && (code.startsWith('10') || code.startsWith('11') || code.startsWith('12') || code.startsWith('13')));
           if (!isEquity) return false;
         }
+        if (categoryKey === 'ingreso') {
+          if (acc.type !== 'Ingreso') return false;
+        }
+        if (categoryKey === 'gasto') {
+          if (acc.type !== 'Gasto') return false;
+        }
 
         const matchesPrefix = prefixes.some(p => code.startsWith(p));
         const matchesExclude = excludes.some(e => code.startsWith(e));
         return matchesPrefix && !matchesExclude;
       });
 
-      const levelAccounts = matched.filter(acc => acc.code && acc.code.length <= maxDigits);
+      const levelAccounts = matched.filter(acc => acc.code && selectedDepths.includes(acc.code.length));
       
       return levelAccounts.map(acc => {
         const compBalances = {};
@@ -2528,6 +2670,7 @@ export default function PrintPage() {
           code: acc.code,
           name: acc.name,
           balance: aggregatedMap[acc.id] || 0,
+          budget: budgetAggregatedMap[acc.id] || 0,
           compBalances
         };
       }).sort((a, b) => a.code.localeCompare(b.code));
@@ -2536,17 +2679,18 @@ export default function PrintPage() {
     const balanceSheet = {
       activo: {
         no_corriente: [
-          { label: 'I. Inmovilizado intangible', prefix: '20' },
-          { label: 'II. Inmovilizado material', prefix: '21' },
-          { label: 'III. Inversiones inmobiliarias', prefix: '22' },
-          { label: 'IV. Inversiones en empresas del grupo LP', prefix: '24' },
-          { label: 'V. Inversiones financieras a largo plazo', prefix: '25' },
-          { label: 'VI. Activos por impuesto diferido', prefix: '474' }
+          { label: 'I. Inmovilizado intangible', prefixes: ['20', '280', '290'] },
+          { label: 'II. Inmovilizado material', prefixes: ['21', '23', '281', '291', '292'] },
+          { label: 'III. Inversiones inmobiliarias', prefixes: ['22', '282', '293'] },
+          { label: 'IV. Inversiones LP empresas grupo', prefixes: ['24', '284', '294', '295'] },
+          { label: 'V. Inversiones financieras a largo plazo', prefixes: ['25', '26', '297', '298'] },
+          { label: 'VI. Activos por impuesto diferido', prefix: '474' },
+          { label: 'VII. Otros activos no corrientes', prefix: '2', exclude: ['20', '21', '22', '23', '24', '25', '26', '28', '29'] }
         ],
         corriente: [
           { label: 'I. Existencias', prefix: '3' },
-          { label: 'II. Deudores comerciales y otras cuentas a cobrar', prefixes: ['43', '44', '470', '471', '472'] },
-          { label: 'III. Inversiones financieras a corto plazo', prefixes: ['53', '54', '55', '56'] },
+          { label: 'II. Deudores comerciales y otras cuentas a cobrar', prefix: '4', exclude: ['474', '480'] },
+          { label: 'III. Inversiones financieras a corto plazo', prefix: '5', exclude: ['57', '567'] },
           { label: 'IV. Periodificaciones a corto plazo', prefixes: ['480', '567'] },
           { label: 'V. Efectivo y otros activos líquidos equivalentes', prefix: '57' }
         ]
@@ -2555,22 +2699,25 @@ export default function PrintPage() {
         no_corriente: [
           { label: 'I. Provisiones a largo plazo', prefix: '14' },
           { label: 'II. Deudas a largo plazo', prefixes: ['17', '18'] },
-          { label: 'III. Deudas con empresas del grupo LP', prefix: '16' }
+          { label: 'III. Deudas con empresas del grupo LP', prefix: '16' },
+          { label: 'IV. Otros pasivos no corrientes', prefix: '1', exclude: ['10', '11', '12', '13', '14', '16', '17', '18'] }
         ],
         corriente: [
           { label: 'I. Provisiones a corto plazo', prefix: '529' },
           { label: 'II. Deudas a corto plazo', prefixes: ['50', '51', '52'], exclude: ['529'] },
-          { label: 'III. Deudas con empresas del grupo CP', prefix: '55' },
-          { label: 'V. Acreedores comerciales y otras cuentas a pagar', prefixes: ['40', '41', '475', '476', '477'] }
+          { label: 'III. Cuentas con empresas del grupo CP', prefix: '55' },
+          { label: 'IV. Acreedores comerciales y otras cuentas a pagar', prefix: '4' },
+          { label: 'V. Otros pasivos corrientes', prefix: '5', exclude: ['50', '51', '52', '55', '529'] }
         ]
       },
       patrimonio: {
         fondos_propios: [
           { label: 'I. Capital', prefix: '10' },
           { label: 'II. Prima de emisión', prefix: '110' },
-          { label: 'III. Reservas', prefixes: ['111', '112', '113', '114', '115', '116', '117', '118', '119'] },
-          { label: 'V. Resultados de ejercicios anteriores', prefix: '12' },
-          { label: 'VII. Resultado del ejercicio', isProfitLoss: true }
+          { label: 'III. Reservas y otros', prefix: '11', exclude: ['110'] },
+          { label: 'IV. Resultados de ejercicios anteriores', prefix: '12' },
+          { label: 'V. Ajustes por cambios de valor y subvenciones', prefix: '13' },
+          { label: 'VI. Resultado del ejercicio', isProfitLoss: true }
         ]
       }
     };
@@ -2667,12 +2814,14 @@ export default function PrintPage() {
       ingresos_items: incomeStatement.ingresos.map(g => ({ 
         ...g, 
         value: getGroupValue(g, 'ingreso'),
-        compValues: getGroupCompValues(g, 'ingreso')
+        compValues: getGroupCompValues(g, 'ingreso'),
+        accounts: getAccountsForCategoryItem(g, 'ingreso')
       })),
       gastos_items: incomeStatement.gastos.map(g => ({ 
         ...g, 
         value: getGroupValue(g, 'gasto'),
-        compValues: getGroupCompValues(g, 'gasto')
+        compValues: getGroupCompValues(g, 'gasto'),
+        accounts: getAccountsForCategoryItem(g, 'gasto')
       }))
     };
 
@@ -2688,6 +2837,27 @@ export default function PrintPage() {
       incomeData.total_gastos_comp[yrStr] = incomeData.gastos_items.reduce((s, i) => s + (i.compValues[yrStr] || 0), 0);
       incomeData.resultado_neto_comp[yrStr] = incomeData.total_ingresos_comp[yrStr] - incomeData.total_gastos_comp[yrStr];
     });
+
+    const analiticaData = {
+      ingresos_items: incomeStatement.ingresos.map(g => ({
+        ...g,
+        saldo: getGroupValue(g, 'ingreso'),
+        presupuesto: getGroupBudget(g, 'ingreso'),
+        accounts: getAccountsForCategoryItem(g, 'ingreso')
+      })),
+      gastos_items: incomeStatement.gastos.map(g => ({
+        ...g,
+        saldo: getGroupValue(g, 'gasto'),
+        presupuesto: getGroupBudget(g, 'gasto'),
+        accounts: getAccountsForCategoryItem(g, 'gasto')
+      }))
+    };
+    analiticaData.total_saldo_ingresos = analiticaData.ingresos_items.reduce((s, i) => s + i.saldo, 0);
+    analiticaData.total_presupuesto_ingresos = analiticaData.ingresos_items.reduce((s, i) => s + i.presupuesto, 0);
+    analiticaData.total_saldo_gastos = analiticaData.gastos_items.reduce((s, i) => s + i.saldo, 0);
+    analiticaData.total_presupuesto_gastos = analiticaData.gastos_items.reduce((s, i) => s + i.presupuesto, 0);
+    analiticaData.resultado_neto_saldo = analiticaData.total_saldo_ingresos - analiticaData.total_saldo_gastos;
+    analiticaData.resultado_neto_presupuesto = analiticaData.total_presupuesto_ingresos - analiticaData.total_presupuesto_gastos;
 
     const computeCashFlowForPeriod = (yearVal) => {
       const start = new Date(yearVal, 0, 1);
@@ -2835,9 +3005,290 @@ export default function PrintPage() {
     return {
       sheet: sheetData,
       income: incomeData,
+      analitica: analiticaData,
       cashflow: cashFlowData
     };
-  }, [accounts, journalEntries, selectedYear, selectedMonths, selectedQuarters, maxDigits, selectedComparisonYears]);
+  }, [accounts, journalEntries, budgets, selectedYear, selectedMonths, selectedQuarters, maxDigits, selectedDepths, selectedComparisonYears, selectedCebes, selectedCecos]);
+
+  const computedAnaliticaRows = useMemo(() => {
+    if (selectedTemplate !== 'analitica') return { type: 'cuentas', rows: [], totalSaldo: 0, totalPresupuesto: 0 };
+
+    let startLimit = new Date(selectedYear, 0, 1);
+    let endLimit = new Date(selectedYear, 11, 31, 23, 59, 59);
+    
+    if (selectedMonths.length > 0) {
+      const monthNames = ['Ene', 'Feb', 'Mar', 'Abr', 'May', 'Jun', 'Jul', 'Ago', 'Sep', 'Oct', 'Nov', 'Dic'];
+      let maxMonthIndex = 0;
+      selectedMonths.forEach(m => {
+        const idx = monthNames.indexOf(m);
+        if (idx > maxMonthIndex) maxMonthIndex = idx;
+      });
+      endLimit = new Date(selectedYear, maxMonthIndex + 1, 0, 23, 59, 59);
+    } else if (selectedQuarters.length > 0) {
+      let maxMonthIndex = 2;
+      selectedQuarters.forEach(q => {
+        if (q === '1T' && maxMonthIndex < 2) maxMonthIndex = 2;
+        if (q === '2T' && maxMonthIndex < 5) maxMonthIndex = 5;
+        if (q === '3T' && maxMonthIndex < 8) maxMonthIndex = 8;
+        if (q === '4T' && maxMonthIndex < 11) maxMonthIndex = 11;
+      });
+      endLimit = new Date(selectedYear, maxMonthIndex + 1, 0, 23, 59, 59);
+    }
+
+    const checkDateRange = (date) => {
+      const monthNames = ['Ene', 'Feb', 'Mar', 'Abr', 'May', 'Jun', 'Jul', 'Ago', 'Sep', 'Oct', 'Nov', 'Dic'];
+      if (selectedMonths.length > 0 || selectedQuarters.length > 0) {
+        const mIdx = date.getMonth();
+        const mStr = monthNames[mIdx];
+        let matchQ = false;
+        if (selectedQuarters.includes('1T') && mIdx >= 0 && mIdx <= 2) matchQ = true;
+        if (selectedQuarters.includes('2T') && mIdx >= 3 && mIdx <= 5) matchQ = true;
+        if (selectedQuarters.includes('3T') && mIdx >= 6 && mIdx <= 8) matchQ = true;
+        if (selectedQuarters.includes('4T') && mIdx >= 9 && mIdx <= 11) matchQ = true;
+        
+        if ((selectedMonths.length > 0 && selectedMonths.includes(mStr)) || (selectedQuarters.length > 0 && matchQ)) {
+          return selectedYears.length > 0 ? selectedYears.includes(date.getFullYear().toString()) : (date.getFullYear() === selectedYear);
+        }
+        return false;
+      } else {
+        return (date >= startLimit && date <= endLimit);
+      }
+    };
+
+    const getBudgetTotal = (b) => {
+      let sum = 0;
+      const monthNames = ['Ene', 'Feb', 'Mar', 'Abr', 'May', 'Jun', 'Jul', 'Ago', 'Sep', 'Oct', 'Nov', 'Dic'];
+      if (selectedMonths.length > 0) {
+        selectedMonths.forEach(m => {
+          const mIdx = monthNames.indexOf(m);
+          if (mIdx !== -1) sum += (parseFloat(b.months?.[mIdx]) || 0);
+        });
+      } else if (selectedQuarters.length > 0) {
+        [0,1,2,3,4,5,6,7,8,9,10,11].forEach(mIdx => {
+          let matchQ = false;
+          if (selectedQuarters.includes('1T') && mIdx >= 0 && mIdx <= 2) matchQ = true;
+          if (selectedQuarters.includes('2T') && mIdx >= 3 && mIdx <= 5) matchQ = true;
+          if (selectedQuarters.includes('3T') && mIdx >= 6 && mIdx <= 8) matchQ = true;
+          if (selectedQuarters.includes('4T') && mIdx >= 9 && mIdx <= 11) matchQ = true;
+          if (matchQ) sum += (parseFloat(b.months?.[mIdx]) || 0);
+        });
+      } else {
+        [0,1,2,3,4,5,6,7,8,9,10,11].forEach(mIdx => {
+          const monthStart = new Date(b.year, mIdx, 1);
+          const monthEnd = new Date(b.year, mIdx + 1, 0); // last day of month
+          if (monthEnd >= startLimit && monthStart <= endLimit) {
+            sum += (parseFloat(b.months?.[mIdx]) || 0);
+          }
+        });
+      }
+      return sum;
+    };
+
+    if (analiticaGrouping === 'cuentas') {
+      const realMap = {};
+      const budgMap = {};
+      
+      journalEntries.forEach(entry => {
+        const d = new Date(entry.date);
+        if (!checkDateRange(d)) return;
+        
+        if (entry.lines) {
+          entry.lines.forEach(line => {
+            const acc = accounts.find(a => a.id === line.accountId);
+            if (!acc) return;
+            const cebe = line.cebe || entry.cebe || '';
+            const ceco = line.ceco || entry.ceco || '';
+            if (selectedCebes.length > 0 && !selectedCebes.includes(cebe)) return;
+            if (selectedCecos.length > 0 && !selectedCecos.includes(ceco)) return;
+
+            const debit = parseFloat(line.debit) || 0;
+            const credit = parseFloat(line.credit) || 0;
+            const isAssetOrExpense = ['Activo', 'Gasto'].includes(acc.type);
+            const amt = isAssetOrExpense ? (debit - credit) : (credit - debit);
+            
+            realMap[acc.id] = (realMap[acc.id] || 0) + amt;
+          });
+        }
+      });
+
+      budgets.forEach(b => {
+        const bYearStr = b.year.toString();
+        const yearMatches = selectedYears.length > 0 ? selectedYears.includes(bYearStr) : b.year === selectedYear;
+        const yearInRange = b.year >= startLimit.getFullYear() && b.year <= endLimit.getFullYear();
+        if (!(selectedMonths.length > 0 || selectedQuarters.length > 0 ? yearMatches : yearInRange)) return;
+        
+        const bCebe = (b.cebe || '').replace(/^(CEBE|CECO)/i, '').trim();
+        const bCeco = (b.ceco || '').replace(/^(CEBE|CECO)/i, '').trim();
+        if (selectedCebes.length > 0 && !selectedCebes.some(sc => sc.replace(/^(CEBE|CECO)/i, '').trim() === bCebe)) return;
+        if (selectedCecos.length > 0 && !selectedCecos.some(sc => sc.replace(/^(CEBE|CECO)/i, '').trim() === bCeco)) return;
+        
+        const sum = getBudgetTotal(b);
+        const account = accounts.find(a => a.id === b.accountId || a.code === b.accountCode);
+        if (account) {
+          budgMap[account.id] = (budgMap[account.id] || 0) + sum;
+        }
+      });
+
+      const realAgg = {};
+      const budgAgg = {};
+      const calcAgg = (id) => {
+        if (realAgg[id] !== undefined) return { r: realAgg[id], b: budgAgg[id] };
+        let r = realMap[id] || 0;
+        let b = budgMap[id] || 0;
+        const children = accounts.filter(a => String(a.parentId) === String(id));
+        for (const child of children) {
+          const c = calcAgg(child.id);
+          r += c.r;
+          b += c.b;
+        }
+        realAgg[id] = r;
+        budgAgg[id] = b;
+        return { r, b };
+      };
+      accounts.forEach(a => calcAgg(a.id));
+
+      const rows = [];
+      const depths = selectedDepths.length > 0 ? selectedDepths : [1,2,3,4,5,6,7,8,9,10];
+      const filteredAccs = accounts.filter(a => a.code && depths.includes(a.code.length));
+      
+      let totalR = 0, totalB = 0;
+      
+      filteredAccs.sort((a, b) => a.code.localeCompare(b.code)).forEach(a => {
+        const r = realAgg[a.id] || 0;
+        const b = budgAgg[a.id] || 0;
+        if (a.code.length === 1) {
+           totalR += r; totalB += b;
+        }
+        if (!hideZeroBalances || Math.abs(r) > 0.005 || Math.abs(b) > 0.005) {
+          const label = showAnaliticaIds ? `${a.code} - ${a.name}` : (a.name || a.code);
+          rows.push({ type: 'item', label, saldo: r, presupuesto: b });
+        }
+      });
+      
+      return { type: 'cuentas', rows, totalSaldo: totalR, totalPresupuesto: totalB };
+    } 
+    else {
+      // cebe-ceco, ceco-cebe, cebe, ceco
+      const realByPair = {}; // key: "CEBE|CECO"
+      const budgByPair = {};
+
+      journalEntries.forEach(entry => {
+        const d = new Date(entry.date);
+        if (!checkDateRange(d)) return;
+        
+        if (entry.lines) {
+          entry.lines.forEach(line => {
+            const acc = accounts.find(a => a.id === line.accountId);
+            if (!acc) return;
+            const cebe = line.cebe || entry.cebe || '';
+            const ceco = line.ceco || entry.ceco || '';
+            if (selectedCebes.length > 0 && !selectedCebes.includes(cebe)) return;
+            if (selectedCecos.length > 0 && !selectedCecos.includes(ceco)) return;
+
+            const isAssetOrExpense = ['Activo', 'Gasto'].includes(acc.type);
+            const debit = parseFloat(line.debit) || 0;
+            const credit = parseFloat(line.credit) || 0;
+            const amt = isAssetOrExpense ? (debit - credit) : (credit - debit);
+            
+            const pair = `${cebe || 'SIN_ASIGNAR'}|${ceco || 'SIN_ASIGNAR'}`;
+            realByPair[pair] = (realByPair[pair] || 0) + amt;
+          });
+        }
+      });
+
+      budgets.forEach(b => {
+        const bYearStr = b.year.toString();
+        const yearMatches = selectedYears.length > 0 ? selectedYears.includes(bYearStr) : b.year === selectedYear;
+        const yearInRange = b.year >= startLimit.getFullYear() && b.year <= endLimit.getFullYear();
+        if (!(selectedMonths.length > 0 || selectedQuarters.length > 0 ? yearMatches : yearInRange)) return;
+        
+        const bCebe = (b.cebe || '').replace(/^(CEBE|CECO)/i, '').trim();
+        const bCeco = (b.ceco || '').replace(/^(CEBE|CECO)/i, '').trim();
+        if (selectedCebes.length > 0 && !selectedCebes.some(sc => sc.replace(/^(CEBE|CECO)/i, '').trim() === bCebe)) return;
+        if (selectedCecos.length > 0 && !selectedCecos.some(sc => sc.replace(/^(CEBE|CECO)/i, '').trim() === bCeco)) return;
+        
+        const sum = getBudgetTotal(b);
+        const pair = `${b.cebe || 'SIN_ASIGNAR'}|${b.ceco || 'SIN_ASIGNAR'}`;
+        budgByPair[pair] = (budgByPair[pair] || 0) + sum;
+      });
+
+      const allPairs = new Set([...Object.keys(realByPair), ...Object.keys(budgByPair)]);
+      const grouped = {};
+      let totalSaldo = 0;
+      let totalPresupuesto = 0;
+
+      const formatCenterName = (code, type) => {
+        if (!code || code === 'SIN_ASIGNAR') return 'SIN ASIGNAR';
+        const list = type === 'cebe' ? cebes : cecos;
+        const center = list.find(c => c.code === code);
+        const name = center ? center.name : '';
+        if (showAnaliticaIds) return name ? `${code} - ${name}` : code;
+        return name || code;
+      };
+
+      allPairs.forEach(pair => {
+        const [cebe, ceco] = pair.split('|');
+        let primary = '', secondary = '', primaryType = '', secondaryType = '';
+        
+        if (analiticaGrouping === 'cebe-ceco') {
+          primary = cebe; secondary = ceco; primaryType = 'cebe'; secondaryType = 'ceco';
+        } else if (analiticaGrouping === 'ceco-cebe') {
+          primary = ceco; secondary = cebe; primaryType = 'ceco'; secondaryType = 'cebe';
+        } else if (analiticaGrouping === 'cebes') {
+          primary = cebe; primaryType = 'cebe';
+        } else if (analiticaGrouping === 'cecos') {
+          primary = ceco; primaryType = 'ceco';
+        }
+        
+        if (!grouped[primary]) {
+          grouped[primary] = { 
+            saldo: 0, 
+            presupuesto: 0, 
+            children: {},
+            label: formatCenterName(primary, primaryType)
+          };
+        }
+        const r = realByPair[pair] || 0;
+        const b = budgByPair[pair] || 0;
+        
+        grouped[primary].saldo += r;
+        grouped[primary].presupuesto += b;
+        totalSaldo += r;
+        totalPresupuesto += b;
+        
+        if (secondary) {
+          if (!grouped[primary].children[secondary]) {
+            grouped[primary].children[secondary] = { 
+              saldo: 0, 
+              presupuesto: 0,
+              label: formatCenterName(secondary, secondaryType)
+            };
+          }
+          grouped[primary].children[secondary].saldo += r;
+          grouped[primary].children[secondary].presupuesto += b;
+        }
+      });
+
+      const rows = [];
+      Object.keys(grouped).sort().forEach(primaryKey => {
+        const p = grouped[primaryKey];
+        if (!hideZeroBalances || Math.abs(p.saldo) > 0.005 || Math.abs(p.presupuesto) > 0.005) {
+          rows.push({ type: 'subheader', label: p.label, saldo: p.saldo, presupuesto: p.presupuesto });
+          
+          if (analiticaGrouping === 'cebe-ceco' || analiticaGrouping === 'ceco-cebe') {
+            Object.keys(p.children).sort().forEach(secKey => {
+              const s = p.children[secKey];
+              if (!hideZeroBalances || Math.abs(s.saldo) > 0.005 || Math.abs(s.presupuesto) > 0.005) {
+                rows.push({ type: 'item', label: s.label, saldo: s.saldo, presupuesto: s.presupuesto });
+              }
+            });
+          }
+        }
+      });
+
+      return { type: analiticaGrouping, rows, totalSaldo, totalPresupuesto };
+    }
+  }, [selectedTemplate, accounts, journalEntries, budgets, selectedYear, selectedMonths, selectedQuarters, selectedCebes, selectedCecos, analiticaGrouping, selectedDepths, hideZeroBalances, cebes, cecos, showAnaliticaIds]);
 
   // Combined timeline and dropdown filters for print entries
   const filteredEntriesForPrint = useMemo(() => {
@@ -3292,28 +3743,70 @@ export default function PrintPage() {
     if (selectedTemplate === 'mayor') {
       const yearEntries = filteredEntriesForPrint;
       const accountMovements = {};
-      accounts.forEach(acc => {
-        accountMovements[acc.id] = { account: acc, lines: [], debitSum: 0, creditSum: 0 };
-      });
-      yearEntries.forEach(entry => {
-        if (entry.lines) {
-          entry.lines.forEach(line => {
-            if (accountMovements[line.accountId] && matchesCenterFilters(entry, line)) {
-              const debit = parseFloat(line.debit) || 0;
-              const credit = parseFloat(line.credit) || 0;
-              accountMovements[line.accountId].lines.push({
-                date: entry.date,
-                entryNo: entry.number,
-                description: entry.description,
-                debit,
-                credit
-              });
-              accountMovements[line.accountId].debitSum += debit;
-              accountMovements[line.accountId].creditSum += credit;
-            }
-          });
-        }
-      });
+
+      if (maxDigits && maxDigits < 10) {
+        // Grouped by code prefix of length maxDigits
+        yearEntries.forEach(entry => {
+          if (entry.lines) {
+            entry.lines.forEach(line => {
+              const acc = accounts.find(a => a.id === line.accountId);
+              if (acc && acc.code && matchesCenterFilters(entry, line)) {
+                const prefix = String(acc.code).trim().substring(0, maxDigits);
+                if (!prefix) return;
+
+                if (!accountMovements[prefix]) {
+                  accountMovements[prefix] = {
+                    account: {
+                      id: prefix,
+                      code: prefix,
+                      name: getGroupAccountName(prefix, accounts)
+                    },
+                    lines: [],
+                    debitSum: 0,
+                    creditSum: 0
+                  };
+                }
+
+                const debit = parseFloat(line.debit) || 0;
+                const credit = parseFloat(line.credit) || 0;
+                accountMovements[prefix].lines.push({
+                  date: entry.date,
+                  entryNo: entry.number,
+                  description: line.description || entry.description,
+                  debit,
+                  credit
+                });
+                accountMovements[prefix].debitSum += debit;
+                accountMovements[prefix].creditSum += credit;
+              }
+            });
+          }
+        });
+      } else {
+        // Default detailed behavior (maxDigits === 10 or not specified)
+        accounts.forEach(acc => {
+          accountMovements[acc.id] = { account: acc, lines: [], debitSum: 0, creditSum: 0 };
+        });
+        yearEntries.forEach(entry => {
+          if (entry.lines) {
+            entry.lines.forEach(line => {
+              if (accountMovements[line.accountId] && matchesCenterFilters(entry, line)) {
+                const debit = parseFloat(line.debit) || 0;
+                const credit = parseFloat(line.credit) || 0;
+                accountMovements[line.accountId].lines.push({
+                  date: entry.date,
+                  entryNo: entry.number,
+                  description: line.description || entry.description,
+                  debit,
+                  credit
+                });
+                accountMovements[line.accountId].debitSum += debit;
+                accountMovements[line.accountId].creditSum += credit;
+              }
+            });
+          }
+        });
+      }
 
       // Sort each account's lines by date ascending
       Object.values(accountMovements).forEach(am => {
@@ -3631,7 +4124,10 @@ export default function PrintPage() {
                       const propInvestedCapital = consolidated.investedCapital;
                       const propAdquisitionExpenses = consolidated.adquisitionExpenses;
                       const propCapitalizedReforms = consolidated.capitalizedReforms;
-                      const propTotalInversion = propInvestedCapital + propCapitalizedReforms;
+                      const override = p.totalInversionOverride || p.financials?.totalInversionOverride;
+                      const propTotalInversion = (override !== undefined && override !== '' && override !== null)
+                        ? (parseFloat(override) || 0)
+                        : (propInvestedCapital + propCapitalizedReforms + propAdquisitionExpenses);
                       const propTheoreticalSalePrice = consolidated.theoreticalSalePrice;
                       const displayPurchasePrice = consolidated.acquisitionPrice;
                       const displayCurrentValue = consolidated.currentValue;
@@ -5716,9 +6212,16 @@ export default function PrintPage() {
         rows.push({ type: 'subheader', label: 'I. INGRESOS DE EXPLOTACIÓN', value: data.total_ingresos, compValues: data.total_ingresos_comp, divisor: data.total_ingresos, compDivisors: data.total_ingresos_comp });
         
         data.ingresos_items.forEach(item => {
+          const itemAccounts = item.accounts || [];
+          const filteredAccounts = hideZeroBalances 
+            ? itemAccounts.filter(a => Math.abs(a.balance) > 0.005 || selectedComparisonYears.some(yrStr => Math.abs(a.compBalances[yrStr]) > 0.005))
+            : itemAccounts;
           const hasVal = Math.abs(item.value) > 0.005 || selectedComparisonYears.some(yrStr => Math.abs(item.compValues[yrStr]) > 0.005);
           if (hideZeroBalances && !hasVal) return;
           rows.push({ type: 'item', label: item.label, value: item.value, compValues: item.compValues, divisor: data.total_ingresos, compDivisors: data.total_ingresos_comp });
+          filteredAccounts.forEach(acc => {
+            rows.push({ type: 'account', code: acc.code, name: acc.name, value: acc.balance, compValues: acc.compBalances, divisor: data.total_ingresos, compDivisors: data.total_ingresos_comp });
+          });
         });
       }
 
@@ -5728,9 +6231,16 @@ export default function PrintPage() {
         rows.push({ type: 'subheader', label: 'II. GASTOS DE EXPLOTACIÓN', value: data.total_gastos, compValues: data.total_gastos_comp, divisor: data.total_ingresos, compDivisors: data.total_ingresos_comp });
         
         data.gastos_items.forEach(item => {
+          const itemAccounts = item.accounts || [];
+          const filteredAccounts = hideZeroBalances 
+            ? itemAccounts.filter(a => Math.abs(a.balance) > 0.005 || selectedComparisonYears.some(yrStr => Math.abs(a.compBalances[yrStr]) > 0.005))
+            : itemAccounts;
           const hasVal = Math.abs(item.value) > 0.005 || selectedComparisonYears.some(yrStr => Math.abs(item.compValues[yrStr]) > 0.005);
           if (hideZeroBalances && !hasVal) return;
           rows.push({ type: 'item', label: item.label, value: item.value, compValues: item.compValues, divisor: data.total_ingresos, compDivisors: data.total_ingresos_comp });
+          filteredAccounts.forEach(acc => {
+            rows.push({ type: 'account', code: acc.code, name: acc.name, value: acc.balance, compValues: acc.compBalances, divisor: data.total_ingresos, compDivisors: data.total_ingresos_comp });
+          });
         });
       }
 
@@ -5865,6 +6375,38 @@ export default function PrintPage() {
                       </tr>
                     );
                   }
+                  if (row.type === 'account') {
+                    return (
+                      <tr key={idx} className="text-slate-600 text-[8px]">
+                        <td className="py-0.5 px-8 font-normal text-slate-650">{row.code} - {row.name}</td>
+                        <td className="py-0.5 px-1 text-right font-sans tracking-normal">
+                          {formatValue(row.value, row.divisor)}
+                        </td>
+                        {showVerticalPercentage && (
+                          <td className="py-0.5 px-1 text-right font-sans tracking-normal text-slate-450 pr-5">
+                            {mainPct}
+                          </td>
+                        )}
+                        {selectedComparisonYears.map(yr => {
+                          const val = (row.compValues || {})[yr] || 0;
+                          const div = (row.compDivisors || {})[yr] || 0;
+                          const pct = div ? `${((val / div) * 100).toFixed(1)}%` : '0.0%';
+                          return (
+                            <Fragment key={yr}>
+                              <td className="py-0.5 px-1 text-right font-sans tracking-normal">
+                                {formatValue(val, div)}
+                              </td>
+                              {showVerticalPercentage && (
+                                <td className="py-0.5 px-1 text-right font-sans tracking-normal text-slate-450 pr-5">
+                                  {pct}
+                                </td>
+                              )}
+                            </Fragment>
+                          );
+                        })}
+                      </tr>
+                    );
+                  }
                   if (row.type === 'total-row') {
                     return (
                       <tr key={idx} className="font-bold text-slate-800 bg-slate-100/50 text-[9.5px] border-t border-slate-350">
@@ -5894,6 +6436,105 @@ export default function PrintPage() {
                             </Fragment>
                           );
                         })}
+                      </tr>
+                    );
+                  }
+                  return null;
+                })}
+              </tbody>
+            </table>
+          </div>
+          {renderPageFooter(1, 1, auditNumber)}
+        </div>
+      );
+    }
+
+    // 16.5 ANALÍTICA
+    if (selectedTemplate === 'analitica') {
+      const data = computedAnaliticaRows;
+      const rows = data.rows ? [...data.rows] : [];
+      
+      // Add a total row at the end
+      if (rows.length > 0) {
+        rows.push({ type: 'main-header', label: 'TOTAL GENERAL', saldo: data.totalSaldo, presupuesto: data.totalPresupuesto });
+      }
+
+      pageViews.push(
+        <div key="analitica-p" className="page-sheet relative flex flex-col justify-between">
+          <div className="flex-1">
+            {renderPageHeader('Analítica (Desviaciones)')}
+            
+            <table className="w-full text-[10px] border-collapse mt-4">
+              <thead>
+                <tr className="font-bold text-slate-700 text-[8px] uppercase">
+                  <th className="py-1 px-1 text-left">Concepto</th>
+                  <th className="py-1 px-1 text-right w-24">Real</th>
+                  <th className="py-1 px-1 text-right w-24 pr-2">Presupuesto</th>
+                  <th className="py-1 px-1 text-right w-24 pr-2">Desviación</th>
+                  <th className="py-1 px-1 text-right w-16">% Desv.</th>
+                </tr>
+              </thead>
+              <tbody>
+                {rows.map((row, idx) => {
+                  const saldo = row.saldo || 0;
+                  const presupuesto = row.presupuesto || 0;
+                  const desviacion = saldo - presupuesto;
+                  
+                  let pctDesv = 0;
+                  if (presupuesto === 0) {
+                    pctDesv = saldo === 0 ? 0 : (saldo > 0 ? 100 : -100);
+                  } else {
+                    pctDesv = (desviacion / presupuesto) * 100;
+                  }
+                  
+                  const strSaldo = formatValue(saldo, 1);
+                  const strPresupuesto = formatValue(presupuesto, 1);
+                  const strDesviacion = formatValue(desviacion, 1);
+                  const strPct = pctDesv.toLocaleString('es-ES', { minimumFractionDigits: 1, maximumFractionDigits: 1 }) + '%';
+
+                  const desvColor = desviacion > 0 ? 'text-emerald-700' : (desviacion < 0 ? 'text-rose-700' : 'text-slate-600');
+                  
+                  if (row.type === 'main-header') {
+                    return (
+                      <tr key={idx} className="font-bold text-slate-900 text-[10.5px] uppercase bg-white">
+                        <td className="py-2 px-1 font-bold">{row.label}</td>
+                        <td className="py-2 px-1 text-right font-sans tracking-normal">{strSaldo}</td>
+                        <td className="py-2 px-1 text-right font-sans tracking-normal pr-2">{strPresupuesto}</td>
+                        <td className={`py-2 px-1 text-right font-sans tracking-normal pr-2 ${desvColor}`}>{strDesviacion}</td>
+                        <td className={`py-2 px-1 text-right font-sans tracking-normal ${desvColor}`}>{strPct}</td>
+                      </tr>
+                    );
+                  }
+                  if (row.type === 'subheader') {
+                    return (
+                      <tr key={idx} className="font-bold text-slate-750 bg-slate-100/30 text-[9.5px] uppercase">
+                        <td className="py-1.5 px-2 font-bold">{row.label}</td>
+                        <td className="py-1.5 px-1 text-right font-sans tracking-normal">{strSaldo}</td>
+                        <td className="py-1.5 px-1 text-right font-sans tracking-normal pr-2">{strPresupuesto}</td>
+                        <td className={`py-1.5 px-1 text-right font-sans tracking-normal pr-2 ${desvColor}`}>{strDesviacion}</td>
+                        <td className={`py-1.5 px-1 text-right font-sans tracking-normal ${desvColor}`}>{strPct}</td>
+                      </tr>
+                    );
+                  }
+                  if (row.type === 'item') {
+                    return (
+                      <tr key={idx} className="font-semibold text-slate-700 bg-slate-50/20 text-[9px]">
+                        <td className="py-1 px-3 font-semibold">{row.label}</td>
+                        <td className="py-1 px-1 text-right font-sans tracking-normal">{strSaldo}</td>
+                        <td className="py-1 px-1 text-right font-sans tracking-normal pr-2">{strPresupuesto}</td>
+                        <td className={`py-1 px-1 text-right font-sans tracking-normal pr-2 ${desvColor}`}>{strDesviacion}</td>
+                        <td className={`py-1 px-1 text-right font-sans tracking-normal ${desvColor}`}>{strPct}</td>
+                      </tr>
+                    );
+                  }
+                  if (row.type === 'account') {
+                    return (
+                      <tr key={idx} className="text-slate-600 text-[8px]">
+                        <td className="py-0.5 px-8 font-normal text-slate-650">{row.code} - {row.name}</td>
+                        <td className="py-0.5 px-1 text-right font-sans tracking-normal">{strSaldo}</td>
+                        <td className="py-0.5 px-1 text-right font-sans tracking-normal pr-2">{strPresupuesto}</td>
+                        <td className={`py-0.5 px-1 text-right font-sans tracking-normal pr-2 ${desvColor}`}>{strDesviacion}</td>
+                        <td className={`py-0.5 px-1 text-right font-sans tracking-normal ${desvColor}`}>{strPct}</td>
                       </tr>
                     );
                   }
@@ -6415,7 +7056,7 @@ export default function PrintPage() {
           </div>
 
           {/* Timeline Period Selection inside Right Panel */}
-          {['diario', 'mayor', 'sumas_saldos', 'rv_transactions', 'cf_transactions', 'taxes_total', 'taxes_real_estate', 'taxes_rv', 'taxes_cf', 'balance_situacion', 'cuenta_resultados', 'flujo_caja', 'activos', 'alquileres', 'extracto_propietarios', 'metricas_inversion', 'rv_portfolio'].includes(selectedTemplate) && (
+          {['diario', 'mayor', 'sumas_saldos', 'rv_transactions', 'cf_transactions', 'taxes_total', 'taxes_real_estate', 'taxes_rv', 'taxes_cf', 'balance_situacion', 'cuenta_resultados', 'analitica', 'flujo_caja', 'activos', 'alquileres', 'extracto_propietarios', 'metricas_inversion', 'rv_portfolio'].includes(selectedTemplate) && (
             <div className="bg-white border border-[#a0a0a0] p-3 flex flex-col gap-2">
               <div 
                 className="text-[10px] font-bold text-slate-500 uppercase flex items-center justify-between cursor-pointer select-none hover:text-slate-800"
@@ -6496,8 +7137,54 @@ export default function PrintPage() {
             </div>
           )}
 
+          {/* Modo de Agrupación (Analitica only) */}
+          {selectedTemplate === 'analitica' && (
+            <div className="bg-white border border-[#a0a0a0] p-3 flex flex-col gap-2">
+              <div className="text-[10px] font-bold text-slate-500 uppercase flex items-center justify-between select-none">
+                <div className="flex items-center gap-1">
+                  <Sliders className="w-3.5 h-3.5 text-slate-400" />
+                  <span>Modo de Agrupación</span>
+                </div>
+              </div>
+              <div className="mt-1 border-t border-slate-100 pt-2 flex flex-col gap-1.5">
+                <label className="flex items-center gap-2 cursor-pointer text-[10.5px]">
+                  <input type="radio" name="analiticaMode" checked={analiticaGrouping === 'cuentas'} onChange={() => setAnaliticaGrouping('cuentas')} className="accent-blue-600 scale-90" />
+                  <span className={analiticaGrouping === 'cuentas' ? 'font-semibold text-slate-800' : 'text-slate-600'}>Por Cuentas Contables</span>
+                </label>
+                <label className="flex items-center gap-2 cursor-pointer text-[10.5px]">
+                  <input type="radio" name="analiticaMode" checked={analiticaGrouping === 'cebes'} onChange={() => setAnaliticaGrouping('cebes')} className="accent-blue-600 scale-90" />
+                  <span className={analiticaGrouping === 'cebes' ? 'font-semibold text-slate-800' : 'text-slate-600'}>Por CEBE</span>
+                </label>
+                <label className="flex items-center gap-2 cursor-pointer text-[10.5px]">
+                  <input type="radio" name="analiticaMode" checked={analiticaGrouping === 'cecos'} onChange={() => setAnaliticaGrouping('cecos')} className="accent-blue-600 scale-90" />
+                  <span className={analiticaGrouping === 'cecos' ? 'font-semibold text-slate-800' : 'text-slate-600'}>Por CECO</span>
+                </label>
+                <label className="flex items-center gap-2 cursor-pointer text-[10.5px]">
+                  <input type="radio" name="analiticaMode" checked={analiticaGrouping === 'cebe-ceco'} onChange={() => setAnaliticaGrouping('cebe-ceco')} className="accent-blue-600 scale-90" />
+                  <span className={analiticaGrouping === 'cebe-ceco' ? 'font-semibold text-slate-800' : 'text-slate-600'}>Por CEBE ➔ CECO</span>
+                </label>
+                <label className="flex items-center gap-2 cursor-pointer text-[10.5px]">
+                  <input type="radio" name="analiticaMode" checked={analiticaGrouping === 'ceco-cebe'} onChange={() => setAnaliticaGrouping('ceco-cebe')} className="accent-blue-600 scale-90" />
+                  <span className={analiticaGrouping === 'ceco-cebe' ? 'font-semibold text-slate-800' : 'text-slate-600'}>Por CECO ➔ CEBE</span>
+                </label>
+                
+                <div className="mt-1 border-t border-slate-100 pt-2">
+                  <label className="flex items-center gap-2 cursor-pointer text-[10.5px]">
+                    <input 
+                      type="checkbox" 
+                      checked={showAnaliticaIds} 
+                      onChange={(e) => setShowAnaliticaIds(e.target.checked)}
+                      className="accent-blue-600 rounded-sm w-3 h-3 cursor-pointer"
+                    />
+                    <span className="text-slate-600">Mostrar IDs (Códigos)</span>
+                  </label>
+                </div>
+              </div>
+            </div>
+          )}
+
           {/* Depth Level Filter (Profundidad) */}
-          {['balance_situacion', 'sumas_saldos'].includes(selectedTemplate) && (
+          {['balance_situacion', 'cuenta_resultados', 'analitica', 'sumas_saldos', 'mayor'].includes(selectedTemplate) && (selectedTemplate !== 'analitica' || analiticaGrouping === 'cuentas') && (
             <div className="bg-white border border-[#a0a0a0] p-3 flex flex-col gap-2">
               <div
                 className="text-[10px] font-bold text-slate-500 uppercase flex items-center justify-between cursor-pointer select-none hover:text-slate-800"
@@ -6508,7 +7195,7 @@ export default function PrintPage() {
                   <span>Profundidad</span>
                 </div>
                 <div className="flex items-center gap-1">
-                  {isProfundidadCollapsed && maxDigits !== 10 && (
+                  {isProfundidadCollapsed && (maxDigits !== 10 || selectedDepths.length > 0) && (
                     <Filter className="w-3 h-3 text-blue-600 animate-pulse" />
                   )}
                   <span className="text-[9px]">{isProfundidadCollapsed ? '▶' : '▼'}</span>
@@ -6516,16 +7203,66 @@ export default function PrintPage() {
               </div>
               {!isProfundidadCollapsed && (
                 <div className="mt-1 border-t border-slate-100 pt-2">
-                  <select 
-                    value={maxDigits} 
-                    onChange={(e) => setMaxDigits(parseInt(e.target.value))}
-                    className="w-full border border-gray-300 px-1 py-1 outline-none cursor-pointer text-[11px] font-sans"
-                  >
-                    <option value={10}>TODOS (MAX)</option>
-                    {[1,2,3,4,5,6,7,8,9,10].map(d => (
-                      <option key={d} value={d}>{d} {d === 1 ? 'dígito' : 'dígitos'}</option>
-                    ))}
-                  </select>
+                  {['balance_situacion', 'cuenta_resultados', 'analitica'].includes(selectedTemplate) ? (
+                    <div className="relative">
+                      <div 
+                        onClick={() => setIsDepthDropdownOpen(!isDepthDropdownOpen)}
+                        className="w-full border border-gray-300 px-2 py-1 flex justify-between items-center cursor-pointer text-[11px] bg-white rounded-sm"
+                      >
+                        <span className="truncate">
+                          {selectedDepths.length === 0 
+                            ? 'Todos (por defecto)' 
+                            : selectedDepths.length === 10 
+                              ? 'Todos los niveles' 
+                              : `${selectedDepths.length} niveles sel.`}
+                        </span>
+                        <ChevronDown className="w-3 h-3 text-slate-500" />
+                      </div>
+                      
+                      {isDepthDropdownOpen && (
+                        <div className="absolute top-full left-0 w-full mt-1 bg-white border border-gray-300 shadow-xl z-50 rounded-sm">
+                          <div className="flex gap-1 p-1 border-b border-gray-100 bg-slate-50">
+                            <button 
+                              onClick={() => setSelectedDepths([1, 2, 3, 4, 5, 6, 7, 8, 9, 10])}
+                              className="flex-1 text-[9px] py-1 bg-white border border-slate-200 hover:bg-slate-100 rounded text-blue-700 font-medium transition-colors"
+                            >
+                              Todos
+                            </button>
+                            <button 
+                              onClick={() => setSelectedDepths([])}
+                              className="flex-1 text-[9px] py-1 bg-white border border-slate-200 hover:bg-slate-100 rounded text-slate-600 font-medium transition-colors"
+                            >
+                              Ninguno
+                            </button>
+                          </div>
+                          <div className="max-h-40 overflow-y-auto p-1">
+                            {[1, 2, 3, 4, 5, 6, 7, 8, 9, 10].map(d => (
+                              <label key={d} className="flex items-center px-2 py-1.5 text-[11px] hover:bg-slate-50 cursor-pointer select-none rounded-sm">
+                                <input 
+                                  type="checkbox" 
+                                  className="mr-2 cursor-pointer"
+                                  checked={selectedDepths.includes(d)}
+                                  onChange={() => setSelectedDepths(prev => prev.includes(d) ? prev.filter(x => x !== d) : [...prev, d])}
+                                />
+                                {d} {d === 1 ? 'dígito' : 'dígitos'}
+                              </label>
+                            ))}
+                          </div>
+                        </div>
+                      )}
+                    </div>
+                  ) : (
+                    <select 
+                      value={maxDigits} 
+                      onChange={(e) => setMaxDigits(parseInt(e.target.value))}
+                      className="w-full border border-gray-300 px-1 py-1 outline-none cursor-pointer text-[11px] font-sans"
+                    >
+                      <option value={10}>TODOS (MAX)</option>
+                      {[1,2,3,4,5,6,7,8,9,10].map(d => (
+                        <option key={d} value={d}>{d} {d === 1 ? 'dígito' : 'dígitos'}</option>
+                      ))}
+                    </select>
+                  )}
                 </div>
               )}
             </div>
@@ -7278,7 +8015,7 @@ export default function PrintPage() {
           )}
 
           {/* Options specific to Balance de Situación */}
-          {['balance_situacion', 'cuenta_resultados', 'flujo_caja'].includes(selectedTemplate) && (
+          {['balance_situacion', 'cuenta_resultados', 'analitica', 'flujo_caja'].includes(selectedTemplate) && (
             <div className="bg-white border border-[#a0a0a0] p-3 flex flex-col gap-3">
               <div
                 className="text-[10px] font-bold text-slate-500 uppercase flex items-center justify-between cursor-pointer select-none hover:text-slate-800"
@@ -7388,7 +8125,7 @@ export default function PrintPage() {
           )}
 
           {/* Transaction Filters (Hidden for financial statements, inmobiliaria, RV and CF) */}
-          {!['balance_situacion', 'cuenta_resultados', 'flujo_caja',
+          {!['balance_situacion', 'cuenta_resultados', 'analitica', 'flujo_caja',
              'activos', 'alquileres', 'clientes', 'extracto_propietarios',
              'rv_portfolio', 'rv_transactions',
              'cf_portfolio', 'cf_transactions', 'metricas_inversion', 'plan_contable'].includes(selectedTemplate) && (
@@ -7571,7 +8308,7 @@ export default function PrintPage() {
 
           {/* CECO Filter */}
           {(['activos', 'alquileres', 'extracto_propietarios', 'metricas_inversion'].includes(selectedTemplate) || 
-            !['balance_situacion', 'cuenta_resultados', 'flujo_caja', 'activos', 'alquileres', 'clientes', 'extracto_propietarios', 'rv_portfolio', 'rv_transactions', 'cf_portfolio', 'cf_transactions', 'metricas_inversion', 'plan_contable'].includes(selectedTemplate)) && (
+            !['balance_situacion', 'cuenta_resultados', 'analitica', 'flujo_caja', 'activos', 'alquileres', 'clientes', 'extracto_propietarios', 'rv_portfolio', 'rv_transactions', 'cf_portfolio', 'cf_transactions', 'metricas_inversion', 'plan_contable'].includes(selectedTemplate)) && (
             <div className="bg-white border border-[#a0a0a0] p-3 flex flex-col gap-2 relative" ref={cecoDropdownRef}>
               <div className="text-[10px] font-bold text-slate-500 uppercase flex items-center gap-1 select-none">
                 <span>CECO</span>

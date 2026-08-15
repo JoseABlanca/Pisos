@@ -396,6 +396,7 @@ export default function RealEstate() {
         agentFees: '',
         currentValue: '',
         salePrice: '',
+        totalInversionOverride: '',
         acquisitionExpenses: []
       },
       taxes: []
@@ -421,8 +422,8 @@ export default function RealEstate() {
       investedCapital: latestProperty.investedCapital || financialsObj.investedCapital || '',
       currentValue: latestProperty.currentValue || financialsObj.currentValue || '',
       agentFees: latestProperty.agentFees || financialsObj.agentFees || '',
-      theoreticalSalePrice: latestProperty.theoreticalSalePrice || financialsObj.salePrice || '',
       adquisitionExpenses: latestProperty.adquisitionExpenses || financialsObj.acquisitionExpenses || [],
+      totalInversionOverride: latestProperty.totalInversionOverride !== undefined ? latestProperty.totalInversionOverride : (financialsObj.totalInversionOverride || ''),
       services: transformServices(latestProperty.services),
       community: {
         admin: '',
@@ -482,7 +483,8 @@ export default function RealEstate() {
       currentValue: formData.currentValue || '',
       agentFees: formData.agentFees || '',
       salePrice: formData.theoreticalSalePrice || '',
-      acquisitionExpenses: formData.adquisitionExpenses || []
+      acquisitionExpenses: formData.adquisitionExpenses || [],
+      totalInversionOverride: formData.totalInversionOverride || ''
     };
 
     if (accessoryFormData && accessoryFormData.id) {
@@ -494,7 +496,8 @@ export default function RealEstate() {
         currentValue: accessoryFormData.currentValue || '',
         agentFees: accessoryFormData.agentFees || '',
         salePrice: accessoryFormData.theoreticalSalePrice || '',
-        acquisitionExpenses: accessoryFormData.adquisitionExpenses || []
+        acquisitionExpenses: accessoryFormData.adquisitionExpenses || [],
+        totalInversionOverride: accessoryFormData.totalInversionOverride || ''
       };
       updatedAccessory = {
         ...accessoryFormData,

@@ -151,11 +151,29 @@ export default function Journal() {
   const [isEditing, setIsEditing] = useState(false);
   const [isMobile, setIsMobile] = useState(window.innerWidth < 768);
   const [showSidebar, setShowSidebar] = useState(true);
-  const [globalSearch, setGlobalSearch] = useState('');
-  const [dateFilter, setDateFilter] = useState('Todos');
-  const [selectedYears, setSelectedYears] = useState([]);
-  const [selectedMonths, setSelectedMonths] = useState([]);
-  const [selectedQuarters, setSelectedQuarters] = useState([]);
+  const [globalSearch, setGlobalSearch] = useState(() => localStorage.getItem('journal_globalSearch') || '');
+  const [dateFilter, setDateFilter] = useState(() => localStorage.getItem('journal_dateFilter') || 'Todos');
+  const [selectedYears, setSelectedYears] = useState(() => {
+    try {
+      return JSON.parse(localStorage.getItem('journal_selectedYears') || '[]');
+    } catch {
+      return [];
+    }
+  });
+  const [selectedMonths, setSelectedMonths] = useState(() => {
+    try {
+      return JSON.parse(localStorage.getItem('journal_selectedMonths') || '[]');
+    } catch {
+      return [];
+    }
+  });
+  const [selectedQuarters, setSelectedQuarters] = useState(() => {
+    try {
+      return JSON.parse(localStorage.getItem('journal_selectedQuarters') || '[]');
+    } catch {
+      return [];
+    }
+  });
   const [selectedEntryIds, setSelectedEntryIds] = useState(new Set());
 
   useEffect(() => {
@@ -164,14 +182,58 @@ export default function Journal() {
     return () => window.removeEventListener('resize', handleResize);
   }, []);
 
+  // Persist filter states in localStorage
+  useEffect(() => {
+    localStorage.setItem('journal_globalSearch', globalSearch);
+  }, [globalSearch]);
+
+  useEffect(() => {
+    localStorage.setItem('journal_dateFilter', dateFilter);
+  }, [dateFilter]);
+
+  useEffect(() => {
+    localStorage.setItem('journal_selectedYears', JSON.stringify(selectedYears));
+  }, [selectedYears]);
+
+  useEffect(() => {
+    localStorage.setItem('journal_selectedMonths', JSON.stringify(selectedMonths));
+  }, [selectedMonths]);
+
+  useEffect(() => {
+    localStorage.setItem('journal_selectedQuarters', JSON.stringify(selectedQuarters));
+  }, [selectedQuarters]);
+
   // Filter states
-  const [isFilterActive, setIsFilterActive] = useState(false);
-  const [filterColumn, setFilterColumn] = useState('description');
-  const [filterOperator, setFilterOperator] = useState('contains');
-  const [filterValue, setFilterValue] = useState('');
+  const [isFilterActive, setIsFilterActive] = useState(() => localStorage.getItem('journal_isFilterActive') === 'true');
+  const [filterColumn, setFilterColumn] = useState(() => localStorage.getItem('journal_filterColumn') || 'description');
+  const [filterOperator, setFilterOperator] = useState(() => localStorage.getItem('journal_filterOperator') || 'contains');
+  const [filterValue, setFilterValue] = useState(() => localStorage.getItem('journal_filterValue') || '');
+
+  useEffect(() => {
+    localStorage.setItem('journal_isFilterActive', isFilterActive);
+  }, [isFilterActive]);
+  useEffect(() => {
+    localStorage.setItem('journal_filterColumn', filterColumn);
+  }, [filterColumn]);
+  useEffect(() => {
+    localStorage.setItem('journal_filterOperator', filterOperator);
+  }, [filterOperator]);
+  useEffect(() => {
+    localStorage.setItem('journal_filterValue', filterValue);
+  }, [filterValue]);
 
   // Excel-style Header Filters
-  const [headerFilters, setHeaderFilters] = useState({}); // { colName: [values] }
+  const [headerFilters, setHeaderFilters] = useState(() => {
+    try {
+      return JSON.parse(localStorage.getItem('journal_headerFilters') || '{}');
+    } catch {
+      return {};
+    }
+  });
+
+  useEffect(() => {
+    localStorage.setItem('journal_headerFilters', JSON.stringify(headerFilters));
+  }, [headerFilters]);
   const [openFilter, setOpenFilter] = useState(null); // active column dropdown
   const [filterSearch, setFilterSearch] = useState('');
 
@@ -492,6 +554,19 @@ export default function Journal() {
                     </label>
                   ))}
                 </div>
+              </div>
+              <div>
+                <button 
+                  onClick={() => {
+                    setSelectedMonths([]);
+                    setSelectedQuarters([]);
+                    setSelectedYears([]);
+                    setDateFilter('Todos');
+                  }}
+                  className="w-full py-1.5 px-3 bg-gray-100 hover:bg-gray-200 text-gray-600 border border-gray-300 rounded text-[10px] font-bold uppercase transition-colors"
+                >
+                  Quitar filtros temporales
+                </button>
               </div>
               {/* Removed DIARIO section as per user request */}
             </div>

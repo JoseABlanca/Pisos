@@ -126,11 +126,72 @@ export const useTableFilters = ({ columnWidths = {}, updateColumnWidth = null } 
     persistFilters({});
   };
 
-  const TableHeaderWithFilter = ({ label, columnKey, data, tableId, className = "" }) => {
+  const [sortConfig, setSortConfig] = useState({ tableId: null, columnKey: null, direction: null });
+
+  const handleSort = (tableId, columnKey) => {
+    setSortConfig(prev => {
+      if (prev.tableId === tableId && prev.columnKey === columnKey) {
+        if (prev.direction === 'asc') return { tableId, columnKey, direction: 'desc' };
+        if (prev.direction === 'desc') return { tableId: null, columnKey: null, direction: null };
+      }
+      return { tableId, columnKey, direction: 'asc' };
+    });
+  };
+
+  const applyTableSort = (data, tableId) => {
+    if (!data || !Array.isArray(data) || data.length === 0) return data;
+    if (sortConfig.tableId !== tableId || !sortConfig.columnKey || !sortConfig.direction) return data;
+
+    const { columnKey, direction } = sortConfig;
+    const mult = direction === 'asc' ? 1 : -1;
+
+    return [...data].sort((a, b) => {
+      let valA = a[columnKey];
+      let valB = b[columnKey];
+
+      if (valA === undefined || valA === null) valA = '';
+      if (valB === undefined || valB === null) valB = '';
+
+      if (typeof valA === 'number' && typeof valB === 'number') {
+        return (valA - valB) * mult;
+      }
+
+      if (typeof valA === 'string' && typeof valB === 'string' && (columnKey.toLowerCase().includes('date') || columnKey.toLowerCase().includes('fecha'))) {
+        let dateA = Date.parse(valA);
+        let dateB = Date.parse(valB);
+
+        if (valA.includes('/')) {
+          const parts = valA.split('/');
+          if (parts.length === 3) dateA = new Date(`${parts[2]}-${parts[1]}-${parts[0]}`).getTime();
+        }
+        if (valB.includes('/')) {
+          const parts = valB.split('/');
+          if (parts.length === 3) dateB = new Date(`${parts[2]}-${parts[1]}-${parts[0]}`).getTime();
+        }
+
+        if (!isNaN(dateA) && !isNaN(dateB)) {
+          return (dateA - dateB) * mult;
+        }
+      }
+
+      const numA = Number(valA);
+      const numB = Number(valB);
+      if (!isNaN(numA) && !isNaN(numB) && typeof valA !== 'boolean' && typeof valB !== 'boolean' && String(valA).trim() !== '' && String(valB).trim() !== '') {
+        return (numA - numB) * mult;
+      }
+
+      return String(valA).localeCompare(String(valB), 'es', { numeric: true, sensitivity: 'base' }) * mult;
+    });
+  };
+
+  const TableHeaderWithFilter = ({ label, columnKey, data, tableId, className = "", sortable = true }) => {
     const filterState = (activeTableFilters[tableId] || {})[columnKey];
     // It's active if it's NOT undefined (meaning some specific selection or empty array)
     const isActive = filterState !== undefined;
     
+    const isSorted = sortConfig.tableId === tableId && sortConfig.columnKey === columnKey;
+    const sortDirection = isSorted ? sortConfig.direction : null;
+
     const width = columnWidths[columnKey] || null;
     const style = width ? { width: `${width}px`, minWidth: `${width}px` } : {};
 
@@ -186,8 +247,13 @@ export const useTableFilters = ({ columnWidths = {}, updateColumnWidth = null } 
     
     return (
       <th 
-        className={`${className} group relative hover:bg-slate-100 cursor-move select-none`} 
+        className={`${className} group relative hover:bg-slate-200/70 cursor-pointer select-none`} 
         style={style}
+        onClick={() => {
+          if (sortable) {
+            handleSort(tableId, columnKey);
+          }
+        }}
       >
         <div
           className="w-full h-full"
@@ -214,29 +280,37 @@ export const useTableFilters = ({ columnWidths = {}, updateColumnWidth = null } 
           }}
         >
           <div className="flex items-center justify-between h-full min-w-0 overflow-hidden">
-            <span className="truncate flex-1 pr-1 min-w-0 block pointer-events-none">{label}</span>
+            <div className="flex items-center gap-1 min-w-0 flex-1 pr-1">
+              <span className="truncate min-w-0 block pointer-events-none">{label}</span>
+              {sortable && (
+                <span className="text-[9px] font-bold shrink-0 text-blue-700">
+                  {sortDirection === 'asc' ? '▲' : sortDirection === 'desc' ? '▼' : <span className="opacity-0 group-hover:opacity-40 text-slate-500">↕</span>}
+                </span>
+              )}
+            </div>
             <button 
-            className={`p-0.5 rounded-sm hover:bg-slate-300 transition-colors filter-btn flex-shrink-0 mr-1 ${isActive ? 'bg-blue-100 text-blue-700' : 'text-slate-400'}`}
-            onClick={(e) => {
-              e.stopPropagation();
-              const rect = e.currentTarget.getBoundingClientRect();
-              setOpenFilterMenu({
-                tableId,
-                columnKey,
-                x: rect.left,
-                y: rect.bottom + 2,
-                data
-              });
-              setFilterSearch('');
-            }}
-          >
-            <Filter className={`w-3 h-3 ${isActive ? 'fill-blue-200' : ''}`} />
-          </button>
-        </div>
-        <div 
-          className="absolute right-[-6px] top-0 bottom-0 w-3 cursor-col-resize hover:bg-blue-400/30 active:bg-blue-500/50 z-20"
-          onMouseDown={handleMouseDown}
-        />
+              className={`p-0.5 rounded-sm hover:bg-slate-300 transition-colors filter-btn flex-shrink-0 mr-1 ${isActive ? 'bg-blue-100 text-blue-700' : 'text-slate-400'}`}
+              onClick={(e) => {
+                e.stopPropagation();
+                const rect = e.currentTarget.getBoundingClientRect();
+                setOpenFilterMenu({
+                  tableId,
+                  columnKey,
+                  x: rect.left,
+                  y: rect.bottom + 2,
+                  data
+                });
+                setFilterSearch('');
+              }}
+              title="Filtrar columna"
+            >
+              <Filter className={`w-3 h-3 ${isActive ? 'fill-blue-200' : ''}`} />
+            </button>
+          </div>
+          <div 
+            className="absolute right-[-6px] top-0 bottom-0 w-3 cursor-col-resize hover:bg-blue-400/30 active:bg-blue-500/50 z-20"
+            onMouseDown={handleMouseDown}
+          />
         </div>
       </th>
     );
@@ -316,6 +390,9 @@ export const useTableFilters = ({ columnWidths = {}, updateColumnWidth = null } 
   return {
     activeTableFilters,
     applyTableFilters,
+    applyTableSort,
+    sortConfig,
+    handleSort,
     clearAllFilters,
     TableHeaderWithFilter,
     renderFilterMenu

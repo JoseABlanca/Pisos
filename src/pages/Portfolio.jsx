@@ -96,7 +96,11 @@ export default function Portfolio() {
       }
     });
 
-    const assetsMap = new Map(assets.map(a => [a.id, a]));
+    const assetsMap = new Map();
+    assets.forEach(a => {
+      if (a.id) assetsMap.set(String(a.id).toUpperCase(), a);
+      if (a.ticker) assetsMap.set(String(a.ticker).toUpperCase(), a);
+    });
     const brokersMap = new Map(brokers.map(b => [b.id, b]));
 
     // Chronological transactions sorting
@@ -107,10 +111,11 @@ export default function Portfolio() {
     let totalDividendsEUR = 0;
 
     chronTx.forEach(tx => {
-      const asset = assetsMap.get(tx.assetId);
+      const symbolKey = String(tx.assetId || '').toUpperCase();
+      const asset = assetsMap.get(symbolKey);
       const broker = brokersMap.get(tx.brokerId);
       
-      const key = `${tx.assetId}_${tx.brokerId}`;
+      const key = `${symbolKey}_${tx.brokerId}`;
       const rate = tx.exchangeRate || 1.0;
 
       if (tx.type === 'Dividendo') {
@@ -159,7 +164,8 @@ export default function Portfolio() {
     const finalHoldings = Object.values(positions)
       .filter(pos => pos.quantity > 0)
       .map(pos => {
-        const asset = assetsMap.get(pos.symbol);
+        const symbolKey = String(pos.symbol || '').toUpperCase();
+        const asset = assetsMap.get(symbolKey);
         const currentPriceRaw = asset ? parseFloat(asset.currentPrice) || 0 : 0;
         const assetRate = rates[pos.currency] || 1.0;
 

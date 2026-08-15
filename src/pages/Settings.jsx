@@ -5,10 +5,11 @@ import { useAuth } from '../context/AuthContext';
 import { Save, Mail, Shield, CloudUpload, AlertCircle, CheckCircle, RefreshCw } from 'lucide-react';
 import { migrateLocalData } from '../services/migrationService';
 import AnaliticaAssociations from './AnaliticaAssociations';
+import ClosingModule from '../components/ClosingModule';
 
 export default function Settings() {
   const { user, queryUserIds } = useAuth();
-  const [activeTab, setActiveTab] = useState('sistema'); // 'sistema' | 'cuentas'
+  const [activeTab, setActiveTab] = useState('sistema'); // 'sistema' | 'cuentas' | 'cierre'
   const [config, setConfig] = useState({
     email_server: '',
     email_password: '',
@@ -75,7 +76,7 @@ export default function Settings() {
       <div className="flex items-center justify-between mb-6 shrink-0">
         <div className="flex items-center space-x-3">
           <div className="p-2 bg-primary rounded-lg">
-            <Settings className="text-white w-6 h-6" />
+            <RefreshCw className="text-white w-6 h-6 animate-pulse" />
           </div>
           <div>
             <h1 className="text-2xl font-display font-black text-on-surface uppercase tracking-tight">Configuración del Sistema</h1>
@@ -98,6 +99,13 @@ export default function Settings() {
             className={`px-4 py-2 text-xs font-black uppercase tracking-wider transition-all ${activeTab === 'cuentas' ? 'bg-primary text-white' : 'text-on-surface-variant hover:bg-surface-lowest'}`}
           >
             Cuentas Analíticas
+          </button>
+          <button
+            type="button"
+            onClick={() => setActiveTab('cierre')}
+            className={`px-4 py-2 text-xs font-black uppercase tracking-wider transition-all ${activeTab === 'cierre' ? 'bg-primary text-white' : 'text-on-surface-variant hover:bg-surface-lowest'}`}
+          >
+            Cierre de Ejercicio
           </button>
         </div>
       </div>
@@ -237,10 +245,12 @@ export default function Settings() {
               </button>
             </div>
           </form>
-        ) : (
+        ) : activeTab === 'cuentas' ? (
           <div className="bg-surface-lowest rounded-xl border border-outline-variant shadow-ambient overflow-hidden h-[600px] flex flex-col">
             <AnaliticaAssociations />
           </div>
+        ) : (
+          <ClosingModule />
         )}
       </div>
     </div>

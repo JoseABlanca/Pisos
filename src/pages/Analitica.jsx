@@ -406,7 +406,7 @@ export default function Analitica() {
   const [cebes, setCebes] = useState([]);
   const [cecos, setCecos] = useState([]);
  
-  const [groupFilter, setGroupFilter] = useState('ALL');
+  const [selectedGroups, setSelectedGroups] = useState([]); // Array of group prefix strings, e.g. ['6', '7']. Empty array means ALL.
   const [showPgc, setShowPgc] = useState(false);
   const [showAux, setShowAux] = useState(true);
   const [showObsolete, setShowObsolete] = useState(false);
@@ -419,6 +419,9 @@ export default function Analitica() {
   const [selectedRowId, setSelectedRowId] = useState(null);
   const [desvYear, setDesvYear] = useState(2026);
   const [showDeviations, setShowDeviations] = useState(false);
+  const [showSaldoRow, setShowSaldoRow] = useState(true);
+  const [showDesvImpRow, setShowDesvImpRow] = useState(true);
+  const [showDesvPctRow, setShowDesvPctRow] = useState(true);
   const [analyticalGrouping, setAnalyticalGrouping] = useState('cebe'); // 'cebe' | 'ceco'
   const [selectedCebes, setSelectedCebes] = useState([]);
   const [selectedCecos, setSelectedCecos] = useState([]);
@@ -480,6 +483,34 @@ export default function Analitica() {
   const [showDesvAccountSel, setShowDesvAccountSel] = useState(false);
   const [showDesvCebeSel, setShowDesvCebeSel] = useState(false);
   const [showDesvCecoSel, setShowDesvCecoSel] = useState(false);
+  const [activeDropdown, setActiveDropdown] = useState(null); // 'cuenta' | 'cebe' | 'ceco' | null
+
+  const desvMatchingAccounts = useMemo(() => {
+    if (!desvFilterCuenta) return rawAccounts;
+    const q = desvFilterCuenta.toLowerCase();
+    return rawAccounts.filter(a => 
+      (a.code || '').toLowerCase().includes(q) || 
+      (a.name || '').toLowerCase().includes(q)
+    );
+  }, [rawAccounts, desvFilterCuenta]);
+
+  const desvMatchingCebes = useMemo(() => {
+    if (!desvFilterCebe) return cebes;
+    const q = desvFilterCebe.toLowerCase();
+    return cebes.filter(c => 
+      (c.code || '').toLowerCase().includes(q) || 
+      (c.name || '').toLowerCase().includes(q)
+    );
+  }, [cebes, desvFilterCebe]);
+
+  const desvMatchingCecos = useMemo(() => {
+    if (!desvFilterCeco) return cecos;
+    const q = desvFilterCeco.toLowerCase();
+    return cecos.filter(c => 
+      (c.code || '').toLowerCase().includes(q) || 
+      (c.name || '').toLowerCase().includes(q)
+    );
+  }, [cecos, desvFilterCeco]);
  
   // Drag+Resize state for budget modal
   const budgetDR = useDragResize({ initW: 440, initH: 520, minW: 380, minH: 400, storageKey: 'analitica_budgetModal' });
@@ -541,8 +572,8 @@ export default function Analitica() {
 
   const budgetsPageFiltered = useMemo(() => {
     let buds = budgetsForYearFiltered;
-    if (groupFilter !== 'ALL') {
-      buds = buds.filter(b => b.accountCode && b.accountCode.startsWith(groupFilter));
+    if (selectedGroups.length > 0) {
+      buds = buds.filter(b => b.accountCode && selectedGroups.includes(b.accountCode.toString().charAt(0)));
     }
     if (searchQuery) {
       const q = searchQuery.toLowerCase();
@@ -564,7 +595,7 @@ export default function Analitica() {
       });
     }
     return buds;
-  }, [budgetsForYearFiltered, groupFilter, searchQuery, rawAccounts, cebes, cecos]);
+  }, [budgetsForYearFiltered, selectedGroups, searchQuery, rawAccounts, cebes, cecos]);
 
   /* ── Build tree ONLY from budgets (table starts empty if no budgets) ─────── */
   // Real account codes from the DB (the ones the user actually created)
@@ -595,7 +626,7 @@ export default function Analitica() {
     let codes = onlyAssigned
       ? Array.from(leafBudgetCodes).sort()
       : budgetCodes;
-    if (groupFilter !== 'ALL') codes = codes.filter(c => c.startsWith(groupFilter));
+    if (selectedGroups.length > 0) codes = codes.filter(c => selectedGroups.includes(c.toString().charAt(0)));
     if (searchQuery) {
       const q = searchQuery.toLowerCase();
       codes = codes.filter(c => c.includes(q) || descr(c, rawAccounts).toLowerCase().includes(q));
@@ -627,7 +658,7 @@ export default function Analitica() {
       const hasChildren = !onlyAssigned && codes.some(o => o !== code && o.startsWith(code));
       return { id: code, code, name: descr(code, rawAccounts), depth, hasChildren, total, months, isLeaf };
     });
-  }, [budgetCodes, leafBudgetCodes, budgetsForYearFiltered, rawAccounts, groupFilter, searchQuery, onlyAssigned]);
+  }, [budgetCodes, leafBudgetCodes, budgetsForYearFiltered, rawAccounts, selectedGroups, searchQuery, onlyAssigned]);
 
   const analyticalTreeRows = useMemo(() => {
     if (viewMode !== 'analitica') return [];
@@ -820,43 +851,49 @@ export default function Analitica() {
 
   const performanceTotals = useMemo(() => {
     const monthsDiff = Array(12).fill(0);
-    const monthsHaber = Array(12).fill(0);
-    const monthsDebe = Array(12).fill(0);
+    let totalDiff = 0;
 
-    let totalHaber = 0;
-    let totalDebe = 0;
+    const depthZeroRows = visibleRows.filter(r => r.depth === 0);
 
-    budgetsPageFiltered.forEach(b => {
-      const code = b.accountCode || '';
-      const expenseFlag = b.isExpense !== undefined ? b.isExpense : (code.startsWith('6') || code.startsWith('8'));
-      const isDebe = expenseFlag;
-      const isHaber = !expenseFlag;
+    if (viewMode === 'contable') {
+      const monthsHaber = Array(12).fill(0);
+      const monthsDebe = Array(12).fill(0);
 
-      if (isHaber) {
+      depthZeroRows.forEach(row => {
+        const isDebe = row.code.startsWith('6') || row.code.startsWith('8');
         for (let i = 0; i < 12; i++) {
-          monthsHaber[i] += parseFloat(b.months?.[i]) || 0;
+          const val = row.months[i] || 0;
+          if (isDebe) {
+            monthsDebe[i] += val;
+          } else {
+            monthsHaber[i] += val;
+          }
         }
-      } else if (isDebe) {
-        for (let i = 0; i < 12; i++) {
-          monthsDebe[i] += parseFloat(b.months?.[i]) || 0;
-        }
+      });
+
+      for (let i = 0; i < 12; i++) {
+        monthsDiff[i] = monthsHaber[i] - monthsDebe[i];
       }
-    });
+    } else {
+      // viewMode === 'analitica'
+      depthZeroRows.forEach(row => {
+        for (let i = 0; i < 12; i++) {
+          monthsDiff[i] += row.months[i] || 0;
+        }
+      });
+    }
 
     for (let i = 0; i < 12; i++) {
-      monthsDiff[i] = monthsHaber[i] - monthsDebe[i];
       if (shouldRenderMonth(i)) {
-        totalHaber += monthsHaber[i];
-        totalDebe += monthsDebe[i];
+        totalDiff += monthsDiff[i];
       }
     }
-    const totalDiff = totalHaber - totalDebe;
 
     return {
       monthsDiff,
       totalDiff
     };
-  }, [budgetsPageFiltered, selectedPeriods]);
+  }, [visibleRows, selectedPeriods, viewMode]);
 
   const txsPageFiltered = useMemo(() => {
     let txs = rawTransactions.filter(tx => {
@@ -875,17 +912,17 @@ export default function Analitica() {
         if (!normalizedSelected.includes(txCecoNorm)) return false;
       }
       
+      const account = rawAccounts.find(a => a.id === tx.accountId || a.code === tx.accountId);
+      const code = account ? (account.code || '') : (tx.cuentaContable || '');
+
       // Group filter
-      if (groupFilter !== 'ALL') {
-        const txAccCode = tx.accountId || tx.cuentaContable || '';
-        if (!txAccCode.startsWith(groupFilter)) return false;
+      if (selectedGroups.length > 0) {
+        if (!selectedGroups.includes(code.toString().charAt(0))) return false;
       }
       
       // Search query
       if (searchQuery) {
         const q = searchQuery.toLowerCase();
-        const txAccCode = tx.accountId || tx.cuentaContable || '';
-        const account = rawAccounts.find(a => a.id === txAccCode || a.code === txAccCode);
         const accName = account ? (account.name || '').toLowerCase() : '';
         const txCebeNorm = tx.cebe ? tx.cebe.replace(/^(CEBE|CECO)/i, '').toLowerCase().trim() : '';
         const txCecoNorm = tx.ceco ? tx.ceco.replace(/^(CEBE|CECO)/i, '').toLowerCase().trim() : '';
@@ -896,7 +933,7 @@ export default function Analitica() {
         const cecoName = cecoCenter ? cecoCenter.name.toLowerCase() : '';
         
         const match = (
-          txAccCode.toLowerCase().includes(q) ||
+          code.toLowerCase().includes(q) ||
           accName.includes(q) ||
           txCebeNorm.includes(q) ||
           cebeName.includes(q) ||
@@ -909,7 +946,7 @@ export default function Analitica() {
       return true;
     });
     return txs;
-  }, [rawTransactions, selectedYear, selectedCebes, selectedCecos, groupFilter, searchQuery, rawAccounts, cebes, cecos]);
+  }, [rawTransactions, selectedYear, selectedCebes, selectedCecos, selectedGroups, searchQuery, rawAccounts, cebes, cecos]);
 
   const actualsMap = useMemo(() => {
     const map = {};
@@ -940,8 +977,10 @@ export default function Analitica() {
         const txMonth = new Date(tx.date).getMonth();
         let isMatch = false;
 
+        const account = rawAccounts.find(a => a.id === tx.accountId || a.code === tx.accountId);
+        const txAccCode = account ? (account.code || '') : (tx.cuentaContable || '');
+
         if (viewMode === 'contable') {
-          const txAccCode = tx.accountId || tx.cuentaContable || '';
           if (txAccCode.startsWith(row.code)) {
             isMatch = true;
           }
@@ -961,11 +1000,9 @@ export default function Analitica() {
         }
 
         if (isMatch) {
-          const account = rawAccounts.find(a => a.id === tx.accountId || a.code === tx.accountId);
           let net = getTransactionNet(tx, account);
           if (viewMode === 'analitica') {
-            const code = account ? (account.code || '') : (tx.cuentaContable || '');
-            const mult = (code.startsWith('6') || code.startsWith('8')) ? -1 : 1;
+            const mult = (txAccCode.startsWith('6') || txAccCode.startsWith('8')) ? -1 : 1;
             net = net * mult;
           }
           monthsActual[txMonth] += net;
@@ -983,44 +1020,58 @@ export default function Analitica() {
   }, [visibleRows, rawTransactions, selectedYear, viewMode, rawAccounts, selectedCebes, selectedCecos]);
 
   const performanceActuals = useMemo(() => {
-    const monthsActual = Array(12).fill(0);
-    const monthsHaber = Array(12).fill(0);
-    const monthsDebe = Array(12).fill(0);
-
-    let totalHaber = 0;
-    let totalDebe = 0;
-
-    txsPageFiltered.forEach(tx => {
-      const txMonth = new Date(tx.date).getMonth();
-      const account = rawAccounts.find(a => a.id === tx.accountId || a.code === tx.accountId);
-      const code = account ? (account.code || '') : (tx.cuentaContable || '');
-      const isHaber = code.startsWith('7') || code.startsWith('9');
-      const isDebe = code.startsWith('6') || code.startsWith('8');
-
-      const net = getTransactionNet(tx, account);
-
-      if (isHaber) {
-        monthsHaber[txMonth] += net;
-      } else if (isDebe) {
-        monthsDebe[txMonth] += net;
-      }
-    });
-
     const monthsDiff = Array(12).fill(0);
+    let totalDiff = 0;
+
+    if (!Object.keys(actualsMap).length) {
+      return { monthsDiff, totalDiff };
+    }
+
+    const depthZeroRows = visibleRows.filter(r => r.depth === 0);
+
+    if (viewMode === 'contable') {
+      const monthsHaber = Array(12).fill(0);
+      const monthsDebe = Array(12).fill(0);
+
+      depthZeroRows.forEach(row => {
+        const act = actualsMap[row.id];
+        if (!act) return;
+        const isDebe = row.code.startsWith('6') || row.code.startsWith('8');
+        for (let i = 0; i < 12; i++) {
+          const val = act.months[i] || 0;
+          if (isDebe) {
+            monthsDebe[i] += val;
+          } else {
+            monthsHaber[i] += val;
+          }
+        }
+      });
+
+      for (let i = 0; i < 12; i++) {
+        monthsDiff[i] = monthsHaber[i] - monthsDebe[i];
+      }
+    } else {
+      // viewMode === 'analitica'
+      depthZeroRows.forEach(row => {
+        const act = actualsMap[row.id];
+        if (!act) return;
+        for (let i = 0; i < 12; i++) {
+          monthsDiff[i] += act.months[i] || 0;
+        }
+      });
+    }
+
     for (let i = 0; i < 12; i++) {
-      monthsDiff[i] = monthsHaber[i] - monthsDebe[i];
       if (shouldRenderMonth(i)) {
-        totalHaber += monthsHaber[i];
-        totalDebe += monthsDebe[i];
+        totalDiff += monthsDiff[i];
       }
     }
-    const totalDiff = totalHaber - totalDebe;
 
     return {
       monthsDiff,
       totalDiff
     };
-  }, [txsPageFiltered, rawAccounts, selectedPeriods]);
+  }, [visibleRows, actualsMap, selectedPeriods, viewMode]);
 
   const performanceDeviations = useMemo(() => {
     const cleanZero = n => Math.abs(n) < 0.005 ? 0 : n;
@@ -1073,6 +1124,12 @@ export default function Analitica() {
   const fmtDev = v => {
     const cleaned = Math.abs(v || 0) < 0.005 ? 0 : (v || 0);
     return cleaned.toLocaleString('es-ES', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+  };
+  const handleInputKeyDown = (e, openSelector) => {
+    if (e.key === 'F3') {
+      e.preventDefault();
+      openSelector(true);
+    }
   };
   const formTotal = Object.values(formMonths).reduce((s, v) => s + (parseFloat(v) || 0), 0);
 
@@ -1381,12 +1438,27 @@ export default function Analitica() {
                 <div className="bg-[#e6e8ec] text-[#333] text-[12px] font-bold px-3 py-[5px] border-b border-[#d6d6d6]">
                   Lista actual
                 </div>
-                {/* Radio buttons */}
-                <div className="px-3 pt-2 pb-1 flex flex-col">
-                  <SideRadio checked={groupFilter === 'ALL'} onChange={() => setGroupFilter('ALL')} label="Todos los grupos" />
-                  {['0','1','2','3','4','5','6','7','8','9'].map(n => (
-                    <SideRadio key={n} checked={groupFilter === n} onChange={() => setGroupFilter(n)} label={`Mostrar grupo ${n}`} />
-                  ))}
+                {/* Group checkboxes */}
+                <div className="px-3 pt-2 pb-1 flex flex-col gap-1">
+                  <SideCheck checked={selectedGroups.length === 0} onChange={() => setSelectedGroups([])} label="Todos los grupos" bold={selectedGroups.length === 0} />
+                  {['0','1','2','3','4','5','6','7','8','9'].map(n => {
+                    const isSel = selectedGroups.includes(n);
+                    return (
+                      <SideCheck 
+                        key={n} 
+                        checked={isSel} 
+                        onChange={() => {
+                          if (isSel) {
+                            setSelectedGroups(selectedGroups.filter(x => x !== n));
+                          } else {
+                            setSelectedGroups([...selectedGroups, n]);
+                          }
+                        }} 
+                        label={`Mostrar grupo ${n}`} 
+                        bold={isSel}
+                      />
+                    );
+                  })}
                 </div>
                 {/* Checkboxes */}
                 <div className="px-3 pt-1 pb-2 flex flex-col border-b border-[#d6d6d6]">
@@ -1407,8 +1479,23 @@ export default function Analitica() {
                       <SideRadio checked={analyticalGrouping === 'ceco'} onChange={() => { setAnalyticalGrouping('ceco'); setCollapsed({}); }} label="Por CECO (CECO > CEBE)" />
                     </div>
                   )}
-                  <div className="mt-2 pt-2 border-t border-slate-200">
-                    <SideCheck checked={showDeviations} onChange={e => setShowDeviations(e.target.checked)} label="Ver desviaciones" bold={showDeviations} />
+                  <div className="mt-2 pt-2 border-t border-slate-200 flex flex-col gap-1">
+                    <SideCheck checked={showDeviations} onChange={e => {
+                      const val = e.target.checked;
+                      setShowDeviations(val);
+                      if (val) {
+                        setShowSaldoRow(true);
+                        setShowDesvImpRow(true);
+                        setShowDesvPctRow(true);
+                      }
+                    }} label="Ver desviaciones" bold={showDeviations} />
+                    {showDeviations && (
+                      <div className="ml-3 flex flex-col gap-1 mt-0.5 border-l border-slate-300 pl-2">
+                        <SideCheck checked={showSaldoRow} onChange={e => setShowSaldoRow(e.target.checked)} label="Ver Saldo" />
+                        <SideCheck checked={showDesvImpRow} onChange={e => setShowDesvImpRow(e.target.checked)} label="Ver Desv. (Imp)" />
+                        <SideCheck checked={showDesvPctRow} onChange={e => setShowDesvPctRow(e.target.checked)} label="Ver Desv. (%)" />
+                      </div>
+                    )}
                   </div>
                 </div>
                 
@@ -1550,9 +1637,10 @@ export default function Analitica() {
                           }
                         }
 
+                        let rowActuals = { months: Array(12).fill(0), total: 0 };
                         let rowDev = null;
                         if (showDeviations) {
-                          const rowActuals = actualsMap[row.id] || { months: Array(12).fill(0), total: 0 };
+                          rowActuals = actualsMap[row.id] || { months: Array(12).fill(0), total: 0 };
                           const monthsDev = Array(12).fill(0);
                           const monthsPct = Array(12).fill(0);
 
@@ -1614,45 +1702,64 @@ export default function Analitica() {
                             </tr>
                             {showDeviations && rowDev && (
                               <>
+                                {/* Saldo Real Row */}
+                                {showSaldoRow && (
+                                  <tr className="border-b border-[#f0f0f0] bg-slate-50/50 hover:bg-slate-100/50">
+                                    <td className="py-[2px] px-2 whitespace-nowrap">
+                                      <div className="flex items-center text-slate-500" style={{ paddingLeft: (row.depth * 16) + 19 }}>
+                                        <span className="text-[10px] font-semibold tracking-wider text-slate-400">SALDO</span>
+                                      </div>
+                                    </td>
+                                    <td className="py-[2px] px-2 text-[10px] text-slate-400 uppercase whitespace-nowrap overflow-hidden text-ellipsis italic">Saldo real</td>
+                                    <td className="py-[2px] px-2 text-right text-[10px] font-mono text-slate-600 font-semibold">{fmtDev(rowDev.actualsSum)}</td>
+                                    {[...Array(12)].map((_, i) => shouldRenderMonth(i) && (
+                                      <td key={i} className="py-[2px] px-2 text-right text-[10px] font-mono text-slate-500">{fmtDev(rowActuals.months[i])}</td>
+                                    ))}
+                                  </tr>
+                                )}
                                 {/* Deviation Amount Row */}
-                                <tr className="border-b border-[#f0f0f0] bg-slate-50/50 hover:bg-slate-100/50">
-                                  <td className="py-[2px] px-2 whitespace-nowrap">
-                                    <div className="flex items-center text-slate-500" style={{ paddingLeft: (row.depth * 16) + 19 }}>
-                                      <span className="text-[10px] font-semibold tracking-wider text-slate-400">DESV. (IMP)</span>
-                                    </div>
-                                  </td>
-                                  <td className="py-[2px] px-2 text-[10px] text-slate-400 uppercase whitespace-nowrap overflow-hidden text-ellipsis italic">Importe desviación</td>
-                                  <td className="py-[2px] px-2 text-right text-[10px] font-mono text-slate-600 font-semibold">{fmtDev(rowDev.total)}</td>
-                                  {[...Array(12)].map((_, i) => shouldRenderMonth(i) && (
-                                    <td key={i} className="py-[2px] px-2 text-right text-[10px] font-mono text-slate-500">{fmtDev(rowDev.months[i])}</td>
-                                  ))}
-                                </tr>
+                                {showDesvImpRow && (
+                                  <tr className="border-b border-[#f0f0f0] bg-slate-50/50 hover:bg-slate-100/50">
+                                    <td className="py-[2px] px-2 whitespace-nowrap">
+                                      <div className="flex items-center text-slate-500" style={{ paddingLeft: (row.depth * 16) + 19 }}>
+                                        <span className="text-[10px] font-semibold tracking-wider text-slate-400">DESV. (IMP)</span>
+                                      </div>
+                                    </td>
+                                    <td className="py-[2px] px-2 text-[10px] text-slate-400 uppercase whitespace-nowrap overflow-hidden text-ellipsis italic">Importe desviación</td>
+                                    <td className="py-[2px] px-2 text-right text-[10px] font-mono text-slate-600 font-semibold">{fmtDev(rowDev.total)}</td>
+                                    {[...Array(12)].map((_, i) => shouldRenderMonth(i) && (
+                                      <td key={i} className="py-[2px] px-2 text-right text-[10px] font-mono text-slate-500">{fmtDev(rowDev.months[i])}</td>
+                                    ))}
+                                  </tr>
+                                )}
                                 {/* Deviation Percentage Row */}
-                                <tr className="border-b border-[#f0f0f0] bg-slate-50/50 hover:bg-slate-100/50">
-                                  <td className="py-[2px] px-2 whitespace-nowrap">
-                                    <div className="flex items-center text-slate-500" style={{ paddingLeft: (row.depth * 16) + 19 }}>
-                                      <span className="text-[10px] font-semibold tracking-wider text-slate-400">DESV. (%)</span>
-                                    </div>
-                                  </td>
-                                  <td className="py-[2px] px-2 text-[10px] text-slate-400 uppercase whitespace-nowrap overflow-hidden text-ellipsis italic">Porcentaje desviación</td>
-                                  <td className="py-[2px] px-2 text-right text-[10px] font-mono text-slate-600 font-semibold">
-                                    {(budgetSum === 0 && rowDev.actualsSum === 0) 
-                                      ? '-' 
-                                      : `${rowDev.pctTotal > 0 ? '+' : ''}${rowDev.pctTotal.toLocaleString('es-ES', { minimumFractionDigits: 1, maximumFractionDigits: 1 }) }%`}
-                                  </td>
-                                  {[...Array(12)].map((_, i) => {
-                                    const budgetVal = row.months[i] || 0;
-                                    const actualVal = (actualsMap[row.id]?.months?.[i]) || 0;
-                                    const isZeroActivity = budgetVal === 0 && actualVal === 0;
-                                    return shouldRenderMonth(i) && (
-                                      <td key={i} className="py-[2px] px-2 text-right text-[10px] font-mono text-slate-500">
-                                        {isZeroActivity 
-                                          ? '-' 
-                                          : `${rowDev.pctMonths[i] > 0 ? '+' : ''}${rowDev.pctMonths[i].toLocaleString('es-ES', { minimumFractionDigits: 1, maximumFractionDigits: 1 }) }%`}
-                                      </td>
-                                    );
-                                  })}
-                                </tr>
+                                {showDesvPctRow && (
+                                  <tr className="border-b border-[#f0f0f0] bg-slate-50/50 hover:bg-slate-100/50">
+                                    <td className="py-[2px] px-2 whitespace-nowrap">
+                                      <div className="flex items-center text-slate-500" style={{ paddingLeft: (row.depth * 16) + 19 }}>
+                                        <span className="text-[10px] font-semibold tracking-wider text-slate-400">DESV. (%)</span>
+                                      </div>
+                                    </td>
+                                    <td className="py-[2px] px-2 text-[10px] text-slate-400 uppercase whitespace-nowrap overflow-hidden text-ellipsis italic">Porcentaje desviación</td>
+                                    <td className="py-[2px] px-2 text-right text-[10px] font-mono text-slate-600 font-semibold">
+                                      {(budgetSum === 0 && rowDev.actualsSum === 0) 
+                                        ? '-' 
+                                        : `${rowDev.pctTotal > 0 ? '+' : ''}${rowDev.pctTotal.toLocaleString('es-ES', { minimumFractionDigits: 1, maximumFractionDigits: 1 }) }%`}
+                                    </td>
+                                    {[...Array(12)].map((_, i) => {
+                                      const budgetVal = row.months[i] || 0;
+                                      const actualVal = rowActuals.months[i] || 0;
+                                      const isZeroActivity = budgetVal === 0 && actualVal === 0;
+                                      return shouldRenderMonth(i) && (
+                                        <td key={i} className="py-[2px] px-2 text-right text-[10px] font-mono text-slate-500">
+                                          {isZeroActivity 
+                                            ? '-' 
+                                            : `${rowDev.pctMonths[i] > 0 ? '+' : ''}${rowDev.pctMonths[i].toLocaleString('es-ES', { minimumFractionDigits: 1, maximumFractionDigits: 1 }) }%`}
+                                        </td>
+                                      );
+                                    })}
+                                  </tr>
+                                )}
                               </>
                             )}
                           </Fragment>
@@ -1679,31 +1786,40 @@ export default function Analitica() {
                           <td key={i} className="text-right px-2 py-1 text-[#a51d24]">{fmt(diff)}</td>
                         ))}
                       </tr>
+                      {showDeviations && showSaldoRow && (
+                        <tr className="font-bold text-[11px]">
+                          <td colSpan={2} className="text-right pr-4 py-1 text-[#2b579a]">SALDO:</td>
+                          <td className="text-right px-2 py-1 text-[#a51d24]">{fmtDev(performanceActuals.totalDiff)}</td>
+                          {performanceActuals.monthsDiff.map((diff, i) => shouldRenderMonth(i) && (
+                            <td key={i} className="text-right px-2 py-1 text-[#a51d24]">{fmtDev(diff)}</td>
+                          ))}
+                        </tr>
+                      )}
                       <tr className="font-bold text-[11px]">
                         <td colSpan={2} className="text-right pr-4 py-1 text-[#2b579a]">
-                          {showDeviations ? 'DESVIACIÓN:' : '\u00A0'}
+                          {showDeviations && showDesvImpRow ? 'DESVIACIÓN:' : '\u00A0'}
                         </td>
                         <td className="text-right px-2 py-1 text-[#a51d24]">
-                          {showDeviations ? fmtDev(performanceDeviations.totalDiff) : '\u00A0'}
+                          {showDeviations && showDesvImpRow ? fmtDev(performanceDeviations.totalDiff) : '\u00A0'}
                         </td>
                         {performanceDeviations.monthsDiff.map((diff, i) => shouldRenderMonth(i) && (
                           <td key={i} className="text-right px-2 py-1 text-[#a51d24]">
-                            {showDeviations ? fmtDev(diff) : '\u00A0'}
+                            {showDeviations && showDesvImpRow ? fmtDev(diff) : '\u00A0'}
                           </td>
                         ))}
                       </tr>
                       <tr className="font-bold text-[11px] border-b border-[#d6d6d6]">
                         <td colSpan={2} className="text-right pr-4 py-1 text-[#2b579a]">
-                          {showDeviations ? 'PORCENTAJE:' : '\u00A0'}
+                          {showDeviations && showDesvPctRow ? 'PORCENTAJE:' : '\u00A0'}
                         </td>
                         <td className="text-right px-2 py-1 text-[#a51d24]">
-                          {showDeviations 
+                          {showDeviations && showDesvPctRow 
                             ? (performanceDeviations.totalPct === 0 ? '0,0%' : `${performanceDeviations.totalPct > 0 ? '+' : ''}${performanceDeviations.totalPct.toLocaleString('es-ES', { minimumFractionDigits: 1, maximumFractionDigits: 1 })}%`)
                             : '\u00A0'}
                         </td>
                         {performanceDeviations.monthsPct.map((pct, i) => shouldRenderMonth(i) && (
                           <td key={i} className="text-right px-2 py-1 text-[#a51d24]">
-                            {showDeviations 
+                            {showDeviations && showDesvPctRow 
                               ? (pct === 0 ? '0,0%' : `${pct > 0 ? '+' : ''}${pct.toLocaleString('es-ES', { minimumFractionDigits: 1, maximumFractionDigits: 1 })}%`)
                               : '\u00A0'}
                           </td>
@@ -2023,30 +2139,117 @@ export default function Analitica() {
 
               {/* Cuenta */}
               <div className="flex items-center gap-1">
-                <span className="border border-[#999] bg-[#e9ecef] px-2 py-[3px] text-[11px] text-[#333] w-[60px] text-center shrink-0 font-bold">Cuenta:</span>
-                <input type="text" readOnly value={desvFilterCuenta || ''}
-                    onClick={() => setShowDesvAccountSel(true)}
-                    className="w-[70px] border border-[#999] px-2 py-[3px] text-[11px] bg-white cursor-pointer outline-none font-mono" placeholder="Todas" />
+                <span onClick={() => setShowDesvAccountSel(true)}
+                      className="border border-[#999] bg-[#e9ecef] px-2 py-[3px] text-[11px] text-[#333] w-[60px] text-center shrink-0 font-bold cursor-pointer hover:bg-[#dcdcdc] select-none active:bg-[#c8c8c8]">Cuenta:</span>
+                <div className="relative">
+                  <input type="text" value={desvFilterCuenta || ''}
+                      onChange={e => { setDesvFilterCuenta(e.target.value); setDesvCalculatedData(null); }}
+                      onFocus={() => setActiveDropdown('cuenta')}
+                      onBlur={() => setActiveDropdown(null)}
+                      onKeyDown={e => handleInputKeyDown(e, setShowDesvAccountSel)}
+                      className="w-[70px] border border-[#999] px-2 py-[3px] text-[11px] bg-white outline-none font-mono" placeholder="Todas" />
+                  {activeDropdown === 'cuenta' && (
+                    <div className="absolute left-0 mt-1 bg-white border border-[#999] shadow-lg z-[4000] w-[220px] max-h-[200px] overflow-y-auto rounded-sm text-[11px]">
+                      {desvMatchingAccounts.length === 0 ? (
+                        <div className="p-2 text-gray-400 italic">No hay resultados</div>
+                      ) : (
+                        desvMatchingAccounts.slice(0, 100).map(acc => (
+                          <div 
+                            key={acc.id}
+                            onMouseDown={(e) => {
+                              e.preventDefault();
+                              setDesvFilterCuenta(acc.code);
+                              setDesvCalculatedData(null);
+                              setActiveDropdown(null);
+                            }}
+                            className="p-1 px-2 hover:bg-[#cce5ff] cursor-pointer truncate font-mono text-left"
+                            title={`${acc.code} - ${acc.name}`}
+                          >
+                            {acc.code} - {acc.name}
+                          </div>
+                        ))
+                      )}
+                    </div>
+                  )}
+                </div>
                 <button onClick={() => setShowDesvAccountSel(true)} className="border border-[#999] bg-[#e1e1e1] hover:bg-[#d0d0d0] p-[2px] rounded-[2px] shadow-sm flex items-center justify-center shrink-0 w-6 h-6"><FileText size={13} /></button>
                 {desvFilterCuenta && <button onClick={() => { setDesvFilterCuenta(''); setDesvCalculatedData(null); }} className="border border-[#999] bg-[#e1e1e1] hover:bg-[#d0d0d0] p-[2px] rounded-[2px] shadow-sm flex items-center justify-center shrink-0 w-6 h-6 text-red-600 font-bold">X</button>}
               </div>
               
               {/* CEBE */}
               <div className="flex items-center gap-1">
-                <span className="border border-[#999] bg-[#e9ecef] px-2 py-[3px] text-[11px] text-[#333] w-[50px] text-center shrink-0 font-bold">CEBE:</span>
-                <input type="text" readOnly value={desvFilterCebe || ''}
-                    onClick={() => setShowDesvCebeSel(true)}
-                    className="w-[70px] border border-[#999] px-2 py-[3px] text-[11px] bg-white cursor-pointer outline-none font-mono" placeholder="Todos" />
+                <span onClick={() => setShowDesvCebeSel(true)}
+                      className="border border-[#999] bg-[#e9ecef] px-2 py-[3px] text-[11px] text-[#333] w-[50px] text-center shrink-0 font-bold cursor-pointer hover:bg-[#dcdcdc] select-none active:bg-[#c8c8c8]">CEBE:</span>
+                <div className="relative">
+                  <input type="text" value={desvFilterCebe || ''}
+                      onChange={e => { setDesvFilterCebe(e.target.value); setDesvCalculatedData(null); }}
+                      onFocus={() => setActiveDropdown('cebe')}
+                      onBlur={() => setActiveDropdown(null)}
+                      onKeyDown={e => handleInputKeyDown(e, setShowDesvCebeSel)}
+                      className="w-[70px] border border-[#999] px-2 py-[3px] text-[11px] bg-white outline-none font-mono" placeholder="Todos" />
+                  {activeDropdown === 'cebe' && (
+                    <div className="absolute left-0 mt-1 bg-white border border-[#999] shadow-lg z-[4000] w-[220px] max-h-[200px] overflow-y-auto rounded-sm text-[11px]">
+                      {desvMatchingCebes.length === 0 ? (
+                        <div className="p-2 text-gray-400 italic">No hay resultados</div>
+                      ) : (
+                        desvMatchingCebes.slice(0, 100).map(c => (
+                          <div 
+                            key={c.id}
+                            onMouseDown={(e) => {
+                              e.preventDefault();
+                              setDesvFilterCebe(c.code);
+                              setDesvCalculatedData(null);
+                              setActiveDropdown(null);
+                            }}
+                            className="p-1 px-2 hover:bg-[#cce5ff] cursor-pointer truncate font-mono text-left"
+                            title={`${c.code} - ${c.name}`}
+                          >
+                            {c.code} - {c.name}
+                          </div>
+                        ))
+                      )}
+                    </div>
+                  )}
+                </div>
                 <button onClick={() => setShowDesvCebeSel(true)} className="border border-[#999] bg-[#e1e1e1] hover:bg-[#d0d0d0] p-[2px] rounded-[2px] shadow-sm flex items-center justify-center shrink-0 w-6 h-6"><FileText size={13} /></button>
                 {desvFilterCebe && <button onClick={() => { setDesvFilterCebe(''); setDesvCalculatedData(null); }} className="border border-[#999] bg-[#e1e1e1] hover:bg-[#d0d0d0] p-[2px] rounded-[2px] shadow-sm flex items-center justify-center shrink-0 w-6 h-6 text-red-600 font-bold">X</button>}
               </div>
               
               {/* CECO */}
               <div className="flex items-center gap-1">
-                <span className="border border-[#999] bg-[#e9ecef] px-2 py-[3px] text-[11px] text-[#333] w-[50px] text-center shrink-0 font-bold">CECO:</span>
-                <input type="text" readOnly value={desvFilterCeco || ''}
-                    onClick={() => setShowDesvCecoSel(true)}
-                    className="w-[70px] border border-[#999] px-2 py-[3px] text-[11px] bg-white cursor-pointer outline-none font-mono" placeholder="Todos" />
+                <span onClick={() => setShowDesvCecoSel(true)}
+                      className="border border-[#999] bg-[#e9ecef] px-2 py-[3px] text-[11px] text-[#333] w-[50px] text-center shrink-0 font-bold cursor-pointer hover:bg-[#dcdcdc] select-none active:bg-[#c8c8c8]">CECO:</span>
+                <div className="relative">
+                  <input type="text" value={desvFilterCeco || ''}
+                      onChange={e => { setDesvFilterCeco(e.target.value); setDesvCalculatedData(null); }}
+                      onFocus={() => setActiveDropdown('ceco')}
+                      onBlur={() => setActiveDropdown(null)}
+                      onKeyDown={e => handleInputKeyDown(e, setShowDesvCecoSel)}
+                      className="w-[70px] border border-[#999] px-2 py-[3px] text-[11px] bg-white outline-none font-mono" placeholder="Todos" />
+                  {activeDropdown === 'ceco' && (
+                    <div className="absolute left-0 mt-1 bg-white border border-[#999] shadow-lg z-[4000] w-[220px] max-h-[200px] overflow-y-auto rounded-sm text-[11px]">
+                      {desvMatchingCecos.length === 0 ? (
+                        <div className="p-2 text-gray-400 italic">No hay resultados</div>
+                      ) : (
+                        desvMatchingCecos.slice(0, 100).map(c => (
+                          <div 
+                            key={c.id}
+                            onMouseDown={(e) => {
+                              e.preventDefault();
+                              setDesvFilterCeco(c.code);
+                              setDesvCalculatedData(null);
+                              setActiveDropdown(null);
+                            }}
+                            className="p-1 px-2 hover:bg-[#cce5ff] cursor-pointer truncate font-mono text-left"
+                            title={`${c.code} - ${c.name}`}
+                          >
+                            {c.code} - {c.name}
+                          </div>
+                        ))
+                      )}
+                    </div>
+                  )}
+                </div>
                 <button onClick={() => setShowDesvCecoSel(true)} className="border border-[#999] bg-[#e1e1e1] hover:bg-[#d0d0d0] p-[2px] rounded-[2px] shadow-sm flex items-center justify-center shrink-0 w-6 h-6"><FileText size={13} /></button>
                 {desvFilterCeco && <button onClick={() => { setDesvFilterCeco(''); setDesvCalculatedData(null); }} className="border border-[#999] bg-[#e1e1e1] hover:bg-[#d0d0d0] p-[2px] rounded-[2px] shadow-sm flex items-center justify-center shrink-0 w-6 h-6 text-red-600 font-bold">X</button>}
               </div>

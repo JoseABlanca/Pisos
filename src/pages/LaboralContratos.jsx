@@ -1,6 +1,9 @@
 import { useState, useEffect, useMemo } from 'react';
 import { useOutletContext } from 'react-router-dom';
 import { Search, X, FileText, Briefcase, Upload, Eye, Trash2, FileArchive } from 'lucide-react';
+import Accounts from './Accounts';
+import AnalyticalCenters from './AnalyticalCenters';
+import { useDragResize } from '../hooks/useDragResize';
 import { db } from '../firebase/config';
 import { collection, query, where, onSnapshot, doc, setDoc, deleteDoc } from 'firebase/firestore';
 import { useAuth } from '../context/AuthContext';
@@ -24,6 +27,20 @@ export default function LaboralContratos() {
   const [showForm, setShowForm] = useState(false);
   const [isEditing, setIsEditing] = useState(false);
   const [activeTab, setActiveTab] = useState('Datos');
+
+  const [filtroAnio, setFiltroAnio] = useState(new Date().getFullYear().toString());
+  const [filtroCuenta, setFiltroCuenta] = useState('');
+  const [journalEntries, setJournalEntries] = useState([]);
+  const [loadingAnalitica, setLoadingAnalitica] = useState(false);
+  const [showAccountSel, setShowAccountSel] = useState(false);
+  const [showCebeSel, setShowCebeSel] = useState(false);
+  const [showCecoSel, setShowCecoSel] = useState(false);
+  const [activeDropdown, setActiveDropdown] = useState(null);
+  const [rawAccounts, setRawAccounts] = useState([]);
+
+  const accountDR = useDragResize({ initW: 900, initH: 650, minW: 500, minH: 400, storageKey: 'analitica_laboral_accountModal' });
+  const centerDR = useDragResize({ initW: 700, initH: 500, minW: 400, minH: 300, storageKey: 'analitica_laboral_centerModal' });
+
   const [showSidebar, setShowSidebar] = useState(true);
   const [filterValue, setFilterValue] = useState('');
   const [isUploading, setIsUploading] = useState(false);
@@ -39,6 +56,25 @@ export default function LaboralContratos() {
     cebe: '', ceco: '', cebeId: '', cecoId: '', descripcion: '', documentos: []
   };
   const [formData, setFormData] = useState({ ...emptyForm });
+
+  
+  useEffect(() => {
+    if (!user || !user.uid) return;
+    const qIds = Array.isArray(queryUserIds) && queryUserIds.length > 0 ? queryUserIds : [user.uid];
+    setLoadingAnalitica(true);
+    const journalQuery = query(collection(db, 'journal_entries'), where('userId', 'in', qIds));
+    const unsubJournal = onSnapshot(journalQuery, (snap) => {
+      setJournalEntries(snap.docs.map(d => ({ id: d.id, ...d.data() })));
+      setLoadingAnalitica(false);
+    });
+    const unsubAccounts = onSnapshot(collection(db, 'pgc_accounts'), (snap) => {
+      setRawAccounts(snap.docs.map(d => ({ id: d.id, ...d.data() })));
+    });
+    return () => {
+      unsubJournal();
+      unsubAccounts();
+    };
+  }, [user, queryUserIds]);
 
   useEffect(() => {
     if (!user) return;
@@ -127,6 +163,91 @@ export default function LaboralContratos() {
     setShowForm(true);
   };
 
+  
+  const matchingAccounts = useMemo(() => {
+    if (!filtroCuenta) return rawAccounts;
+    const q = filtroCuenta.toLowerCase();
+    return rawAccounts.filter(a => (a.code || '').toLowerCase().includes(q) || (a.name || '').toLowerCase().includes(q));
+  }, [filtroCuenta, rawAccounts]);
+
+  const matchingCebes = useMemo(() => {
+    const term = formData.cebe || '';
+    if (!term) return cebes;
+    const q = term.toLowerCase();
+    return cebes.filter(c => (c.code || '').toLowerCase().includes(q) || (c.name || '').toLowerCase().includes(q));
+  }, [formData.cebe, cebes]);
+
+  const matchingCecos = useMemo(() => {
+    const term = formData.ceco || '';
+    if (!term) return cecos;
+    const q = term.toLowerCase();
+    return cecos.filter(c => (c.code || '').toLowerCase().includes(q) || (c.name || '').toLowerCase().includes(q));
+  }, [formData.ceco, cecos]);
+
+  const handleInputKeyDown = (e, openModalFn) => {
+    if (e.key === 'F4') {
+      e.preventDefault();
+      openModalFn(true);
+    }
+  };
+
+  const analiticaRows = useMemo(() => {
+    if (!formData || (!formData.cebe && !formData.ceco)) return [];
+    
+    const normValueCebe = formData.cebe ? String(formData.cebe).trim().replace(/^(CEBE|CECO)/i, '') : '';
+    const normValueCeco = formData.ceco ? String(formData.ceco).trim().replace(/^(CEBE|CECO)/i, '') : '';
+
+    let rows = [];
+    journalEntries.forEach(entry => {
+      const entryDate = entry.date || '';
+      const entryYear = entryDate ? entryDate.substring(0, 4) : '';
+      
+      if (filtroAnio && filtroAnio !== 'Todos' && entryYear !== filtroAnio) return;
+
+      if (entry.lines) {
+        entry.lines.forEach(l => {
+          if (filtroCuenta && filtroCuenta !== 'Todas' && l.accountCode !== filtroCuenta) return;
+
+          let match = false;
+          if (normValueCebe && l.cebe) {
+             const c = String(l.cebe).trim().replace(/^(CEBE|CECO)/i, '');
+             if (c.startsWith(normValueCebe)) match = true;
+          }
+          if (normValueCeco && l.ceco) {
+             const c = String(l.ceco).trim().replace(/^(CEBE|CECO)/i, '');
+             if (c.startsWith(normValueCeco)) match = true;
+          }
+
+          if (match) {
+             let importe = (Number(l.debit) || 0) - (Number(l.credit) || 0);
+             if (String(l.accountCode).startsWith('7')) {
+               importe = -importe;
+             }
+             if (importe !== 0) {
+               rows.push({
+                 fecha: entry.date,
+                 concepto: entry.concept || entry.description || '',
+                 cuenta: l.accountCode,
+                 importe: importe,
+                 arrastrado: 0
+               });
+             }
+          }
+        });
+      }
+    });
+
+    rows.sort((a, b) => new Date(a.fecha) - new Date(b.fecha));
+    
+    let sum = 0;
+    rows = rows.map(r => {
+      sum += r.importe;
+      return { ...r, arrastrado: sum };
+    });
+
+    return rows;
+  }, [journalEntries, formData, filtroAnio, filtroCuenta]);
+
   const handleSave = async () => {
     if (!formData.puesto) { alert('El puesto es obligatorio'); return; }
     const docRef = doc(db, 'laboral_contratos', formData.id);
@@ -211,43 +332,162 @@ export default function LaboralContratos() {
         </div>
       </div>
     );
+    
     if (activeTab === 'Analítica') return (
-      <div className="flex flex-col gap-6">
-        <div className="grid grid-cols-2 gap-6">
-          <div className="space-y-3">
-            <div className="space-y-1">
-              <label className="text-[10px] font-bold text-slate-700 uppercase">CEBE (Centro de Beneficio)</label>
-              <select className="win-input w-full cursor-pointer" value={formData.cebe || ''} onChange={e => {
-                const code = e.target.value;
-                const id = cebes.find(x => x.code === code)?.id || '';
-                setFormData(p => ({ ...p, cebe: code, cebeId: id }));
-              }}>
-                <option value="">(Sin CEBE)</option>
-                {cebes.map(c => <option key={c.id} value={c.code}>{c.code ? `${c.code} - ` : ''}{c.name}</option>)}
-              </select>
-            </div>
-            <div className="space-y-1">
-              <label className="text-[10px] font-bold text-slate-700 uppercase">CECO (Centro de Coste)</label>
-              <select className="win-input w-full cursor-pointer" value={formData.ceco || ''} onChange={e => {
-                const code = e.target.value;
-                const id = cecos.find(x => x.code === code)?.id || '';
-                setFormData(p => ({ ...p, ceco: code, cecoId: id }));
-              }}>
-                <option value="">(Sin CECO)</option>
-                {cecos.map(c => <option key={c.id} value={c.code}>{c.code ? `${c.code} - ` : ''}{c.name}</option>)}
-              </select>
-            </div>
+      <div className="flex flex-col h-full bg-white">
+        <div className="flex items-center gap-4 p-3 bg-[#f8f9fa] border-b border-[#ccc] shrink-0 flex-wrap">
+          <div className="flex items-center gap-1">
+            <span className="border border-[#999] bg-[#e9ecef] px-2 py-[3px] text-[11px] text-[#333] w-[50px] text-center shrink-0 font-bold">Año:</span>
+            <select className="w-[70px] border border-[#999] px-2 py-[3px] text-[11px] bg-white outline-none font-bold" value={filtroAnio} onChange={e => setFiltroAnio(e.target.value)}>
+              <option value="Todos">Todos</option>
+              <option value="2024">2024</option>
+              <option value="2025">2025</option>
+              <option value="2026">2026</option>
+              <option value="2027">2027</option>
+            </select>
           </div>
-          <div className="space-y-3">
-            <div className="space-y-1">
-              <label className="text-[10px] font-bold text-slate-700 uppercase">DESCRIPCIÓN</label>
-              <textarea className="win-input w-full" rows={4} value={formData.descripcion} onChange={e => setFormData(p => ({ ...p, descripcion: e.target.value }))} />
+
+          <div className="flex items-center gap-1">
+            <span onClick={() => setShowAccountSel(true)} className="border border-[#999] bg-[#e9ecef] px-2 py-[3px] text-[11px] text-[#333] w-[60px] text-center shrink-0 font-bold cursor-pointer hover:bg-[#dcdcdc] select-none active:bg-[#c8c8c8]">Cuenta:</span>
+            <div className="relative">
+              <input type="text" value={filtroCuenta || ''}
+                  onChange={e => setFiltroCuenta(e.target.value)}
+                  onFocus={() => setActiveDropdown('cuenta')}
+                  onBlur={() => setActiveDropdown(null)}
+                  onKeyDown={e => handleInputKeyDown(e, setShowAccountSel)}
+                  className="w-[120px] border border-[#999] px-2 py-[3px] text-[11px] bg-white outline-none font-mono" placeholder="Todas" />
+              {activeDropdown === 'cuenta' && (
+                <div className="absolute left-0 mt-1 bg-white border border-[#999] shadow-lg z-[4000] w-[220px] max-h-[200px] overflow-y-auto rounded-sm text-[11px]">
+                  {matchingAccounts.length === 0 ? (
+                    <div className="p-2 text-gray-400 italic">No hay resultados</div>
+                  ) : (
+                    matchingAccounts.slice(0, 100).map(acc => (
+                      <div key={acc.id} onMouseDown={(e) => { e.preventDefault(); setFiltroCuenta(acc.code); setActiveDropdown(null); }} className="p-1 px-2 hover:bg-[#cce5ff] cursor-pointer truncate font-mono text-left" title={`${acc.code} - ${acc.name}`}>
+                        {acc.code} - {acc.name}
+                      </div>
+                    ))
+                  )}
+                </div>
+              )}
             </div>
+            <button onClick={() => setShowAccountSel(true)} className="border border-[#999] bg-[#e1e1e1] hover:bg-[#d0d0d0] p-[2px] rounded-[2px] shadow-sm flex items-center justify-center shrink-0 w-6 h-6"><FileText size={13} /></button>
+            {filtroCuenta && <button onClick={() => setFiltroCuenta('')} className="border border-[#999] bg-[#e1e1e1] hover:bg-[#d0d0d0] p-[2px] rounded-[2px] shadow-sm flex items-center justify-center shrink-0 w-6 h-6 text-red-600 font-bold">X</button>}
           </div>
+
+          <div className="flex items-center gap-1">
+            <span onClick={() => setShowCebeSel(true)} className="border border-[#999] bg-[#e9ecef] px-2 py-[3px] text-[11px] text-[#333] w-[60px] text-center shrink-0 font-bold cursor-pointer hover:bg-[#dcdcdc] select-none active:bg-[#c8c8c8]">CEBE:</span>
+            <div className="relative">
+              <input type="text" value={formData.cebe || ''}
+                  onChange={e => setFormData(p => ({ ...p, cebe: e.target.value }))}
+                  onFocus={() => setActiveDropdown('cebe')}
+                  onBlur={() => setActiveDropdown(null)}
+                  onKeyDown={e => handleInputKeyDown(e, setShowCebeSel)}
+                  className="w-[120px] border border-[#999] px-2 py-[3px] text-[11px] bg-white outline-none font-mono" placeholder="Todos" />
+              {activeDropdown === 'cebe' && (
+                <div className="absolute left-0 mt-1 bg-white border border-[#999] shadow-lg z-[4000] w-[220px] max-h-[200px] overflow-y-auto rounded-sm text-[11px]">
+                  {matchingCebes.length === 0 ? (
+                    <div className="p-2 text-gray-400 italic">No hay resultados</div>
+                  ) : (
+                    matchingCebes.slice(0, 100).map(c => (
+                      <div key={c.id} onMouseDown={(e) => { e.preventDefault(); setFormData(p => ({ ...p, cebe: c.code })); setActiveDropdown(null); }} className="p-1 px-2 hover:bg-[#cce5ff] cursor-pointer truncate font-mono text-left" title={`${c.code} - ${c.name}`}>
+                        {c.code} - {c.name}
+                      </div>
+                    ))
+                  )}
+                </div>
+              )}
+            </div>
+            <button onClick={() => setShowCebeSel(true)} className="border border-[#999] bg-[#e1e1e1] hover:bg-[#d0d0d0] p-[2px] rounded-[2px] shadow-sm flex items-center justify-center shrink-0 w-6 h-6"><FileText size={13} /></button>
+            {formData.cebe && <button onClick={() => setFormData(p => ({ ...p, cebe: '' }))} className="border border-[#999] bg-[#e1e1e1] hover:bg-[#d0d0d0] p-[2px] rounded-[2px] shadow-sm flex items-center justify-center shrink-0 w-6 h-6 text-red-600 font-bold">X</button>}
+          </div>
+
+          <div className="flex items-center gap-1">
+            <span onClick={() => setShowCecoSel(true)} className="border border-[#999] bg-[#e9ecef] px-2 py-[3px] text-[11px] text-[#333] w-[60px] text-center shrink-0 font-bold cursor-pointer hover:bg-[#dcdcdc] select-none active:bg-[#c8c8c8]">CECO:</span>
+            <div className="relative">
+              <input type="text" value={formData.ceco || ''}
+                  onChange={e => setFormData(p => ({ ...p, ceco: e.target.value }))}
+                  onFocus={() => setActiveDropdown('ceco')}
+                  onBlur={() => setActiveDropdown(null)}
+                  onKeyDown={e => handleInputKeyDown(e, setShowCecoSel)}
+                  className="w-[120px] border border-[#999] px-2 py-[3px] text-[11px] bg-white outline-none font-mono" placeholder="Todos" />
+              {activeDropdown === 'ceco' && (
+                <div className="absolute left-0 mt-1 bg-white border border-[#999] shadow-lg z-[4000] w-[220px] max-h-[200px] overflow-y-auto rounded-sm text-[11px]">
+                  {matchingCecos.length === 0 ? (
+                    <div className="p-2 text-gray-400 italic">No hay resultados</div>
+                  ) : (
+                    matchingCecos.slice(0, 100).map(c => (
+                      <div key={c.id} onMouseDown={(e) => { e.preventDefault(); setFormData(p => ({ ...p, ceco: c.code })); setActiveDropdown(null); }} className="p-1 px-2 hover:bg-[#cce5ff] cursor-pointer truncate font-mono text-left" title={`${c.code} - ${c.name}`}>
+                        {c.code} - {c.name}
+                      </div>
+                    ))
+                  )}
+                </div>
+              )}
+            </div>
+            <button onClick={() => setShowCecoSel(true)} className="border border-[#999] bg-[#e1e1e1] hover:bg-[#d0d0d0] p-[2px] rounded-[2px] shadow-sm flex items-center justify-center shrink-0 w-6 h-6"><FileText size={13} /></button>
+            {formData.ceco && <button onClick={() => setFormData(p => ({ ...p, ceco: '' }))} className="border border-[#999] bg-[#e1e1e1] hover:bg-[#d0d0d0] p-[2px] rounded-[2px] shadow-sm flex items-center justify-center shrink-0 w-6 h-6 text-red-600 font-bold">X</button>}
+          </div>
+        </div>
+
+        <div className="flex-1 overflow-auto bg-white" style={{ minHeight: '300px' }}>
+          {loadingAnalitica ? (
+            <div className="flex items-center justify-center h-32">
+              <span className="text-gray-500 text-sm">Cargando datos analíticos...</span>
+            </div>
+          ) : (!formData.cebe && !formData.ceco) ? (
+            <div className="flex flex-col items-center justify-center h-48 space-y-2">
+              <FileText className="w-8 h-8 text-gray-300" />
+              <span className="text-gray-500 text-sm italic">Seleccione un CEBE o CECO para ver sus asientos asociados.</span>
+            </div>
+          ) : (
+            <table className="w-full text-left border-collapse border border-[#ccc]">
+              <thead className="bg-[#f8f9fa]">
+                <tr>
+                  <th className="py-[6px] px-2 text-[10px] font-bold text-[#333] uppercase border border-[#ccc]">FECHA (ASIENTO)</th>
+                  <th className="py-[6px] px-2 text-[10px] font-bold text-[#333] uppercase border border-[#ccc]">CUENTA</th>
+                  <th className="py-[6px] px-2 text-[10px] font-bold text-[#333] uppercase border border-[#ccc]">CONCEPTO ASIENTO</th>
+                  <th className="py-[6px] px-2 text-right text-[10px] font-bold text-[#333] uppercase border border-[#ccc]">IMPORTE</th>
+                  <th className="py-[6px] px-2 text-right text-[10px] font-bold text-[#333] uppercase border border-[#ccc]">IMPORTE ARRASTRADO</th>
+                </tr>
+              </thead>
+              <tbody>
+                {analiticaRows.map((row, i) => (
+                  <tr key={i} className="hover:bg-gray-50">
+                    <td className="py-1 px-2 text-[11px] whitespace-nowrap border border-[#eee] text-[#333]">{row.fecha}</td>
+                    <td className="py-1 px-2 text-[11px] whitespace-nowrap border border-[#eee] text-[#333]">{row.cuenta}</td>
+                    <td className="py-1 px-2 text-[11px] truncate max-w-[300px] border border-[#eee] text-[#333]" title={row.concepto}>{row.concepto}</td>
+                    <td className={`py-1 px-2 text-[11px] text-right font-medium border border-[#eee] ${row.importe < 0 ? 'text-red-600' : 'text-slate-700'}`}>
+                      {row.importe.toLocaleString('es-ES', { style: 'currency', currency: 'EUR' })}
+                    </td>
+                    <td className={`py-1 px-2 text-[11px] text-right font-bold border border-[#eee] ${row.arrastrado < 0 ? 'text-red-600' : 'text-slate-800'}`}>
+                      {row.arrastrado.toLocaleString('es-ES', { style: 'currency', currency: 'EUR' })}
+                    </td>
+                  </tr>
+                ))}
+                {analiticaRows.length === 0 && (
+                  <tr>
+                    <td colSpan="5" className="py-4 text-center text-gray-500 text-[11px] italic border border-[#eee]">No hay asientos contables para los filtros seleccionados.</td>
+                  </tr>
+                )}
+                {analiticaRows.length > 0 && (
+                  <tr className="bg-blue-50/50">
+                    <td colSpan="3" className="py-2 px-2 text-[11px] font-bold text-blue-800 uppercase pl-2 border border-[#ccc] text-right">TOTALES</td>
+                    <td className="py-2 px-2 text-[12px] text-right font-bold text-blue-800 border border-[#ccc]">
+                      {analiticaRows.reduce((sum, r) => sum + r.importe, 0).toLocaleString('es-ES', { style: 'currency', currency: 'EUR' })}
+                    </td>
+                    <td className="py-2 px-2 text-[12px] text-right font-bold text-blue-800 border border-[#ccc]">
+                      {analiticaRows[analiticaRows.length - 1]?.arrastrado.toLocaleString('es-ES', { style: 'currency', currency: 'EUR' })}
+                    </td>
+                  </tr>
+                )}
+              </tbody>
+            </table>
+          )}
         </div>
       </div>
     );
-    if (activeTab === 'Documentos') return (
+
+if (activeTab === 'Documentos') return (
       <div className="flex flex-col bg-slate-50 border border-gray-200 rounded-md">
         <div className="p-4 border-b border-gray-200 flex justify-between items-center bg-white rounded-t-md">
           <h3 className="text-[12px] font-bold text-slate-800 uppercase italic">Documentos ({formData.puesto || 'Contrato'})</h3>
