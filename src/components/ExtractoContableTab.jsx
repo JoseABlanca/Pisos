@@ -139,6 +139,15 @@ export default function ExtractoContableTab({
       if (hasLineLevelAnalytics) {
         entry.lines.forEach((l, lineIdx) => {
           const accCode = String(l.accountCode || '').trim();
+          const hasExplicitLineAnalytic = Boolean(l.cebe || l.ceco);
+          const isGroup6 = accCode.startsWith('6');
+          const isGroup7 = accCode.startsWith('7');
+
+          // Skip bank/treasury/balance sheet lines (e.g. 572, 400, 430) unless they explicitly specify line-level analytics
+          if (!isGroup6 && !isGroup7 && !hasExplicitLineAnalytic) {
+            return;
+          }
+
           const lineCebe = l.cebe || entry.cebe || '';
           const lineCeco = l.ceco || entry.ceco || '';
           const normLineCebe = String(lineCebe).trim().replace(/^(CEBE|CECO)/i, '');
@@ -153,13 +162,13 @@ export default function ExtractoContableTab({
             let matchRef = docVal === currentRef;
 
             if (matchCebe && matchRef) {
-              if (accCode.startsWith('7')) {
+              if (isGroup7) {
                 isMatch = true;
                 isIncomeSide = true;
-              } else if (accCode.startsWith('6')) {
+              } else if (isGroup6) {
                 isMatch = true;
                 isIncomeSide = false;
-              } else if (lineCebe || lineCeco) {
+              } else if (hasExplicitLineAnalytic) {
                 isMatch = true;
                 const debit = Number(l.debit) || 0;
                 const credit = Number(l.credit) || 0;
@@ -184,10 +193,10 @@ export default function ExtractoContableTab({
             }
 
             if (lineCebeMatch || lineIncomeCecoMatch || lineExpenseCecoMatch) {
-              if (accCode.startsWith('7')) {
+              if (isGroup7) {
                 isMatch = true;
                 isIncomeSide = true;
-              } else if (accCode.startsWith('6')) {
+              } else if (isGroup6) {
                 isMatch = true;
                 isIncomeSide = false;
               } else {
