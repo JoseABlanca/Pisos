@@ -42,10 +42,21 @@ export const useTableFilters = ({ columnWidths = {}, updateColumnWidth = null } 
     if (!data || !Array.isArray(data)) return [];
     const values = data.map(item => {
       const val = item[columnKey];
+      if (typeof val === 'number') {
+        if (!Number.isInteger(val)) {
+          return Number(val.toFixed(2)).toString();
+        }
+        return val.toString();
+      }
       if (typeof val === 'object' && val !== null) return JSON.stringify(val);
       return val?.toString() || '';
     });
-    return [...new Set(values)].filter(Boolean).sort();
+    return [...new Set(values)].filter(Boolean).sort((a, b) => {
+      const numA = Number(a);
+      const numB = Number(b);
+      if (!isNaN(numA) && !isNaN(numB)) return numA - numB;
+      return a.localeCompare(b, 'es', { numeric: true });
+    });
   };
 
   const applyTableFilters = (data, tableId) => {
@@ -61,7 +72,11 @@ export const useTableFilters = ({ columnWidths = {}, updateColumnWidth = null } 
         if (selectedValues.length === 0) return false;
 
         let val = item[columnKey];
-        if (typeof val === 'object' && val !== null) val = JSON.stringify(val);
+        if (typeof val === 'number') {
+          val = !Number.isInteger(val) ? Number(val.toFixed(2)).toString() : val.toString();
+        } else if (typeof val === 'object' && val !== null) {
+          val = JSON.stringify(val);
+        }
         val = val?.toString() || '';
         return selectedValues.includes(val);
       });
@@ -71,7 +86,6 @@ export const useTableFilters = ({ columnWidths = {}, updateColumnWidth = null } 
   const handleToggleFilterValue = (tableId, columnKey, value, allValues) => {
     setActiveTableFilters(prev => {
       const tableFilters = prev[tableId] || {};
-      // If undefined, it means all were implicitly selected. So clicking one means we unselect it from allValues.
       let columnFilters = tableFilters[columnKey];
       if (columnFilters === undefined) {
         columnFilters = [...allValues];
@@ -82,7 +96,6 @@ export const useTableFilters = ({ columnWidths = {}, updateColumnWidth = null } 
         : [...columnFilters, value];
         
       const newState = (() => {
-        // If it has all values, we can reset to undefined
         if (newColumnFilters.length === allValues.length) {
           return {
             ...prev,
@@ -202,7 +215,6 @@ export const useTableFilters = ({ columnWidths = {}, updateColumnWidth = null } 
       const th = e.currentTarget.parentElement;
       const startWidth = th.offsetWidth;
 
-      // Prevent text selection and force cursor style globally during drag
       document.body.style.cursor = 'col-resize';
       document.body.style.userSelect = 'none';
       document.body.style.webkitUserSelect = 'none';
@@ -215,7 +227,6 @@ export const useTableFilters = ({ columnWidths = {}, updateColumnWidth = null } 
       };
 
       const handleMouseUp = (upEvent) => {
-        // Reset global styles
         document.body.style.cursor = '';
         document.body.style.userSelect = '';
         document.body.style.webkitUserSelect = '';
@@ -227,7 +238,6 @@ export const useTableFilters = ({ columnWidths = {}, updateColumnWidth = null } 
         if (updateColumnWidth && Math.abs(finalWidth - startWidth) > 2) {
           updateColumnWidth(columnKey, finalWidth);
         } else {
-          // Reset style if the drag was negligible (e.g. simple click)
           const originalWidth = columnWidths[columnKey];
           if (originalWidth) {
             th.style.width = `${originalWidth}px`;
@@ -293,12 +303,14 @@ export const useTableFilters = ({ columnWidths = {}, updateColumnWidth = null } 
               onClick={(e) => {
                 e.stopPropagation();
                 const rect = e.currentTarget.getBoundingClientRect();
+                const currentSaved = (activeTableFilters[tableId] || {})[columnKey];
                 setOpenFilterMenu({
                   tableId,
                   columnKey,
                   x: rect.left,
                   y: rect.bottom + 2,
-                  data
+                  data,
+                  draftSelected: currentSaved
                 });
                 setFilterSearch('');
               }}
@@ -318,23 +330,60 @@ export const useTableFilters = ({ columnWidths = {}, updateColumnWidth = null } 
 
   const renderFilterMenu = () => {
     if (!openFilterMenu) return null;
-    const { tableId, columnKey, x, y, data } = openFilterMenu;
+    const { tableId, columnKey, x, y, data, draftSelected } = openFilterMenu;
     const allValues = getUniqueValues(data, columnKey);
-    const selectedValues = (activeTableFilters[tableId] || {})[columnKey];
     
     const filteredValues = allValues.filter(val => 
       val.toLowerCase().includes(filterSearch.toLowerCase())
     );
 
+    const handleToggleDraft = (val) => {
+      setOpenFilterMenu(prev => {
+        if (!prev) return null;
+        let current = prev.draftSelected;
+        if (current === undefined) {
+          current = [...allValues];
+        }
+        const updated = current.includes(val)
+          ? current.filter(v => v !== val)
+          : [...current, val];
+        return { ...prev, draftSelected: updated };
+      });
+    };
+
+    const handleSelectAllDraft = (select) => {
+      setOpenFilterMenu(prev => prev ? { ...prev, draftSelected: select ? undefined : [] } : null);
+    };
+
+    const handleAccept = () => {
+      let finalVal = draftSelected;
+      if (Array.isArray(draftSelected) && draftSelected.length === allValues.length) {
+        finalVal = undefined;
+      }
+      setActiveTableFilters(prev => {
+        const tableFilters = prev[tableId] || {};
+        const newState = {
+          ...prev,
+          [tableId]: {
+            ...tableFilters,
+            [columnKey]: finalVal
+          }
+        };
+        persistFilters(newState);
+        return newState;
+      });
+      setOpenFilterMenu(null);
+    };
+
     return (
       <div 
-        className="fixed z-50 bg-white border border-[#808080] shadow-lg win-bevel filter-menu-popup"
-        style={{ left: Math.min(x, window.innerWidth - 250), top: y, width: 220 }}
+        className="fixed z-50 bg-white border border-[#808080] shadow-lg win-bevel filter-menu-popup select-none"
+        style={{ left: Math.min(x, window.innerWidth - 250), top: y, width: 230 }}
       >
-        <div className="bg-[#f8fafc] text-gray-700 p-1 text-[11px] font-bold flex justify-between items-center cursor-default border-b border-[#d1d5db]">
+        <div className="bg-[#f8fafc] text-gray-700 p-1 px-2 text-[11px] font-bold flex justify-between items-center cursor-default border-b border-[#d1d5db]">
           <span>Filtro: {columnKey}</span>
           <button onClick={() => setOpenFilterMenu(null)} className="hover:bg-gray-200 text-gray-500 px-1 rounded">
-            <X className="w-3 h-3" />
+            <X className="w-3.5 h-3.5" />
           </button>
         </div>
         <div className="p-2 flex flex-col gap-2">
@@ -348,37 +397,51 @@ export const useTableFilters = ({ columnWidths = {}, updateColumnWidth = null } 
           />
           <div className="flex space-x-1">
             <button 
+              type="button"
               className="btn-classic flex-1 py-0.5 text-[9px]"
-              onClick={() => handleSelectAllFilters(tableId, columnKey, true)}
+              onClick={() => handleSelectAllDraft(true)}
             >
               Seleccionar Todo
             </button>
             <button 
+              type="button"
               className="btn-classic flex-1 py-0.5 text-[9px]"
-              onClick={() => handleSelectAllFilters(tableId, columnKey, false)}
+              onClick={() => handleSelectAllDraft(false)}
             >
               Borrar Todo
             </button>
           </div>
 
-          <div className="max-h-40 overflow-y-auto border border-[#808080] bg-white p-1">
+          <div className="max-h-44 overflow-y-auto border border-[#808080] bg-white p-1">
             {filteredValues.map(val => {
-              const isChecked = selectedValues === undefined || selectedValues.includes(val);
+              const isChecked = draftSelected === undefined || (Array.isArray(draftSelected) && draftSelected.includes(val));
               return (
                 <label key={val} className="flex items-center space-x-2 hover:bg-[#e0e0e0] text-[#333] px-1 cursor-pointer py-0.5 group">
                   <input 
                     type="checkbox" 
-                    className="w-3 h-3"
+                    className="w-3.5 h-3.5 accent-blue-600 cursor-pointer"
                     checked={isChecked}
-                    onChange={() => handleToggleFilterValue(tableId, columnKey, val, allValues)}
+                    onChange={() => handleToggleDraft(val)}
                   />
                   <span className="text-[10px] truncate font-normal">{val}</span>
                 </label>
               );
             })}
           </div>
-          <div className="flex justify-end pt-2 border-t border-slate-200 mt-1">
-            <button className="btn-classic text-[10px] px-3 py-1" onClick={() => setOpenFilterMenu(null)}>
+
+          <div className="flex justify-end gap-1.5 pt-2 border-t border-slate-200 mt-1">
+            <button 
+              type="button"
+              className="px-3 py-1 text-[10px] font-bold uppercase bg-blue-600 text-white hover:bg-blue-700 rounded shadow-sm cursor-pointer" 
+              onClick={handleAccept}
+            >
+              Aceptar
+            </button>
+            <button 
+              type="button"
+              className="btn-classic text-[10px] px-3 py-1" 
+              onClick={() => setOpenFilterMenu(null)}
+            >
               Cerrar
             </button>
           </div>
