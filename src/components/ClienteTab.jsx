@@ -34,8 +34,7 @@ export default function ClienteTab({ formData, user, queryUserIds }) {
       <div className="flex-1 overflow-auto p-4 flex flex-col gap-4">
         <div className="w-full flex flex-col h-full mt-2">
           <div className="flex flex-col space-y-3 h-full">
-            <h3 className="text-[11px] font-bold text-[#000080] border-b border-[#000080] pb-1 uppercase flex items-center">
-              <User className="w-4 h-4 mr-1" />
+            <h3 className="text-[11px] font-bold text-black border-b border-black pb-1 uppercase flex items-center">
               Clientes Asociados
             </h3>
             <div className="bg-white border border-[#808080] shadow-[1px_1px_0px_#000] p-1 flex-1 overflow-auto">
@@ -64,11 +63,11 @@ export default function ClienteTab({ formData, user, queryUserIds }) {
                         onClick={() => navigate(`/customers?editName=${encodeURIComponent(client.name)}`)}
                         title="Clic para abrir la ficha del cliente"
                       >
-                        <td className="text-[11px]">{client.id}</td>
-                        <td className="text-[11px] font-bold text-blue-600 hover:underline">{client.name}</td>
-                        <td className="text-[11px]">{client.dni}</td>
-                        <td className="text-[11px]">{client.phone}</td>
-                        <td className={`text-[11px] font-bold ${(!client.status || client.status === 'activo') ? 'text-green-600' : 'text-red-600'}`}>
+                        <td className="text-[11px] text-black">{client.id}</td>
+                        <td className="text-[11px] text-black hover:underline">{client.name}</td>
+                        <td className="text-[11px] text-black">{client.dni}</td>
+                        <td className="text-[11px] text-black">{client.phone}</td>
+                        <td className="text-[11px] text-black">
                           {(!client.status || client.status === 'activo') ? 'ACTIVO' : 'INACTIVO'}
                         </td>
                       </tr>

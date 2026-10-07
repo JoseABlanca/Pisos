@@ -40,8 +40,19 @@ export default function ExtractoContableTab({
   const [selectedExpenseCecos, setSelectedExpenseCecos] = useState([]);
   const [showExpenseCecoDropdown, setShowExpenseCecoDropdown] = useState(false);
   const [expenseCecoSearch, setExpenseCecoSearch] = useState('');
+
+  const [selectedNegativeCecos, setSelectedNegativeCecos] = useState(formData?.negativeCecos || []);
+  const [showNegativeCecoDropdown, setShowNegativeCecoDropdown] = useState(false);
+  const [negativeCecoSearch, setNegativeCecoSearch] = useState('');
   const [startDate, setStartDate] = useState('');
   const [endDate, setEndDate] = useState('');
+
+  // Sync selectedNegativeCecos with formData prop
+  useEffect(() => {
+    if (formData?.negativeCecos && Array.isArray(formData.negativeCecos)) {
+      setSelectedNegativeCecos(formData.negativeCecos);
+    }
+  }, [formData?.negativeCecos]);
 
   // Subscribe to accounts to display names in entry viewer
   useEffect(() => {
@@ -123,6 +134,7 @@ export default function ExtractoContableTab({
 
     const normIncomeCecos = (formData?.taxIncomeCecos || []).map(c => String(c).trim().replace(/^(CEBE|CECO)/i, ''));
     const normExpenseCecos = (formData?.taxExpenseCecos || []).map(c => String(c).trim().replace(/^(CEBE|CECO)/i, ''));
+    const normNegativeCecos = (selectedNegativeCecos || []).map(c => String(c).trim().toUpperCase().replace(/^(CEBE|CECO)/i, ''));
 
     if (mode === 'rentals') {
       if (!normValueCebe || !currentRef) return [];
@@ -182,6 +194,10 @@ export default function ExtractoContableTab({
               lineCebeMatch = true;
             }
 
+            // KEY FIX: if the line/entry carries a CEBE that belongs to a DIFFERENT property → skip.
+            // This prevents generic CECOs shared across properties from bleeding other property data in.
+            if (normLineCebe && normValueCebe && !lineCebeMatch) return;
+
             let lineIncomeCecoMatch = false;
             if (normIncomeCecos.length > 0 && normIncomeCecos.some(c => normLineCeco.startsWith(c))) {
               lineIncomeCecoMatch = true;
@@ -230,6 +246,10 @@ export default function ExtractoContableTab({
           if (startDate && entry.date < startDate) return;
           if (endDate && entry.date > endDate) return;
 
+          // CECO Negativo (Sign inversion) check
+          const isNegativeCeco = normNegativeCecos.length > 0 && normLineCeco && normNegativeCecos.some(nc => normLineCeco.startsWith(nc));
+          const effectiveIsIncomeSide = isNegativeCeco ? !isIncomeSide : isIncomeSide;
+
           // Calculate amount for this line
           const debit = Number(l.debit) || 0;
           const credit = Number(l.credit) || 0;
@@ -241,8 +261,8 @@ export default function ExtractoContableTab({
             lineAmount = debit > 0 ? debit : (credit > 0 ? credit : (debit + credit));
           }
 
-          const signedAmount = isIncomeSide ? Math.abs(lineAmount) : -Math.abs(lineAmount);
-          const amountColor = isIncomeSide ? 'text-green-700 font-bold' : 'text-red-600 font-bold';
+          const signedAmount = effectiveIsIncomeSide ? Math.abs(lineAmount) : -Math.abs(lineAmount);
+          const amountColor = effectiveIsIncomeSide ? 'text-green-700 font-bold' : 'text-red-600 font-bold';
 
           // Display Center (CECO or CEBE name)
           let displayCenter = '';
@@ -275,13 +295,14 @@ export default function ExtractoContableTab({
             amountColor,
             signedAmount,
             signedAmountFormatted: signedAmount,
-            cebeEntryAmount: isIncomeSide ? Math.abs(lineAmount) : 0,
-            cecoEntryAmount: !isIncomeSide ? Math.abs(lineAmount) : 0,
+            cebeEntryAmount: effectiveIsIncomeSide ? Math.abs(lineAmount) : 0,
+            cecoEntryAmount: !effectiveIsIncomeSide ? Math.abs(lineAmount) : 0,
             displayDocUrl,
             displayDocName,
             documentFormatted: displayDocUrl ? (displayDocName || 'Documento') : 'Sin documento',
             isImpuesto: entry.isImpuesto,
-            impuestoFormatted: entry.isImpuesto ? 'Sí' : 'No'
+            impuestoFormatted: entry.isImpuesto ? 'Sí' : 'No',
+            isNegativeCeco
           });
         });
       } else {
@@ -303,6 +324,14 @@ export default function ExtractoContableTab({
             isIncomeSide = !isExpense;
           }
         } else {
+          // KEY FIX: if the entry has a CEBE that belongs to a DIFFERENT property → skip entirely.
+          if (entry.cebe && normValueCebe) {
+            const entryNormCebe = String(entry.cebe).trim().replace(/^(CEBE|CECO)/i, '');
+            if (!entryNormCebe.startsWith(normValueCebe)) {
+              return; // Entry belongs to another property
+            }
+          }
+
           let globalCebe = false;
           if (normValueCebe && entry.cebe) {
             const normField = String(entry.cebe).trim().replace(/^(CEBE|CECO)/i, '');
@@ -344,9 +373,13 @@ export default function ExtractoContableTab({
         if (startDate && entry.date < startDate) return;
         if (endDate && entry.date > endDate) return;
 
+        const entryCecoClean = String(entryCeco).trim().toUpperCase().replace(/^(CEBE|CECO)/i, '');
+        const isNegativeCeco = normNegativeCecos.length > 0 && entryCecoClean && normNegativeCecos.some(nc => entryCecoClean.startsWith(nc));
+        const effectiveIsIncomeSide = isNegativeCeco ? !isIncomeSide : isIncomeSide;
+
         const totalAmt = Math.abs(entry.total || 0);
-        const signedAmount = isIncomeSide ? totalAmt : -totalAmt;
-        const amountColor = isIncomeSide ? 'text-green-700 font-bold' : 'text-red-600 font-bold';
+        const signedAmount = effectiveIsIncomeSide ? totalAmt : -totalAmt;
+        const amountColor = effectiveIsIncomeSide ? 'text-green-700 font-bold' : 'text-red-600 font-bold';
 
         let displayCenter = '';
         if (entry.ceco) {
@@ -374,19 +407,20 @@ export default function ExtractoContableTab({
           amountColor,
           signedAmount,
           signedAmountFormatted: signedAmount,
-          cebeEntryAmount: isIncomeSide ? totalAmt : 0,
-          cecoEntryAmount: !isIncomeSide ? totalAmt : 0,
+          cebeEntryAmount: effectiveIsIncomeSide ? totalAmt : 0,
+          cecoEntryAmount: !effectiveIsIncomeSide ? totalAmt : 0,
           displayDocUrl,
           displayDocName,
           documentFormatted: displayDocUrl ? (displayDocName || 'Documento') : 'Sin documento',
           isImpuesto: entry.isImpuesto,
-          impuestoFormatted: entry.isImpuesto ? 'Sí' : 'No'
+          impuestoFormatted: entry.isImpuesto ? 'Sí' : 'No',
+          isNegativeCeco
         });
       }
     });
 
     return rows.sort((a, b) => new Date(b.date) - new Date(a.date));
-  }, [journalEntries, currentCebe, currentCeco, mode, formData, cecos, cebes, startDate, endDate, selectedIncomeCecos, selectedExpenseCecos]);
+  }, [journalEntries, currentCebe, currentCeco, mode, formData, cecos, cebes, startDate, endDate, selectedIncomeCecos, selectedExpenseCecos, selectedNegativeCecos]);
 
   // Apply table column filters and sorting
   const finalDisplayEntries = useMemo(() => {
@@ -458,6 +492,28 @@ export default function ExtractoContableTab({
         } catch (err) {
           console.error("Error al guardar CECO en propiedad:", err);
         }
+      }
+    }
+  };
+
+  const handleNegativeCecosChange = async (newCecos) => {
+    setSelectedNegativeCecos(newCecos);
+    if (setFormData) {
+      setFormData(prev => ({ ...prev, negativeCecos: newCecos }));
+    }
+    if (mode === 'rentals' && formData?.docId) {
+      try {
+        const docRef = doc(db, 'rentals', formData.docId);
+        await updateDoc(docRef, { negativeCecos: newCecos });
+      } catch (err) {
+        console.error("Error al guardar CECO Negativo en alquiler:", err);
+      }
+    } else if (mode === 'properties' && formData?.id) {
+      try {
+        const docRef = doc(db, 'properties', formData.id);
+        await updateDoc(docRef, { negativeCecos: newCecos });
+      } catch (err) {
+        console.error("Error al guardar CECO Negativo en propiedad:", err);
       }
     }
   };
@@ -705,14 +761,102 @@ export default function ExtractoContableTab({
           )}
         </div>
 
-        {(startDate || endDate || selectedIncomeCecos.length > 0 || selectedExpenseCecos.length > 0 || Object.keys(activeTableFilters['extractoContable'] || {}).length > 0) && (
+
+
+        {(startDate || endDate || selectedIncomeCecos.length > 0 || selectedExpenseCecos.length > 0 || selectedNegativeCecos.length > 0 || Object.keys(activeTableFilters['extractoContable'] || {}).length > 0) && (
           <button 
             type="button" 
-            onClick={() => { setStartDate(''); setEndDate(''); setSelectedIncomeCecos([]); setSelectedExpenseCecos([]); clearAllFilters(); }} 
+            onClick={() => { setStartDate(''); setEndDate(''); setSelectedIncomeCecos([]); setSelectedExpenseCecos([]); handleNegativeCecosChange([]); clearAllFilters(); }} 
             className="px-3 py-1 border border-gray-400 bg-gray-100 hover:bg-gray-200 shadow-sm text-[10px] font-bold uppercase cursor-pointer rounded ml-auto"
           >
             Limpiar Filtros
           </button>
+        )}
+      </div>
+
+      {/* CECO Negativo — dedicated row, always visible */}
+      <div className="px-2.5 py-2 bg-amber-50 border border-amber-300 flex flex-wrap items-center gap-3 text-xs select-none relative">
+        <span className="text-[10px] font-bold text-amber-800 uppercase tracking-wide" title="Selecciona los CECOs cuyo signo quieres invertir (ej. Amortizaciones para verlas como ingreso o como gasto)">
+          ± CECO Negativo (invertir signo):
+        </span>
+        <div className="relative min-w-[220px]">
+          <button
+            type="button"
+            onClick={() => setShowNegativeCecoDropdown(!showNegativeCecoDropdown)}
+            className="w-full flex justify-between items-center bg-white px-2 py-1 font-mono text-[11px] border border-amber-400 cursor-pointer rounded min-h-[24px] hover:border-amber-600"
+          >
+            <span className="truncate max-w-[200px] font-sans text-slate-800">
+              {selectedNegativeCecos.length === 0 ? 'Ninguno seleccionado' : selectedNegativeCecos.join(', ')}
+            </span>
+            <span className="text-[9px] text-amber-600 ml-2">▼</span>
+          </button>
+
+          {showNegativeCecoDropdown && (
+            <>
+              <div className="fixed inset-0 z-40" onClick={() => setShowNegativeCecoDropdown(false)} />
+              <div className="absolute left-0 top-full mt-1 bg-white border border-amber-400 shadow-lg max-h-[220px] overflow-y-auto p-1.5 flex flex-col gap-1 rounded z-50 min-w-[260px]">
+                <input
+                  type="text"
+                  placeholder="Buscar CECO..."
+                  className="w-full text-[10px] px-1.5 py-0.5 border border-slate-300 rounded mb-1 outline-none focus:border-amber-400 font-sans"
+                  value={negativeCecoSearch}
+                  onChange={e => setNegativeCecoSearch(e.target.value)}
+                  onClick={e => e.stopPropagation()}
+                  autoFocus
+                />
+                <label className="flex items-center gap-1.5 text-[10px] cursor-pointer hover:bg-amber-50 py-0.5 rounded select-none font-bold text-blue-900 border-b border-slate-100 pb-1">
+                  <input
+                    type="checkbox"
+                    checked={selectedNegativeCecos.length === 0}
+                    onChange={() => handleNegativeCecosChange([])}
+                    className="mt-0.5"
+                  />
+                  <span>Ninguno</span>
+                </label>
+                {cecos
+                  .filter(c =>
+                    c.code.toLowerCase().includes(negativeCecoSearch.toLowerCase()) ||
+                    c.name.toLowerCase().includes(negativeCecoSearch.toLowerCase())
+                  )
+                  .map(c => (
+                    <label key={c.id} className="flex items-start gap-1.5 text-[10px] cursor-pointer hover:bg-amber-50 py-0.5 rounded select-none">
+                      <input
+                        type="checkbox"
+                        checked={selectedNegativeCecos.includes(c.code)}
+                        onChange={() => {
+                          const next = selectedNegativeCecos.includes(c.code)
+                            ? selectedNegativeCecos.filter(code => code !== c.code)
+                            : [...selectedNegativeCecos, c.code];
+                          handleNegativeCecosChange(next);
+                        }}
+                        className="mt-0.5"
+                      />
+                      <span className="text-slate-700">{c.code} - {c.name}</span>
+                    </label>
+                  ))}
+                {cecos.filter(c =>
+                  c.code.toLowerCase().includes(negativeCecoSearch.toLowerCase()) ||
+                  c.name.toLowerCase().includes(negativeCecoSearch.toLowerCase())
+                ).length === 0 && (
+                  <span className="text-[10px] text-slate-400 italic px-1">No se encontraron CECOs</span>
+                )}
+              </div>
+            </>
+          )}
+        </div>
+        {selectedNegativeCecos.length > 0 && (
+          <>
+            <span className="text-[10px] text-amber-700 font-semibold">
+              {selectedNegativeCecos.length} CECO{selectedNegativeCecos.length > 1 ? 's' : ''} con signo invertido
+            </span>
+            <button
+              type="button"
+              onClick={() => handleNegativeCecosChange([])}
+              className="px-2 py-0.5 border border-amber-400 bg-amber-100 text-amber-900 hover:bg-amber-200 shadow-sm text-[10px] font-bold uppercase cursor-pointer rounded"
+            >
+              Quitar
+            </button>
+          </>
         )}
       </div>
 
@@ -791,7 +935,16 @@ export default function ExtractoContableTab({
                         </button>
                       </td>
                       <td className="truncate max-w-[200px]" title={entry.description}>{entry.description}</td>
-                      <td className="font-mono text-[10px] font-semibold">{displayCenter}</td>
+                      <td className="font-mono text-[10px] font-semibold">
+                        <div className="flex items-center gap-1.5 flex-wrap">
+                          <span>{displayCenter}</span>
+                          {entry.isNegativeCeco && (
+                            <span className="px-1 py-0.2 bg-amber-100 text-amber-800 text-[9px] font-bold rounded border border-amber-300" title="CECO Negativo (Signo invertido)">
+                              CECO -
+                            </span>
+                          )}
+                        </div>
+                      </td>
                       <td className={`text-right font-mono font-semibold ${amountColor}`}>
                         {signedAmount > 0 ? '+' : ''}{signedAmount.toLocaleString('es-ES', { minimumFractionDigits: 2 })} €
                       </td>

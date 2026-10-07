@@ -751,16 +751,16 @@ export default function RealEstate() {
   const renderTabContent = () => {
     if (activeTab === 'Datos') {
       return (
-        <div className="flex flex-col gap-6">
-          <div className={`grid ${isMobile ? 'grid-cols-1' : 'grid-cols-2'} gap-6`}>
-          <div className="space-y-3">
+        <div className="flex flex-col gap-5">
+          <div className={`grid ${isMobile ? 'grid-cols-1' : 'grid-cols-2'} gap-5`}>
+          <div className="space-y-2.5">
             <div className="space-y-1">
-              <label className="text-[10px] font-bold text-slate-700 uppercase">Nombre de la Finca:</label>
-              <input type="text" className="win-input w-full" value={formData.name || ''} onChange={e => setFormData({ ...formData, name: e.target.value })} />
+              <label className="text-[10px] font-bold text-[#444] uppercase tracking-wide block">Nombre de la Finca:</label>
+              <input type="text" className="w-full border border-[#999] px-2.5 py-1 text-[11px] text-[#222] bg-white outline-none focus:border-[#2b579a] focus:bg-[#fffee0] transition-colors rounded-none shadow-xs" value={formData.name || ''} onChange={e => setFormData({ ...formData, name: e.target.value })} />
             </div>
             <div className="space-y-1">
-              <label className="text-[10px] font-bold text-slate-700 uppercase">Activo Accesorio (Opcional):</label>
-              <select className="win-input w-full" value={formData.accessoryPropertyId || ''} onChange={e => {
+              <label className="text-[10px] font-bold text-[#444] uppercase tracking-wide block">Activo Accesorio (Opcional):</label>
+              <select className="w-full border border-[#999] px-2 py-1 text-[11px] text-[#222] bg-white outline-none focus:border-[#2b579a] focus:bg-[#fffee0] transition-colors rounded-none shadow-xs cursor-pointer" value={formData.accessoryPropertyId || ''} onChange={e => {
                   const val = e.target.value;
                   setFormData({ ...formData, accessoryPropertyId: val });
                   if (val) {
@@ -777,42 +777,42 @@ export default function RealEstate() {
               </select>
             </div>
             <div className="space-y-1">
-              <label className="text-[10px] font-bold text-slate-700 uppercase">Dirección:</label>
-              <input type="text" className="win-input w-full" value={formData.address || ''} onChange={e => setFormData({ ...formData, address: e.target.value })} />
+              <label className="text-[10px] font-bold text-[#444] uppercase tracking-wide block">Dirección:</label>
+              <input type="text" className="w-full border border-[#999] px-2.5 py-1 text-[11px] text-[#222] bg-white outline-none focus:border-[#2b579a] focus:bg-[#fffee0] transition-colors rounded-none shadow-xs" value={formData.address || ''} onChange={e => setFormData({ ...formData, address: e.target.value })} />
             </div>
             <div className="space-y-1">
-              <label className="text-[10px] font-bold text-slate-700 uppercase">País:</label>
-              <input type="text" className="win-input w-full" value={formData.country || ''} onChange={e => setFormData({ ...formData, country: e.target.value })} />
+              <label className="text-[10px] font-bold text-[#444] uppercase tracking-wide block">País:</label>
+              <input type="text" className="w-full border border-[#999] px-2.5 py-1 text-[11px] text-[#222] bg-white outline-none focus:border-[#2b579a] focus:bg-[#fffee0] transition-colors rounded-none shadow-xs" value={formData.country || ''} onChange={e => setFormData({ ...formData, country: e.target.value })} />
             </div>
             <div className="space-y-1">
-              <label className="text-[10px] font-bold text-slate-700 uppercase">Región/Provincia:</label>
-              <input type="text" className="win-input w-full" value={formData.region || ''} onChange={e => setFormData({ ...formData, region: e.target.value })} />
+              <label className="text-[10px] font-bold text-[#444] uppercase tracking-wide block">Región/Provincia:</label>
+              <input type="text" className="w-full border border-[#999] px-2.5 py-1 text-[11px] text-[#222] bg-white outline-none focus:border-[#2b579a] focus:bg-[#fffee0] transition-colors rounded-none shadow-xs" value={formData.region || ''} onChange={e => setFormData({ ...formData, region: e.target.value })} />
             </div>
             <div className="space-y-1">
-              <label className="text-[10px] font-bold text-slate-700 uppercase">Población:</label>
-              <input type="text" className="win-input w-full" value={formData.city || ''} onChange={e => setFormData({ ...formData, city: e.target.value })} />
+              <label className="text-[10px] font-bold text-[#444] uppercase tracking-wide block">Población:</label>
+              <input type="text" className="w-full border border-[#999] px-2.5 py-1 text-[11px] text-[#222] bg-white outline-none focus:border-[#2b579a] focus:bg-[#fffee0] transition-colors rounded-none shadow-xs" value={formData.city || ''} onChange={e => setFormData({ ...formData, city: e.target.value })} />
             </div>
             <div className="space-y-1">
-              <label className="text-[10px] font-bold text-slate-700 uppercase">Código Postal:</label>
-              <input type="text" className="win-input w-full" value={formData.cp || ''} onChange={e => setFormData({ ...formData, cp: e.target.value })} />
+              <label className="text-[10px] font-bold text-[#444] uppercase tracking-wide block">Código Postal:</label>
+              <input type="text" className="w-full border border-[#999] px-2.5 py-1 text-[11px] text-[#222] bg-white outline-none focus:border-[#2b579a] focus:bg-[#fffee0] transition-colors rounded-none shadow-xs" value={formData.cp || ''} onChange={e => setFormData({ ...formData, cp: e.target.value })} />
             </div>
           </div>
-          <div className="space-y-3">
+          <div className="space-y-2.5">
             <div className="space-y-1">
-              <label className="text-[10px] font-bold text-slate-700 uppercase">Ref. Catastral:</label>
-              <input type="text" className="win-input w-full" value={formData.catastral || ''} onChange={e => setFormData({ ...formData, catastral: e.target.value })} />
+              <label className="text-[10px] font-bold text-[#444] uppercase tracking-wide block">Ref. Catastral:</label>
+              <input type="text" className="w-full border border-[#999] px-2.5 py-1 text-[11px] text-[#222] bg-white outline-none focus:border-[#2b579a] focus:bg-[#fffee0] transition-colors rounded-none shadow-xs font-mono" value={formData.catastral || ''} onChange={e => setFormData({ ...formData, catastral: e.target.value })} />
             </div>
             <div className="space-y-1">
-              <label className="text-[10px] font-bold text-slate-700 uppercase">Reg. Propiedad:</label>
-              <input type="text" className="win-input w-full" placeholder="Tomo, Libro, Finca..." value={formData.registry || ''} onChange={e => setFormData({ ...formData, registry: e.target.value })} />
+              <label className="text-[10px] font-bold text-[#444] uppercase tracking-wide block">Reg. Propiedad:</label>
+              <input type="text" className="w-full border border-[#999] px-2.5 py-1 text-[11px] text-[#222] bg-white outline-none focus:border-[#2b579a] focus:bg-[#fffee0] transition-colors rounded-none shadow-xs" placeholder="Tomo, Libro, Finca..." value={formData.registry || ''} onChange={e => setFormData({ ...formData, registry: e.target.value })} />
             </div>
             <div className="space-y-1">
-              <label className="text-[10px] font-bold text-slate-700 uppercase">Número de cuenta:</label>
-              <input type="text" className="win-input w-full" value={formData.accountNumber || ''} onChange={e => setFormData({ ...formData, accountNumber: e.target.value })} />
+              <label className="text-[10px] font-bold text-[#444] uppercase tracking-wide block">Número de cuenta:</label>
+              <input type="text" className="w-full border border-[#999] px-2.5 py-1 text-[11px] text-[#222] bg-white outline-none focus:border-[#2b579a] focus:bg-[#fffee0] transition-colors rounded-none shadow-xs font-mono" value={formData.accountNumber || ''} onChange={e => setFormData({ ...formData, accountNumber: e.target.value })} />
             </div>
             <div className="space-y-1">
-              <label className="text-[10px] font-bold text-slate-700 uppercase" title="Doble clic en la caja de abajo para ir a la configuración de cuentas">Cuenta contable asociada:</label>
-              <select className="win-input w-full cursor-pointer" value={formData.accountingAccount || ''} onChange={e => setFormData({ ...formData, accountingAccount: e.target.value })} onDoubleClick={() => navigate('/accounts')} title="Doble clic para añadir/editar cuentas">
+              <label className="text-[10px] font-bold text-[#444] uppercase tracking-wide block" title="Doble clic en la caja de abajo para ir a la configuración de cuentas">Cuenta contable asociada:</label>
+              <select className="w-full border border-[#999] px-2 py-1 text-[11px] text-[#222] bg-white outline-none focus:border-[#2b579a] focus:bg-[#fffee0] transition-colors rounded-none shadow-xs cursor-pointer" value={formData.accountingAccount || ''} onChange={e => setFormData({ ...formData, accountingAccount: e.target.value })} onDoubleClick={() => navigate('/accounts')} title="Doble clic para añadir/editar cuentas">
                 <option value=""></option>
                 {formData.accountingAccount && !availableAccounts.some(acc => acc.code === formData.accountingAccount) && (
                   <option value={formData.accountingAccount}>{formData.accountingAccount} (No en PGC / Inválida)</option>
@@ -823,8 +823,8 @@ export default function RealEstate() {
               </select>
             </div>
             <div className="space-y-1">
-              <label className="text-[10px] font-bold text-slate-700 uppercase">CEBE Asociado:</label>
-              <select className="win-input w-full cursor-pointer" value={formData.cebe || ''} onChange={e => setFormData({ ...formData, cebe: e.target.value })}>
+              <label className="text-[10px] font-bold text-[#444] uppercase tracking-wide block">CEBE Asociado:</label>
+              <select className="w-full border border-[#999] px-2 py-1 text-[11px] text-[#222] bg-white outline-none focus:border-[#2b579a] focus:bg-[#fffee0] transition-colors rounded-none shadow-xs cursor-pointer" value={formData.cebe || ''} onChange={e => setFormData({ ...formData, cebe: e.target.value })}>
                 <option value=""></option>
                 {cebes.map(c => (
                   <option key={c.id} value={c.code}>{c.code} - {c.name}</option>
@@ -833,52 +833,52 @@ export default function RealEstate() {
             </div>
           </div>
         </div>
-        <div className="flex-1 flex flex-col bg-slate-50 border border-gray-200 rounded-md">
-          <div className="p-4 border-b border-gray-200 flex justify-between items-center bg-white rounded-t-md">
-            <h3 className="text-[12px] font-bold text-slate-800 uppercase italic">Documentos ({formData.name || 'Activo'})</h3>
+        <div className="flex-1 flex flex-col bg-white border border-[#ccc] shadow-xs mt-2">
+          <div className="px-3 py-1.5 border-b border-[#ccc] flex justify-between items-center bg-[#fafafa]">
+            <h3 className="text-[11px] font-bold text-[#333] uppercase">Documentos ({formData.name || 'Activo'})</h3>
             <div className="relative">
               <input type="file" multiple id="asset-doc-upload" className="hidden" onChange={handleAssetFileUpload} disabled={isUploading} />
-              <label htmlFor="asset-doc-upload" className={`btn-classic flex items-center space-x-1 px-3 py-1 cursor-pointer ${isUploading ? 'opacity-50 pointer-events-none' : ''}`}>
-                <FileArchive className="w-4 h-4" />
-                <span className="text-[11px] font-bold">{isUploading ? 'Subiendo...' : 'Subir Documento'}</span>
+              <label htmlFor="asset-doc-upload" className={`border border-[#888] bg-[#e1e1e1] hover:bg-[#d0d0d0] active:bg-[#c0c0c0] px-3 py-1 text-[11px] text-[#333] font-bold shadow-xs flex items-center space-x-1.5 cursor-pointer select-none transition-colors rounded-none ${isUploading ? 'opacity-50 pointer-events-none' : ''}`}>
+                <FileArchive className="w-3.5 h-3.5 text-[#444]" />
+                <span>{isUploading ? 'Subiendo...' : 'Subir Documento'}</span>
               </label>
             </div>
           </div>
-          <div className="flex-1 bg-white overflow-hidden flex flex-col min-h-[200px] rounded-b-md">
+          <div className="flex-1 bg-white overflow-hidden flex flex-col min-h-[180px]">
             <div className="flex-1 overflow-auto">
-              <table style={{ zoom: tableZoom }} className="clean-table border-0 min-w-full">
-                <thead className="sticky top-0 bg-[#f0f0f0]">
+              <table style={{ zoom: tableZoom }} className="w-full border-collapse text-[11px] border-0">
+                <thead className="sticky top-0 bg-[#fafafa] border-b border-[#ccc] text-[#333]">
                   <tr>
-                    <TableHeaderWithFilter key="name" label="Documento" columnKey="name" data={formData.docs} tableId="realestate-docs" className="w-[33%]" />
-                    <TableHeaderWithFilter key="concept" label="Concepto" columnKey="concept" data={formData.docs} tableId="realestate-docs" className="w-[33%]" />
-                    <TableHeaderWithFilter key="date" label="Fecha" columnKey="date" data={formData.docs} tableId="realestate-docs" className="w-[16%]" />
-                    <th className="w-[16%] text-center uppercase font-normal text-[11px] text-gray-700">Acción</th>
+                    <TableHeaderWithFilter key="name" label="Documento" columnKey="name" data={formData.docs} tableId="realestate-docs" className="w-[35%] py-1.5 px-2.5 text-left font-bold border-r border-[#ccc] text-[10px] text-[#333] uppercase" />
+                    <TableHeaderWithFilter key="concept" label="Concepto" columnKey="concept" data={formData.docs} tableId="realestate-docs" className="w-[35%] py-1.5 px-2.5 text-left font-bold border-r border-[#ccc] text-[10px] text-[#333] uppercase" />
+                    <TableHeaderWithFilter key="date" label="Fecha" columnKey="date" data={formData.docs} tableId="realestate-docs" className="w-[18%] py-1.5 px-2.5 text-left font-bold border-r border-[#ccc] text-[10px] text-[#333] uppercase" />
+                    <th className="w-[12%] py-1.5 px-2 text-center font-bold text-[10px] text-[#333] uppercase">Acción</th>
                   </tr>
                 </thead>
                 <tbody>
                   {(!formData.docs || formData.docs.length === 0) ? (
                     <tr>
-                      <td colSpan="4" className="text-center text-slate-400 italic py-8">No hay documentos asociados a este activo.</td>
+                      <td colSpan="4" className="text-center text-[#888] italic py-8 bg-[#fafafa]">No hay documentos asociados a este activo.</td>
                     </tr>
                   ) : (
                     applyTableFilters(formData.docs, 'realestate-docs').map((doc) => (
-                      <tr key={doc.id}>
-                        <td>
+                      <tr key={doc.id} className="border-b border-[#eee] hover:bg-[#f5f7fa]">
+                        <td className="py-1 px-2.5 border-r border-[#eee]">
                           <div className="flex items-center space-x-2 truncate">
-                            <FileText className="w-4 h-4 text-slate-400 shrink-0" />
-                            <span className="truncate" title={doc.name}>{doc.name}</span>
+                            <FileText className="w-3.5 h-3.5 text-[#666] shrink-0" />
+                            <span className="truncate text-[#222]" title={doc.name}>{doc.name}</span>
                           </div>
                         </td>
-                        <td>
-                          <input type="text" className="win-input w-full text-[11px]" value={doc.concept || ''} onChange={(e) => updateAssetDocument(doc.id, 'concept', e.target.value)} placeholder="Ej. Escritura, IBI..." />
+                        <td className="py-0.5 px-1.5 border-r border-[#eee]">
+                          <input type="text" className="w-full border border-[#ccc] focus:border-[#2b579a] px-2 py-0.5 text-[11px] bg-white outline-none focus:bg-[#fffee0] rounded-none" value={doc.concept || ''} onChange={(e) => updateAssetDocument(doc.id, 'concept', e.target.value)} placeholder="Ej. Escritura, IBI..." />
                         </td>
-                        <td>
-                          <input type="date" className="win-input w-full text-[11px]" value={doc.date || ''} onChange={(e) => updateAssetDocument(doc.id, 'date', e.target.value)} />
+                        <td className="py-0.5 px-1.5 border-r border-[#eee]">
+                          <input type="date" className="w-full border border-[#ccc] focus:border-[#2b579a] px-2 py-0.5 text-[11px] bg-white outline-none focus:bg-[#fffee0] rounded-none" value={doc.date || ''} onChange={(e) => updateAssetDocument(doc.id, 'date', e.target.value)} />
                         </td>
-                        <td>
-                          <div className="flex justify-center space-x-2">
-                            <button className="p-1 hover:bg-blue-50 text-blue-600 rounded" onClick={() => setPreviewDocument(doc)} title="Previsualizar"><Eye className="w-4 h-4" /></button>
-                            <button className="p-1 hover:bg-red-50 text-red-600 rounded" onClick={() => deleteAssetDocument(doc.id)} title="Eliminar"><Trash2 className="w-4 h-4" /></button>
+                        <td className="py-1 px-2 text-center">
+                          <div className="flex justify-center items-center space-x-1.5">
+                            <button className="border border-[#ccc] bg-[#f8f9fa] hover:bg-[#e9ecef] p-1 text-[#444] hover:text-[#111] shadow-2xs rounded-[2px]" onClick={() => setPreviewDocument(doc)} title="Previsualizar"><Eye className="w-3.5 h-3.5" /></button>
+                            <button className="border border-[#ccc] bg-[#f8f9fa] hover:bg-red-50 p-1 text-red-600 hover:text-red-700 shadow-2xs rounded-[2px]" onClick={() => deleteAssetDocument(doc.id)} title="Eliminar"><Trash2 className="w-3.5 h-3.5" /></button>
                           </div>
                         </td>
                       </tr>
@@ -1051,7 +1051,7 @@ export default function RealEstate() {
         </div>
       </div>
 
-      <div className="flex justify-between items-center bg-[#f0f0f0] p-1 border-t border-[#808080] text-[10px]">
+      <div className="flex justify-between items-center bg-[#fafafa] p-1 border-t border-[#808080] text-[10px]">
         <div>{filteredProperties.length} activos encontrados</div>
       </div>
 
@@ -1112,33 +1112,37 @@ export default function RealEstate() {
       {/* Property Form Window */}
       {showForm && (
         <ErrorBoundary>
-          <div className="fixed inset-0 bg-black/40 backdrop-blur-sm flex items-center justify-center z-50">
+          <div className="fixed inset-0 bg-gray-500/50 backdrop-blur-xs flex items-center justify-center z-50">
             <Window 
+              variant="classic"
               title={isEditing ? `Editar Activo: ${formData.reference || formData.id || 'Nuevo'}` : "Nuevo Activo"} 
-              width={isMobile ? "100%" : "1000px"}
-              height={isMobile ? "100%" : "700px"}
-              initialPos={{ x: isMobile ? 0 : 50, y: isMobile ? 0 : 20 }}
+              width={isMobile ? "100%" : "1020px"}
+              height={isMobile ? "100%" : "720px"}
+              initialPos={{ x: isMobile ? 0 : 40, y: isMobile ? 0 : 25 }}
               onClose={() => setShowForm(false)}
               onMenuClick={() => setShowSidebar(!showSidebar)}
             >
-              <div className="flex flex-1 h-full min-h-0 bg-[#d4d0c8] relative">
+              <div className="flex flex-1 h-full min-h-0 bg-[#fafafa] relative">
                 {/* Sidebar - shown when showSidebar=true on both mobile and desktop */}
                 {showSidebar && (
-                  <div className={`bg-[#f0f0f0] border-r border-[#808080] shrink-0 overflow-y-auto p-2 flex flex-col shadow-[inset_-1px_0_0_rgba(0,0,0,0.1)] ${isMobile ? 'absolute inset-y-0 left-0 z-30 w-56' : 'w-56'}`}>
-                    <div className="bg-white border border-[#a0a0a0] flex flex-col">
-                      {tabs.map((tab) => (
-                        <button
-                          key={tab.id}
-                          onClick={() => { setActiveTab(tab.id); setOpenFilterMenu(null); if (isMobile) setShowSidebar(false); }}
-                          className={`w-full text-left px-4 py-2.5 text-[12px] transition-colors border-y ${
-                            activeTab === tab.id
-                              ? 'bg-[#c0c0c0] text-black border-[#a0a0a0] shadow-[inset_0px_1px_1px_rgba(0,0,0,0.1)] font-semibold'
-                              : 'bg-white text-slate-700 border-transparent hover:bg-[#f8f8f8]'
-                          }`}
-                        >
-                          {tab.id}
-                        </button>
-                      ))}
+                  <div className={`bg-[#fafafa] border-r border-[#ccc] shrink-0 overflow-y-auto p-2 flex flex-col ${isMobile ? 'absolute inset-y-0 left-0 z-30 w-52' : 'w-52'}`}>
+                    <div className="border border-[#ccc] bg-[#f8f9fa] flex flex-col p-1 gap-1">
+                      {tabs.map((tab) => {
+                        const isActive = activeTab === tab.id;
+                        return (
+                          <button
+                            key={tab.id}
+                            onClick={() => { setActiveTab(tab.id); setOpenFilterMenu(null); if (isMobile) setShowSidebar(false); }}
+                            className={`w-full text-left px-3 py-2 text-[11px] transition-all border ${
+                              isActive
+                                ? 'bg-[#e1e1e1] text-[#111] border-[#888] shadow-[inset_0_1px_2px_rgba(0,0,0,0.12)] border-l-4 border-l-[#2b579a] font-bold'
+                                : 'bg-white text-[#555] border-[#ddd] hover:bg-[#e9ecef] hover:text-[#111] font-medium'
+                            }`}
+                          >
+                            {tab.id}
+                          </button>
+                        );
+                      })}
                     </div>
                   </div>
                 )}
@@ -1147,17 +1151,27 @@ export default function RealEstate() {
                   <div className="absolute inset-0 z-20 bg-black/30" onClick={() => setShowSidebar(false)} />
                 )}
                 {/* Tab Content Container */}
-                <div className="flex-1 bg-[#d4d0c8] flex flex-col relative overflow-hidden">
-                  <div className="flex-1 overflow-auto bg-[#d4d0c8] p-3">
-                    <div className="bg-[#d4d0c8] border border-white shadow-[1px_1px_0px_#000] p-4 min-h-full">
+                <div className="flex-1 bg-[#fafafa] flex flex-col relative overflow-hidden">
+                  <div className="flex-1 overflow-auto bg-[#fafafa] p-3">
+                    <div className="bg-white border border-[#ccc] shadow-sm p-4 min-h-full">
                       {renderTabContent()}
                     </div>
                   </div>
 
                   {/* Action Buttons */}
-                  <div className="flex justify-end gap-2 shrink-0 pt-2 pb-1 pr-1 bg-[#d4d0c8] border-t border-[#808080]">
-                    <button className="px-6 py-1 border border-gray-400 bg-gray-100 hover:bg-gray-200 shadow-sm text-[11px] font-bold uppercase" onClick={handleSave}>Aceptar</button>
-                    <button className="px-6 py-1 border border-gray-400 bg-gray-100 hover:bg-gray-200 shadow-sm text-[11px] font-bold uppercase" onClick={() => setShowForm(false)}>Cancelar</button>
+                  <div className="flex justify-end gap-2 p-3 bg-[#f5f5f5] border-t border-[#ccc] shrink-0">
+                    <button 
+                      className="w-[85px] py-[4px] border border-[#a0a0a0] bg-[#f5f5f5] hover:bg-[#e8e8e8] active:bg-[#d0d0d0] text-[12px] text-slate-800 shadow-xs font-normal select-none" 
+                      onClick={handleSave}
+                    >
+                      Aceptar
+                    </button>
+                    <button 
+                      className="w-[85px] py-[4px] border border-[#a0a0a0] bg-[#f5f5f5] hover:bg-[#e8e8e8] active:bg-[#d0d0d0] text-[12px] text-slate-800 shadow-xs font-normal select-none" 
+                      onClick={() => setShowForm(false)}
+                    >
+                      Cancelar
+                    </button>
                   </div>
                 </div>
               </div>
@@ -1167,7 +1181,7 @@ export default function RealEstate() {
       )}
       
       {/* Bottom Bar for Zoom */}
-      <div className="flex justify-end bg-[#f0f0f0] p-1 border-t border-gray-300 shrink-0 mt-auto z-10">
+      <div className="flex justify-end bg-[#fafafa] p-1 border-t border-gray-300 shrink-0 mt-auto z-10">
         <ZoomControl />
       </div>
     </div>

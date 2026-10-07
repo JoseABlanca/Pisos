@@ -51,10 +51,10 @@ export default function HipotecaTab({
   const activeInterestCeco = formData.mortgageCeco || '';
 
   const principalEntries = useMemo(() => {
-    if (!activeMortgageAccount || !formData.cebe) return [];
+    if (!formData.cebe) return [];
     
-    // Find the account document ID for the selected code
     const targetAccount = availableAccounts.find(a => a.code === activeMortgageAccount);
+    const cleanActiveAcc = String(activeMortgageAccount || '').trim().toLowerCase();
 
     const list = [];
     journalEntries.forEach(entry => {
@@ -63,25 +63,41 @@ export default function HipotecaTab({
       const hasLineCebe = entry.lines?.some(l => l.cebe);
       
       entry.lines?.forEach(l => {
-        const isAccMatch = (targetAccount && l.accountId === targetAccount.id) || 
-                           String(l.accountCode || l.accountId || '').trim() === String(activeMortgageAccount).trim();
-        if (!isAccMatch) return;
-        
         const lineCebe = l.cebe || (!hasLineCebe && entry.cebe) || '';
         if (lineCebe !== formData.cebe) return;
 
-        list.push({
-          date: entry.date,
-          debit: parseFloat(l.debit) || 0,
-          credit: parseFloat(l.credit) || 0
-        });
+        const accCode = String(l.accountCode || l.accountId || '').trim();
+
+        // Must NOT be interest account 662 / 66
+        if (accCode.startsWith('66')) return;
+
+        // Principal matching criteria:
+        // 1. Account starts with 52 (e.g. 520, 520001) or 17 (e.g. 170, 171)
+        const isStandardPrincipalAcc = accCode.startsWith('52') || accCode.startsWith('17');
+        
+        // 2. Matches configured activeMortgageAccount
+        const isAccMatch = !accCode.startsWith('66') && (
+          (targetAccount && l.accountId === targetAccount.id) || 
+          (cleanActiveAcc && accCode.toLowerCase() === cleanActiveAcc)
+        );
+
+        if (isStandardPrincipalAcc || isAccMatch) {
+          list.push({
+            date: entry.date,
+            debit: parseFloat(l.debit) || 0,
+            credit: parseFloat(l.credit) || 0
+          });
+        }
       });
     });
     return list.sort((a, b) => new Date(a.date) - new Date(b.date));
   }, [journalEntries, availableAccounts, activeMortgageAccount, formData.cebe]);
 
   const interestEntries = useMemo(() => {
-    if (!activeInterestCeco || !formData.cebe) return [];
+    if (!formData.cebe) return [];
+
+    const cleanInterestCeco = String(activeInterestCeco || '').trim().toLowerCase();
+    const targetAccount = availableAccounts.find(a => a.code === activeInterestCeco);
 
     const list = [];
     journalEntries.forEach(entry => {
@@ -93,18 +109,35 @@ export default function HipotecaTab({
         const lineCebe = l.cebe || (!hasLineLevel && entry.cebe) || '';
         if (lineCebe !== formData.cebe) return;
         
-        const lineCeco = l.ceco || (!hasLineLevel && entry.ceco) || '';
-        if (lineCeco !== activeInterestCeco) return;
+        const accCode = String(l.accountCode || l.accountId || '').trim();
+        const lineCeco = String(l.ceco || (!hasLineLevel && entry.ceco) || '').trim().toLowerCase();
 
-        list.push({
-          date: entry.date,
-          debit: parseFloat(l.debit) || 0,
-          credit: parseFloat(l.credit) || 0
-        });
+        // Interest matching criteria:
+        // 1. Account starts with 662 or 66 (Intereses de deudas)
+        const isStandardInterestAcc = accCode.startsWith('662') || accCode.startsWith('66');
+
+        // 2. Matches activeInterestCeco (CECO code/name)
+        const isCecoMatch = cleanInterestCeco && (
+          lineCeco === cleanInterestCeco ||
+          lineCeco.replace(/^(cebe|ceco)/i, '') === cleanInterestCeco.replace(/^(cebe|ceco)/i, '') ||
+          lineCeco.includes(cleanInterestCeco)
+        );
+
+        // 3. Matches account if activeInterestCeco was specified as an account code
+        const isAccMatch = (targetAccount && l.accountId === targetAccount.id) || 
+                           (cleanInterestCeco && accCode.toLowerCase() === cleanInterestCeco);
+
+        if (isStandardInterestAcc || isCecoMatch || isAccMatch) {
+          list.push({
+            date: entry.date,
+            debit: parseFloat(l.debit) || 0,
+            credit: parseFloat(l.credit) || 0
+          });
+        }
       });
     });
     return list.sort((a, b) => new Date(a.date) - new Date(b.date));
-  }, [journalEntries, activeInterestCeco, formData.cebe]);
+  }, [journalEntries, availableAccounts, activeInterestCeco, formData.cebe]);
 
   const realAmortizationTable = useMemo(() => {
     const P = parseFloat(formData.loanAmount) || 0;
@@ -369,28 +402,28 @@ export default function HipotecaTab({
         <button
           type="button"
           onClick={() => setActiveSubTab('datos')}
-          className={`px-4 py-2 text-[11px] font-bold flex items-center gap-2 border-r border-[#a0a0a0] ${activeSubTab === 'datos' ? 'bg-white text-blue-800 border-b-2 border-b-blue-500' : 'text-slate-600 hover:bg-[#e0e0e0]'}`}
+          className={`px-4 py-2 text-[11px] font-bold flex items-center gap-2 border-r border-[#a0a0a0] ${activeSubTab === 'datos' ? 'bg-white text-slate-800 border-b-2 border-b-slate-800' : 'text-slate-600 hover:bg-[#e0e0e0]'}`}
         >
           <Landmark className="w-3 h-3" /> Datos
         </button>
         <button
           type="button"
           onClick={() => setActiveSubTab('docs')}
-          className={`px-4 py-2 text-[11px] font-bold flex items-center gap-2 border-r border-[#a0a0a0] ${activeSubTab === 'docs' ? 'bg-white text-blue-800 border-b-2 border-b-blue-500' : 'text-slate-600 hover:bg-[#e0e0e0]'}`}
+          className={`px-4 py-2 text-[11px] font-bold flex items-center gap-2 border-r border-[#a0a0a0] ${activeSubTab === 'docs' ? 'bg-white text-slate-800 border-b-2 border-b-slate-800' : 'text-slate-600 hover:bg-[#e0e0e0]'}`}
         >
           <FolderOpen className="w-3 h-3" /> Documentos
         </button>
         <button
           type="button"
           onClick={() => setActiveSubTab('amortizacion_real')}
-          className={`px-4 py-2 text-[11px] font-bold flex items-center gap-2 border-r border-[#a0a0a0] ${activeSubTab === 'amortizacion_real' ? 'bg-white text-blue-800 border-b-2 border-b-blue-500' : 'text-slate-600 hover:bg-[#e0e0e0]'}`}
+          className={`px-4 py-2 text-[11px] font-bold flex items-center gap-2 border-r border-[#a0a0a0] ${activeSubTab === 'amortizacion_real' ? 'bg-white text-slate-800 border-b-2 border-b-slate-800' : 'text-slate-600 hover:bg-[#e0e0e0]'}`}
         >
           <Calculator className="w-3 h-3" /> Cuadro Amortización
         </button>
         <button
           type="button"
           onClick={() => setActiveSubTab('amortizacion')}
-          className={`px-4 py-2 text-[11px] font-bold flex items-center gap-2 border-r border-[#a0a0a0] ${activeSubTab === 'amortizacion' ? 'bg-white text-blue-800 border-b-2 border-b-blue-500' : 'text-slate-600 hover:bg-[#e0e0e0]'}`}
+          className={`px-4 py-2 text-[11px] font-bold flex items-center gap-2 border-r border-[#a0a0a0] ${activeSubTab === 'amortizacion' ? 'bg-white text-slate-800 border-b-2 border-b-slate-800' : 'text-slate-600 hover:bg-[#e0e0e0]'}`}
         >
           <Calculator className="w-3 h-3" /> Cuadro Amortización Teórico
         </button>
@@ -736,9 +769,9 @@ export default function HipotecaTab({
                 ) : (
                   <div className="p-2 space-y-1">
                     {calculateAmortization.map((row, idx) => (
-                      <div key={idx} className={`grid grid-cols-7 gap-2 px-2 py-1 text-[11px] text-right ${idx % 2 === 0 ? 'bg-white' : 'bg-slate-50'}`}>
-                        <div className="text-center">{row.month}</div>
-                        <div className="text-center">{row.date}</div>
+                      <div key={idx} className="grid grid-cols-7 gap-2 px-2 py-1 text-[11px] text-right bg-white border-b border-slate-100">
+                        <div className="text-center text-black">{row.month}</div>
+                        <div className="text-center text-black">{row.date}</div>
                         <div>{row.payment.toFixed(2)} €</div>
                         <div>{row.principal.toFixed(2)} €</div>
                         <div>{row.interest.toFixed(2)} €</div>
@@ -756,21 +789,17 @@ export default function HipotecaTab({
         {activeSubTab === 'amortizacion_real' && (
           <div className="h-full flex flex-col">
             <div className="flex justify-between items-center mb-4">
-              <h3 className="text-[12px] font-bold text-slate-800 uppercase italic">Cuadro de Amortización Real</h3>
-              <div className="text-[10px] bg-blue-50 border border-blue-200 px-3 py-1 rounded text-blue-800 flex gap-4">
+              <h3 className="text-[12px] font-bold text-black uppercase italic">Cuadro de Amortización Real</h3>
+              <div className="text-[10px] bg-white border border-[#808080] px-3 py-1 rounded text-black flex gap-4">
                 <span>CEBE: <strong>{formData.cebe || 'No configurado'}</strong></span>
-                <span>Principal: <strong>{activeMortgageAccount || 'No configurada'}</strong></span>
-                <span>Intereses: <strong>{activeInterestCeco || 'No configurado'}</strong></span>
+                <span>Principal: <strong>{activeMortgageAccount || 'Cuenta 520/170 (Auto)'}</strong></span>
+                <span>Intereses: <strong>{activeInterestCeco || 'Cuenta 662 / CECO Intereses (Auto)'}</strong></span>
               </div>
             </div>
             
             {!formData.cebe ? (
               <div className="text-center text-red-600 bg-red-50 border border-red-200 p-6 rounded text-[11px] italic">
                 ⚠️ Este activo no tiene un CEBE asociado. Asígnale un CEBE en la pestaña "Datos" para poder vincular sus movimientos contables.
-              </div>
-            ) : (!activeMortgageAccount || !activeInterestCeco) ? (
-              <div className="text-center text-amber-700 bg-amber-50 border border-amber-200 p-6 rounded text-[11px] italic">
-                ⚠️ Falta configurar la cuenta contable de principal y el CECO de intereses en la subpestaña "Datos".
               </div>
             ) : (
               <div className="flex-1 border border-[#808080] bg-white overflow-hidden flex flex-col min-h-[300px]">
@@ -791,14 +820,14 @@ export default function HipotecaTab({
                   ) : (
                     <div className="p-2 space-y-1">
                       {realAmortizationTable.map((row, idx) => (
-                        <div key={idx} className={`grid grid-cols-7 gap-2 px-2 py-1 text-[11px] text-right ${idx % 2 === 0 ? 'bg-white' : 'bg-slate-50'}`}>
-                          <div className="text-center">{row.month}</div>
-                          <div className="text-center">{row.date}</div>
-                          <div>{row.payment.toLocaleString('es-ES', { minimumFractionDigits: 2, maximumFractionDigits: 2 })} €</div>
-                          <div>{row.principal.toLocaleString('es-ES', { minimumFractionDigits: 2, maximumFractionDigits: 2 })} €</div>
-                          <div>{row.interest.toLocaleString('es-ES', { minimumFractionDigits: 2, maximumFractionDigits: 2 })} €</div>
-                          <div>{row.interestRate.toLocaleString('es-ES', { minimumFractionDigits: 2, maximumFractionDigits: 2 })} %</div>
-                          <div>{row.balance.toLocaleString('es-ES', { minimumFractionDigits: 2, maximumFractionDigits: 2 })} €</div>
+                        <div key={idx} className="grid grid-cols-7 gap-2 px-2 py-1 text-[11px] text-right bg-white border-b border-slate-100">
+                          <div className="text-center text-black">{row.month}</div>
+                          <div className="text-center text-black">{row.date}</div>
+                          <div className="text-black">{row.payment.toLocaleString('es-ES', { minimumFractionDigits: 2, maximumFractionDigits: 2 })} €</div>
+                          <div className="text-black">{row.principal.toLocaleString('es-ES', { minimumFractionDigits: 2, maximumFractionDigits: 2 })} €</div>
+                          <div className="text-black">{row.interest.toLocaleString('es-ES', { minimumFractionDigits: 2, maximumFractionDigits: 2 })} €</div>
+                          <div className="text-black">{row.interestRate.toLocaleString('es-ES', { minimumFractionDigits: 2, maximumFractionDigits: 2 })} %</div>
+                          <div className="text-black">{row.balance.toLocaleString('es-ES', { minimumFractionDigits: 2, maximumFractionDigits: 2 })} €</div>
                         </div>
                       ))}
                     </div>
@@ -894,11 +923,11 @@ export default function HipotecaTab({
                   }
                 }} 
                 disabled={!selectedCecoTemp}
-                className="btn-classic px-5 py-1 text-[10px] font-bold bg-blue-50 border-blue-300 hover:bg-blue-100 disabled:opacity-50"
+                className="btn-classic px-5 py-1 text-[10px] font-bold bg-[#e1e1e1] border-[#888] text-[#333] hover:bg-[#d0d0d0] disabled:opacity-50"
               >
                 Aceptar
               </button>
-              <button type="button" onClick={() => setShowCecosModal(false)} className="btn-classic px-5 py-1 text-[10px] font-bold">
+              <button type="button" onClick={() => setShowCecosModal(false)} className="btn-classic px-5 py-1 text-[10px] font-bold bg-[#e1e1e1] border-[#888] text-[#333] hover:bg-[#d0d0d0]">
                 Cancelar
               </button>
             </div>

@@ -3,7 +3,8 @@ import { useLocation, useNavigate } from 'react-router-dom';
 import { useAuth } from '../context/AuthContext';
 import { db } from '../firebase/config';
 import { collection, query, where, onSnapshot, doc, getDoc, setDoc, addDoc, serverTimestamp, writeBatch, increment } from 'firebase/firestore';
-import { Save, Plus, Trash2, X, Search, Edit2, Minus, FilePlus, RefreshCw } from 'lucide-react';
+import { Save, Plus, Trash2, X, Search, Edit2, Minus, FilePlus, RefreshCw, Copy, PanelLeft } from 'lucide-react';
+import { collection as fbCollection, query as fbQuery, where as fbWhere, onSnapshot as fbOnSnapshot } from 'firebase/firestore';
 import Accounts from './Accounts'; // Import Accounts to use as modal
 import AnalyticalCenters from './AnalyticalCenters'; // Import AnalyticalCenters to use as modal
 import ZoomControl from '../components/ZoomControl';
@@ -309,6 +310,16 @@ export default function JournalEntry() {
   const [hasCleanedCebes, setHasCleanedCebes] = useState(false);
   const [showCebeModal, setShowCebeModal] = useState(false);
   const [showCecoModal, setShowCecoModal] = useState(false);
+  const [showCopyModal, setShowCopyModal] = useState(false);
+  const [copyModalSearch, setCopyModalSearch] = useState('');
+  const [journalHistory, setJournalHistory] = useState([]);
+  const [copyModalSelectedId, setCopyModalSelectedId] = useState(null);
+  const [copyDateFilter, setCopyDateFilter] = useState('Todos');
+  const [copySelectedMonths, setCopySelectedMonths] = useState([]);
+  const [copySelectedQuarters, setCopySelectedQuarters] = useState([]);
+  const [copySelectedYears, setCopySelectedYears] = useState([]);
+  const [showCopySidebar, setShowCopySidebar] = useState(true);
+  const [copyFocusedAccountName, setCopyFocusedAccountName] = useState('');
   
   useEffect(() => {
     if (!user) return;
@@ -343,11 +354,20 @@ export default function JournalEntry() {
       (snap) => setCebes(snap.docs.map(d => ({ ...d.data(), id: d.id })))
     );
 
+    // Fetch journal entries for copy modal
+    const unsubJournal = fbOnSnapshot(
+      fbQuery(fbCollection(db, 'journal_entries'), fbWhere('userId', 'in', queryUserIds?.length > 0 ? queryUserIds : [user.uid])),
+      (snap) => {
+        setJournalHistory(snap.docs.map(d => ({ ...d.data(), id: d.id })));
+      }
+    );
+
     return () => {
       unsubAccounts();
       unsubEntries();
       unsubCecos();
       unsubCebes();
+      unsubJournal();
     };
   }, [user]);
 
@@ -743,6 +763,62 @@ export default function JournalEntry() {
     setShowCecoModal(false);
   };
 
+  const handleCopyEntry = (entry) => {
+    if (!entry || !entry.lines || entry.lines.length === 0) return;
+    const mappedLines = entry.lines.map((l, i) => {
+      const acct = accounts.find(a => a.id === l.accountId);
+      return {
+        id: i + 1,
+        account: acct ? acct.code : (l.accountCode || ''),
+        description: l.description || entry.description || '',
+        document: l.document || '',
+        ceco: l.ceco || entry.ceco || '',
+        cebe: l.cebe || entry.cebe || '',
+        debit: parseFloat(l.debit) || 0,
+        credit: parseFloat(l.credit) || 0,
+        image: null,
+        documentUrl: null,
+        documentName: null,
+      };
+    });
+    if (mappedLines.length < 2) {
+      mappedLines.push({ id: mappedLines.length + 1, account: '', description: '', document: '', ceco: '', cebe: '', debit: 0, credit: 0, image: null, documentUrl: null, documentName: null });
+    }
+    setLines(mappedLines);
+    setShowCopyModal(false);
+    setCopyModalSearch('');
+    setCopyModalSelectedId(null);
+  };
+
+  // Group journal history entries for copy modal display
+  const groupedJournalForCopy = useMemo(() => {
+    return journalHistory
+      .filter(e => {
+        if (!copyModalSearch) return true;
+        const q = copyModalSearch.toLowerCase();
+        return (
+          String(e.number || '').includes(q) ||
+          (e.description || '').toLowerCase().includes(q) ||
+          (e.date || '').includes(q) ||
+          (e.lines || []).some(l => {
+            const acct = accounts.find(a => a.id === l.accountId);
+            return (acct?.code || '').toLowerCase().includes(q) ||
+                   (acct?.name || '').toLowerCase().includes(q) ||
+                   (l.description || '').toLowerCase().includes(q) ||
+                   (l.document || '').toLowerCase().includes(q) ||
+                   (l.ceco || '').toLowerCase().includes(q) ||
+                   (l.cebe || '').toLowerCase().includes(q) ||
+                   String(l.debit || '').includes(q) ||
+                   String(l.credit || '').includes(q);
+          })
+        );
+      })
+      .sort((a, b) => {
+        if (a.date && b.date) return b.date.localeCompare(a.date);
+        return (b.number || 0) - (a.number || 0);
+      });
+  }, [journalHistory, copyModalSearch, accounts]);
+
   return (
     <div className="flex flex-col h-full bg-white relative">
       {/* Header Info */}
@@ -789,6 +865,24 @@ export default function JournalEntry() {
             <div className="absolute -bottom-1 -right-1 bg-white rounded-full">
               <Plus className="w-3.5 h-3.5 text-green-500 stroke-[3]" />
             </div>
+          </div>
+        </button>
+        <button
+          onClick={() => setShowCopyModal(true)}
+          className="p-1 hover:bg-gray-200 rounded flex items-center justify-center"
+          title="Copiar asiento desde el diario"
+        >
+          <div className="relative w-[22px] h-[22px]">
+            {/* Fichero de atrás */}
+            <svg width="18" height="20" viewBox="0 0 14 17" fill="none" stroke="#0ea5e9" strokeWidth="1.4" strokeLinecap="round" strokeLinejoin="round" style={{position:'absolute', top:2, left:4}}>
+              <path d="M2 1h7l3 3v11a1 1 0 0 1-1 1H2a1 1 0 0 1-1-1V2a1 1 0 0 1 1-1z"/>
+              <polyline points="9 1 9 4 12 4"/>
+            </svg>
+            {/* Fichero de delante */}
+            <svg width="18" height="20" viewBox="0 0 14 17" fill="white" stroke="#0ea5e9" strokeWidth="1.4" strokeLinecap="round" strokeLinejoin="round" style={{position:'absolute', top:0, left:0}}>
+              <path d="M2 1h7l3 3v11a1 1 0 0 1-1 1H2a1 1 0 0 1-1-1V2a1 1 0 0 1 1-1z"/>
+              <polyline points="9 1 9 4 12 4"/>
+            </svg>
           </div>
         </button>
         <div className="w-px h-5 bg-gray-300 mx-1"></div>
@@ -1090,6 +1184,343 @@ export default function JournalEntry() {
           </div>
         </div>
       )}
+
+      {/* Copy Entry Modal — Consulta de Diario style */}
+      {showCopyModal && (() => {
+        // Flatten journal entries into individual lines (same as JournalList)
+        const allFlatCopyLines = [];
+        groupedJournalForCopy.forEach(entry => {
+          (entry.lines || []).forEach((line, lineIdx) => {
+            const acct = accounts.find(a => a.id === line.accountId);
+            allFlatCopyLines.push({
+              entryId: entry.id,
+              number: entry.number,
+              date: entry.date,
+              lineOrder: lineIdx + 1,
+              accountCode: acct ? acct.code : (line.accountCode || ''),
+              description: line.description || entry.description || 'Sin concepto',
+              document: line.document || '',
+              ceco: (entry.lines && entry.lines.some(l => l.ceco || l.cebe)) ? (line.ceco || '') : (entry.ceco || ''),
+              cebe: (entry.lines && entry.lines.some(l => l.ceco || l.cebe)) ? (line.cebe || '') : (entry.cebe || ''),
+              debit: parseFloat(line.debit) || 0,
+              credit: parseFloat(line.credit) || 0,
+              originalEntry: entry,
+            });
+          });
+        });
+
+        // Apply date filters
+        const monthNames = ['ENE','FEB','MAR','ABR','MAY','JUN','JUL','AGO','SEP','OCT','NOV','DIC'];
+        let flatCopyLines = allFlatCopyLines.filter(item => {
+          if (!item.date) return true;
+          const itemDate = new Date(item.date);
+          const today = new Date();
+
+          // Date filter from sidebar
+          if (copyDateFilter !== 'Todos') {
+            if (copyDateFilter === 'De hoy' || copyDateFilter === 'Creados/modificados hoy') {
+              if (itemDate.toDateString() !== today.toDateString()) return false;
+            } else if (copyDateFilter === 'De la última semana') {
+              const lastWeek = new Date(today);
+              lastWeek.setDate(today.getDate() - 7);
+              if (itemDate < lastWeek) return false;
+            } else if (copyDateFilter === 'Del último mes') {
+              const lastMonth = new Date(today);
+              lastMonth.setMonth(today.getMonth() - 1);
+              if (itemDate < lastMonth) return false;
+            }
+          }
+
+          // Timeline filters (months, quarters, years)
+          const dateParts = String(item.date).split('-');
+          const y = parseInt(dateParts[0], 10);
+          const m = parseInt(dateParts[1], 10) - 1;
+
+          if (copySelectedYears.length > 0) {
+            if (!copySelectedYears.includes(String(y))) return false;
+          }
+
+          if (copySelectedMonths.length > 0 || copySelectedQuarters.length > 0) {
+            const matchMonth = copySelectedMonths.includes(monthNames[m]);
+            const matchQuarter = copySelectedQuarters.some(q => {
+              if (q === '1T') return m >= 0 && m <= 2;
+              if (q === '2T') return m >= 3 && m <= 5;
+              if (q === '3T') return m >= 6 && m <= 8;
+              if (q === '4T') return m >= 9 && m <= 11;
+              return false;
+            });
+            if (!matchMonth && !matchQuarter) return false;
+          }
+
+          return true;
+        });
+
+        // Apply '100 últimos asientos' limit
+        if (copyDateFilter === '100 últimos asientos') {
+          flatCopyLines = flatCopyLines.slice(0, 100);
+        }
+
+        return (
+        <div className="fixed inset-0 bg-black/30 flex items-center justify-center z-[9999] p-4">
+          <div className="bg-white shadow-2xl rounded-lg flex flex-col w-[98vw] max-w-[1400px] h-[90vh] overflow-hidden border border-gray-400">
+            {/* Modal Header */}
+            <div className="flex justify-between items-center px-4 py-2 bg-[#4e80c8] text-white select-none shrink-0">
+              <div className="flex items-center gap-2">
+                <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="white" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                  <rect x="9" y="9" width="13" height="13" rx="2" ry="2"></rect>
+                  <path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"></path>
+                </svg>
+                <h2 className="font-bold text-[13px] tracking-wide">COPIAR ASIENTO DEL DIARIO</h2>
+              </div>
+              <div className="flex items-center gap-3">
+                <div className="flex items-center border-b border-white/40 px-1 w-64">
+                  <input 
+                    autoFocus
+                    type="text" 
+                    placeholder="Buscar en el fichero (Alt+B)" 
+                    className="w-full text-[12px] py-0.5 outline-none bg-transparent text-white placeholder-white/60"
+                    value={copyModalSearch}
+                    onChange={(e) => setCopyModalSearch(e.target.value)}
+                  />
+                  <Search className="w-4 h-4 text-white/60 ml-1" />
+                </div>
+                <span className="text-[11px] text-white/70">{groupedJournalForCopy.length} asiento(s)</span>
+                <button 
+                  onClick={() => setShowCopySidebar(!showCopySidebar)} 
+                  className="text-white/80 hover:text-white p-1 rounded hover:bg-white/20 transition-colors"
+                  title={showCopySidebar ? 'Ocultar Filtros' : 'Mostrar Filtros'}
+                >
+                  <PanelLeft className="w-4 h-4" />
+                </button>
+                <button onClick={() => { setShowCopyModal(false); setCopyModalSearch(''); setCopyModalSelectedId(null); setCopyDateFilter('Todos'); setCopySelectedMonths([]); setCopySelectedQuarters([]); setCopySelectedYears([]); setCopyFocusedAccountName(''); }} className="hover:bg-white/20 p-1 rounded">
+                  <X className="w-5 h-5" />
+                </button>
+              </div>
+            </div>
+
+            {/* Body: Sidebar + Timeline + Table */}
+            <div className="flex flex-1 overflow-hidden uppercase">
+              
+              {/* Left Sidebar - Date Filters */}
+              {showCopySidebar && (
+                <div className="w-40 border-r border-gray-300 bg-[#f9fafc] flex flex-col shrink-0 text-[11px] text-gray-700">
+                  <div className="flex-1 p-3 overflow-y-auto space-y-4">
+                    <div>
+                      <h3 className="font-bold mb-2 text-[#2a3042]">FECHAS:</h3>
+                      <div className="space-y-1.5 ml-1">
+                        {['Todos', 'De hoy', 'De la última semana', 'Del último mes', '100 últimos asientos', 'Creados/modificados hoy'].map(filter => (
+                          <label key={filter} className="flex items-center space-x-1.5 cursor-pointer hover:bg-gray-200 p-0.5 rounded -ml-0.5">
+                            <input 
+                              type="radio" 
+                              name="copyDateFilter" 
+                              className="w-3 h-3 text-blue-600" 
+                              checked={copyDateFilter === filter}
+                              onChange={() => setCopyDateFilter(filter)}
+                            /> 
+                            <span>{filter.toUpperCase()}</span>
+                          </label>
+                        ))}
+                      </div>
+                    </div>
+                    <div>
+                      <button 
+                        onClick={() => {
+                          setCopySelectedMonths([]);
+                          setCopySelectedQuarters([]);
+                          setCopySelectedYears([]);
+                          setCopyDateFilter('Todos');
+                        }}
+                        className="w-full py-1.5 px-3 bg-gray-100 hover:bg-gray-200 text-gray-600 border border-gray-300 rounded text-[10px] font-bold uppercase transition-colors"
+                      >
+                        Quitar filtros temporales
+                      </button>
+                    </div>
+                  </div>
+                </div>
+              )}
+
+              {/* Timeline Column */}
+              <div className="w-8 border-r border-gray-300 bg-white flex flex-col items-center py-2 space-y-2 text-[10px] font-bold text-gray-600 overflow-y-auto shrink-0 select-none">
+                {['ENE','FEB','MAR','ABR','MAY','JUN','JUL','AGO','SEP','OCT','NOV','DIC'].map(m => (
+                  <span 
+                    key={m} 
+                    onClick={() => setCopySelectedMonths(prev => prev.includes(m) ? prev.filter(x => x !== m) : [...prev, m])}
+                    className={`hover:text-blue-600 cursor-pointer p-0.5 w-full text-center transition-colors ${copySelectedMonths.includes(m) ? 'bg-blue-100 text-blue-700 font-bold' : ''}`}
+                  >{m}</span>
+                ))}
+                {['1T', '2T', '3T', '4T'].map((q, idx) => (
+                  <span 
+                    key={q}
+                    onClick={() => setCopySelectedQuarters(prev => prev.includes(q) ? prev.filter(x => x !== q) : [...prev, q])}
+                    className={`w-full text-center hover:text-blue-600 cursor-pointer transition-colors ${idx === 0 ? 'mt-2 pt-2 border-t border-gray-300' : ''} ${copySelectedQuarters.includes(q) ? 'bg-blue-100 text-blue-700 font-bold' : ''}`}
+                  >{q}</span>
+                ))}
+                {['2024', '2025', '2026', '2027'].map((yr, idx) => (
+                  <span 
+                    key={yr}
+                    onClick={() => setCopySelectedYears(prev => prev.includes(yr) ? prev.filter(x => x !== yr) : [...prev, yr])}
+                    className={`w-full text-center hover:text-blue-600 cursor-pointer transition-colors ${idx === 0 ? 'mt-2 pt-2 border-t border-gray-300' : ''} ${copySelectedYears.includes(yr) ? 'bg-blue-100 text-blue-700 font-bold' : ''}`}
+                  >{yr}</span>
+                ))}
+              </div>
+
+              {/* Main Table */}
+              <div className="flex-1 bg-white flex flex-col min-w-0">
+                <div className="flex-1 overflow-auto">
+                  <table className="w-full h-full text-left border-collapse text-[11px] font-sans">
+                    <thead className="bg-white sticky top-0 z-10">
+                      <tr>
+                        <th className="border-b border-gray-300 px-2 py-1.5 text-center w-8">
+                          <input 
+                            type="checkbox" 
+                            className="w-3 h-3"
+                            checked={flatCopyLines.length > 0 && copyModalSelectedId === flatCopyLines[0]?.entryId}
+                            onChange={(e) => {
+                              if (e.target.checked && flatCopyLines.length > 0) {
+                                setCopyModalSelectedId(flatCopyLines[0].entryId);
+                              } else {
+                                setCopyModalSelectedId(null);
+                              }
+                            }}
+                          />
+                        </th>
+                        <th className="border-b border-gray-300 px-2 py-1.5 font-normal text-gray-600 w-24 text-center uppercase">FECHA</th>
+                        <th className="border-b border-gray-300 px-2 py-1.5 font-normal text-gray-600 w-16 text-center uppercase">ASI.</th>
+                        <th className="border-b border-gray-300 px-2 py-1.5 font-normal text-gray-600 w-16 text-center uppercase">ORD.</th>
+                        <th className="border-b border-gray-300 px-2 py-1.5 font-normal text-gray-600 w-24 uppercase">CUENTA</th>
+                        <th className="border-b border-gray-300 px-2 py-1.5 font-normal text-gray-600 flex-1 min-w-[200px] uppercase">CONCEPTO</th>
+                        <th className="border-b border-gray-300 px-2 py-1.5 font-normal text-gray-600 w-24 uppercase">DOCUM.</th>
+                        <th className="border-b border-gray-300 px-2 py-1.5 font-normal text-gray-600 w-20 uppercase">CECO</th>
+                        <th className="border-b border-gray-300 px-2 py-1.5 font-normal text-gray-600 w-20 uppercase">CEBE</th>
+                        <th className="border-b border-gray-300 px-2 py-1.5 font-normal text-gray-600 w-24 text-right uppercase">DEBE</th>
+                        <th className="border-b border-gray-300 px-2 py-1.5 font-normal text-gray-600 w-24 text-right uppercase">HABER</th>
+                        <th className="border-b border-gray-300 px-2 py-1.5 font-normal text-gray-600 w-8 text-center uppercase">P</th>
+                        <th className="border-b border-gray-300 px-2 py-1.5 font-normal text-gray-600 w-12 text-center uppercase">IMP</th>
+                      </tr>
+                    </thead>
+                    <tbody>
+                      {flatCopyLines.length === 0 ? (
+                        <tr>
+                          <td colSpan="13" className="text-center italic py-10 text-slate-400 text-[11px]">
+                            {journalHistory.length === 0 ? 'CARGANDO DATOS...' : 'NO HAY ASIENTOS QUE COINCIDAN CON LA BÚSQUEDA'}
+                          </td>
+                        </tr>
+                      ) : (
+                        flatCopyLines.map((item, idx) => {
+                          const isSelected = copyModalSelectedId === item.entryId;
+                          return (
+                            <tr 
+                              key={`${item.entryId}-${idx}`} 
+                              className={`border-b border-gray-200 cursor-pointer transition-colors ${
+                                isSelected
+                                  ? 'bg-blue-50 border-l-2 border-l-blue-400'
+                                  : 'hover:bg-blue-50/50'
+                              }`}
+                              onClick={() => {
+                                setCopyModalSelectedId(item.entryId);
+                                const acc = accounts.find(a => a.code === item.accountCode);
+                                setCopyFocusedAccountName(acc ? `${acc.code} - ${acc.name}` : item.accountCode);
+                              }}
+                              onDoubleClick={() => handleCopyEntry(item.originalEntry)}
+                            >
+                              <td className="px-2 py-1 text-center" onClick={(e) => e.stopPropagation()}>
+                                <input 
+                                  type="checkbox" 
+                                  className="w-3 h-3 cursor-pointer"
+                                  checked={isSelected}
+                                  onChange={() => {
+                                    setCopyModalSelectedId(isSelected ? null : item.entryId);
+                                    if (!isSelected) {
+                                      const acc = accounts.find(a => a.code === item.accountCode);
+                                      setCopyFocusedAccountName(acc ? `${acc.code} - ${acc.name}` : item.accountCode);
+                                    }
+                                  }}
+                                />
+                              </td>
+                              <td className="px-2 py-1 text-center text-gray-700">
+                                {item.date ? new Date(item.date).toLocaleDateString('es-ES', {day: '2-digit', month: '2-digit', year: '2-digit'}) : '—'}
+                              </td>
+                              <td className="px-2 py-1 text-center text-gray-700">{item.number || '—'}</td>
+                              <td className="px-2 py-1 text-center text-gray-700">{item.lineOrder}</td>
+                              <td className="px-2 py-1 text-gray-700 font-mono">{item.accountCode}</td>
+                              <td className="px-2 py-1 truncate max-w-[200px] text-gray-700" title={item.description}>{item.description}</td>
+                              <td className="px-2 py-1 text-gray-700">{item.document}</td>
+                              <td className="px-2 py-1 text-gray-700">{item.ceco}</td>
+                              <td className="px-2 py-1 text-gray-700">{item.cebe}</td>
+                              <td className="px-2 py-1 text-right text-gray-700">{item.debit > 0 ? item.debit.toLocaleString('es-ES', {minimumFractionDigits: 2}) : '0,00'}</td>
+                              <td className="px-2 py-1 text-right text-gray-700">{item.credit > 0 ? item.credit.toLocaleString('es-ES', {minimumFractionDigits: 2}) : '0,00'}</td>
+                              <td className="px-2 py-1 text-center text-gray-700">
+                                <input type="checkbox" className="w-3 h-3 cursor-pointer" defaultChecked={item.debit > 0 || item.credit > 0} readOnly />
+                              </td>
+                              <td className="px-2 py-1 text-center text-gray-700">
+                                <input type="checkbox" className="w-3.5 h-3.5 cursor-pointer accent-blue-600" defaultChecked={!!item.originalEntry?.isImpuesto} readOnly />
+                              </td>
+                            </tr>
+                          );
+                        })
+                      )}
+                      <tr className="h-full">
+                        <td colSpan="13"></td>
+                      </tr>
+                    </tbody>
+                    <tfoot className="sticky bottom-0 z-10 bg-[#f8f9fa] border-t-2 border-gray-300 shadow-[0_-2px_10px_rgba(0,0,0,0.05)] select-none">
+                      <tr className="font-bold text-gray-800 border-t border-gray-300">
+                        <td colSpan="9" className="px-2 py-2 text-right">TOTALES:</td>
+                        <td className="px-2 py-2 text-right text-red-600 font-sans tabular-nums">
+                          {flatCopyLines.reduce((s, l) => s + l.debit, 0).toLocaleString('es-ES', {minimumFractionDigits: 2, maximumFractionDigits: 2})}
+                        </td>
+                        <td className="px-2 py-2 text-right text-red-600 font-sans tabular-nums">
+                          {flatCopyLines.reduce((s, l) => s + l.credit, 0).toLocaleString('es-ES', {minimumFractionDigits: 2, maximumFractionDigits: 2})}
+                        </td>
+                        <td colSpan="2"></td>
+                      </tr>
+                      <tr className="text-[10px] text-gray-600 border-t border-gray-200">
+                        <td colSpan="13" className="px-4 py-1.5 text-left italic normal-case">
+                          {copyFocusedAccountName ? `Cuenta seleccionada: ${copyFocusedAccountName}` : '\u00A0'}
+                        </td>
+                      </tr>
+                    </tfoot>
+                  </table>
+                </div>
+              </div>
+            </div>
+
+            {/* Footer actions */}
+            <div className="px-4 py-2 border-t border-gray-200 bg-gray-50 flex items-center justify-between shrink-0">
+              <span className="text-[11px] text-gray-500 normal-case">
+                {copyModalSelectedId ? 'Asiento seleccionado — pulsa Copiar o haz doble clic para cargar las líneas' : 'Selecciona un asiento de la lista'}
+              </span>
+              <div className="flex gap-2">
+                <button
+                  onClick={() => { setShowCopyModal(false); setCopyModalSearch(''); setCopyModalSelectedId(null); setCopyFocusedAccountName(''); }}
+                  className="px-3 py-1.5 text-[11px] border border-gray-300 rounded hover:bg-gray-100 text-gray-600"
+                >
+                  Cancelar
+                </button>
+                <button
+                  disabled={!copyModalSelectedId}
+                  onClick={() => {
+                    const entry = groupedJournalForCopy.find(e => e.id === copyModalSelectedId);
+                    if (entry) handleCopyEntry(entry);
+                  }}
+                  className={`px-4 py-1.5 text-[11px] rounded font-bold flex items-center gap-1.5 transition-all ${
+                    copyModalSelectedId
+                      ? 'bg-[#4e80c8] hover:bg-[#3d6db0] text-white shadow-sm'
+                      : 'bg-gray-200 text-gray-400 cursor-not-allowed'
+                  }`}
+                >
+                  <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
+                    <rect x="9" y="9" width="13" height="13" rx="2" ry="2"></rect>
+                    <path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"></path>
+                  </svg>
+                  Copiar asiento
+                </button>
+              </div>
+            </div>
+          </div>
+        </div>
+        );
+      })()}
 
     </div>
   );

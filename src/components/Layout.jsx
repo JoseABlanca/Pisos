@@ -3,13 +3,13 @@ import { Outlet, Link, useLocation, useNavigate } from 'react-router-dom';
 import { db } from '../firebase/config';
 import { collection, query, where, getDocs } from 'firebase/firestore';
 import { useAuth } from '../context/AuthContext';
-import { 
-  LayoutDashboard, 
-  BookOpen, 
-  Library, 
-  Scale, 
-  FilePieChart, 
-  Settings, 
+import {
+  LayoutDashboard,
+  BookOpen,
+  Library,
+  Scale,
+  FilePieChart,
+  Settings,
   LogOut,
   PlusCircle,
   X,
@@ -46,177 +46,177 @@ const RibbonCustomIcon = ({ type }) => {
     case 'Asientos':
       return (
         <svg width="32" height="32" viewBox="0 0 32 32" fill="none" xmlns="http://www.w3.org/2000/svg">
-          <rect x="6" y="2" width="18" height="24" fill="white" stroke="#444" strokeWidth="1.2"/>
-          <line x1="6" y1="9" x2="24" y2="9" stroke="#444" strokeWidth="1"/>
+          <rect x="6" y="2" width="18" height="24" fill="white" stroke="#444" strokeWidth="1.2" />
+          <line x1="6" y1="9" x2="24" y2="9" stroke="#444" strokeWidth="1" />
           <text x="8" y="7.5" fill="#222" fontSize="6" fontFamily="sans-serif" fontWeight="bold">D</text>
           <text x="18" y="7.5" fill="#222" fontSize="6" fontFamily="sans-serif" fontWeight="bold">H</text>
-          <line x1="8" y1="12" x2="22" y2="12" stroke="#aaa" strokeWidth="1"/>
-          <line x1="8" y1="15" x2="16" y2="15" stroke="#aaa" strokeWidth="1"/>
-          <line x1="8" y1="18" x2="22" y2="18" stroke="#aaa" strokeWidth="1"/>
-          <line x1="8" y1="21" x2="14" y2="21" stroke="#aaa" strokeWidth="1"/>
-          <path d="M 17 18 L 27 18 M 22 13 L 22 23" stroke="#16a34a" strokeWidth="2.5"/>
+          <line x1="8" y1="12" x2="22" y2="12" stroke="#aaa" strokeWidth="1" />
+          <line x1="8" y1="15" x2="16" y2="15" stroke="#aaa" strokeWidth="1" />
+          <line x1="8" y1="18" x2="22" y2="18" stroke="#aaa" strokeWidth="1" />
+          <line x1="8" y1="21" x2="14" y2="21" stroke="#aaa" strokeWidth="1" />
+          <path d="M 17 18 L 27 18 M 22 13 L 22 23" stroke="#16a34a" strokeWidth="2.5" />
         </svg>
       );
     case 'Punteo':
       return (
         <svg width="32" height="32" viewBox="0 0 32 32" fill="none" xmlns="http://www.w3.org/2000/svg">
-          <rect x="6" y="2" width="18" height="24" fill="white" stroke="#444" strokeWidth="1.2"/>
-          <line x1="6" y1="9" x2="24" y2="9" stroke="#444" strokeWidth="1"/>
+          <rect x="6" y="2" width="18" height="24" fill="white" stroke="#444" strokeWidth="1.2" />
+          <line x1="6" y1="9" x2="24" y2="9" stroke="#444" strokeWidth="1" />
           <text x="8" y="7.5" fill="#222" fontSize="6" fontFamily="sans-serif" fontWeight="bold">D</text>
           <text x="18" y="7.5" fill="#222" fontSize="6" fontFamily="sans-serif" fontWeight="bold">H</text>
-          <line x1="8" y1="12" x2="22" y2="12" stroke="#aaa" strokeWidth="1"/>
-          <line x1="8" y1="15" x2="16" y2="15" stroke="#aaa" strokeWidth="1"/>
-          <line x1="8" y1="18" x2="16" y2="18" stroke="#aaa" strokeWidth="1"/>
-          <line x1="8" y1="21" x2="14" y2="21" stroke="#aaa" strokeWidth="1"/>
-          <rect x="18" y="14" width="10" height="10" fill="white" stroke="#444" strokeWidth="1"/>
-          <path d="M 20 19 L 22 21 L 26 16" stroke="#16a34a" strokeWidth="2" fill="none"/>
+          <line x1="8" y1="12" x2="22" y2="12" stroke="#aaa" strokeWidth="1" />
+          <line x1="8" y1="15" x2="16" y2="15" stroke="#aaa" strokeWidth="1" />
+          <line x1="8" y1="18" x2="16" y2="18" stroke="#aaa" strokeWidth="1" />
+          <line x1="8" y1="21" x2="14" y2="21" stroke="#aaa" strokeWidth="1" />
+          <rect x="18" y="14" width="10" height="10" fill="white" stroke="#444" strokeWidth="1" />
+          <path d="M 20 19 L 22 21 L 26 16" stroke="#16a34a" strokeWidth="2" fill="none" />
         </svg>
       );
     case 'Conciliacion':
       return (
         <svg width="32" height="32" viewBox="0 0 32 32" fill="none" xmlns="http://www.w3.org/2000/svg">
-          <rect x="6" y="2" width="18" height="26" fill="white" stroke="#444" strokeWidth="1.2"/>
-          <line x1="6" y1="9" x2="24" y2="9" stroke="#444" strokeWidth="1"/>
+          <rect x="6" y="2" width="18" height="26" fill="white" stroke="#444" strokeWidth="1.2" />
+          <line x1="6" y1="9" x2="24" y2="9" stroke="#444" strokeWidth="1" />
           <text x="8" y="7.5" fill="#222" fontSize="6" fontFamily="sans-serif" fontWeight="bold">D</text>
           <text x="18" y="7.5" fill="#222" fontSize="6" fontFamily="sans-serif" fontWeight="bold">H</text>
-          <line x1="8" y1="12" x2="22" y2="12" stroke="#aaa" strokeWidth="1"/>
-          <line x1="8" y1="15" x2="16" y2="15" stroke="#aaa" strokeWidth="1"/>
-          <rect x="13" y="14" width="16" height="14" fill="#f8fafc"/>
-          <path d="M 13 18 L 21 14 L 29 18" fill="none" stroke="#444" strokeWidth="1.5"/>
-          <rect x="16" y="18" width="2" height="6" fill="none" stroke="#f59e0b" strokeWidth="1"/>
-          <rect x="20" y="18" width="2" height="6" fill="none" stroke="#f59e0b" strokeWidth="1"/>
-          <rect x="24" y="18" width="2" height="6" fill="none" stroke="#f59e0b" strokeWidth="1"/>
-          <line x1="13" y1="24" x2="29" y2="24" stroke="#444" strokeWidth="1.5"/>
-          <line x1="12" y1="26" x2="30" y2="26" stroke="#444" strokeWidth="1.5"/>
+          <line x1="8" y1="12" x2="22" y2="12" stroke="#aaa" strokeWidth="1" />
+          <line x1="8" y1="15" x2="16" y2="15" stroke="#aaa" strokeWidth="1" />
+          <rect x="13" y="14" width="16" height="14" fill="#f8fafc" />
+          <path d="M 13 18 L 21 14 L 29 18" fill="none" stroke="#444" strokeWidth="1.5" />
+          <rect x="16" y="18" width="2" height="6" fill="none" stroke="#f59e0b" strokeWidth="1" />
+          <rect x="20" y="18" width="2" height="6" fill="none" stroke="#f59e0b" strokeWidth="1" />
+          <rect x="24" y="18" width="2" height="6" fill="none" stroke="#f59e0b" strokeWidth="1" />
+          <line x1="13" y1="24" x2="29" y2="24" stroke="#444" strokeWidth="1.5" />
+          <line x1="12" y1="26" x2="30" y2="26" stroke="#444" strokeWidth="1.5" />
         </svg>
       );
-      case 'BalanceSumas':
-        return (
-          <svg width="32" height="32" viewBox="0 0 32 32" fill="none" xmlns="http://www.w3.org/2000/svg">
-            <path d="M 12 24 L 20 24 L 22 26 L 10 26 Z" fill="#d4d4d4" stroke="#444" strokeWidth="1.2" strokeLinejoin="round"/>
-            <line x1="16" y1="24" x2="16" y2="6" stroke="#444" strokeWidth="1.2"/>
-            <line x1="8" y1="9" x2="24" y2="9" stroke="#444" strokeWidth="1.2" strokeLinecap="round"/>
-            <path d="M 16 6.5 L 17.5 8 L 16 9.5 L 14.5 8 Z" fill="none" stroke="#444" strokeWidth="1.2"/>
-            <line x1="8" y1="9" x2="4" y2="17" stroke="#444" strokeWidth="1"/>
-            <line x1="8" y1="9" x2="12" y2="17" stroke="#444" strokeWidth="1"/>
-            <line x1="24" y1="9" x2="20" y2="17" stroke="#444" strokeWidth="1"/>
-            <line x1="24" y1="9" x2="28" y2="17" stroke="#444" strokeWidth="1"/>
-            <path d="M 3 17 L 13 17 C 13 22 3 22 3 17 Z" fill="#fde08b" stroke="#ea580c" strokeWidth="1.2" strokeLinejoin="round"/>
-            <path d="M 19 17 L 29 17 C 29 22 19 22 19 17 Z" fill="#fde08b" stroke="#ea580c" strokeWidth="1.2" strokeLinejoin="round"/>
-          </svg>
-        );
-      case 'SaldosMensuales':
-        return (
-          <svg width="32" height="32" viewBox="0 0 32 32" fill="none" xmlns="http://www.w3.org/2000/svg">
-            <path d="M 12 24 L 20 24 L 22 26 L 10 26 Z" fill="#d4d4d4" stroke="#444" strokeWidth="1.2" strokeLinejoin="round"/>
-            <line x1="16" y1="24" x2="16" y2="6" stroke="#444" strokeWidth="1.2"/>
-            <line x1="8" y1="9" x2="24" y2="9" stroke="#444" strokeWidth="1.2" strokeLinecap="round"/>
-            <path d="M 16 6.5 L 17.5 8 L 16 9.5 L 14.5 8 Z" fill="none" stroke="#444" strokeWidth="1.2"/>
-            <line x1="8" y1="9" x2="4" y2="17" stroke="#444" strokeWidth="1"/>
-            <line x1="8" y1="9" x2="12" y2="17" stroke="#444" strokeWidth="1"/>
-            <line x1="24" y1="9" x2="20" y2="17" stroke="#444" strokeWidth="1"/>
-            <line x1="24" y1="9" x2="28" y2="17" stroke="#444" strokeWidth="1"/>
-            <path d="M 3 17 L 13 17 C 13 22 3 22 3 17 Z" fill="#fde08b" stroke="#ea580c" strokeWidth="1.2" strokeLinejoin="round"/>
-            <path d="M 19 17 L 29 17 C 29 22 19 22 19 17 Z" fill="#fde08b" stroke="#ea580c" strokeWidth="1.2" strokeLinejoin="round"/>
-            
-            <rect x="14" y="12" width="16" height="12" fill="white" rx="1"/>
-            <rect x="14" y="12" width="16" height="12" fill="white" stroke="#444" strokeWidth="1.2" rx="1"/>
-            <path d="M 14 13 C 14 12.4 14.4 12 15 12 L 29 12 C 29.6 12 30 12.4 30 13 L 30 15 L 14 15 Z" fill="#bbf7d0" stroke="#444" strokeWidth="1.2"/>
-            <line x1="17" y1="11" x2="17" y2="13" stroke="#444" strokeWidth="1.2" strokeLinecap="round"/>
-            <line x1="27" y1="11" x2="27" y2="13" stroke="#444" strokeWidth="1.2" strokeLinecap="round"/>
-            <rect x="15.5" y="17" width="3.5" height="2" fill="#d4d4d4"/>
-            <rect x="20.5" y="17" width="3.5" height="2" fill="#d4d4d4"/>
-            <rect x="25.5" y="17" width="3.5" height="2" fill="#d4d4d4"/>
-            <rect x="15.5" y="20" width="3.5" height="2" fill="#d4d4d4"/>
-            <rect x="20.5" y="20" width="3.5" height="2" fill="#d4d4d4"/>
-          </svg>
-        );
-      case 'SaldosColumnas':
-        return (
-          <svg width="32" height="32" viewBox="0 0 32 32" fill="none" xmlns="http://www.w3.org/2000/svg">
-            <path d="M 12 24 L 20 24 L 22 26 L 10 26 Z" fill="#d4d4d4" stroke="#444" strokeWidth="1.2" strokeLinejoin="round"/>
-            <line x1="16" y1="24" x2="16" y2="6" stroke="#444" strokeWidth="1.2"/>
-            <line x1="8" y1="9" x2="24" y2="9" stroke="#444" strokeWidth="1.2" strokeLinecap="round"/>
-            <path d="M 16 6.5 L 17.5 8 L 16 9.5 L 14.5 8 Z" fill="none" stroke="#444" strokeWidth="1.2"/>
-            <line x1="8" y1="9" x2="4" y2="17" stroke="#444" strokeWidth="1"/>
-            <line x1="8" y1="9" x2="12" y2="17" stroke="#444" strokeWidth="1"/>
-            <line x1="24" y1="9" x2="20" y2="17" stroke="#444" strokeWidth="1"/>
-            <line x1="24" y1="9" x2="28" y2="17" stroke="#444" strokeWidth="1"/>
-            <path d="M 3 17 L 13 17 C 13 22 3 22 3 17 Z" fill="#fde08b" stroke="#ea580c" strokeWidth="1.2" strokeLinejoin="round"/>
-            <path d="M 19 17 L 29 17 C 29 22 19 22 19 17 Z" fill="#fde08b" stroke="#ea580c" strokeWidth="1.2" strokeLinejoin="round"/>
+    case 'BalanceSumas':
+      return (
+        <svg width="32" height="32" viewBox="0 0 32 32" fill="none" xmlns="http://www.w3.org/2000/svg">
+          <path d="M 12 24 L 20 24 L 22 26 L 10 26 Z" fill="#d4d4d4" stroke="#444" strokeWidth="1.2" strokeLinejoin="round" />
+          <line x1="16" y1="24" x2="16" y2="6" stroke="#444" strokeWidth="1.2" />
+          <line x1="8" y1="9" x2="24" y2="9" stroke="#444" strokeWidth="1.2" strokeLinecap="round" />
+          <path d="M 16 6.5 L 17.5 8 L 16 9.5 L 14.5 8 Z" fill="none" stroke="#444" strokeWidth="1.2" />
+          <line x1="8" y1="9" x2="4" y2="17" stroke="#444" strokeWidth="1" />
+          <line x1="8" y1="9" x2="12" y2="17" stroke="#444" strokeWidth="1" />
+          <line x1="24" y1="9" x2="20" y2="17" stroke="#444" strokeWidth="1" />
+          <line x1="24" y1="9" x2="28" y2="17" stroke="#444" strokeWidth="1" />
+          <path d="M 3 17 L 13 17 C 13 22 3 22 3 17 Z" fill="#fde08b" stroke="#ea580c" strokeWidth="1.2" strokeLinejoin="round" />
+          <path d="M 19 17 L 29 17 C 29 22 19 22 19 17 Z" fill="#fde08b" stroke="#ea580c" strokeWidth="1.2" strokeLinejoin="round" />
+        </svg>
+      );
+    case 'SaldosMensuales':
+      return (
+        <svg width="32" height="32" viewBox="0 0 32 32" fill="none" xmlns="http://www.w3.org/2000/svg">
+          <path d="M 12 24 L 20 24 L 22 26 L 10 26 Z" fill="#d4d4d4" stroke="#444" strokeWidth="1.2" strokeLinejoin="round" />
+          <line x1="16" y1="24" x2="16" y2="6" stroke="#444" strokeWidth="1.2" />
+          <line x1="8" y1="9" x2="24" y2="9" stroke="#444" strokeWidth="1.2" strokeLinecap="round" />
+          <path d="M 16 6.5 L 17.5 8 L 16 9.5 L 14.5 8 Z" fill="none" stroke="#444" strokeWidth="1.2" />
+          <line x1="8" y1="9" x2="4" y2="17" stroke="#444" strokeWidth="1" />
+          <line x1="8" y1="9" x2="12" y2="17" stroke="#444" strokeWidth="1" />
+          <line x1="24" y1="9" x2="20" y2="17" stroke="#444" strokeWidth="1" />
+          <line x1="24" y1="9" x2="28" y2="17" stroke="#444" strokeWidth="1" />
+          <path d="M 3 17 L 13 17 C 13 22 3 22 3 17 Z" fill="#fde08b" stroke="#ea580c" strokeWidth="1.2" strokeLinejoin="round" />
+          <path d="M 19 17 L 29 17 C 29 22 19 22 19 17 Z" fill="#fde08b" stroke="#ea580c" strokeWidth="1.2" strokeLinejoin="round" />
 
-            <rect x="14" y="12" width="16" height="13" fill="white" stroke="#444" strokeWidth="1.2"/>
-            <rect x="14.6" y="12.6" width="14.8" height="3" fill="#ea580c"/>
-            <line x1="14" y1="15.6" x2="30" y2="15.6" stroke="#444" strokeWidth="1.2"/>
-            <line x1="14" y1="19" x2="30" y2="19" stroke="#444" strokeWidth="1"/>
-            <line x1="14" y1="22" x2="30" y2="22" stroke="#444" strokeWidth="1"/>
-            <line x1="16" y1="17.3" x2="18" y2="17.3" stroke="#444" strokeWidth="1"/>
-            <line x1="20" y1="17.3" x2="28" y2="17.3" stroke="#444" strokeWidth="1" strokeDasharray="1 2"/>
-            <line x1="16" y1="20.5" x2="18" y2="20.5" stroke="#444" strokeWidth="1"/>
-            <line x1="20" y1="20.5" x2="28" y2="20.5" stroke="#444" strokeWidth="1" strokeDasharray="1 2"/>
-            <line x1="16" y1="23.5" x2="18" y2="23.5" stroke="#444" strokeWidth="1"/>
-            <line x1="20" y1="23.5" x2="28" y2="23.5" stroke="#444" strokeWidth="1" strokeDasharray="1 2"/>
-          </svg>
-        );
-      case 'AsientosDescuadrados':
-        return (
-          <svg width="32" height="32" viewBox="0 0 32 32" fill="none" xmlns="http://www.w3.org/2000/svg">
-            <rect x="6" y="3" width="16" height="24" fill="white" stroke="#444" strokeWidth="1.2"/>
-            <text x="8" y="11" fill="#444" fontSize="8" fontFamily="sans-serif" fontWeight="bold">D</text>
-            <text x="15" y="11" fill="#444" fontSize="8" fontFamily="sans-serif" fontWeight="bold">H</text>
-            <line x1="8" y1="14" x2="20" y2="14" stroke="#999" strokeWidth="1.2"/>
-            <line x1="8" y1="17" x2="14" y2="17" stroke="#999" strokeWidth="1.2"/>
-            <line x1="8" y1="20" x2="14" y2="20" stroke="#dc2626" strokeWidth="1.5"/>
-            <line x1="8" y1="23" x2="14" y2="23" stroke="#dc2626" strokeWidth="1.5"/>
-            <line x1="8" y1="26" x2="14" y2="26" stroke="#dc2626" strokeWidth="1.5"/>
-            <circle cx="21" cy="20" r="4.5" fill="white" stroke="#444" strokeWidth="1.5"/>
-            <line x1="24" y1="23" x2="28" y2="27" stroke="#444" strokeWidth="1.5" strokeLinecap="round"/>
-          </svg>
-        );
+          <rect x="14" y="12" width="16" height="12" fill="white" rx="1" />
+          <rect x="14" y="12" width="16" height="12" fill="white" stroke="#444" strokeWidth="1.2" rx="1" />
+          <path d="M 14 13 C 14 12.4 14.4 12 15 12 L 29 12 C 29.6 12 30 12.4 30 13 L 30 15 L 14 15 Z" fill="#bbf7d0" stroke="#444" strokeWidth="1.2" />
+          <line x1="17" y1="11" x2="17" y2="13" stroke="#444" strokeWidth="1.2" strokeLinecap="round" />
+          <line x1="27" y1="11" x2="27" y2="13" stroke="#444" strokeWidth="1.2" strokeLinecap="round" />
+          <rect x="15.5" y="17" width="3.5" height="2" fill="#d4d4d4" />
+          <rect x="20.5" y="17" width="3.5" height="2" fill="#d4d4d4" />
+          <rect x="25.5" y="17" width="3.5" height="2" fill="#d4d4d4" />
+          <rect x="15.5" y="20" width="3.5" height="2" fill="#d4d4d4" />
+          <rect x="20.5" y="20" width="3.5" height="2" fill="#d4d4d4" />
+        </svg>
+      );
+    case 'SaldosColumnas':
+      return (
+        <svg width="32" height="32" viewBox="0 0 32 32" fill="none" xmlns="http://www.w3.org/2000/svg">
+          <path d="M 12 24 L 20 24 L 22 26 L 10 26 Z" fill="#d4d4d4" stroke="#444" strokeWidth="1.2" strokeLinejoin="round" />
+          <line x1="16" y1="24" x2="16" y2="6" stroke="#444" strokeWidth="1.2" />
+          <line x1="8" y1="9" x2="24" y2="9" stroke="#444" strokeWidth="1.2" strokeLinecap="round" />
+          <path d="M 16 6.5 L 17.5 8 L 16 9.5 L 14.5 8 Z" fill="none" stroke="#444" strokeWidth="1.2" />
+          <line x1="8" y1="9" x2="4" y2="17" stroke="#444" strokeWidth="1" />
+          <line x1="8" y1="9" x2="12" y2="17" stroke="#444" strokeWidth="1" />
+          <line x1="24" y1="9" x2="20" y2="17" stroke="#444" strokeWidth="1" />
+          <line x1="24" y1="9" x2="28" y2="17" stroke="#444" strokeWidth="1" />
+          <path d="M 3 17 L 13 17 C 13 22 3 22 3 17 Z" fill="#fde08b" stroke="#ea580c" strokeWidth="1.2" strokeLinejoin="round" />
+          <path d="M 19 17 L 29 17 C 29 22 19 22 19 17 Z" fill="#fde08b" stroke="#ea580c" strokeWidth="1.2" strokeLinejoin="round" />
+
+          <rect x="14" y="12" width="16" height="13" fill="white" stroke="#444" strokeWidth="1.2" />
+          <rect x="14.6" y="12.6" width="14.8" height="3" fill="#ea580c" />
+          <line x1="14" y1="15.6" x2="30" y2="15.6" stroke="#444" strokeWidth="1.2" />
+          <line x1="14" y1="19" x2="30" y2="19" stroke="#444" strokeWidth="1" />
+          <line x1="14" y1="22" x2="30" y2="22" stroke="#444" strokeWidth="1" />
+          <line x1="16" y1="17.3" x2="18" y2="17.3" stroke="#444" strokeWidth="1" />
+          <line x1="20" y1="17.3" x2="28" y2="17.3" stroke="#444" strokeWidth="1" strokeDasharray="1 2" />
+          <line x1="16" y1="20.5" x2="18" y2="20.5" stroke="#444" strokeWidth="1" />
+          <line x1="20" y1="20.5" x2="28" y2="20.5" stroke="#444" strokeWidth="1" strokeDasharray="1 2" />
+          <line x1="16" y1="23.5" x2="18" y2="23.5" stroke="#444" strokeWidth="1" />
+          <line x1="20" y1="23.5" x2="28" y2="23.5" stroke="#444" strokeWidth="1" strokeDasharray="1 2" />
+        </svg>
+      );
+    case 'AsientosDescuadrados':
+      return (
+        <svg width="32" height="32" viewBox="0 0 32 32" fill="none" xmlns="http://www.w3.org/2000/svg">
+          <rect x="6" y="3" width="16" height="24" fill="white" stroke="#444" strokeWidth="1.2" />
+          <text x="8" y="11" fill="#444" fontSize="8" fontFamily="sans-serif" fontWeight="bold">D</text>
+          <text x="15" y="11" fill="#444" fontSize="8" fontFamily="sans-serif" fontWeight="bold">H</text>
+          <line x1="8" y1="14" x2="20" y2="14" stroke="#999" strokeWidth="1.2" />
+          <line x1="8" y1="17" x2="14" y2="17" stroke="#999" strokeWidth="1.2" />
+          <line x1="8" y1="20" x2="14" y2="20" stroke="#dc2626" strokeWidth="1.5" />
+          <line x1="8" y1="23" x2="14" y2="23" stroke="#dc2626" strokeWidth="1.5" />
+          <line x1="8" y1="26" x2="14" y2="26" stroke="#dc2626" strokeWidth="1.5" />
+          <circle cx="21" cy="20" r="4.5" fill="white" stroke="#444" strokeWidth="1.5" />
+          <line x1="24" y1="23" x2="28" y2="27" stroke="#444" strokeWidth="1.5" strokeLinecap="round" />
+        </svg>
+      );
     case 'DiarioMov':
     case 'ExtractoMov':
       return (
         <svg width="32" height="32" viewBox="0 0 32 32" fill="none" xmlns="http://www.w3.org/2000/svg">
-          <rect x="6" y="4" width="20" height="20" fill="white" stroke="#444" strokeWidth="1.2"/>
-          <rect x="7" y="5" width="18" height="18" fill="none" stroke="#0ea5e9" strokeWidth="1"/>
-          <line x1="7" y1="11" x2="25" y2="11" stroke="#444" strokeWidth="1"/>
+          <rect x="6" y="4" width="20" height="20" fill="white" stroke="#444" strokeWidth="1.2" />
+          <rect x="7" y="5" width="18" height="18" fill="none" stroke="#0ea5e9" strokeWidth="1" />
+          <line x1="7" y1="11" x2="25" y2="11" stroke="#444" strokeWidth="1" />
           <text x="10" y="9.5" fill="#222" fontSize="6" fontFamily="sans-serif" fontWeight="bold">D</text>
           <text x="20" y="9.5" fill="#222" fontSize="6" fontFamily="sans-serif" fontWeight="bold">H</text>
-          <line x1="9" y1="14" x2="23" y2="14" stroke="#aaa" strokeWidth="1"/>
-          <line x1="9" y1="17" x2="16" y2="17" stroke="#aaa" strokeWidth="1"/>
-          <line x1="18" y1="17" x2="23" y2="17" stroke="#aaa" strokeWidth="1"/>
-          <line x1="9" y1="20" x2="23" y2="20" stroke="#aaa" strokeWidth="1"/>
-          <line x1="10" y1="26" x2="22" y2="26" stroke="#444" strokeWidth="1"/>
+          <line x1="9" y1="14" x2="23" y2="14" stroke="#aaa" strokeWidth="1" />
+          <line x1="9" y1="17" x2="16" y2="17" stroke="#aaa" strokeWidth="1" />
+          <line x1="18" y1="17" x2="23" y2="17" stroke="#aaa" strokeWidth="1" />
+          <line x1="9" y1="20" x2="23" y2="20" stroke="#aaa" strokeWidth="1" />
+          <line x1="10" y1="26" x2="22" y2="26" stroke="#444" strokeWidth="1" />
         </svg>
       );
     case 'PGC':
       return (
         <svg width="32" height="32" viewBox="0 0 32 32" fill="none" xmlns="http://www.w3.org/2000/svg">
-          <rect x="10" y="6" width="12" height="8" fill="white" stroke="#333" strokeWidth="1.5"/>
-          <line x1="16" y1="14" x2="16" y2="18" stroke="#0ea5e9" strokeWidth="1.5"/>
-          <line x1="8" y1="18" x2="24" y2="18" stroke="#0ea5e9" strokeWidth="1.5"/>
-          <line x1="8" y1="18" x2="8" y2="21" stroke="#0ea5e9" strokeWidth="1.5"/>
-          <line x1="16" y1="18" x2="16" y2="21" stroke="#0ea5e9" strokeWidth="1.5"/>
-          <line x1="24" y1="18" x2="24" y2="21" stroke="#0ea5e9" strokeWidth="1.5"/>
-          <rect x="5" y="21" width="6" height="6" fill="white" stroke="#333" strokeWidth="1.5"/>
-          <rect x="13" y="21" width="6" height="6" fill="white" stroke="#333" strokeWidth="1.5"/>
-          <rect x="21" y="21" width="6" height="6" fill="white" stroke="#333" strokeWidth="1.5"/>
+          <rect x="10" y="6" width="12" height="8" fill="white" stroke="#333" strokeWidth="1.5" />
+          <line x1="16" y1="14" x2="16" y2="18" stroke="#0ea5e9" strokeWidth="1.5" />
+          <line x1="8" y1="18" x2="24" y2="18" stroke="#0ea5e9" strokeWidth="1.5" />
+          <line x1="8" y1="18" x2="8" y2="21" stroke="#0ea5e9" strokeWidth="1.5" />
+          <line x1="16" y1="18" x2="16" y2="21" stroke="#0ea5e9" strokeWidth="1.5" />
+          <line x1="24" y1="18" x2="24" y2="21" stroke="#0ea5e9" strokeWidth="1.5" />
+          <rect x="5" y="21" width="6" height="6" fill="white" stroke="#333" strokeWidth="1.5" />
+          <rect x="13" y="21" width="6" height="6" fill="white" stroke="#333" strokeWidth="1.5" />
+          <rect x="21" y="21" width="6" height="6" fill="white" stroke="#333" strokeWidth="1.5" />
         </svg>
       );
     case 'ConfigCuentas':
       return (
         <svg width="32" height="32" viewBox="0 0 32 32" fill="none" xmlns="http://www.w3.org/2000/svg">
           {/* PGC Base */}
-          <rect x="10" y="6" width="12" height="8" fill="white" stroke="#333" strokeWidth="1.5"/>
-          <line x1="16" y1="14" x2="16" y2="18" stroke="#0ea5e9" strokeWidth="1.5"/>
-          <line x1="8" y1="18" x2="24" y2="18" stroke="#0ea5e9" strokeWidth="1.5"/>
-          <line x1="8" y1="18" x2="8" y2="21" stroke="#0ea5e9" strokeWidth="1.5"/>
-          <line x1="16" y1="18" x2="16" y2="21" stroke="#0ea5e9" strokeWidth="1.5"/>
-          <line x1="24" y1="18" x2="24" y2="21" stroke="#0ea5e9" strokeWidth="1.5"/>
-          <rect x="5" y="21" width="6" height="6" fill="white" stroke="#333" strokeWidth="1.5"/>
-          <rect x="13" y="21" width="6" height="6" fill="white" stroke="#333" strokeWidth="1.5"/>
-          <rect x="21" y="21" width="6" height="6" fill="white" stroke="#333" strokeWidth="1.5"/>
-          
+          <rect x="10" y="6" width="12" height="8" fill="white" stroke="#333" strokeWidth="1.5" />
+          <line x1="16" y1="14" x2="16" y2="18" stroke="#0ea5e9" strokeWidth="1.5" />
+          <line x1="8" y1="18" x2="24" y2="18" stroke="#0ea5e9" strokeWidth="1.5" />
+          <line x1="8" y1="18" x2="8" y2="21" stroke="#0ea5e9" strokeWidth="1.5" />
+          <line x1="16" y1="18" x2="16" y2="21" stroke="#0ea5e9" strokeWidth="1.5" />
+          <line x1="24" y1="18" x2="24" y2="21" stroke="#0ea5e9" strokeWidth="1.5" />
+          <rect x="5" y="21" width="6" height="6" fill="white" stroke="#333" strokeWidth="1.5" />
+          <rect x="13" y="21" width="6" height="6" fill="white" stroke="#333" strokeWidth="1.5" />
+          <rect x="21" y="21" width="6" height="6" fill="white" stroke="#333" strokeWidth="1.5" />
+
           {/* Gear overlay bottom right */}
           <g transform="translate(19, 19) scale(0.55)">
             <circle cx="12" cy="12" r="10" fill="white" />
@@ -228,83 +228,83 @@ const RibbonCustomIcon = ({ type }) => {
     case 'Asignacion':
       return (
         <svg width="32" height="32" viewBox="0 0 32 32" fill="none" xmlns="http://www.w3.org/2000/svg">
-          <path d="M 6 3 L 20 3 L 26 9 L 26 27 L 6 27 Z" fill="white" stroke="#444" strokeWidth="1.2"/>
-          <path d="M 20 3 L 20 9 L 26 9" fill="white" stroke="#444" strokeWidth="1.2"/>
-          <rect x="9" y="7" width="8" height="3" fill="#16a34a"/>
-          <line x1="9" y1="13" x2="23" y2="13" stroke="#aaa" strokeWidth="1.2"/>
-          <line x1="9" y1="17" x2="23" y2="17" stroke="#aaa" strokeWidth="1.2"/>
-          <line x1="9" y1="21" x2="19" y2="21" stroke="#aaa" strokeWidth="1.2"/>
+          <path d="M 6 3 L 20 3 L 26 9 L 26 27 L 6 27 Z" fill="white" stroke="#444" strokeWidth="1.2" />
+          <path d="M 20 3 L 20 9 L 26 9" fill="white" stroke="#444" strokeWidth="1.2" />
+          <rect x="9" y="7" width="8" height="3" fill="#16a34a" />
+          <line x1="9" y1="13" x2="23" y2="13" stroke="#aaa" strokeWidth="1.2" />
+          <line x1="9" y1="17" x2="23" y2="17" stroke="#aaa" strokeWidth="1.2" />
+          <line x1="9" y1="21" x2="19" y2="21" stroke="#aaa" strokeWidth="1.2" />
         </svg>
       );
     case 'Desviacion':
       return (
         <svg width="32" height="32" viewBox="0 0 32 32" fill="none" xmlns="http://www.w3.org/2000/svg">
-          <line x1="4" y1="16" x2="28" y2="16" stroke="#444" strokeWidth="1.2"/>
-          <rect x="7" y="8" width="4" height="8" fill="white" stroke="#2563eb" strokeWidth="1"/>
-          <rect x="19" y="6" width="4" height="10" fill="white" stroke="#2563eb" strokeWidth="1"/>
-          <rect x="13" y="16" width="4" height="9" fill="white" stroke="#dc2626" strokeWidth="1"/>
-          <rect x="25" y="16" width="4" height="6" fill="white" stroke="#dc2626" strokeWidth="1"/>
+          <line x1="4" y1="16" x2="28" y2="16" stroke="#444" strokeWidth="1.2" />
+          <rect x="7" y="8" width="4" height="8" fill="white" stroke="#2563eb" strokeWidth="1" />
+          <rect x="19" y="6" width="4" height="10" fill="white" stroke="#2563eb" strokeWidth="1" />
+          <rect x="13" y="16" width="4" height="9" fill="white" stroke="#dc2626" strokeWidth="1" />
+          <rect x="25" y="16" width="4" height="6" fill="white" stroke="#dc2626" strokeWidth="1" />
         </svg>
       );
     case 'Nuevo':
       return (
         <svg width="32" height="32" viewBox="0 0 32 32" fill="none" xmlns="http://www.w3.org/2000/svg">
-          <path d="M 8 2 L 20 2 L 26 8 L 26 26 L 8 26 Z" fill="white" stroke="#444" strokeWidth="1.5"/>
-          <path d="M 20 2 L 20 8 L 26 8" fill="white" stroke="#444" strokeWidth="1.5"/>
-          <path d="M 17 21 L 27 21 M 22 16 L 22 26" stroke="#16a34a" strokeWidth="2.5"/>
+          <path d="M 8 2 L 20 2 L 26 8 L 26 26 L 8 26 Z" fill="white" stroke="#444" strokeWidth="1.5" />
+          <path d="M 20 2 L 20 8 L 26 8" fill="white" stroke="#444" strokeWidth="1.5" />
+          <path d="M 17 21 L 27 21 M 22 16 L 22 26" stroke="#16a34a" strokeWidth="2.5" />
         </svg>
       );
     case 'Modificar':
       return (
         <svg width="32" height="32" viewBox="0 0 32 32" fill="none" xmlns="http://www.w3.org/2000/svg">
-          <path d="M 8 2 L 20 2 L 26 8 L 26 26 L 8 26 Z" fill="white" stroke="#444" strokeWidth="1.5"/>
-          <path d="M 20 2 L 20 8 L 26 8" fill="white" stroke="#444" strokeWidth="1.5"/>
-          <line x1="11" y1="12" x2="23" y2="12" stroke="#aaa" strokeWidth="1"/>
-          <line x1="11" y1="16" x2="23" y2="16" stroke="#aaa" strokeWidth="1"/>
-          <line x1="11" y1="20" x2="16" y2="20" stroke="#aaa" strokeWidth="1"/>
-          <path d="M 17 24 L 15 26 L 17 28 L 26 19 L 24 17 Z" fill="white" stroke="#0ea5e9" strokeWidth="1.5"/>
-          <path d="M 26 19 L 28 17 L 26 15 L 24 17" fill="#0ea5e9" stroke="#0ea5e9" strokeWidth="1"/>
-          <line x1="16.5" y1="25.5" x2="15" y2="26" stroke="#0ea5e9" strokeWidth="1.5"/>
+          <path d="M 8 2 L 20 2 L 26 8 L 26 26 L 8 26 Z" fill="white" stroke="#444" strokeWidth="1.5" />
+          <path d="M 20 2 L 20 8 L 26 8" fill="white" stroke="#444" strokeWidth="1.5" />
+          <line x1="11" y1="12" x2="23" y2="12" stroke="#aaa" strokeWidth="1" />
+          <line x1="11" y1="16" x2="23" y2="16" stroke="#aaa" strokeWidth="1" />
+          <line x1="11" y1="20" x2="16" y2="20" stroke="#aaa" strokeWidth="1" />
+          <path d="M 17 24 L 15 26 L 17 28 L 26 19 L 24 17 Z" fill="white" stroke="#0ea5e9" strokeWidth="1.5" />
+          <path d="M 26 19 L 28 17 L 26 15 L 24 17" fill="#0ea5e9" stroke="#0ea5e9" strokeWidth="1" />
+          <line x1="16.5" y1="25.5" x2="15" y2="26" stroke="#0ea5e9" strokeWidth="1.5" />
         </svg>
       );
     case 'Eliminar':
       return (
         <svg width="32" height="32" viewBox="0 0 32 32" fill="none" xmlns="http://www.w3.org/2000/svg">
-          <path d="M 8 2 L 20 2 L 26 8 L 26 26 L 8 26 Z" fill="white" stroke="#444" strokeWidth="1.5"/>
-          <path d="M 20 2 L 20 8 L 26 8" fill="white" stroke="#444" strokeWidth="1.5"/>
-          <line x1="11" y1="12" x2="23" y2="12" stroke="#aaa" strokeWidth="1"/>
-          <line x1="11" y1="16" x2="23" y2="16" stroke="#aaa" strokeWidth="1"/>
-          <line x1="11" y1="20" x2="16" y2="20" stroke="#aaa" strokeWidth="1"/>
-          <path d="M 18 19 L 26 27 M 18 27 L 26 19" stroke="#ef4444" strokeWidth="3"/>
+          <path d="M 8 2 L 20 2 L 26 8 L 26 26 L 8 26 Z" fill="white" stroke="#444" strokeWidth="1.5" />
+          <path d="M 20 2 L 20 8 L 26 8" fill="white" stroke="#444" strokeWidth="1.5" />
+          <line x1="11" y1="12" x2="23" y2="12" stroke="#aaa" strokeWidth="1" />
+          <line x1="11" y1="16" x2="23" y2="16" stroke="#aaa" strokeWidth="1" />
+          <line x1="11" y1="20" x2="16" y2="20" stroke="#aaa" strokeWidth="1" />
+          <path d="M 18 19 L 26 27 M 18 27 L 26 19" stroke="#ef4444" strokeWidth="3" />
         </svg>
       );
     case 'Filtrar':
       return (
         <svg width="32" height="32" viewBox="0 0 32 32" fill="none" xmlns="http://www.w3.org/2000/svg">
-          <rect x="7" y="8" width="18" height="16" rx="2" fill="none" stroke="#64748b" strokeWidth="2"/>
-          <line x1="13" y1="8" x2="13" y2="24" stroke="#64748b" strokeWidth="2"/>
+          <rect x="7" y="8" width="18" height="16" rx="2" fill="none" stroke="#64748b" strokeWidth="2" />
+          <line x1="13" y1="8" x2="13" y2="24" stroke="#64748b" strokeWidth="2" />
         </svg>
       );
     case 'Exportar':
       return (
         <svg width="32" height="32" viewBox="0 0 32 32" fill="none" xmlns="http://www.w3.org/2000/svg">
-          <path d="M 8 6 L 24 6 L 24 26 L 8 26 Z" fill="#e2e8f0" stroke="#444" strokeWidth="1.5"/>
-          <path d="M 8 10 L 24 10" stroke="#444" strokeWidth="1.5"/>
-          <path d="M 8 14 L 24 14" stroke="#444" strokeWidth="1.5"/>
-          <path d="M 12 6 L 12 26" stroke="#444" strokeWidth="1.5"/>
+          <path d="M 8 6 L 24 6 L 24 26 L 8 26 Z" fill="#e2e8f0" stroke="#444" strokeWidth="1.5" />
+          <path d="M 8 10 L 24 10" stroke="#444" strokeWidth="1.5" />
+          <path d="M 8 14 L 24 14" stroke="#444" strokeWidth="1.5" />
+          <path d="M 12 6 L 12 26" stroke="#444" strokeWidth="1.5" />
           <text x="13.5" y="24" fill="#16a34a" fontSize="11" fontFamily="sans-serif" fontWeight="bold">X</text>
         </svg>
       );
     case 'AddColumn':
       return (
         <svg width="32" height="32" viewBox="0 0 32 32" fill="none" xmlns="http://www.w3.org/2000/svg">
-          <path d="M 6 10 L 26 10 L 26 26 L 6 26 Z" fill="#e2e8f0" stroke="#444" strokeWidth="1.5"/>
-          <path d="M 6 14 L 26 14" stroke="#444" strokeWidth="1.5"/>
-          <path d="M 6 18 L 26 18" stroke="#444" strokeWidth="1.5"/>
-          <path d="M 12 10 L 12 26" stroke="#444" strokeWidth="1.5"/>
-          <path d="M 20 10 L 20 26" stroke="#444" strokeWidth="1.5"/>
-          <circle cx="9" cy="7" r="4" fill="#fbbf24" stroke="#d97706" strokeWidth="1"/>
-          <path d="M 9 4 L 9 2 M 9 12 L 9 10 M 4 7 L 2 7 M 14 7 L 16 7 M 5.5 3.5 L 4 2 M 12.5 10.5 L 14 12 M 12.5 3.5 L 14 2 M 5.5 10.5 L 4 12" stroke="#d97706" strokeWidth="1"/>
+          <path d="M 6 10 L 26 10 L 26 26 L 6 26 Z" fill="#e2e8f0" stroke="#444" strokeWidth="1.5" />
+          <path d="M 6 14 L 26 14" stroke="#444" strokeWidth="1.5" />
+          <path d="M 6 18 L 26 18" stroke="#444" strokeWidth="1.5" />
+          <path d="M 12 10 L 12 26" stroke="#444" strokeWidth="1.5" />
+          <path d="M 20 10 L 20 26" stroke="#444" strokeWidth="1.5" />
+          <circle cx="9" cy="7" r="4" fill="#fbbf24" stroke="#d97706" strokeWidth="1" />
+          <path d="M 9 4 L 9 2 M 9 12 L 9 10 M 4 7 L 2 7 M 14 7 L 16 7 M 5.5 3.5 L 4 2 M 12.5 10.5 L 14 12 M 12.5 3.5 L 14 2 M 5.5 10.5 L 4 12" stroke="#d97706" strokeWidth="1" />
         </svg>
       );
     default:
@@ -400,16 +400,45 @@ export default function Layout() {
   const [showBankReconciliationModal, setShowBankReconciliationModal] = useState(false);
   const [isSettingsOpen, setIsSettingsOpen] = useState(false);
 
+  const [sidebarWidth, setSidebarWidth] = useState(256);
+  const [isResizing, setIsResizing] = useState(false);
+
+  useEffect(() => {
+    const handleMouseMove = (e) => {
+      if (!isResizing) return;
+      let newWidth = e.clientX;
+      if (newWidth < 150) newWidth = 150;
+      if (newWidth > 600) newWidth = 600;
+      setSidebarWidth(newWidth);
+    };
+
+    const handleMouseUp = () => {
+      if (isResizing) {
+        setIsResizing(false);
+      }
+    };
+
+    if (isResizing) {
+      document.addEventListener('mousemove', handleMouseMove);
+      document.addEventListener('mouseup', handleMouseUp);
+    }
+
+    return () => {
+      document.removeEventListener('mousemove', handleMouseMove);
+      document.removeEventListener('mouseup', handleMouseUp);
+    };
+  }, [isResizing]);
+
   useEffect(() => {
     const handleSync = (e) => setActiveColumns(prev => ({ ...prev, [e.detail.tab]: e.detail.columns }));
     window.addEventListener('sync-columns', handleSync);
-    
+
     const openPunteo = () => setShowPunteoModal(true);
     window.addEventListener('punteo:open', openPunteo);
-    
+
     const openBankReconciliation = () => setShowBankReconciliationModal(true);
     window.addEventListener('bank-reconciliation:open', openBankReconciliation);
-    
+
     const handleModuleSelect = (e) => {
       const modName = e.detail;
       setActiveModule(modName);
@@ -421,7 +450,7 @@ export default function Layout() {
       }
     };
     window.addEventListener('module:select', handleModuleSelect);
-    
+
     const closeDropdowns = () => {
       setDropdownConfig(null);
     };
@@ -472,14 +501,14 @@ export default function Layout() {
     const currentPath = location.pathname;
     let foundTab = '';
     let foundModule = '';
-    
+
     for (const [tab, path] of Object.entries(tabDefaultPaths)) {
       if (currentPath === path) {
         foundTab = tab;
         break;
       }
     }
-    
+
     if (foundTab) {
       for (const [mod, tabs] of Object.entries(moduleTabs)) {
         if (tabs.includes(foundTab)) {
@@ -488,7 +517,7 @@ export default function Layout() {
         }
       }
     }
-    
+
     if (foundTab) {
       setActiveTab(foundTab);
       if (foundModule) setActiveModule(foundModule);
@@ -497,267 +526,321 @@ export default function Layout() {
 
   const availableColumnsByTab = {
     'Clientes': [
-      { group: 'GENERAL', items: [
-        { id: 'id', name: 'ID' },
-        { id: 'name', name: 'Nombre' },
-        { id: 'dni', name: 'DNI / NIF' },
-        { id: 'status', name: 'Estado' }
-      ]},
-      { group: 'CONTACTO', items: [
-        { id: 'phone', name: 'Teléfono' },
-        { id: 'email', name: 'Email' },
-        { id: 'address', name: 'Dirección' },
-        { id: 'city', name: 'Población' },
-        { id: 'cp', name: 'CP' }
-      ]},
-      { group: 'OTROS', items: [
-        { id: 'notes', name: 'Notas' }
-      ]}
+      {
+        group: 'GENERAL', items: [
+          { id: 'id', name: 'ID' },
+          { id: 'name', name: 'Nombre' },
+          { id: 'dni', name: 'DNI / NIF' },
+          { id: 'status', name: 'Estado' }
+        ]
+      },
+      {
+        group: 'CONTACTO', items: [
+          { id: 'phone', name: 'Teléfono' },
+          { id: 'email', name: 'Email' },
+          { id: 'address', name: 'Dirección' },
+          { id: 'city', name: 'Población' },
+          { id: 'cp', name: 'CP' }
+        ]
+      },
+      {
+        group: 'OTROS', items: [
+          { id: 'notes', name: 'Notas' }
+        ]
+      }
     ],
     'Activos': [
-      { group: 'DATOS', items: [
-        { id: 'id', name: 'ID' },
-        { id: 'name', name: 'Nombre de la Finca' },
-        { id: 'address', name: 'Dirección' },
-        { id: 'country', name: 'País' },
-        { id: 'region', name: 'Región/Provincia' },
-        { id: 'city', name: 'Población' },
-        { id: 'cp', name: 'Código Postal' },
-        { id: 'catastral', name: 'Ref. Catastral' },
-        { id: 'registry', name: 'Reg. Propiedad' },
-        { id: 'accountNumber', name: 'Número de cuenta' },
-        { id: 'accountingAccount', name: 'Cuenta contable asociada' },
-        { id: 'cebe', name: 'CEBE Asociado' },
-        { id: 'ceco', name: 'CECO Asociado' }
-      ]},
-      { group: 'ALQUILER (RESUMEN)', items: [
-        { id: 'tenantDisplay', name: 'Inquilino Actual' },
-        { id: 'rentTotal', name: 'Renta Mensual Total' }
-      ]},
-      { group: 'HIPOTECA', items: [
-        { id: 'bank', name: 'Entidad Bancaria' },
-        { id: 'loanNumber', name: 'Nº Préstamo' },
-        { id: 'loanAmount', name: 'Importe Concedido' },
-        { id: 'mortgagePending', name: 'Hipoteca Pendiente' },
-        { id: 'interest', name: 'Tipo Interés' },
-        { id: 'expiry', name: 'Fecha Vencimiento' }
-      ]},
-      { group: 'COMUNIDAD', items: [
-        { id: 'communityAdmin', name: 'Administrador' },
-        { id: 'communityAdminEmail', name: 'Email Admin' },
-        { id: 'communityAdminPhone', name: 'Tel. Administrador' },
-        { id: 'communityFee', name: 'Cuota Mensual' },
-        { id: 'communityPaymentDay', name: 'Día Cobro' }
-      ]},
-      { group: 'FINANZAS', items: [
-        { id: 'finAcquisitionDate', name: 'Fecha Adquisición' },
-        { id: 'finPurchasePrice', name: 'Precio Compra' },
-        { id: 'finAcquisitionCosts', name: 'Gastos Adquisición' },
-        { id: 'finAgentFees', name: 'Honorarios Agencia' },
-        { id: 'finCurrentValue', name: 'Valor Actual' },
-        { id: 'finSalePrice', name: 'Precio Venta Esperado' }
-      ]}
+      {
+        group: 'DATOS', items: [
+          { id: 'id', name: 'ID' },
+          { id: 'name', name: 'Nombre de la Finca' },
+          { id: 'address', name: 'Dirección' },
+          { id: 'country', name: 'País' },
+          { id: 'region', name: 'Región/Provincia' },
+          { id: 'city', name: 'Población' },
+          { id: 'cp', name: 'Código Postal' },
+          { id: 'catastral', name: 'Ref. Catastral' },
+          { id: 'registry', name: 'Reg. Propiedad' },
+          { id: 'accountNumber', name: 'Número de cuenta' },
+          { id: 'accountingAccount', name: 'Cuenta contable asociada' },
+          { id: 'cebe', name: 'CEBE Asociado' },
+          { id: 'ceco', name: 'CECO Asociado' }
+        ]
+      },
+      {
+        group: 'ALQUILER (RESUMEN)', items: [
+          { id: 'tenantDisplay', name: 'Inquilino Actual' },
+          { id: 'rentTotal', name: 'Renta Mensual Total' }
+        ]
+      },
+      {
+        group: 'HIPOTECA', items: [
+          { id: 'bank', name: 'Entidad Bancaria' },
+          { id: 'loanNumber', name: 'Nº Préstamo' },
+          { id: 'loanAmount', name: 'Importe Concedido' },
+          { id: 'mortgagePending', name: 'Hipoteca Pendiente' },
+          { id: 'interest', name: 'Tipo Interés' },
+          { id: 'expiry', name: 'Fecha Vencimiento' }
+        ]
+      },
+      {
+        group: 'COMUNIDAD', items: [
+          { id: 'communityAdmin', name: 'Administrador' },
+          { id: 'communityAdminEmail', name: 'Email Admin' },
+          { id: 'communityAdminPhone', name: 'Tel. Administrador' },
+          { id: 'communityFee', name: 'Cuota Mensual' },
+          { id: 'communityPaymentDay', name: 'Día Cobro' }
+        ]
+      },
+      {
+        group: 'FINANZAS', items: [
+          { id: 'finAcquisitionDate', name: 'Fecha Adquisición' },
+          { id: 'finPurchasePrice', name: 'Precio Compra' },
+          { id: 'finAcquisitionCosts', name: 'Gastos Adquisición' },
+          { id: 'finAgentFees', name: 'Honorarios Agencia' },
+          { id: 'finCurrentValue', name: 'Valor Actual' },
+          { id: 'finSalePrice', name: 'Precio Venta Esperado' }
+        ]
+      }
     ],
     'Alquileres': [
-      { group: 'CONTRATO', items: [
-        { id: 'id', name: 'ID' },
-        { id: 'reference', name: 'Referencia' },
-        { id: 'propertyDisplay', name: 'Activo' },
-        { id: 'tenantDisplay', name: 'Inquilino' },
-        { id: 'rentalType', name: 'Tipo de Alquiler' },
-        { id: 'duration', name: 'Duración' },
-        { id: 'startDate', name: 'Inicio Contrato' },
-        { id: 'endDate', name: 'Fin Contrato' },
-        { id: 'status', name: 'Estado' }
-      ]},
-      { group: 'ECONÓMICO', items: [
-        { id: 'deposit', name: 'Fianza' },
-        { id: 'rent', name: 'Renta' },
-        { id: 'paymentMethod', name: 'Forma de Pago' },
-        { id: 'actualizaIpc', name: 'Actualiza IPC' }
-      ]}
+      {
+        group: 'CONTRATO', items: [
+          { id: 'id', name: 'ID' },
+          { id: 'reference', name: 'Referencia' },
+          { id: 'propertyDisplay', name: 'Activo' },
+          { id: 'tenantDisplay', name: 'Inquilino' },
+          { id: 'rentalType', name: 'Tipo de Alquiler' },
+          { id: 'duration', name: 'Duración' },
+          { id: 'startDate', name: 'Inicio Contrato' },
+          { id: 'endDate', name: 'Fin Contrato' },
+          { id: 'status', name: 'Estado' }
+        ]
+      },
+      {
+        group: 'ECONÓMICO', items: [
+          { id: 'deposit', name: 'Fianza' },
+          { id: 'rent', name: 'Renta' },
+          { id: 'paymentMethod', name: 'Forma de Pago' },
+          { id: 'actualizaIpc', name: 'Actualiza IPC' }
+        ]
+      }
     ],
     'Propietarios': [
-      { group: 'GENERAL', items: [
-        { id: 'id', name: 'ID' },
-        { id: 'name', name: 'Nombre' },
-        { id: 'dni', name: 'DNI / NIF' },
-        { id: 'status', name: 'Estado' }
-      ]},
-      { group: 'CONTACTO', items: [
-        { id: 'phone', name: 'Teléfono' },
-        { id: 'email', name: 'Email' },
-        { id: 'address', name: 'Dirección' }
-      ]},
-      { group: 'FINANCIERO', items: [
-        { id: 'iban', name: 'IBAN' },
-        { id: 'ownership', name: '% Propiedad' }
-      ]}
+      {
+        group: 'GENERAL', items: [
+          { id: 'id', name: 'ID' },
+          { id: 'name', name: 'Nombre' },
+          { id: 'dni', name: 'DNI / NIF' },
+          { id: 'status', name: 'Estado' }
+        ]
+      },
+      {
+        group: 'CONTACTO', items: [
+          { id: 'phone', name: 'Teléfono' },
+          { id: 'email', name: 'Email' },
+          { id: 'address', name: 'Dirección' }
+        ]
+      },
+      {
+        group: 'FINANCIERO', items: [
+          { id: 'iban', name: 'IBAN' },
+          { id: 'ownership', name: '% Propiedad' }
+        ]
+      }
     ],
     'Total': [
-      { group: 'DATOS FISCALES', items: [
-        { id: 'year', name: 'Año' },
-        { id: 'ingresos', name: 'Ingresos' },
-        { id: 'gastos', name: 'Gastos' },
-        { id: 'amortizacion', name: 'Amortización' },
-        { id: 'beneficioNeto', name: 'Rendimiento Neto' }
-      ]}
+      {
+        group: 'DATOS FISCALES', items: [
+          { id: 'year', name: 'Año' },
+          { id: 'ingresos', name: 'Ingresos' },
+          { id: 'gastos', name: 'Gastos' },
+          { id: 'amortizacion', name: 'Amortización' },
+          { id: 'beneficioNeto', name: 'Rendimiento Neto' }
+        ]
+      }
     ],
     'Inversiones inmobiliarias': [
-      { group: 'DATOS FISCALES', items: [
-        { id: 'id', name: 'ID' },
-        { id: 'name', name: 'Nombre del Activo' },
-        { id: 'ingresos', name: 'Ingresos' },
-        { id: 'gastos', name: 'Gastos' },
-        { id: 'amortizacion', name: 'Amortización' },
-        { id: 'beneficioNeto', name: 'Rendimiento Neto' }
-      ]}
+      {
+        group: 'DATOS FISCALES', items: [
+          { id: 'id', name: 'ID' },
+          { id: 'name', name: 'Nombre del Activo' },
+          { id: 'ingresos', name: 'Ingresos' },
+          { id: 'gastos', name: 'Gastos' },
+          { id: 'amortizacion', name: 'Amortización' },
+          { id: 'beneficioNeto', name: 'Rendimiento Neto' }
+        ]
+      }
     ],
     'Portfolio': [
-      { group: 'DATOS', items: [
-        { id: 'symbol', name: 'Ticker' },
-        { id: 'name', name: 'Nombre' },
-        { id: 'type', name: 'Tipo de Activo' },
-        { id: 'brokerName', name: 'Broker' },
-        { id: 'quantity', name: 'Cantidad' },
-        { id: 'pmc', name: 'PMC' },
-        { id: 'currentPrice', name: 'Precio Actual' },
-        { id: 'totalCost', name: 'Coste Total' },
-        { id: 'currentValue', name: 'Valor Actual' },
-        { id: 'pnl', name: 'Rendimiento (€)' },
-        { id: 'pnlPercent', name: 'Rendimiento (%)' }
-      ]}
+      {
+        group: 'DATOS', items: [
+          { id: 'symbol', name: 'Ticker' },
+          { id: 'name', name: 'Nombre' },
+          { id: 'type', name: 'Tipo de Activo' },
+          { id: 'brokerName', name: 'Broker' },
+          { id: 'quantity', name: 'Cantidad' },
+          { id: 'pmc', name: 'PMC' },
+          { id: 'currentPrice', name: 'Precio Actual' },
+          { id: 'totalCost', name: 'Coste Total' },
+          { id: 'currentValue', name: 'Valor Actual' },
+          { id: 'pnl', name: 'Rendimiento (€)' },
+          { id: 'pnlPercent', name: 'Rendimiento (%)' }
+        ]
+      }
     ],
     'Broker': [
-      { group: 'DATOS BROKER', items: [
-        { id: 'id', name: 'ID Broker' },
-        { id: 'name', name: 'Nombre Broker' },
-        { id: 'accountNumber', name: 'Número de cuenta' },
-        { id: 'currency', name: 'Tipo de divisa' },
-        { id: 'status', name: 'Estado' }
-      ]}
+      {
+        group: 'DATOS BROKER', items: [
+          { id: 'id', name: 'ID Broker' },
+          { id: 'name', name: 'Nombre Broker' },
+          { id: 'accountNumber', name: 'Número de cuenta' },
+          { id: 'currency', name: 'Tipo de divisa' },
+          { id: 'status', name: 'Estado' }
+        ]
+      }
     ],
     'Activos RV': [
-      { group: 'DATOS ACTIVO', items: [
-        { id: 'id', name: 'Ticker / Símbolo' },
-        { id: 'name', name: 'Nombre' },
-        { id: 'type', name: 'Tipo de activo' },
-        { id: 'sector', name: 'Sector' },
-        { id: 'currency', name: 'Divisa histórico' },
-        { id: 'currentPrice', name: 'Precio actual de mercado' },
-        { id: 'apiSource', name: 'Origen API' }
-      ]}
+      {
+        group: 'DATOS ACTIVO', items: [
+          { id: 'id', name: 'Ticker / Símbolo' },
+          { id: 'name', name: 'Nombre' },
+          { id: 'type', name: 'Tipo de activo' },
+          { id: 'sector', name: 'Sector' },
+          { id: 'currency', name: 'Divisa histórico' },
+          { id: 'currentPrice', name: 'Precio actual de mercado' },
+          { id: 'apiSource', name: 'Origen API' }
+        ]
+      }
     ],
     'Transacciones': [
-      { group: 'DATOS TRANSACCIÓN', items: [
-        { id: 'id', name: 'ID Transacción' },
-        { id: 'date', name: 'Fecha' },
-        { id: 'assetId', name: 'Activo (Ticker)' },
-        { id: 'brokerName', name: 'Broker' },
-        { id: 'type', name: 'Tipo Operación' },
-        { id: 'quantity', name: 'Cantidad (Títulos)' },
-        { id: 'price', name: 'Precio Unitario' },
-        { id: 'fee', name: 'Comisiones' },
-        { id: 'exchangeRate', name: 'Tipo Cambio' },
-        { id: 'currency', name: 'Divisa' },
-        { id: 'totalAmount', name: 'Total' }
-      ]}
+      {
+        group: 'DATOS TRANSACCIÓN', items: [
+          { id: 'id', name: 'ID Transacción' },
+          { id: 'date', name: 'Fecha' },
+          { id: 'assetId', name: 'Activo (Ticker)' },
+          { id: 'brokerName', name: 'Broker' },
+          { id: 'type', name: 'Tipo Operación' },
+          { id: 'quantity', name: 'Cantidad (Títulos)' },
+          { id: 'price', name: 'Precio Unitario' },
+          { id: 'fee', name: 'Comisiones' },
+          { id: 'exchangeRate', name: 'Tipo Cambio' },
+          { id: 'currency', name: 'Divisa' },
+          { id: 'totalAmount', name: 'Total' }
+        ]
+      }
     ],
     'Plataforma': [
-      { group: 'DATOS PLATAFORMA', items: [
-        { id: 'id', name: 'ID' },
-        { id: 'name', name: 'Nombre' },
-        { id: 'type', name: 'Tipo' },
-        { id: 'country', name: 'País' },
-        { id: 'bankAccount', name: 'Cuenta corriente' },
-        { id: 'ceco', name: 'CECO' },
-        { id: 'cebe', name: 'CEBE' },
-        { id: 'currency', name: 'Divisa' },
-        { id: 'status', name: 'Estado' }
-      ]}
+      {
+        group: 'DATOS PLATAFORMA', items: [
+          { id: 'id', name: 'ID' },
+          { id: 'name', name: 'Nombre' },
+          { id: 'type', name: 'Tipo' },
+          { id: 'country', name: 'País' },
+          { id: 'bankAccount', name: 'Cuenta corriente' },
+          { id: 'ceco', name: 'CECO' },
+          { id: 'cebe', name: 'CEBE' },
+          { id: 'currency', name: 'Divisa' },
+          { id: 'status', name: 'Estado' }
+        ]
+      }
     ],
     'CF Activos': [
-      { group: 'DATOS ACTIVO', items: [
-        { id: 'id', name: 'ID' },
-        { id: 'name', name: 'Nombre' },
-        { id: 'platformName', name: 'Plataforma' },
-        { id: 'type', name: 'Tipo' },
-        { id: 'targetAmount', name: 'Objetivo' },
-        { id: 'annualRate', name: 'Tasa anual (%)' },
-        { id: 'term', name: 'Plazo (m)' },
-        { id: 'status', name: 'Estado' }
-      ]}
+      {
+        group: 'DATOS ACTIVO', items: [
+          { id: 'id', name: 'ID' },
+          { id: 'name', name: 'Nombre' },
+          { id: 'platformName', name: 'Plataforma' },
+          { id: 'type', name: 'Tipo' },
+          { id: 'targetAmount', name: 'Objetivo' },
+          { id: 'annualRate', name: 'Tasa anual (%)' },
+          { id: 'term', name: 'Plazo (m)' },
+          { id: 'status', name: 'Estado' }
+        ]
+      }
     ],
     'Transacciones CF': [
-      { group: 'DATOS TRANSACCIÓN', items: [
-        { id: 'id', name: 'ID' },
-        { id: 'date', name: 'Fecha' },
-        { id: 'projectName', name: 'Proyecto' },
-        { id: 'platformName', name: 'Plataforma' },
-        { id: 'type', name: 'Tipo' },
-        { id: 'amount', name: 'Importe' },
-        { id: 'notes', name: 'Notas' }
-      ]}
+      {
+        group: 'DATOS TRANSACCIÓN', items: [
+          { id: 'id', name: 'ID' },
+          { id: 'date', name: 'Fecha' },
+          { id: 'projectName', name: 'Proyecto' },
+          { id: 'platformName', name: 'Plataforma' },
+          { id: 'type', name: 'Tipo' },
+          { id: 'amount', name: 'Importe' },
+          { id: 'notes', name: 'Notas' }
+        ]
+      }
     ],
     'CF Portfolio': [
-      { group: 'DATOS DE CARTERA', items: [
-        { id: 'groupName', name: 'Activo / Plataforma' },
-        { id: 'investment', name: 'Inversión' },
-        { id: 'grossRents', name: 'Rentas Brutas' },
-        { id: 'expenses', name: 'Gastos' },
-        { id: 'netRents', name: 'Rentas Netas' },
-        { id: 'totalGross', name: 'Importe Total' },
-        { id: 'totalNet', name: 'Imp. Total Neto' },
-        { id: 'yieldGross', name: 'Rent. Bruta' },
-        { id: 'yieldNet', name: 'Rent. Neta' }
-      ]}
+      {
+        group: 'DATOS DE CARTERA', items: [
+          { id: 'groupName', name: 'Activo / Plataforma' },
+          { id: 'investment', name: 'Inversión' },
+          { id: 'grossRents', name: 'Rentas Brutas' },
+          { id: 'expenses', name: 'Gastos' },
+          { id: 'netRents', name: 'Rentas Netas' },
+          { id: 'totalGross', name: 'Importe Total' },
+          { id: 'totalNet', name: 'Imp. Total Neto' },
+          { id: 'yieldGross', name: 'Rent. Bruta' },
+          { id: 'yieldNet', name: 'Rent. Neta' }
+        ]
+      }
     ],
     'Empresas': [
-      { group: 'DATOS EMPRESA', items: [
-        { id: 'id', name: 'ID' },
-        { id: 'nombre', name: 'Nombre' },
-        { id: 'razonSocial', name: 'Razón Social' },
-        { id: 'cif', name: 'CIF/NIF' },
-        { id: 'sector', name: 'Sector' },
-        { id: 'telefono', name: 'Teléfono' },
-        { id: 'email', name: 'Email' },
-        { id: 'direccion', name: 'Dirección' },
-        { id: 'ciudad', name: 'Ciudad' },
-        { id: 'web', name: 'Web' }
-      ]}
+      {
+        group: 'DATOS EMPRESA', items: [
+          { id: 'id', name: 'ID' },
+          { id: 'nombre', name: 'Nombre' },
+          { id: 'razonSocial', name: 'Razón Social' },
+          { id: 'cif', name: 'CIF/NIF' },
+          { id: 'sector', name: 'Sector' },
+          { id: 'telefono', name: 'Teléfono' },
+          { id: 'email', name: 'Email' },
+          { id: 'direccion', name: 'Dirección' },
+          { id: 'ciudad', name: 'Ciudad' },
+          { id: 'web', name: 'Web' }
+        ]
+      }
     ],
     'Contratos': [
-      { group: 'DATOS CONTRATO', items: [
-        { id: 'id', name: 'ID' },
-        { id: 'empresaId', name: 'Empresa' },
-        { id: 'puesto', name: 'Puesto' },
-        { id: 'fechaInicio', name: 'Fecha Inicio' },
-        { id: 'fechaFin', name: 'Fecha Fin' },
-        { id: 'ingresoMensual', name: 'Ingreso Mensual' },
-        { id: 'tipoJornada', name: 'Tipo Jornada' },
-        { id: 'referencia', name: 'Referencia' }
-      ]}
+      {
+        group: 'DATOS CONTRATO', items: [
+          { id: 'id', name: 'ID' },
+          { id: 'empresaId', name: 'Empresa' },
+          { id: 'puesto', name: 'Puesto' },
+          { id: 'fechaInicio', name: 'Fecha Inicio' },
+          { id: 'fechaFin', name: 'Fecha Fin' },
+          { id: 'ingresoMensual', name: 'Ingreso Mensual' },
+          { id: 'tipoJornada', name: 'Tipo Jornada' },
+          { id: 'referencia', name: 'Referencia' }
+        ]
+      }
     ],
     'Analítica': [
-      { group: 'CUENTA', items: [
-        { id: 'code', name: 'Cuenta' },
-        { id: 'description', name: 'Descripción' }
-      ]},
-      { group: 'PRESUPUESTO', items: [
-        { id: 'total', name: 'Presupuesto total' },
-        { id: 'ene', name: 'Enero' },
-        { id: 'feb', name: 'Febrero' },
-        { id: 'mar', name: 'Marzo' },
-        { id: 'abr', name: 'Abril' },
-        { id: 'may', name: 'Mayo' },
-        { id: 'jun', name: 'Junio' },
-        { id: 'jul', name: 'Julio' },
-        { id: 'ago', name: 'Agosto' },
-        { id: 'sep', name: 'Septiembre' },
-        { id: 'oct', name: 'Octubre' },
-        { id: 'nov', name: 'Noviembre' },
-        { id: 'dic', name: 'Diciembre' }
-      ]}
+      {
+        group: 'CUENTA', items: [
+          { id: 'code', name: 'Cuenta' },
+          { id: 'description', name: 'Descripción' }
+        ]
+      },
+      {
+        group: 'PRESUPUESTO', items: [
+          { id: 'total', name: 'Presupuesto total' },
+          { id: 'ene', name: 'Enero' },
+          { id: 'feb', name: 'Febrero' },
+          { id: 'mar', name: 'Marzo' },
+          { id: 'abr', name: 'Abril' },
+          { id: 'may', name: 'Mayo' },
+          { id: 'jun', name: 'Junio' },
+          { id: 'jul', name: 'Julio' },
+          { id: 'ago', name: 'Agosto' },
+          { id: 'sep', name: 'Septiembre' },
+          { id: 'oct', name: 'Octubre' },
+          { id: 'nov', name: 'Noviembre' },
+          { id: 'dic', name: 'Diciembre' }
+        ]
+      }
     ]
   };
 
@@ -819,12 +902,12 @@ export default function Layout() {
 
   const tabRibbons = {
     'Cuentas contables': [
-      { 
-        group: 'Cuentas', 
+      {
+        group: 'Cuentas',
         items: [
           { name: 'Configuración\nde cuentas', path: '/accounts', customIcon: 'ConfigCuentas' },
           { name: 'P.G.C.', path: '/pgc', customIcon: 'PGC' }
-        ] 
+        ]
       },
       {
         group: 'Analítica',
@@ -860,16 +943,16 @@ export default function Layout() {
       }
     ],
     'Mayor': [
-      { 
-        group: 'Mayor', 
+      {
+        group: 'Mayor',
         items: [
           { name: 'Extracto de\nmovimientos', path: '/account-statement', customIcon: 'ExtractoMov' }
-        ] 
+        ]
       }
     ],
     'Sumas y saldos': [
-      { 
-        group: 'Consultas', 
+      {
+        group: 'Consultas',
         items: [
           { name: 'Balance de\nsumas y saldos', path: '/trial-balance', customIcon: 'BalanceSumas' },
           { name: 'Saldos\nmensuales', action: 'trial-balance:mensuales', customIcon: 'SaldosMensuales' },
@@ -879,13 +962,13 @@ export default function Layout() {
       }
     ],
     'Clientes': [
-      { 
-        group: 'Mantenimiento', 
+      {
+        group: 'Mantenimiento',
         items: [
           { name: 'Nuevo', action: 'customer:new', path: '/customers', customIcon: 'Nuevo' },
           { name: 'Modificar', action: 'customer:edit', path: '/customers', customIcon: 'Modificar' },
           { name: 'Eliminar', action: 'customer:delete', path: '/customers', customIcon: 'Eliminar' }
-        ] 
+        ]
       },
       {
         group: 'Acciones',
@@ -955,13 +1038,13 @@ export default function Layout() {
       }
     ],
     'Activos': [
-      { 
-        group: 'Mantenimiento', 
+      {
+        group: 'Mantenimiento',
         items: [
           { name: 'Nuevo', action: 'real-estate:new', path: '/real-estate', customIcon: 'Nuevo' },
           { name: 'Modificar', action: 'real-estate:edit', path: '/real-estate', customIcon: 'Modificar' },
           { name: 'Eliminar', action: 'real-estate:delete', path: '/real-estate', customIcon: 'Eliminar' }
-        ] 
+        ]
       },
       {
         group: 'Acciones',
@@ -972,13 +1055,13 @@ export default function Layout() {
       }
     ],
     'Alquileres': [
-      { 
-        group: 'Mantenimiento', 
+      {
+        group: 'Mantenimiento',
         items: [
           { name: 'Nuevo', action: 'rentals:new', path: '/rentals', customIcon: 'Nuevo' },
           { name: 'Modificar', action: 'rentals:edit', path: '/rentals', customIcon: 'Modificar' },
           { name: 'Eliminar', action: 'rentals:delete', path: '/rentals', customIcon: 'Eliminar' }
-        ] 
+        ]
       },
       {
         group: 'Acciones',
@@ -989,13 +1072,13 @@ export default function Layout() {
       }
     ],
     'Propietarios': [
-      { 
-        group: 'Mantenimiento', 
+      {
+        group: 'Mantenimiento',
         items: [
           { name: 'Nuevo', action: 'partners:new', path: '/partners', customIcon: 'Nuevo' },
           { name: 'Modificar', action: 'partners:edit', path: '/partners', customIcon: 'Modificar' },
           { name: 'Eliminar', action: 'partners:delete', path: '/partners', customIcon: 'Eliminar' }
-        ] 
+        ]
       },
       {
         group: 'Acciones',
@@ -1006,13 +1089,13 @@ export default function Layout() {
       }
     ],
     'Portfolio': [
-      { 
-        group: 'Mantenimiento', 
+      {
+        group: 'Mantenimiento',
         items: [
           { name: 'Nueva\ntransacción', action: 'rv-transaction:new', path: '/portfolio', customIcon: 'Nuevo' },
           { name: 'Modificar', action: 'rv-transaction:edit', path: '/portfolio', customIcon: 'Modificar' },
           { name: 'Eliminar', action: 'rv-transaction:delete', path: '/portfolio', customIcon: 'Eliminar' }
-        ] 
+        ]
       },
       {
         group: 'Acciones',
@@ -1023,13 +1106,13 @@ export default function Layout() {
       }
     ],
     'Broker': [
-      { 
-        group: 'Mantenimiento', 
+      {
+        group: 'Mantenimiento',
         items: [
           { name: 'Nuevo', action: 'rv-broker:new', path: '/broker', customIcon: 'Nuevo' },
           { name: 'Modificar', action: 'rv-broker:edit', path: '/broker', customIcon: 'Modificar' },
           { name: 'Eliminar', action: 'rv-broker:delete', path: '/broker', customIcon: 'Eliminar' }
-        ] 
+        ]
       },
       {
         group: 'Acciones',
@@ -1040,13 +1123,13 @@ export default function Layout() {
       }
     ],
     'Activos RV': [
-      { 
-        group: 'Mantenimiento', 
+      {
+        group: 'Mantenimiento',
         items: [
           { name: 'Nuevo', action: 'rv-asset:new', path: '/rv-assets', customIcon: 'Nuevo' },
           { name: 'Modificar', action: 'rv-asset:edit', path: '/rv-assets', customIcon: 'Modificar' },
           { name: 'Eliminar', action: 'rv-asset:delete', path: '/rv-assets', customIcon: 'Eliminar' }
-        ] 
+        ]
       },
       {
         group: 'Acciones',
@@ -1064,13 +1147,13 @@ export default function Layout() {
       }
     ],
     'Transacciones': [
-      { 
-        group: 'Mantenimiento', 
+      {
+        group: 'Mantenimiento',
         items: [
           { name: 'Nuevo', action: 'rv-transaction:new', path: '/rv-transactions', customIcon: 'Nuevo' },
           { name: 'Modificar', action: 'rv-transaction:edit', path: '/rv-transactions', customIcon: 'Modificar' },
           { name: 'Eliminar', action: 'rv-transaction:delete', path: '/rv-transactions', customIcon: 'Eliminar' }
-        ] 
+        ]
       },
       {
         group: 'Acciones',
@@ -1192,14 +1275,14 @@ export default function Layout() {
       }
     ],
     'Dashboard': [
-      { 
-        group: 'Dashboard', 
+      {
+        group: 'Dashboard',
         items: [
           { name: 'Contabilidad', action: 'dashboard:contabilidad', icon: PieChart },
           { name: 'Inversiones\ninmobiliarias', action: 'dashboard:inversiones', icon: Building2 },
           { name: 'Renta\nvariable', action: 'dashboard:rv', icon: TrendingUp },
           { name: 'Crowdfunding', action: 'dashboard:cf', icon: Landmark }
-        ] 
+        ]
       }
     ],
     'Impresion': [
@@ -1213,18 +1296,20 @@ export default function Layout() {
           { name: 'Impuestos', action: 'print:impuestos', icon: FileSpreadsheet }
         ]
       },
-      { 
-        group: 'Acciones', 
+      {
+        group: 'Acciones',
         items: [
           { name: 'Imprimir\nReporte', action: 'print:execute', icon: Printer }
-        ] 
+        ]
       }
     ],
     'Importador': [
-      { group: 'Acciones', items: [
-        { name: 'Importar\nDatos', path: '/importador', icon: Upload },
-        { name: 'Descargar plantilla\nimportación', path: '/importador?tab=plantillas', icon: FileSpreadsheet }
-      ]}
+      {
+        group: 'Acciones', items: [
+          { name: 'Importar\nDatos', path: '/importador', icon: Upload },
+          { name: 'Descargar plantilla\nimportación', path: '/importador?tab=plantillas', icon: FileSpreadsheet }
+        ]
+      }
     ],
     'Manual': [
       { group: 'Ayuda', items: [{ name: 'Manual', path: '#', icon: BookOpen }] }
@@ -1241,527 +1326,531 @@ export default function Layout() {
   const isHomePage = location.pathname === '/';
 
   return (
-    <div className="flex flex-col h-screen bg-[#e2e8f0] font-sans overflow-hidden select-none">
-      <header className={`bg-[#4e80c8] text-white flex flex-col shadow-inner z-50 relative`}>
-        <div className="flex justify-between items-center w-full px-2 py-1">
-          <div className="flex items-center space-x-2 shrink-0 w-1/3 relative">
-            <button 
-              className="p-1.5 hover:bg-white/20 rounded mr-2 flex items-center space-x-2 transition-colors"
-              onClick={() => {
-                setDropdownOpen(!dropdownOpen);
-              }}
+    <div className="flex h-screen bg-[#e2e8f0] font-sans overflow-hidden select-none">
+      {/* Sidebar */}
+      {dropdownOpen && (
+        <div
+          className="bg-[#4e80c8] text-white shadow-[2px_0_10px_rgba(0,0,0,0.2)] z-[60] flex flex-col font-sans shrink-0 border-r border-white/10 relative"
+          style={{ width: sidebarWidth }}
+        >
+          {/* Resizer handle */}
+          <div
+            className="absolute top-0 right-0 w-1.5 h-full cursor-col-resize hover:bg-white/30 z-[61]"
+            onMouseDown={() => setIsResizing(true)}
+          />
+          <div className="flex items-center justify-end px-6 pt-4 pb-2">
+            <button
+              onClick={closeDropdowns}
+              className="p-1.5 border border-white rounded-full hover:bg-white/20 transition-colors"
             >
-              <span className="text-[12px] font-semibold">{activeModule}</span>
-              <span className="text-[9px]">▼</span>
-            </button>
-            {dropdownOpen && (
-              <>
-                <div className="fixed top-0 left-0 w-[100vw] h-[100vh] bg-black/50 backdrop-blur-sm z-[9998]" onClick={closeDropdowns}></div>
-                <div className="fixed top-0 left-0 h-screen w-64 bg-[#4e80c8] text-white shadow-2xl z-[9999] flex flex-col font-sans">
-                  <div className="flex items-center justify-end px-6 pt-4 pb-2">
-                  <button 
-                    onClick={closeDropdowns} 
-                    className="p-1.5 border border-white rounded-full hover:bg-white/20 transition-colors"
-                  >
-                    <ArrowLeft className="w-4 h-4" strokeWidth={2} />
-                  </button>
-                </div>
-                <div className="flex-1 py-4 flex flex-col">
-                  {modules.map((modName, idx) => (
-                    <div 
-                      key={idx} 
-                      onClick={() => {
-                        setActiveModule(modName);
-                        const firstTab = moduleTabs[modName][0];
-                        setActiveTab(firstTab);
-                        navigate(tabDefaultPaths[firstTab] || '#');
-                        closeDropdowns();
-                      }}
-                      className={`px-8 py-3 cursor-pointer flex justify-start items-center transition-colors text-[14px] border-b border-white/5
-                        ${activeModule === modName ? 'bg-white/20 font-bold border-l-4 border-l-white' : 'hover:bg-white/10 border-l-4 border-l-transparent'}`}
-                    >
-                      {modName}
-                    </div>
-                  ))}
-                  
-                  <div className="mt-auto border-t border-white/20 pt-2">
-                    <div 
-                      onClick={() => {
-                        closeDropdowns();
-                        setIsSettingsOpen(true);
-                      }}
-                      className="px-8 py-3 cursor-pointer flex justify-start items-center transition-colors text-[14px] hover:bg-white/10 border-l-4 border-l-transparent"
-                    >
-                      Configuración
-                    </div>
-                    <div 
-                      onClick={() => {
-                        closeDropdowns();
-                        logout();
-                      }}
-                      className="px-8 py-3 cursor-pointer flex justify-start items-center transition-colors text-[14px] hover:bg-white/10 border-l-4 border-l-transparent text-red-300"
-                    >
-                      Cerrar Sesión
-                    </div>
-                  </div>
-                </div>
-              </div>
-            </>
-          )}
-          </div>
-          
-          <div className="flex items-center justify-center shrink-0 w-1/3">
-            <button 
-              onClick={() => { setActiveModule('Módulos'); setActiveTab(''); navigate('/'); setShowRibbon(false); }}
-              className="font-black text-sm tracking-widest uppercase text-white/90 drop-shadow-sm hover:text-white transition-colors cursor-pointer"
-            >
-              Nexo
+              <ArrowLeft className="w-4 h-4" strokeWidth={2} />
             </button>
           </div>
-
-          <div className="flex items-center justify-end w-1/3 space-x-2 shrink-0 pr-2">
-            <div className="text-right hidden sm:block">
-              <p className="text-[9px] uppercase font-bold text-white/90 leading-tight truncate max-w-[120px]">{user?.email}</p>
-            </div>
-
-            <button 
-              onPointerDown={(e) => { e.preventDefault(); logout(); }}
-              className="p-1 hover:bg-white/20 rounded transition-colors"
-              title="Cerrar Sesión"
-            >
-              <LogOut className="w-4 h-4" />
-            </button>
-          </div>
-        </div>
-
-        <div className="flex items-end px-2 pt-1 border-b border-[#3b6bb8] relative">
-          <nav className="flex items-end space-x-0">
-            {moduleTabs[activeModule]?.map((tab) => (
-              <button
-                key={tab}
+          <div className="flex-1 py-4 flex flex-col overflow-y-auto overflow-x-hidden">
+            {modules.map((modName, idx) => (
+              <div
+                key={idx}
                 onClick={() => {
-                  setActiveTab(tab);
-                  navigate(tabDefaultPaths[tab] || '#');
+                  setActiveModule(modName);
+                  const firstTab = moduleTabs[modName][0];
+                  setActiveTab(firstTab);
+                  navigate(tabDefaultPaths[firstTab] || '#');
                 }}
-                className={`px-3 py-1.5 text-[12px] transition-colors border-t border-l border-r border-b-0 ${activeTab === tab ? 'bg-[#f3f4f6] text-black border-transparent relative top-[1px]' : 'bg-transparent text-white border-transparent hover:bg-white/10'}`}
+                className={`px-8 py-3 cursor-pointer flex justify-start items-center transition-colors text-[14px] border-b border-white/5
+                  ${activeModule === modName ? 'bg-white/20 font-bold border-l-4 border-l-white' : 'hover:bg-white/10 border-l-4 border-l-transparent'}`}
               >
-                {tab === 'Activos RV' ? 'Activos' : tab === 'Histórico RV' ? 'Histórico' : tab}
-              </button>
+                {modName}
+              </div>
             ))}
-          </nav>
-          
-          {!isHomePage && (
-          <div className="absolute right-2 bottom-1 z-10 flex items-center h-[24px]">
-            <button 
-              onClick={() => setShowRibbon(!showRibbon)}
-              className="p-1 hover:bg-black/10 backdrop-blur-sm rounded text-white transition-colors"
-              title={showRibbon ? "Ocultar panel de opciones" : "Mostrar panel de opciones"}
-            >
-              {showRibbon ? <ChevronUp className="w-4 h-4" /> : <ChevronDown className="w-4 h-4" />}
-            </button>
-          </div>
-          )}
-        </div>
-      </header>
 
-      {showRibbon && (
-        <div className={`bg-[#f3f4f6] border-b border-gray-300 flex h-[95px] overflow-x-auto overflow-y-hidden whitespace-nowrap shrink-0 shadow-sm select-none relative w-full scrollbar-hide ${isHomePage ? 'hidden' : ''}`}>
-          {tabRibbons[activeTab] && tabRibbons[activeTab].map((group, gIdx) => (
-            <div key={gIdx} className="flex flex-col border-r border-gray-300">
-              <div className="flex-1 flex items-stretch px-1 pt-4">
-              {group.items.map((item, iIdx) => {
-                const isActive = !item.action && item.path && item.path !== '#' && location.pathname + location.search === item.path;
-                const isExport = item.name === 'Exportar';
-                const isAddColumn = item.name === 'Añadir columna';
-                return (
-                  <div key={iIdx} className="relative flex flex-col">
-                    <button 
-                      onClick={(e) => {
-                        const rect = e.currentTarget.getBoundingClientRect();
-                        if (isExport) {
-                          setDropdownConfig(prev => prev?.type === 'export' ? null : { type: 'export', action: item.action, rect: { top: rect.bottom, left: rect.left } });
-                        } else if (isAddColumn) {
-                          setDropdownConfig(prev => prev?.type === 'column' ? null : { type: 'column', action: item.action, tab: activeTab, rect: { top: rect.bottom, left: rect.left } });
-                        } else if (item.action === 'dashboard:contabilidad') {
-                          setDropdownConfig(prev => prev?.type === 'dash-cont' ? null : { type: 'dash-cont', action: item.action, rect: { top: rect.bottom, left: rect.left } });
-                        } else if (item.action === 'dashboard:inversiones') {
-                          setDropdownConfig(prev => prev?.type === 'dash-inv' ? null : { type: 'dash-inv', action: item.action, rect: { top: rect.bottom, left: rect.left } });
-                        } else if (item.action === 'dashboard:rv') {
-                          setDropdownConfig(prev => prev?.type === 'dash-rv' ? null : { type: 'dash-rv', action: item.action, rect: { top: rect.bottom, left: rect.left } });
-                        } else if (item.action === 'dashboard:cf') {
-                          setDropdownConfig(prev => prev?.type === 'dash-cf' ? null : { type: 'dash-cf', action: item.action, rect: { top: rect.bottom, left: rect.left } });
-                        } else if (item.action === 'print:contabilidad') {
-                          setDropdownConfig(prev => prev?.type === 'print-cont' ? null : { type: 'print-cont', action: item.action, rect: { top: rect.bottom, left: rect.left } });
-                        } else if (item.action === 'print:inversiones') {
-                          setDropdownConfig(prev => prev?.type === 'print-inv' ? null : { type: 'print-inv', action: item.action, rect: { top: rect.bottom, left: rect.left } });
-                        } else if (item.action === 'print:rv') {
-                          setDropdownConfig(prev => prev?.type === 'print-rv' ? null : { type: 'print-rv', action: item.action, rect: { top: rect.bottom, left: rect.left } });
-                        } else if (item.action === 'print:cf') {
-                          setDropdownConfig(prev => prev?.type === 'print-cf' ? null : { type: 'print-cf', action: item.action, rect: { top: rect.bottom, left: rect.left } });
-                        } else if (item.action === 'print:impuestos') {
-                          setDropdownConfig(prev => prev?.type === 'print-imp' ? null : { type: 'print-imp', action: item.action, rect: { top: rect.bottom, left: rect.left } });
-                        } else if (item.action === 'taxes:year-dropdown') {
-                          setDropdownConfig(prev => prev?.type === 'taxes-year' ? null : { type: 'taxes-year', action: item.action, rect: { top: rect.bottom, left: rect.left } });
-                        } else if (item.action === 'taxes:extract') {
-                          e.preventDefault();
-                          window.dispatchEvent(new CustomEvent('taxes:extract', { detail: { year: taxYear } }));
-                        } else if (item.action) {
-                          e.preventDefault();
-                          window.dispatchEvent(new CustomEvent(item.action));
-                        } else if (item.path && item.path !== '#') {
-                          navigate(item.path);
-                        }
-                      }}
-                      className={`flex flex-col items-center justify-start px-1.5 py-0.5 mx-0.5 rounded border transition-all min-w-[60px] group
-                        ${isActive 
-                          ? 'bg-blue-100/50 border-blue-300 shadow-inner' 
-                          : 'bg-transparent border-transparent hover:bg-white hover:border-[#b4c7dc] hover:shadow-sm'
-                        }`}
-                    >
-                      <div className="h-6 flex items-center justify-center mb-1 transition-transform group-hover:scale-105">
-                        {item.customIcon ? (
-                          <RibbonCustomIcon type={item.customIcon} />
-                        ) : (
-                          <item.icon className={`w-5 h-5 text-[#4e80c8] ${item.action === 'rv-asset:refresh-prices' && isFetchingPrices ? 'animate-spin' : ''}`} strokeWidth={1.5} />
-                        )}
-                      </div>
-                      <span className="text-[10px] leading-[1.1] text-gray-700 font-medium text-center whitespace-pre-wrap flex flex-col items-center justify-center">
-                        {item.name} 
-                        {(isExport || isAddColumn || item.action === 'dashboard:contabilidad' || item.action === 'dashboard:inversiones' || item.action === 'dashboard:rv' || item.action === 'dashboard:cf' || item.action?.startsWith('print:')) && <ChevronDown className="w-3 h-3 mt-0.5" />}
-                      </span>
-                      {item.action === 'rv-asset:download-history' && downloadProgress && (
-                        <div className="absolute bottom-0 left-0 w-full h-1 bg-gray-200 rounded-b overflow-hidden">
-                          <div className="h-full bg-blue-500 transition-all duration-300" style={{ width: `${(downloadProgress.current / downloadProgress.total) * 100}%` }}></div>
-                        </div>
-                      )}
-                    </button>
-                  </div>
-                )
-              })}
-            </div>
-            <div className="h-[18px] flex items-center justify-center text-[10px] text-gray-500 font-medium bg-gradient-to-t from-gray-200/50 to-transparent border-t border-gray-200/50">
-              {group.group}
+            <div className="mt-auto border-t border-white/20 pt-2">
+              <div
+                onClick={() => setIsSettingsOpen(true)}
+                className="px-8 py-3 cursor-pointer flex justify-start items-center transition-colors text-[14px] hover:bg-white/10 border-l-4 border-l-transparent"
+              >
+                Configuración
+              </div>
+              <div
+                onClick={logout}
+                className="px-8 py-3 cursor-pointer flex justify-start items-center transition-colors text-[14px] hover:bg-white/10 border-l-4 border-l-transparent text-red-300"
+              >
+                Cerrar Sesión
+              </div>
             </div>
           </div>
-        ))}
-        
-          <div className="flex-1"></div>
         </div>
       )}
 
-      {/* Dropdowns fixed portal */}
-      {dropdownConfig?.type === 'export' && (
-        <div 
-          className="fixed bg-white border border-gray-300 shadow-lg rounded z-[100] py-1 w-32 flex flex-col text-[11px]" 
-          style={{ top: dropdownConfig.rect.top + 4, left: dropdownConfig.rect.left }}
-          onMouseDown={e => e.stopPropagation()}
-        >
-           <div className="px-3 py-1 hover:bg-gray-100 cursor-pointer text-left font-bold" onClick={() => { window.dispatchEvent(new CustomEvent(dropdownConfig.action, { detail: { format: 'pdf' } })); setDropdownConfig(null); }}>PDF (.pdf)</div>
-           <div className="px-3 py-1 hover:bg-gray-100 cursor-pointer text-left" onClick={() => { window.dispatchEvent(new CustomEvent(dropdownConfig.action, { detail: { format: 'excel' } })); setDropdownConfig(null); }}>Excel (.xls)</div>
-           <div className="px-3 py-1 hover:bg-gray-100 cursor-pointer text-left" onClick={() => { window.dispatchEvent(new CustomEvent(dropdownConfig.action, { detail: { format: 'csv' } })); setDropdownConfig(null); }}>CSV (.csv)</div>
-           <div className="px-3 py-1 hover:bg-gray-100 cursor-pointer text-left" onClick={() => { window.dispatchEvent(new CustomEvent(dropdownConfig.action, { detail: { format: 'json' } })); setDropdownConfig(null); }}>JSON (.json)</div>
-           <div className="px-3 py-1 hover:bg-gray-100 cursor-pointer text-left" onClick={() => { window.dispatchEvent(new CustomEvent(dropdownConfig.action, { detail: { format: 'xml' } })); setDropdownConfig(null); }}>XML (.xml)</div>
-        </div>
-      )}
+      {/* Main Content */}
+      <div className="flex-1 flex flex-col min-w-0 overflow-hidden">
+        <header className={`bg-[#4e80c8] text-white flex flex-col shadow-inner z-50 relative`}>
+          <div className="flex justify-between items-center w-full px-2 py-1">
+            <div className="flex items-center space-x-2 shrink-0 w-1/3 relative">
+              {!dropdownOpen && (
+                <button
+                  className="p-1.5 hover:bg-white/20 rounded mr-2 flex items-center space-x-2 transition-colors"
+                  onClick={() => setDropdownOpen(true)}
+                >
+                  <span className="text-[12px] font-semibold">{activeModule}</span>
+                  <span className="text-[9px]">▼</span>
+                </button>
+              )}
+            </div>
 
-      {dropdownConfig?.type === 'column' && availableColumnsByTab[dropdownConfig.tab] && (
-        <div 
-          className="fixed bg-white border border-gray-300 shadow-lg rounded z-[100] py-1 w-56 flex flex-col text-[11px] max-h-64 overflow-y-auto" 
-          style={{ top: dropdownConfig.rect.top + 4, left: dropdownConfig.rect.left }}
-          onMouseDown={e => e.stopPropagation()}
-        >
-          {availableColumnsByTab[dropdownConfig.tab].map((colOrGroup, idx) => {
-            if (colOrGroup.group) {
-              return (
-                <div key={idx} className="mb-1">
-                  <div className="px-2 py-1 bg-slate-200/80 font-bold text-slate-700 uppercase tracking-tight sticky top-0 border-y border-slate-300 text-[9px]">{colOrGroup.group}</div>
-                  {colOrGroup.items.map(col => {
-                    const isVisible = activeColumns[dropdownConfig.tab]?.includes(col.id);
+            <div className="flex items-center justify-center shrink-0 w-1/3 space-x-2">
+              <button
+                onClick={() => { setActiveModule('Módulos'); setActiveTab(''); navigate('/'); setShowRibbon(false); }}
+                className="flex items-center space-x-2 font-black text-lg tracking-widest uppercase text-white/90 drop-shadow-sm hover:text-white transition-colors cursor-pointer"
+              >
+                <img src="/nexo-logo.png?v=2" alt="Nexo Logo" className="w-7 h-6 drop-shadow-m]" />
+                <span>Nexo</span>
+              </button>
+            </div>
+
+            <div className="flex items-center justify-end w-1/3 space-x-2 shrink-0 pr-2">
+              <div className="text-right hidden sm:block">
+                <p className="text-[9px] uppercase font-bold text-white/90 leading-tight truncate max-w-[120px]">{user?.email}</p>
+              </div>
+
+              <button
+                onPointerDown={(e) => { e.preventDefault(); logout(); }}
+                className="p-1 hover:bg-white/20 rounded transition-colors"
+                title="Cerrar Sesión"
+              >
+                <LogOut className="w-4 h-4" />
+              </button>
+            </div>
+          </div>
+
+          <div className="flex items-end px-2 pt-1 border-b border-[#3b6bb8] relative">
+            <nav className="flex items-end space-x-0">
+              {moduleTabs[activeModule]?.map((tab) => (
+                <button
+                  key={tab}
+                  onClick={() => {
+                    setActiveTab(tab);
+                    navigate(tabDefaultPaths[tab] || '#');
+                  }}
+                  className={`px-3 py-1.5 text-[12px] transition-colors border-t border-l border-r border-b-0 ${activeTab === tab ? 'bg-[#f3f4f6] text-black border-transparent relative top-[1px]' : 'bg-transparent text-white border-transparent hover:bg-white/10'}`}
+                >
+                  {tab === 'Activos RV' ? 'Activos' : tab === 'Histórico RV' ? 'Histórico' : tab}
+                </button>
+              ))}
+            </nav>
+
+            {!isHomePage && (
+              <div className="absolute right-2 bottom-1 z-10 flex items-center h-[24px]">
+                <button
+                  onClick={() => setShowRibbon(!showRibbon)}
+                  className="p-1 hover:bg-black/10 backdrop-blur-sm rounded text-white transition-colors"
+                  title={showRibbon ? "Ocultar panel de opciones" : "Mostrar panel de opciones"}
+                >
+                  {showRibbon ? <ChevronUp className="w-4 h-4" /> : <ChevronDown className="w-4 h-4" />}
+                </button>
+              </div>
+            )}
+          </div>
+        </header>
+
+        {showRibbon && (
+          <div className={`bg-[#f3f4f6] border-b border-gray-300 flex h-[95px] overflow-x-auto overflow-y-hidden whitespace-nowrap shrink-0 shadow-sm select-none relative w-full scrollbar-hide ${isHomePage ? 'hidden' : ''}`}>
+            {tabRibbons[activeTab] && tabRibbons[activeTab].map((group, gIdx) => (
+              <div key={gIdx} className="flex flex-col border-r border-gray-300">
+                <div className="flex-1 flex items-stretch px-1 pt-4">
+                  {group.items.map((item, iIdx) => {
+                    const isActive = !item.action && item.path && item.path !== '#' && location.pathname + location.search === item.path;
+                    const isExport = item.name === 'Exportar';
+                    const isAddColumn = item.name === 'Añadir columna';
                     return (
-                      <div 
-                        key={col.id}
-                        draggable
-                        onDragStart={(e) => {
-                          setDraggedColId(col.id);
-                          e.dataTransfer.effectAllowed = 'move';
-                        }}
-                        onDragOver={(e) => {
-                          e.preventDefault();
-                          e.dataTransfer.dropEffect = 'move';
-                        }}
-                        onDrop={(e) => {
-                          e.preventDefault();
-                          if (draggedColId && draggedColId !== col.id) {
-                            window.dispatchEvent(new CustomEvent('reorder-column', { detail: { draggedId: draggedColId, targetId: col.id, action: dropdownConfig.action } }));
-                          }
-                          setDraggedColId(null);
-                        }}
-                        className={`px-4 py-1.5 cursor-move text-left flex items-center ${draggedColId === col.id ? 'opacity-50' : 'hover:bg-gray-100'}`} 
-                        onClick={() => { 
-                          window.dispatchEvent(new CustomEvent('toggle-column', { detail: { columnId: col.id, action: dropdownConfig.action } })); 
-                        }}
-                      >
-                        <input type="checkbox" checked={!!isVisible} readOnly className="mr-2 pointer-events-none cursor-move" />
-                        <span>{col.name}</span>
+                      <div key={iIdx} className="relative flex flex-col">
+                        <button
+                          onClick={(e) => {
+                            const rect = e.currentTarget.getBoundingClientRect();
+                            if (isExport) {
+                              setDropdownConfig(prev => prev?.type === 'export' ? null : { type: 'export', action: item.action, rect: { top: rect.bottom, left: rect.left } });
+                            } else if (isAddColumn) {
+                              setDropdownConfig(prev => prev?.type === 'column' ? null : { type: 'column', action: item.action, tab: activeTab, rect: { top: rect.bottom, left: rect.left } });
+                            } else if (item.action === 'dashboard:contabilidad') {
+                              setDropdownConfig(prev => prev?.type === 'dash-cont' ? null : { type: 'dash-cont', action: item.action, rect: { top: rect.bottom, left: rect.left } });
+                            } else if (item.action === 'dashboard:inversiones') {
+                              setDropdownConfig(prev => prev?.type === 'dash-inv' ? null : { type: 'dash-inv', action: item.action, rect: { top: rect.bottom, left: rect.left } });
+                            } else if (item.action === 'dashboard:rv') {
+                              setDropdownConfig(prev => prev?.type === 'dash-rv' ? null : { type: 'dash-rv', action: item.action, rect: { top: rect.bottom, left: rect.left } });
+                            } else if (item.action === 'dashboard:cf') {
+                              setDropdownConfig(prev => prev?.type === 'dash-cf' ? null : { type: 'dash-cf', action: item.action, rect: { top: rect.bottom, left: rect.left } });
+                            } else if (item.action === 'print:contabilidad') {
+                              setDropdownConfig(prev => prev?.type === 'print-cont' ? null : { type: 'print-cont', action: item.action, rect: { top: rect.bottom, left: rect.left } });
+                            } else if (item.action === 'print:inversiones') {
+                              setDropdownConfig(prev => prev?.type === 'print-inv' ? null : { type: 'print-inv', action: item.action, rect: { top: rect.bottom, left: rect.left } });
+                            } else if (item.action === 'print:rv') {
+                              setDropdownConfig(prev => prev?.type === 'print-rv' ? null : { type: 'print-rv', action: item.action, rect: { top: rect.bottom, left: rect.left } });
+                            } else if (item.action === 'print:cf') {
+                              setDropdownConfig(prev => prev?.type === 'print-cf' ? null : { type: 'print-cf', action: item.action, rect: { top: rect.bottom, left: rect.left } });
+                            } else if (item.action === 'print:impuestos') {
+                              setDropdownConfig(prev => prev?.type === 'print-imp' ? null : { type: 'print-imp', action: item.action, rect: { top: rect.bottom, left: rect.left } });
+                            } else if (item.action === 'taxes:year-dropdown') {
+                              setDropdownConfig(prev => prev?.type === 'taxes-year' ? null : { type: 'taxes-year', action: item.action, rect: { top: rect.bottom, left: rect.left } });
+                            } else if (item.action === 'taxes:extract') {
+                              e.preventDefault();
+                              window.dispatchEvent(new CustomEvent('taxes:extract', { detail: { year: taxYear } }));
+                            } else if (item.action) {
+                              e.preventDefault();
+                              window.dispatchEvent(new CustomEvent(item.action));
+                            } else if (item.path && item.path !== '#') {
+                              navigate(item.path);
+                            }
+                          }}
+                          className={`flex flex-col items-center justify-start px-1.5 py-0.5 mx-0.5 rounded border transition-all min-w-[60px] group
+                        ${isActive
+                              ? 'bg-blue-100/50 border-blue-300 shadow-inner'
+                              : 'bg-transparent border-transparent hover:bg-white hover:border-[#b4c7dc] hover:shadow-sm'
+                            }`}
+                        >
+                          <div className="h-6 flex items-center justify-center mb-1 transition-transform group-hover:scale-105">
+                            {item.customIcon ? (
+                              <RibbonCustomIcon type={item.customIcon} />
+                            ) : (
+                              <item.icon className={`w-5 h-5 text-[#4e80c8] ${item.action === 'rv-asset:refresh-prices' && isFetchingPrices ? 'animate-spin' : ''}`} strokeWidth={1.5} />
+                            )}
+                          </div>
+                          <span className="text-[10px] leading-[1.1] text-gray-700 font-medium text-center whitespace-pre-wrap flex flex-col items-center justify-center">
+                            {item.name}
+                            {(isExport || isAddColumn || item.action === 'taxes:year-dropdown') && <ChevronDown className="w-3 h-3 mt-0.5" />}
+                          </span>
+                          {item.action === 'rv-asset:download-history' && downloadProgress && (
+                            <div className="absolute bottom-0 left-0 w-full h-1 bg-gray-200 rounded-b overflow-hidden">
+                              <div className="h-full bg-blue-500 transition-all duration-300" style={{ width: `${(downloadProgress.current / downloadProgress.total) * 100}%` }}></div>
+                            </div>
+                          )}
+                        </button>
                       </div>
                     )
                   })}
                 </div>
-              );
-            } else {
-              const col = colOrGroup;
-              const isVisible = activeColumns[dropdownConfig.tab]?.includes(col.id);
+                <div className="h-[18px] flex items-center justify-center text-[10px] text-gray-500 font-medium bg-gradient-to-t from-gray-200/50 to-transparent border-t border-gray-200/50">
+                  {group.group}
+                </div>
+              </div>
+            ))}
+
+            <div className="flex-1"></div>
+          </div>
+        )}
+
+        {/* Dropdowns fixed portal */}
+        {dropdownConfig?.type === 'export' && (
+          <div
+            className="fixed bg-white border border-gray-300 shadow-lg rounded z-[100] py-1 w-32 flex flex-col text-[11px]"
+            style={{ top: dropdownConfig.rect.top + 4, left: dropdownConfig.rect.left }}
+            onMouseDown={e => e.stopPropagation()}
+          >
+            <div className="px-3 py-1 hover:bg-gray-100 cursor-pointer text-left font-bold" onClick={() => { window.dispatchEvent(new CustomEvent(dropdownConfig.action, { detail: { format: 'pdf' } })); setDropdownConfig(null); }}>PDF (.pdf)</div>
+            <div className="px-3 py-1 hover:bg-gray-100 cursor-pointer text-left" onClick={() => { window.dispatchEvent(new CustomEvent(dropdownConfig.action, { detail: { format: 'excel' } })); setDropdownConfig(null); }}>Excel (.xls)</div>
+            <div className="px-3 py-1 hover:bg-gray-100 cursor-pointer text-left" onClick={() => { window.dispatchEvent(new CustomEvent(dropdownConfig.action, { detail: { format: 'csv' } })); setDropdownConfig(null); }}>CSV (.csv)</div>
+            <div className="px-3 py-1 hover:bg-gray-100 cursor-pointer text-left" onClick={() => { window.dispatchEvent(new CustomEvent(dropdownConfig.action, { detail: { format: 'json' } })); setDropdownConfig(null); }}>JSON (.json)</div>
+            <div className="px-3 py-1 hover:bg-gray-100 cursor-pointer text-left" onClick={() => { window.dispatchEvent(new CustomEvent(dropdownConfig.action, { detail: { format: 'xml' } })); setDropdownConfig(null); }}>XML (.xml)</div>
+          </div>
+        )}
+
+        {dropdownConfig?.type === 'column' && availableColumnsByTab[dropdownConfig.tab] && (
+          <div
+            className="fixed bg-white border border-gray-300 shadow-lg rounded z-[100] py-1 w-56 flex flex-col text-[11px] max-h-64 overflow-y-auto"
+            style={{ top: dropdownConfig.rect.top + 4, left: dropdownConfig.rect.left }}
+            onMouseDown={e => e.stopPropagation()}
+          >
+            {availableColumnsByTab[dropdownConfig.tab].map((colOrGroup, idx) => {
+              if (colOrGroup.group) {
+                return (
+                  <div key={idx} className="mb-1">
+                    <div className="px-2 py-1 bg-slate-200/80 font-bold text-slate-700 uppercase tracking-tight sticky top-0 border-y border-slate-300 text-[9px]">{colOrGroup.group}</div>
+                    {colOrGroup.items.map(col => {
+                      const isVisible = activeColumns[dropdownConfig.tab]?.includes(col.id);
+                      return (
+                        <div
+                          key={col.id}
+                          draggable
+                          onDragStart={(e) => {
+                            setDraggedColId(col.id);
+                            e.dataTransfer.effectAllowed = 'move';
+                          }}
+                          onDragOver={(e) => {
+                            e.preventDefault();
+                            e.dataTransfer.dropEffect = 'move';
+                          }}
+                          onDrop={(e) => {
+                            e.preventDefault();
+                            if (draggedColId && draggedColId !== col.id) {
+                              window.dispatchEvent(new CustomEvent('reorder-column', { detail: { draggedId: draggedColId, targetId: col.id, action: dropdownConfig.action } }));
+                            }
+                            setDraggedColId(null);
+                          }}
+                          className={`px-4 py-1.5 cursor-move text-left flex items-center ${draggedColId === col.id ? 'opacity-50' : 'hover:bg-gray-100'}`}
+                          onClick={() => {
+                            window.dispatchEvent(new CustomEvent('toggle-column', { detail: { columnId: col.id, action: dropdownConfig.action } }));
+                          }}
+                        >
+                          <input type="checkbox" checked={!!isVisible} readOnly className="mr-2 pointer-events-none cursor-move" />
+                          <span>{col.name}</span>
+                        </div>
+                      )
+                    })}
+                  </div>
+                );
+              } else {
+                const col = colOrGroup;
+                const isVisible = activeColumns[dropdownConfig.tab]?.includes(col.id);
+                return (
+                  <div
+                    key={col.id}
+                    draggable
+                    onDragStart={(e) => {
+                      setDraggedColId(col.id);
+                      e.dataTransfer.effectAllowed = 'move';
+                    }}
+                    onDragOver={(e) => {
+                      e.preventDefault();
+                      e.dataTransfer.dropEffect = 'move';
+                    }}
+                    onDrop={(e) => {
+                      e.preventDefault();
+                      if (draggedColId && draggedColId !== col.id) {
+                        window.dispatchEvent(new CustomEvent('reorder-column', { detail: { draggedId: draggedColId, targetId: col.id, action: dropdownConfig.action } }));
+                      }
+                      setDraggedColId(null);
+                    }}
+                    className={`px-3 py-1.5 cursor-move text-left flex items-center ${draggedColId === col.id ? 'opacity-50' : 'hover:bg-gray-100'}`}
+                    onClick={() => {
+                      window.dispatchEvent(new CustomEvent('toggle-column', { detail: { columnId: col.id, action: dropdownConfig.action } }));
+                    }}
+                  >
+                    <input type="checkbox" checked={!!isVisible} readOnly className="mr-2 pointer-events-none cursor-move" />
+                    <span>{col.name}</span>
+                  </div>
+                )
+              }
+            })}
+          </div>
+        )}
+
+        {dropdownConfig?.type === 'print-cont' && (
+          <div
+            className="fixed bg-white border border-gray-300 shadow-lg rounded z-[100] py-1 w-44 flex flex-col text-[11px]"
+            style={{ top: dropdownConfig.rect.top + 4, left: dropdownConfig.rect.left }}
+            onMouseDown={e => e.stopPropagation()}
+          >
+            <div className="px-3 py-1.5 hover:bg-gray-100 cursor-pointer text-left font-semibold" onClick={() => { setDropdownConfig(null); navigate('/print?category=contabilidad&subcategory=libros'); }}>Libros</div>
+            <div className="px-3 py-1.5 hover:bg-gray-100 cursor-pointer text-left font-semibold" onClick={() => { setDropdownConfig(null); navigate('/print?category=contabilidad&subcategory=anuales'); }}>Cuentas anuales</div>
+          </div>
+        )}
+
+        {dropdownConfig?.type === 'print-inv' && (
+          <div
+            className="fixed bg-white border border-gray-300 shadow-lg rounded z-[100] py-1 w-44 flex flex-col text-[11px]"
+            style={{ top: dropdownConfig.rect.top + 4, left: dropdownConfig.rect.left }}
+            onMouseDown={e => e.stopPropagation()}
+          >
+            <div className="px-3 py-1.5 hover:bg-gray-100 cursor-pointer text-left font-semibold" onClick={() => { setDropdownConfig(null); navigate('/print?category=inversiones&template=activos'); }}>Inventario de activos</div>
+            <div className="px-3 py-1.5 hover:bg-gray-100 cursor-pointer text-left font-semibold" onClick={() => { setDropdownConfig(null); navigate('/print?category=inversiones&template=alquileres'); }}>Contratos de alquiler</div>
+            <div className="px-3 py-1.5 hover:bg-gray-100 cursor-pointer text-left font-semibold" onClick={() => { setDropdownConfig(null); navigate('/print?category=inversiones&template=clientes'); }}>Fichero de clientes</div>
+          </div>
+        )}
+
+        {dropdownConfig?.type === 'print-rv' && (
+          <div
+            className="fixed bg-white border border-gray-300 shadow-lg rounded z-[100] py-1 w-44 flex flex-col text-[11px]"
+            style={{ top: dropdownConfig.rect.top + 4, left: dropdownConfig.rect.left }}
+            onMouseDown={e => e.stopPropagation()}
+          >
+            <div className="px-3 py-1.5 hover:bg-gray-100 cursor-pointer text-left font-semibold" onClick={() => { setDropdownConfig(null); navigate('/print?category=renta_variable&template=rv_portfolio'); }}>Cartera consolidada</div>
+            <div className="px-3 py-1.5 hover:bg-gray-100 cursor-pointer text-left font-semibold" onClick={() => { setDropdownConfig(null); navigate('/print?category=renta_variable&template=rv_transactions'); }}>Transacciones RV</div>
+          </div>
+        )}
+
+        {dropdownConfig?.type === 'print-cf' && (
+          <div
+            className="fixed bg-white border border-gray-300 shadow-lg rounded z-[100] py-1 w-44 flex flex-col text-[11px]"
+            style={{ top: dropdownConfig.rect.top + 4, left: dropdownConfig.rect.left }}
+            onMouseDown={e => e.stopPropagation()}
+          >
+            <div className="px-3 py-1.5 hover:bg-gray-100 cursor-pointer text-left font-semibold" onClick={() => { setDropdownConfig(null); navigate('/print?category=crowdfunding&template=cf_portfolio'); }}>Cartera consolidada</div>
+            <div className="px-3 py-1.5 hover:bg-gray-100 cursor-pointer text-left font-semibold" onClick={() => { setDropdownConfig(null); navigate('/print?category=crowdfunding&template=cf_transactions'); }}>Transacciones CF</div>
+          </div>
+        )}
+
+        {dropdownConfig?.type === 'print-imp' && (
+          <div
+            className="fixed bg-white border border-gray-300 shadow-lg rounded z-[100] py-1 w-48 flex flex-col text-[11px]"
+            style={{ top: dropdownConfig.rect.top + 4, left: dropdownConfig.rect.left }}
+            onMouseDown={e => e.stopPropagation()}
+          >
+            <div className="px-3 py-1.5 hover:bg-gray-100 cursor-pointer text-left font-semibold" onClick={() => { setDropdownConfig(null); navigate('/print?category=impuestos&template=taxes_total'); }}>Resumen fiscal general</div>
+            <div className="px-3 py-1.5 hover:bg-gray-100 cursor-pointer text-left font-semibold" onClick={() => { setDropdownConfig(null); navigate('/print?category=impuestos&template=taxes_real_estate'); }}>Fiscalidad inmobiliaria</div>
+            <div className="px-3 py-1.5 hover:bg-gray-100 cursor-pointer text-left font-semibold" onClick={() => { setDropdownConfig(null); navigate('/print?category=impuestos&template=taxes_rv'); }}>Fiscalidad renta variable</div>
+            <div className="px-3 py-1.5 hover:bg-gray-100 cursor-pointer text-left font-semibold" onClick={() => { setDropdownConfig(null); navigate('/print?category=impuestos&template=taxes_cf'); }}>Fiscalidad crowdfunding</div>
+          </div>
+        )}
+
+        {dropdownConfig?.type === 'dash-cont' && (
+          <div
+            className="fixed bg-white border border-gray-300 shadow-lg rounded z-[100] py-1 w-48 flex flex-col text-[11px]"
+            style={{ top: dropdownConfig.rect.top + 4, left: dropdownConfig.rect.left }}
+            onMouseDown={e => e.stopPropagation()}
+          >
+            <div className="px-3 py-1 hover:bg-gray-100 cursor-pointer text-left" onClick={() => { setDropdownConfig(null); navigate('/dashboard', { state: { dashboardType: 'contabilidad_balance' } }); }}>Balance</div>
+            <div className="px-3 py-1 hover:bg-gray-100 cursor-pointer text-left" onClick={() => { setDropdownConfig(null); navigate('/dashboard', { state: { dashboardType: 'contabilidad_resultados' } }); }}>Cuenta de resultados</div>
+            <div className="px-3 py-1 hover:bg-gray-100 cursor-pointer text-left" onClick={() => { setDropdownConfig(null); navigate('/dashboard', { state: { dashboardType: 'contabilidad_flujo' } }); }}>Flujo de caja</div>
+          </div>
+        )}
+
+        {dropdownConfig?.type === 'dash-inv' && (
+          <div
+            className="fixed bg-white border border-gray-300 shadow-lg rounded z-[100] py-1 w-48 flex flex-col text-[11px] max-h-64 overflow-y-auto"
+            style={{ top: dropdownConfig.rect.top + 4, left: dropdownConfig.rect.left }}
+            onMouseDown={e => e.stopPropagation()}
+          >
+            <div className="px-3 py-1 hover:bg-gray-100 cursor-pointer text-left font-bold" onClick={() => { setDropdownConfig(null); navigate('/dashboard', { state: { dashboardType: 'inversiones_todos' } }); }}>Todos los activos</div>
+            {realEstates.length > 0 && <div className="border-t border-gray-200 mt-1 mb-1"></div>}
+            {realEstates.map(re => (
+              <div key={re.id} className="px-3 py-1 hover:bg-gray-100 cursor-pointer text-left truncate" onClick={() => { setDropdownConfig(null); navigate('/dashboard', { state: { dashboardType: `inversiones_${re.id}` } }); }}>
+                {re.name || re.address || re.id}
+              </div>
+            ))}
+          </div>
+        )}
+
+        {dropdownConfig?.type === 'dash-rv' && (
+          <div
+            className="fixed bg-white border border-gray-300 shadow-lg rounded z-[100] py-1 w-48 flex flex-col text-[11px] max-h-64 overflow-y-auto"
+            style={{ top: dropdownConfig.rect.top + 4, left: dropdownConfig.rect.left }}
+            onMouseDown={e => e.stopPropagation()}
+          >
+            <div className="px-3 py-1 hover:bg-gray-100 cursor-pointer text-left font-bold" onClick={() => { setDropdownConfig(null); navigate('/dashboard', { state: { dashboardType: 'rv_plusvalias_todos' } }); }}>Plusvalías (Todos)</div>
+            <div className="px-3 py-1 hover:bg-gray-100 cursor-pointer text-left font-bold" onClick={() => { setDropdownConfig(null); navigate('/dashboard', { state: { dashboardType: 'rv_dividendos_todos' } }); }}>Dividendos (Todos)</div>
+
+            {rvAssets.filter(a => a.type?.toLowerCase() !== 'divisa').length > 0 && (
+              <>
+                <div className="border-t border-gray-200 mt-1 mb-1"></div>
+                <div className="px-3 py-0.5 text-gray-400 font-bold uppercase text-[9px] tracking-wider">Filtrar por Activo</div>
+                {rvAssets.filter(a => a.type?.toLowerCase() !== 'divisa').map(a => (
+                  <div key={a.id} className="px-3 py-1 hover:bg-gray-100 cursor-pointer text-left truncate pl-5" onClick={() => { setDropdownConfig(null); navigate('/dashboard', { state: { dashboardType: `rv_asset_${a.id}` } }); }}>
+                    {a.id} - {a.name}
+                  </div>
+                ))}
+              </>
+            )}
+
+            {rvBrokers.length > 0 && (
+              <>
+                <div className="border-t border-gray-200 mt-1 mb-1"></div>
+                <div className="px-3 py-0.5 text-gray-400 font-bold uppercase text-[9px] tracking-wider">Filtrar por Broker</div>
+                {rvBrokers.map(b => (
+                  <div key={b.id} className="px-3 py-1 hover:bg-gray-100 cursor-pointer text-left truncate pl-5" onClick={() => { setDropdownConfig(null); navigate('/dashboard', { state: { dashboardType: `rv_broker_${b.id}` } }); }}>
+                    {b.name || b.id}
+                  </div>
+                ))}
+              </>
+            )}
+          </div>
+        )}
+
+        {dropdownConfig?.type === 'dash-cf' && (
+          <div
+            className="fixed bg-white border border-gray-300 shadow-lg rounded z-[100] py-1 w-48 flex flex-col text-[11px] max-h-64 overflow-y-auto"
+            style={{ top: dropdownConfig.rect.top + 4, left: dropdownConfig.rect.left }}
+            onMouseDown={e => e.stopPropagation()}
+          >
+            <div className="px-3 py-1 hover:bg-gray-100 cursor-pointer text-left font-bold" onClick={() => { setDropdownConfig(null); navigate('/dashboard', { state: { dashboardType: 'cf_plusvalias_todos' } }); }}>Plusvalías (Todos)</div>
+            <div className="px-3 py-1 hover:bg-gray-100 cursor-pointer text-left font-bold" onClick={() => { setDropdownConfig(null); navigate('/dashboard', { state: { dashboardType: 'cf_dividendos_todos' } }); }}>Dividendos (Todos)</div>
+
+            {cfProjects.length > 0 && (
+              <>
+                <div className="border-t border-gray-200 mt-1 mb-1"></div>
+                <div className="px-3 py-0.5 text-gray-400 font-bold uppercase text-[9px] tracking-wider">Filtrar por Activo</div>
+                {cfProjects.map(p => (
+                  <div key={p.id} className="px-3 py-1 hover:bg-gray-100 cursor-pointer text-left truncate pl-5" onClick={() => { setDropdownConfig(null); navigate('/dashboard', { state: { dashboardType: `cf_project_${p.id}` } }); }}>
+                    {p.id} - {p.name}
+                  </div>
+                ))}
+              </>
+            )}
+
+            {cfPlatforms.length > 0 && (
+              <>
+                <div className="border-t border-gray-200 mt-1 mb-1"></div>
+                <div className="px-3 py-0.5 text-gray-400 font-bold uppercase text-[9px] tracking-wider">Filtrar por Plataforma</div>
+                {cfPlatforms.map(plt => (
+                  <div key={plt.id} className="px-3 py-1 hover:bg-gray-100 cursor-pointer text-left truncate pl-5" onClick={() => { setDropdownConfig(null); navigate('/dashboard', { state: { dashboardType: `cf_platform_${plt.id}` } }); }}>
+                    {plt.name || plt.id}
+                  </div>
+                ))}
+              </>
+            )}
+          </div>
+        )}
+
+        {dropdownConfig?.type === 'taxes-year' && (
+          <div
+            className="fixed bg-white border border-gray-300 shadow-lg rounded z-[100] py-1 w-32 flex flex-col text-[12px] max-h-64 overflow-y-auto"
+            style={{ top: dropdownConfig.rect.top + 4, left: dropdownConfig.rect.left }}
+            onMouseDown={e => e.stopPropagation()}
+          >
+            <div
+              className={`px-3 py-1.5 hover:bg-gray-100 cursor-pointer text-center border-b border-gray-200 ${taxYear === 'Todas' ? 'font-bold bg-blue-50 text-blue-700' : ''}`}
+              onClick={() => {
+                setTaxYear('Todas');
+                setDropdownConfig(null);
+              }}
+            >
+              Todas las fechas
+            </div>
+            {[...Array(10)].map((_, i) => {
+              const year = new Date().getFullYear() - i + 1;
               return (
-                <div 
-                  key={col.id}
-                  draggable
-                  onDragStart={(e) => {
-                    setDraggedColId(col.id);
-                    e.dataTransfer.effectAllowed = 'move';
-                  }}
-                  onDragOver={(e) => {
-                    e.preventDefault();
-                    e.dataTransfer.dropEffect = 'move';
-                  }}
-                  onDrop={(e) => {
-                    e.preventDefault();
-                    if (draggedColId && draggedColId !== col.id) {
-                      window.dispatchEvent(new CustomEvent('reorder-column', { detail: { draggedId: draggedColId, targetId: col.id, action: dropdownConfig.action } }));
-                    }
-                    setDraggedColId(null);
-                  }}
-                  className={`px-3 py-1.5 cursor-move text-left flex items-center ${draggedColId === col.id ? 'opacity-50' : 'hover:bg-gray-100'}`} 
-                  onClick={() => { 
-                    window.dispatchEvent(new CustomEvent('toggle-column', { detail: { columnId: col.id, action: dropdownConfig.action } })); 
+                <div
+                  key={year}
+                  className={`px-3 py-1.5 hover:bg-gray-100 cursor-pointer text-center ${taxYear === year ? 'font-bold bg-blue-50 text-blue-700' : ''}`}
+                  onClick={() => {
+                    setTaxYear(year);
+                    setDropdownConfig(null);
                   }}
                 >
-                  <input type="checkbox" checked={!!isVisible} readOnly className="mr-2 pointer-events-none cursor-move" />
-                  <span>{col.name}</span>
+                  {year}
                 </div>
-              )
-            }
-          })}
-        </div>
-      )}
-
-      {dropdownConfig?.type === 'print-cont' && (
-        <div 
-          className="fixed bg-white border border-gray-300 shadow-lg rounded z-[100] py-1 w-44 flex flex-col text-[11px]" 
-          style={{ top: dropdownConfig.rect.top + 4, left: dropdownConfig.rect.left }}
-          onMouseDown={e => e.stopPropagation()}
-        >
-           <div className="px-3 py-1.5 hover:bg-gray-100 cursor-pointer text-left font-semibold" onClick={() => { setDropdownConfig(null); navigate('/print?category=contabilidad&subcategory=libros'); }}>Libros</div>
-           <div className="px-3 py-1.5 hover:bg-gray-100 cursor-pointer text-left font-semibold" onClick={() => { setDropdownConfig(null); navigate('/print?category=contabilidad&subcategory=anuales'); }}>Cuentas anuales</div>
-        </div>
-      )}
-
-      {dropdownConfig?.type === 'print-inv' && (
-        <div 
-          className="fixed bg-white border border-gray-300 shadow-lg rounded z-[100] py-1 w-44 flex flex-col text-[11px]" 
-          style={{ top: dropdownConfig.rect.top + 4, left: dropdownConfig.rect.left }}
-          onMouseDown={e => e.stopPropagation()}
-        >
-           <div className="px-3 py-1.5 hover:bg-gray-100 cursor-pointer text-left font-semibold" onClick={() => { setDropdownConfig(null); navigate('/print?category=inversiones&template=activos'); }}>Inventario de activos</div>
-           <div className="px-3 py-1.5 hover:bg-gray-100 cursor-pointer text-left font-semibold" onClick={() => { setDropdownConfig(null); navigate('/print?category=inversiones&template=alquileres'); }}>Contratos de alquiler</div>
-           <div className="px-3 py-1.5 hover:bg-gray-100 cursor-pointer text-left font-semibold" onClick={() => { setDropdownConfig(null); navigate('/print?category=inversiones&template=clientes'); }}>Fichero de clientes</div>
-        </div>
-      )}
-
-      {dropdownConfig?.type === 'print-rv' && (
-        <div 
-          className="fixed bg-white border border-gray-300 shadow-lg rounded z-[100] py-1 w-44 flex flex-col text-[11px]" 
-          style={{ top: dropdownConfig.rect.top + 4, left: dropdownConfig.rect.left }}
-          onMouseDown={e => e.stopPropagation()}
-        >
-           <div className="px-3 py-1.5 hover:bg-gray-100 cursor-pointer text-left font-semibold" onClick={() => { setDropdownConfig(null); navigate('/print?category=renta_variable&template=rv_portfolio'); }}>Cartera consolidada</div>
-           <div className="px-3 py-1.5 hover:bg-gray-100 cursor-pointer text-left font-semibold" onClick={() => { setDropdownConfig(null); navigate('/print?category=renta_variable&template=rv_transactions'); }}>Transacciones RV</div>
-        </div>
-      )}
-
-      {dropdownConfig?.type === 'print-cf' && (
-        <div 
-          className="fixed bg-white border border-gray-300 shadow-lg rounded z-[100] py-1 w-44 flex flex-col text-[11px]" 
-          style={{ top: dropdownConfig.rect.top + 4, left: dropdownConfig.rect.left }}
-          onMouseDown={e => e.stopPropagation()}
-        >
-           <div className="px-3 py-1.5 hover:bg-gray-100 cursor-pointer text-left font-semibold" onClick={() => { setDropdownConfig(null); navigate('/print?category=crowdfunding&template=cf_portfolio'); }}>Cartera consolidada</div>
-           <div className="px-3 py-1.5 hover:bg-gray-100 cursor-pointer text-left font-semibold" onClick={() => { setDropdownConfig(null); navigate('/print?category=crowdfunding&template=cf_transactions'); }}>Transacciones CF</div>
-        </div>
-      )}
-
-      {dropdownConfig?.type === 'print-imp' && (
-        <div 
-          className="fixed bg-white border border-gray-300 shadow-lg rounded z-[100] py-1 w-48 flex flex-col text-[11px]" 
-          style={{ top: dropdownConfig.rect.top + 4, left: dropdownConfig.rect.left }}
-          onMouseDown={e => e.stopPropagation()}
-        >
-           <div className="px-3 py-1.5 hover:bg-gray-100 cursor-pointer text-left font-semibold" onClick={() => { setDropdownConfig(null); navigate('/print?category=impuestos&template=taxes_total'); }}>Resumen fiscal general</div>
-           <div className="px-3 py-1.5 hover:bg-gray-100 cursor-pointer text-left font-semibold" onClick={() => { setDropdownConfig(null); navigate('/print?category=impuestos&template=taxes_real_estate'); }}>Fiscalidad inmobiliaria</div>
-           <div className="px-3 py-1.5 hover:bg-gray-100 cursor-pointer text-left font-semibold" onClick={() => { setDropdownConfig(null); navigate('/print?category=impuestos&template=taxes_rv'); }}>Fiscalidad renta variable</div>
-           <div className="px-3 py-1.5 hover:bg-gray-100 cursor-pointer text-left font-semibold" onClick={() => { setDropdownConfig(null); navigate('/print?category=impuestos&template=taxes_cf'); }}>Fiscalidad crowdfunding</div>
-        </div>
-      )}
-
-      {dropdownConfig?.type === 'dash-cont' && (
-        <div 
-          className="fixed bg-white border border-gray-300 shadow-lg rounded z-[100] py-1 w-48 flex flex-col text-[11px]" 
-          style={{ top: dropdownConfig.rect.top + 4, left: dropdownConfig.rect.left }}
-          onMouseDown={e => e.stopPropagation()}
-        >
-           <div className="px-3 py-1 hover:bg-gray-100 cursor-pointer text-left" onClick={() => { setDropdownConfig(null); navigate('/dashboard', { state: { dashboardType: 'contabilidad_balance' } }); }}>Balance</div>
-           <div className="px-3 py-1 hover:bg-gray-100 cursor-pointer text-left" onClick={() => { setDropdownConfig(null); navigate('/dashboard', { state: { dashboardType: 'contabilidad_resultados' } }); }}>Cuenta de resultados</div>
-           <div className="px-3 py-1 hover:bg-gray-100 cursor-pointer text-left" onClick={() => { setDropdownConfig(null); navigate('/dashboard', { state: { dashboardType: 'contabilidad_flujo' } }); }}>Flujo de caja</div>
-        </div>
-      )}
-
-      {dropdownConfig?.type === 'dash-inv' && (
-        <div 
-          className="fixed bg-white border border-gray-300 shadow-lg rounded z-[100] py-1 w-48 flex flex-col text-[11px] max-h-64 overflow-y-auto" 
-          style={{ top: dropdownConfig.rect.top + 4, left: dropdownConfig.rect.left }}
-          onMouseDown={e => e.stopPropagation()}
-        >
-           <div className="px-3 py-1 hover:bg-gray-100 cursor-pointer text-left font-bold" onClick={() => { setDropdownConfig(null); navigate('/dashboard', { state: { dashboardType: 'inversiones_todos' } }); }}>Todos los activos</div>
-           {realEstates.length > 0 && <div className="border-t border-gray-200 mt-1 mb-1"></div>}
-           {realEstates.map(re => (
-             <div key={re.id} className="px-3 py-1 hover:bg-gray-100 cursor-pointer text-left truncate" onClick={() => { setDropdownConfig(null); navigate('/dashboard', { state: { dashboardType: `inversiones_${re.id}` } }); }}>
-               {re.name || re.address || re.id}
-             </div>
-           ))}
-        </div>
-      )}
-
-      {dropdownConfig?.type === 'dash-rv' && (
-        <div 
-          className="fixed bg-white border border-gray-300 shadow-lg rounded z-[100] py-1 w-48 flex flex-col text-[11px] max-h-64 overflow-y-auto" 
-          style={{ top: dropdownConfig.rect.top + 4, left: dropdownConfig.rect.left }}
-          onMouseDown={e => e.stopPropagation()}
-        >
-          <div className="px-3 py-1 hover:bg-gray-100 cursor-pointer text-left font-bold" onClick={() => { setDropdownConfig(null); navigate('/dashboard', { state: { dashboardType: 'rv_plusvalias_todos' } }); }}>Plusvalías (Todos)</div>
-          <div className="px-3 py-1 hover:bg-gray-100 cursor-pointer text-left font-bold" onClick={() => { setDropdownConfig(null); navigate('/dashboard', { state: { dashboardType: 'rv_dividendos_todos' } }); }}>Dividendos (Todos)</div>
-          
-          {rvAssets.filter(a => a.type?.toLowerCase() !== 'divisa').length > 0 && (
-            <>
-              <div className="border-t border-gray-200 mt-1 mb-1"></div>
-              <div className="px-3 py-0.5 text-gray-400 font-bold uppercase text-[9px] tracking-wider">Filtrar por Activo</div>
-              {rvAssets.filter(a => a.type?.toLowerCase() !== 'divisa').map(a => (
-                <div key={a.id} className="px-3 py-1 hover:bg-gray-100 cursor-pointer text-left truncate pl-5" onClick={() => { setDropdownConfig(null); navigate('/dashboard', { state: { dashboardType: `rv_asset_${a.id}` } }); }}>
-                  {a.id} - {a.name}
-                </div>
-              ))}
-            </>
-          )}
-
-          {rvBrokers.length > 0 && (
-            <>
-              <div className="border-t border-gray-200 mt-1 mb-1"></div>
-              <div className="px-3 py-0.5 text-gray-400 font-bold uppercase text-[9px] tracking-wider">Filtrar por Broker</div>
-              {rvBrokers.map(b => (
-                <div key={b.id} className="px-3 py-1 hover:bg-gray-100 cursor-pointer text-left truncate pl-5" onClick={() => { setDropdownConfig(null); navigate('/dashboard', { state: { dashboardType: `rv_broker_${b.id}` } }); }}>
-                  {b.name || b.id}
-                </div>
-              ))}
-            </>
-          )}
-        </div>
-      )}
-
-      {dropdownConfig?.type === 'dash-cf' && (
-        <div 
-          className="fixed bg-white border border-gray-300 shadow-lg rounded z-[100] py-1 w-48 flex flex-col text-[11px] max-h-64 overflow-y-auto" 
-          style={{ top: dropdownConfig.rect.top + 4, left: dropdownConfig.rect.left }}
-          onMouseDown={e => e.stopPropagation()}
-        >
-          <div className="px-3 py-1 hover:bg-gray-100 cursor-pointer text-left font-bold" onClick={() => { setDropdownConfig(null); navigate('/dashboard', { state: { dashboardType: 'cf_plusvalias_todos' } }); }}>Plusvalías (Todos)</div>
-          <div className="px-3 py-1 hover:bg-gray-100 cursor-pointer text-left font-bold" onClick={() => { setDropdownConfig(null); navigate('/dashboard', { state: { dashboardType: 'cf_dividendos_todos' } }); }}>Dividendos (Todos)</div>
-          
-          {cfProjects.length > 0 && (
-            <>
-              <div className="border-t border-gray-200 mt-1 mb-1"></div>
-              <div className="px-3 py-0.5 text-gray-400 font-bold uppercase text-[9px] tracking-wider">Filtrar por Activo</div>
-              {cfProjects.map(p => (
-                <div key={p.id} className="px-3 py-1 hover:bg-gray-100 cursor-pointer text-left truncate pl-5" onClick={() => { setDropdownConfig(null); navigate('/dashboard', { state: { dashboardType: `cf_project_${p.id}` } }); }}>
-                  {p.id} - {p.name}
-                </div>
-              ))}
-            </>
-          )}
-
-          {cfPlatforms.length > 0 && (
-            <>
-              <div className="border-t border-gray-200 mt-1 mb-1"></div>
-              <div className="px-3 py-0.5 text-gray-400 font-bold uppercase text-[9px] tracking-wider">Filtrar por Plataforma</div>
-              {cfPlatforms.map(plt => (
-                <div key={plt.id} className="px-3 py-1 hover:bg-gray-100 cursor-pointer text-left truncate pl-5" onClick={() => { setDropdownConfig(null); navigate('/dashboard', { state: { dashboardType: `cf_platform_${plt.id}` } }); }}>
-                  {plt.name || plt.id}
-                </div>
-              ))}
-            </>
-          )}
-        </div>
-      )}
-
-      {dropdownConfig?.type === 'taxes-year' && (
-        <div 
-          className="fixed bg-white border border-gray-300 shadow-lg rounded z-[100] py-1 w-32 flex flex-col text-[12px] max-h-64 overflow-y-auto" 
-          style={{ top: dropdownConfig.rect.top + 4, left: dropdownConfig.rect.left }}
-          onMouseDown={e => e.stopPropagation()}
-        >
-           <div 
-             className={`px-3 py-1.5 hover:bg-gray-100 cursor-pointer text-center border-b border-gray-200 ${taxYear === 'Todas' ? 'font-bold bg-blue-50 text-blue-700' : ''}`} 
-             onClick={() => { 
-               setTaxYear('Todas'); 
-               setDropdownConfig(null); 
-             }}
-           >
-             Todas las fechas
-           </div>
-           {[...Array(10)].map((_, i) => {
-             const year = new Date().getFullYear() - i + 1;
-             return (
-               <div 
-                 key={year} 
-                 className={`px-3 py-1.5 hover:bg-gray-100 cursor-pointer text-center ${taxYear === year ? 'font-bold bg-blue-50 text-blue-700' : ''}`} 
-                 onClick={() => { 
-                   setTaxYear(year); 
-                   setDropdownConfig(null); 
-                 }}
-               >
-                 {year}
-               </div>
-             );
-           })}
-        </div>
-      )}
-
-      <main className="flex-1 overflow-auto relative bg-white">
-        <div className="h-full">
-          <Outlet context={{ tableZoom, setTableZoom, taxYear }} />
-        </div>
-      </main>
-
-      <PunteoModal isOpen={showPunteoModal} onClose={() => setShowPunteoModal(false)} />
-      <BankReconciliationModal isOpen={showBankReconciliationModal} onClose={() => setShowBankReconciliationModal(false)} />
-      <SettingsModal isOpen={isSettingsOpen} onClose={() => setIsSettingsOpen(false)} realEstates={realEstates} />
-
-      <footer className="bg-[#a0aec0] border-t border-[#718096] flex justify-between px-3 py-0.5 text-[9px] font-bold text-slate-800 uppercase tracking-widest shadow-inner">
-        <div className="flex space-x-6 items-center">
-          <div className="flex items-center border-r border-[#718096] pr-4 py-0.5">
-            <span className="bg-[#0b3b80] text-white px-1.5 rounded-sm mr-2">U</span>
-            <span>Usuario: {user?.email?.split('@')[0].toUpperCase()}</span>
+              );
+            })}
           </div>
-          <div className="flex items-center">
-            <span className="bg-[#0b3b80] text-white px-1.5 rounded-sm mr-2">D</span>
-            <span>Base de datos: Firestore Cloud</span>
-          </div>
-        </div>
+        )}
 
-        <div className="flex space-x-4 items-center">
-          <div className="border-l border-[#718096] pl-4 flex space-x-4">
-            <span>{new Date().toLocaleDateString()}</span>
-            <span>{new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}</span>
+        <main className="flex-1 overflow-auto relative bg-white">
+          <div className="h-full">
+            <Outlet context={{ tableZoom, setTableZoom, taxYear }} />
           </div>
-        </div>
-      </footer>
+        </main>
+
+        <PunteoModal isOpen={showPunteoModal} onClose={() => setShowPunteoModal(false)} />
+        <BankReconciliationModal isOpen={showBankReconciliationModal} onClose={() => setShowBankReconciliationModal(false)} />
+        <SettingsModal isOpen={isSettingsOpen} onClose={() => setIsSettingsOpen(false)} realEstates={realEstates} />
+
+        <footer className="bg-[#a0aec0] border-t border-[#718096] flex justify-between px-3 py-0.5 text-[9px] font-bold text-slate-800 uppercase tracking-widest shadow-inner">
+          <div className="flex space-x-6 items-center">
+            <div className="flex items-center border-r border-[#718096] pr-4 py-0.5">
+              <span className="bg-[#0b3b80] text-white px-1.5 rounded-sm mr-2">U</span>
+              <span>Usuario: {user?.email?.split('@')[0].toUpperCase()}</span>
+            </div>
+            <div className="flex items-center">
+              <span className="bg-[#0b3b80] text-white px-1.5 rounded-sm mr-2">D</span>
+              <span>Base de datos: Firestore Cloud</span>
+            </div>
+          </div>
+
+          <div className="flex space-x-4 items-center">
+            <div className="border-l border-[#718096] pl-4 flex space-x-4">
+              <span>{new Date().toLocaleDateString()}</span>
+              <span>{new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}</span>
+            </div>
+          </div>
+        </footer>
+      </div>
     </div>
   );
 }

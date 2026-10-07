@@ -125,8 +125,17 @@ export default function LaboralContratos() {
   }, [selectedContrato, visibleColumns]);
 
   const contratosConNombre = useMemo(() =>
-    contratos.map(c => ({ ...c, empresaNombre: empresas.find(e => e.id === c.empresaId)?.nombre || c.empresaId || '-' }))
+    contratos.map(c => ({ ...c, empresaNombre: empresas.find(e => e.id === c.empresaId)?.nombre || c.empresaNombre || c.empresaId || '-' }))
   , [contratos, empresas]);
+
+  useEffect(() => {
+    if (selectedContrato && contratosConNombre.length > 0) {
+      const updated = contratosConNombre.find(c => c.id === selectedContrato.id);
+      if (updated) {
+        setSelectedContrato(updated);
+      }
+    }
+  }, [contratosConNombre]);
 
   const filteredContratos = useMemo(() => {
     if (!filterValue) return contratosConNombre;
@@ -150,13 +159,18 @@ export default function LaboralContratos() {
   };
 
   const handleEdit = (c) => {
-    const cebeCode = c.cebe || (c.cebeId ? cebes.find(x => x.id === c.cebeId)?.code : '') || '';
-    const cecoCode = c.ceco || (c.cecoId ? cecos.find(x => x.id === c.cecoId)?.code : '') || '';
+    const cebeCode = c.cebe !== undefined && c.cebe !== '' ? c.cebe : (c.cebeId ? cebes.find(x => x.id === c.cebeId)?.code : '') || '';
+    const cecoCode = c.ceco !== undefined && c.ceco !== '' ? c.ceco : (c.cecoId ? cecos.find(x => x.id === c.cecoId)?.code : '') || '';
+    const cebeId = c.cebeId || (cebeCode ? cebes.find(x => x.code === cebeCode)?.id : '') || '';
+    const cecoId = c.cecoId || (cecoCode ? cecos.find(x => x.code === cecoCode)?.id : '') || '';
     setFormData({
       ...emptyForm,
       ...c,
       cebe: cebeCode,
-      ceco: cecoCode
+      ceco: cecoCode,
+      cebeId: cebeId,
+      cecoId: cecoId,
+      descripcion: c.descripcion || ''
     });
     setIsEditing(true);
     setActiveTab('Datos');
@@ -250,9 +264,60 @@ export default function LaboralContratos() {
 
   const handleSave = async () => {
     if (!formData.puesto) { alert('El puesto es obligatorio'); return; }
-    const docRef = doc(db, 'laboral_contratos', formData.id);
-    await setDoc(docRef, { ...formData, userId: user.uid }, { merge: true });
-    setShowForm(false);
+    try {
+      const contractId = formData.id || Date.now().toString(36).toUpperCase();
+      const docRef = doc(db, 'laboral_contratos', contractId);
+
+      // Resolve Empresa name
+      const matchedEmp = empresas.find(e => e.id === formData.empresaId);
+      const empresaNombre = matchedEmp ? matchedEmp.nombre : (formData.empresaNombre || '');
+
+      // Resolve CEBE code & id
+      let cebeCode = formData.cebe || '';
+      let cebeId = formData.cebeId || '';
+      if (cebeCode && !cebeId) {
+        cebeId = cebes.find(x => x.code === cebeCode)?.id || '';
+      } else if (!cebeCode && cebeId) {
+        cebeCode = cebes.find(x => x.id === cebeId)?.code || '';
+      }
+      if (!cebeCode) {
+        cebeCode = '';
+        cebeId = '';
+      }
+
+      // Resolve CECO code & id
+      let cecoCode = formData.ceco || '';
+      let cecoId = formData.cecoId || '';
+      if (cecoCode && !cecoId) {
+        cecoId = cecos.find(x => x.code === cecoCode)?.id || '';
+      } else if (!cecoCode && cecoId) {
+        cecoCode = cecos.find(x => x.id === cecoId)?.code || '';
+      }
+      if (!cecoCode) {
+        cecoCode = '';
+        cecoId = '';
+      }
+
+      const cleanData = JSON.parse(JSON.stringify({
+        ...formData,
+        id: contractId,
+        empresaNombre,
+        cebe: cebeCode,
+        cebeId: cebeId,
+        ceco: cecoCode,
+        cecoId: cecoId,
+        userId: user?.uid || formData.userId || '',
+        updatedAt: new Date().toISOString()
+      }));
+
+      await setDoc(docRef, cleanData, { merge: true });
+
+      setSelectedContrato(prev => (prev?.id === contractId ? { ...prev, ...cleanData } : prev));
+      setShowForm(false);
+    } catch (err) {
+      console.error('Error al guardar contrato:', err);
+      alert('Error al guardar el contrato: ' + err.message);
+    }
   };
 
   const handleDelete = async (c) => {
@@ -293,32 +358,47 @@ export default function LaboralContratos() {
           <div className="space-y-3">
             <div className="space-y-1">
               <label className="text-[10px] font-bold text-slate-700 uppercase">EMPRESA</label>
-              <select className="win-input w-full cursor-pointer" value={formData.empresaId} onChange={e => setFormData(p => ({ ...p, empresaId: e.target.value }))}>
+              <select className="win-input w-full cursor-pointer" value={formData.empresaId || ''} onChange={e => {
+                const empId = e.target.value;
+                const emp = empresas.find(x => x.id === empId);
+                setFormData(p => ({ ...p, empresaId: empId, empresaNombre: emp ? emp.nombre : '' }));
+              }}>
                 <option value="">(Sin empresa)</option>
                 {empresas.map(emp => <option key={emp.id} value={emp.id}>{emp.nombre}</option>)}
               </select>
             </div>
             <div className="space-y-1">
               <label className="text-[10px] font-bold text-slate-700 uppercase">PUESTO *</label>
-              <input className="win-input w-full" value={formData.puesto} onChange={e => setFormData(p => ({ ...p, puesto: e.target.value }))} />
+              <input className="win-input w-full" value={formData.puesto || ''} onChange={e => setFormData(p => ({ ...p, puesto: e.target.value }))} />
             </div>
             <div className="space-y-1">
               <label className="text-[10px] font-bold text-slate-700 uppercase">FECHA INICIO</label>
-              <input type="date" className="win-input w-full" value={formData.fechaInicio} onChange={e => setFormData(p => ({ ...p, fechaInicio: e.target.value }))} />
+              <input type="date" className="win-input w-full" value={formData.fechaInicio || ''} onChange={e => setFormData(p => ({ ...p, fechaInicio: e.target.value }))} />
             </div>
             <div className="space-y-1">
               <label className="text-[10px] font-bold text-slate-700 uppercase">FECHA FIN</label>
-              <input type="date" className="win-input w-full" value={formData.fechaFin} onChange={e => setFormData(p => ({ ...p, fechaFin: e.target.value }))} />
+              <input type="date" className="win-input w-full" value={formData.fechaFin || ''} onChange={e => setFormData(p => ({ ...p, fechaFin: e.target.value }))} />
+            </div>
+            <div className="space-y-1">
+              <label className="text-[10px] font-bold text-slate-700 uppercase">CEBE (Centro de Beneficio)</label>
+              <select className="win-input w-full cursor-pointer" value={formData.cebe || ''} onChange={e => {
+                const code = e.target.value;
+                const match = cebes.find(x => x.code === code);
+                setFormData(p => ({ ...p, cebe: code, cebeId: match?.id || '' }));
+              }}>
+                <option value="">(Sin CEBE)</option>
+                {cebes.map(c => <option key={c.id} value={c.code}>{c.code ? `${c.code} - ` : ''}{c.name}</option>)}
+              </select>
             </div>
           </div>
           <div className="space-y-3">
             <div className="space-y-1">
               <label className="text-[10px] font-bold text-slate-700 uppercase">INGRESO MENSUAL (€)</label>
-              <input type="number" step="0.01" className="win-input w-full" value={formData.ingresoMensual} onChange={e => setFormData(p => ({ ...p, ingresoMensual: e.target.value }))} />
+              <input type="number" step="0.01" className="win-input w-full" value={formData.ingresoMensual ?? ''} onChange={e => setFormData(p => ({ ...p, ingresoMensual: e.target.value }))} />
             </div>
             <div className="space-y-1">
               <label className="text-[10px] font-bold text-slate-700 uppercase">TIPO JORNADA</label>
-              <select className="win-input w-full cursor-pointer" value={formData.tipoJornada} onChange={e => setFormData(p => ({ ...p, tipoJornada: e.target.value }))}>
+              <select className="win-input w-full cursor-pointer" value={formData.tipoJornada || 'Completa'} onChange={e => setFormData(p => ({ ...p, tipoJornada: e.target.value }))}>
                 <option value="Completa">Completa</option>
                 <option value="Parcial">Parcial</option>
                 <option value="Reducida">Reducida</option>
@@ -326,8 +406,23 @@ export default function LaboralContratos() {
             </div>
             <div className="space-y-1">
               <label className="text-[10px] font-bold text-slate-700 uppercase">REFERENCIA DE CONTRATO</label>
-              <input className="win-input w-full" value={formData.referencia} onChange={e => setFormData(p => ({ ...p, referencia: e.target.value }))} />
+              <input className="win-input w-full" value={formData.referencia || ''} onChange={e => setFormData(p => ({ ...p, referencia: e.target.value }))} />
             </div>
+            <div className="space-y-1">
+              <label className="text-[10px] font-bold text-slate-700 uppercase">CECO (Centro de Coste)</label>
+              <select className="win-input w-full cursor-pointer" value={formData.ceco || ''} onChange={e => {
+                const code = e.target.value;
+                const match = cecos.find(x => x.code === code);
+                setFormData(p => ({ ...p, ceco: code, cecoId: match?.id || '' }));
+              }}>
+                <option value="">(Sin CECO)</option>
+                {cecos.map(c => <option key={c.id} value={c.code}>{c.code ? `${c.code} - ` : ''}{c.name}</option>)}
+              </select>
+            </div>
+          </div>
+          <div className="col-span-2 space-y-1">
+            <label className="text-[10px] font-bold text-slate-700 uppercase">DESCRIPCIÓN / OBSERVACIONES</label>
+            <textarea className="win-input w-full" rows={3} value={formData.descripcion || ''} onChange={e => setFormData(p => ({ ...p, descripcion: e.target.value }))} placeholder="Notas o descripción del contrato..." />
           </div>
         </div>
       </div>
@@ -378,7 +473,11 @@ export default function LaboralContratos() {
             <span onClick={() => setShowCebeSel(true)} className="border border-[#999] bg-[#e9ecef] px-2 py-[3px] text-[11px] text-[#333] w-[60px] text-center shrink-0 font-bold cursor-pointer hover:bg-[#dcdcdc] select-none active:bg-[#c8c8c8]">CEBE:</span>
             <div className="relative">
               <input type="text" value={formData.cebe || ''}
-                  onChange={e => setFormData(p => ({ ...p, cebe: e.target.value }))}
+                  onChange={e => {
+                    const code = e.target.value;
+                    const match = cebes.find(x => x.code === code);
+                    setFormData(p => ({ ...p, cebe: code, cebeId: match?.id || (code ? p.cebeId : '') }));
+                  }}
                   onFocus={() => setActiveDropdown('cebe')}
                   onBlur={() => setActiveDropdown(null)}
                   onKeyDown={e => handleInputKeyDown(e, setShowCebeSel)}
@@ -389,7 +488,7 @@ export default function LaboralContratos() {
                     <div className="p-2 text-gray-400 italic">No hay resultados</div>
                   ) : (
                     matchingCebes.slice(0, 100).map(c => (
-                      <div key={c.id} onMouseDown={(e) => { e.preventDefault(); setFormData(p => ({ ...p, cebe: c.code })); setActiveDropdown(null); }} className="p-1 px-2 hover:bg-[#cce5ff] cursor-pointer truncate font-mono text-left" title={`${c.code} - ${c.name}`}>
+                      <div key={c.id} onMouseDown={(e) => { e.preventDefault(); setFormData(p => ({ ...p, cebe: c.code, cebeId: c.id })); setActiveDropdown(null); }} className="p-1 px-2 hover:bg-[#cce5ff] cursor-pointer truncate font-mono text-left" title={`${c.code} - ${c.name}`}>
                         {c.code} - {c.name}
                       </div>
                     ))
@@ -398,14 +497,18 @@ export default function LaboralContratos() {
               )}
             </div>
             <button onClick={() => setShowCebeSel(true)} className="border border-[#999] bg-[#e1e1e1] hover:bg-[#d0d0d0] p-[2px] rounded-[2px] shadow-sm flex items-center justify-center shrink-0 w-6 h-6"><FileText size={13} /></button>
-            {formData.cebe && <button onClick={() => setFormData(p => ({ ...p, cebe: '' }))} className="border border-[#999] bg-[#e1e1e1] hover:bg-[#d0d0d0] p-[2px] rounded-[2px] shadow-sm flex items-center justify-center shrink-0 w-6 h-6 text-red-600 font-bold">X</button>}
+            {formData.cebe && <button onClick={() => setFormData(p => ({ ...p, cebe: '', cebeId: '' }))} className="border border-[#999] bg-[#e1e1e1] hover:bg-[#d0d0d0] p-[2px] rounded-[2px] shadow-sm flex items-center justify-center shrink-0 w-6 h-6 text-red-600 font-bold">X</button>}
           </div>
 
           <div className="flex items-center gap-1">
             <span onClick={() => setShowCecoSel(true)} className="border border-[#999] bg-[#e9ecef] px-2 py-[3px] text-[11px] text-[#333] w-[60px] text-center shrink-0 font-bold cursor-pointer hover:bg-[#dcdcdc] select-none active:bg-[#c8c8c8]">CECO:</span>
             <div className="relative">
               <input type="text" value={formData.ceco || ''}
-                  onChange={e => setFormData(p => ({ ...p, ceco: e.target.value }))}
+                  onChange={e => {
+                    const code = e.target.value;
+                    const match = cecos.find(x => x.code === code);
+                    setFormData(p => ({ ...p, ceco: code, cecoId: match?.id || (code ? p.cecoId : '') }));
+                  }}
                   onFocus={() => setActiveDropdown('ceco')}
                   onBlur={() => setActiveDropdown(null)}
                   onKeyDown={e => handleInputKeyDown(e, setShowCecoSel)}
@@ -416,7 +519,7 @@ export default function LaboralContratos() {
                     <div className="p-2 text-gray-400 italic">No hay resultados</div>
                   ) : (
                     matchingCecos.slice(0, 100).map(c => (
-                      <div key={c.id} onMouseDown={(e) => { e.preventDefault(); setFormData(p => ({ ...p, ceco: c.code })); setActiveDropdown(null); }} className="p-1 px-2 hover:bg-[#cce5ff] cursor-pointer truncate font-mono text-left" title={`${c.code} - ${c.name}`}>
+                      <div key={c.id} onMouseDown={(e) => { e.preventDefault(); setFormData(p => ({ ...p, ceco: c.code, cecoId: c.id })); setActiveDropdown(null); }} className="p-1 px-2 hover:bg-[#cce5ff] cursor-pointer truncate font-mono text-left" title={`${c.code} - ${c.name}`}>
                         {c.code} - {c.name}
                       </div>
                     ))
@@ -425,7 +528,7 @@ export default function LaboralContratos() {
               )}
             </div>
             <button onClick={() => setShowCecoSel(true)} className="border border-[#999] bg-[#e1e1e1] hover:bg-[#d0d0d0] p-[2px] rounded-[2px] shadow-sm flex items-center justify-center shrink-0 w-6 h-6"><FileText size={13} /></button>
-            {formData.ceco && <button onClick={() => setFormData(p => ({ ...p, ceco: '' }))} className="border border-[#999] bg-[#e1e1e1] hover:bg-[#d0d0d0] p-[2px] rounded-[2px] shadow-sm flex items-center justify-center shrink-0 w-6 h-6 text-red-600 font-bold">X</button>}
+            {formData.ceco && <button onClick={() => setFormData(p => ({ ...p, ceco: '', cecoId: '' }))} className="border border-[#999] bg-[#e1e1e1] hover:bg-[#d0d0d0] p-[2px] rounded-[2px] shadow-sm flex items-center justify-center shrink-0 w-6 h-6 text-red-600 font-bold">X</button>}
           </div>
         </div>
 
@@ -666,6 +769,80 @@ if (activeTab === 'Documentos') return (
             </div>
             <div className="flex-1 overflow-auto p-2">
               {previewDocument.url && <iframe src={previewDocument.url} className="w-full h-[60vh] border-none" title={previewDocument.name} />}
+            </div>
+          </div>
+        </div>
+      )}
+
+      {showAccountSel && (
+        <div className="fixed inset-0 z-[200]" style={{ background: 'rgba(0,0,0,0.3)' }}>
+          <div style={{ position: 'absolute', left: accountDR.pos.x, top: accountDR.pos.y, width: accountDR.size.w, height: accountDR.size.h }}
+               className="flex flex-col bg-white border border-[#888] shadow-[2px_3px_16px_rgba(0,0,0,0.4)] relative">
+            {accountDR.resizeHandles}
+            <div onMouseDown={accountDR.onDragDown}
+                 className="flex items-center justify-between px-3 py-[6px] bg-[#4472c4] shrink-0 cursor-move">
+              <span className="text-white text-[12px] font-bold tracking-wide uppercase">Selección de cuenta</span>
+              <button onClick={() => setShowAccountSel(false)}
+                      className="w-[22px] h-[22px] flex items-center justify-center hover:bg-red-500 text-white rounded-[2px]">
+                <X size={14} strokeWidth={2.5} />
+              </button>
+            </div>
+            <div className="flex-1 overflow-hidden">
+              <Accounts
+                isModal={true}
+                onAccountSelect={(code) => {
+                  setFiltroCuenta(code);
+                  setShowAccountSel(false);
+                }}
+              />
+            </div>
+          </div>
+        </div>
+      )}
+
+      {showCebeSel && (
+        <div className="fixed inset-0 z-[200]" style={{ background: 'rgba(0,0,0,0.3)' }}>
+          <div style={{ position: 'absolute', left: centerDR.pos.x, top: centerDR.pos.y, width: centerDR.size.w, height: centerDR.size.h }}
+               className="flex flex-col bg-white border border-[#888] shadow-[2px_3px_16px_rgba(0,0,0,0.4)] relative">
+            {centerDR.resizeHandles}
+            <div onMouseDown={centerDR.onDragDown}
+                 className="flex items-center justify-between px-3 py-[6px] bg-[#4472c4] shrink-0 cursor-move">
+              <span className="text-white text-[12px] font-bold tracking-wide uppercase">Selección de CEBE</span>
+              <button onClick={() => setShowCebeSel(false)}
+                      className="w-[22px] h-[22px] flex items-center justify-center hover:bg-red-500 text-white rounded-[2px]">
+                <X size={14} strokeWidth={2.5} />
+              </button>
+            </div>
+            <div className="flex-1 overflow-hidden">
+              <AnalyticalCenters type="cebe" isModal={true} onSelect={(code) => {
+                const match = cebes.find(x => x.code === code);
+                setFormData(p => ({ ...p, cebe: code, cebeId: match?.id || '' }));
+                setShowCebeSel(false);
+              }} />
+            </div>
+          </div>
+        </div>
+      )}
+
+      {showCecoSel && (
+        <div className="fixed inset-0 z-[200]" style={{ background: 'rgba(0,0,0,0.3)' }}>
+          <div style={{ position: 'absolute', left: centerDR.pos.x, top: centerDR.pos.y, width: centerDR.size.w, height: centerDR.size.h }}
+               className="flex flex-col bg-white border border-[#888] shadow-[2px_3px_16px_rgba(0,0,0,0.4)] relative">
+            {centerDR.resizeHandles}
+            <div onMouseDown={centerDR.onDragDown}
+                 className="flex items-center justify-between px-3 py-[6px] bg-[#4472c4] shrink-0 cursor-move">
+              <span className="text-white text-[12px] font-bold tracking-wide uppercase">Selección de CECO</span>
+              <button onClick={() => setShowCecoSel(false)}
+                      className="w-[22px] h-[22px] flex items-center justify-center hover:bg-red-500 text-white rounded-[2px]">
+                <X size={14} strokeWidth={2.5} />
+              </button>
+            </div>
+            <div className="flex-1 overflow-hidden">
+              <AnalyticalCenters type="ceco" isModal={true} onSelect={(code) => {
+                const match = cecos.find(x => x.code === code);
+                setFormData(p => ({ ...p, ceco: code, cecoId: match?.id || '' }));
+                setShowCecoSel(false);
+              }} />
             </div>
           </div>
         </div>

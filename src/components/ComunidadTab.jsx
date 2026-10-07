@@ -214,7 +214,7 @@ export default function ComunidadTab({
   };
 
   return (
-    <div className="flex flex-col h-full bg-[#d4d0c8]">
+    <div className="flex flex-col h-full bg-[#fafafa]">
       <div className="flex-1 overflow-auto p-4 flex flex-col gap-4">
         
         {/* Top Section: Data & Derramas */}
@@ -222,10 +222,10 @@ export default function ComunidadTab({
           
           {/* Datos Comunidad */}
           <div className="flex flex-col space-y-3">
-            <h3 className="text-[11px] font-bold text-[#000080] border-b border-[#000080] pb-1 uppercase">Datos Principales</h3>
+            <h3 className="text-[11px] font-bold text-black border-b border-black pb-1 uppercase">Datos Principales</h3>
             
             <div className="space-y-1">
-              <label className="text-[10px] font-bold text-slate-700 uppercase">Administrador:</label>
+              <label className="text-[10px] font-bold text-black uppercase">Administrador:</label>
               <input 
                 type="text" 
                 className="win-input w-full" 
@@ -237,7 +237,7 @@ export default function ComunidadTab({
             
             <div className="grid grid-cols-2 gap-3">
               <div className="space-y-1">
-                <label className="text-[10px] font-bold text-slate-700 uppercase">Teléfono:</label>
+                <label className="text-[10px] font-bold text-black uppercase">Teléfono:</label>
                 <input 
                   type="text" 
                   className="win-input w-full" 
@@ -246,7 +246,7 @@ export default function ComunidadTab({
                 />
               </div>
               <div className="space-y-1">
-                <label className="text-[10px] font-bold text-slate-700 uppercase">Email:</label>
+                <label className="text-[10px] font-bold text-black uppercase">Email:</label>
                 <input 
                   type="email" 
                   className="win-input w-full" 
@@ -258,7 +258,7 @@ export default function ComunidadTab({
 
             <div className="grid grid-cols-3 gap-3">
               <div className="space-y-1">
-                <label className="text-[10px] font-bold text-slate-700 uppercase">Cuota Ordinaria (€):</label>
+                <label className="text-[10px] font-bold text-black uppercase">Cuota Ordinaria (€):</label>
                 <input 
                   type="number" 
                   className="win-input w-full text-right" 
@@ -268,7 +268,7 @@ export default function ComunidadTab({
                 />
               </div>
               <div className="space-y-1">
-                <label className="text-[10px] font-bold text-slate-700 uppercase">Día Cobro:</label>
+                <label className="text-[10px] font-bold text-black uppercase">Día Cobro:</label>
                 <input 
                   type="number" 
                   min="1"
@@ -281,7 +281,7 @@ export default function ComunidadTab({
               </div>
               <div className="space-y-1 relative">
                 <label 
-                  className="text-[10px] font-bold text-slate-700 uppercase cursor-help"
+                  className="text-[10px] font-bold text-black uppercase cursor-help"
                   title="Doble clic en la caja de abajo para ir a la configuración de cuentas"
                 >
                   Cuenta Contable:
@@ -294,7 +294,7 @@ export default function ComunidadTab({
               <label className="flex items-center space-x-2 cursor-pointer p-1 hover:bg-gray-100">
                 <input 
                   type="checkbox" 
-                  className="form-checkbox h-4 w-4 text-blue-600 rounded border-slate-300"
+                  className="form-checkbox h-4 w-4 text-black rounded border-slate-300"
                   checked={community.hasSpecialLevy || false} 
                   onChange={e => {
                     updateCommunityField('hasSpecialLevy', e.target.checked);
@@ -309,11 +309,11 @@ export default function ComunidadTab({
           {/* Derramas Section */}
           {community.hasSpecialLevy && (
             <div className="flex flex-col space-y-3 mt-2">
-              <div className="flex justify-between items-center border-b border-orange-600 pb-1">
-                <h3 className="text-[11px] font-bold text-orange-600 uppercase">Derramas</h3>
+              <div className="flex justify-between items-center border-b border-black pb-1">
+                <h3 className="text-[11px] font-bold text-black uppercase">Derramas</h3>
                 <button 
                   onClick={addDerrama}
-                  className="flex items-center text-[10px] text-blue-600 hover:text-blue-800 font-bold"
+                  className="flex items-center text-[10px] text-black hover:text-black font-bold"
                 >
                   <Plus className="w-3 h-3 mr-1" /> Añadir derrama
                 </button>
@@ -326,7 +326,7 @@ export default function ComunidadTab({
               )}
 
               {derramas.map((derrama, idx) => (
-                <div key={derrama.id} className="p-2 border border-orange-200 bg-orange-50 relative">
+                <div key={derrama.id} className="p-2 border border-[#ccc] bg-white relative">
                   <button 
                     onClick={() => removeDerrama(idx)}
                     className="absolute top-1 right-1 text-red-500 hover:text-red-700 bg-white rounded p-0.5"
@@ -336,7 +336,7 @@ export default function ComunidadTab({
                   </button>
                   <div className="grid grid-cols-2 gap-3 pr-4 mb-2">
                     <div className="space-y-1">
-                      <label className="text-[10px] font-bold text-slate-700 uppercase">Importe (€):</label>
+                      <label className="text-[10px] font-bold text-black uppercase">Importe (€):</label>
                       <input 
                         type="number" 
                         className="win-input w-full text-right" 
@@ -345,7 +345,7 @@ export default function ComunidadTab({
                       />
                     </div>
                     <div className="space-y-1">
-                      <label className="text-[10px] font-bold text-slate-700 uppercase">Fecha Final:</label>
+                      <label className="text-[10px] font-bold text-black uppercase">Fecha Final:</label>
                       <input 
                         type="date" 
                         className="win-input w-full" 
@@ -356,13 +356,13 @@ export default function ComunidadTab({
                   </div>
                   <div className="grid grid-cols-2 gap-3 pr-4">
                     <div className="space-y-1">
-                      <label className="text-[10px] font-bold text-slate-700 uppercase">Días Restantes:</label>
-                      <div className="win-input w-full bg-gray-100 flex items-center justify-center font-bold text-[12px] text-blue-800 h-[22px]">
+                      <label className="text-[10px] font-bold text-black uppercase">Días Restantes:</label>
+                      <div className="win-input w-full bg-gray-100 flex items-center justify-center font-bold text-[12px] text-black h-[22px]">
                         {calculateRemainingDays(derrama.endDate)} días
                       </div>
                     </div>
                     <div className="space-y-1">
-                      <label className="text-[10px] font-bold text-slate-700 uppercase">Cuenta Contable:</label>
+                      <label className="text-[10px] font-bold text-black uppercase">Cuenta Contable:</label>
                       {renderAccountSelector(`derrama_${idx}`, derrama.accountingAccount, (val) => updateDerrama(idx, 'accountingAccount', val))}
                     </div>
                   </div>
@@ -373,16 +373,11 @@ export default function ComunidadTab({
 
         </div>
 
-        {/* Bottom Section: Expediente Digital */}
-        <div className="w-full flex flex-col h-full min-h-[300px]">
-          <div className="flex flex-col h-full pt-4">
-            <div className="bg-[#cbd5e0] font-bold p-1 border-b border-[#808080] shrink-0 text-[11px] uppercase flex items-center">
-              <FileText className="w-3 h-3 mr-1" />
-              Expediente Digital Comunidad
-            </div>
-            
-            {/* Upload form */}
-            <div className="p-2 border-b border-[#808080] bg-[#f0f0f0] shrink-0 flex items-center space-x-2">
+        {/* Bottom Section: Documentos */}
+        <div className="w-full flex flex-col h-full min-h-[300px] mt-4">
+          <div className="flex justify-between items-center mb-2 px-1">
+            <h3 className="text-[14px] font-bold text-slate-800 italic uppercase">Documentos</h3>
+            <div className="flex items-center space-x-2">
               <input 
                 type="file" 
                 id="community-file-upload"
@@ -392,61 +387,31 @@ export default function ComunidadTab({
               />
               <label 
                 htmlFor="community-file-upload" 
-                className={`btn-classic px-4 py-1 text-[11px] font-bold flex items-center shrink-0 ${(!formData.id || isUploading) ? 'opacity-50 cursor-not-allowed' : 'cursor-pointer'}`}
+                className={`border border-gray-400 bg-gray-200 hover:bg-gray-300 px-4 py-1 text-[11px] font-bold flex items-center text-slate-800 shrink-0 shadow-sm ${(!formData.id || isUploading) ? 'opacity-50 cursor-not-allowed' : 'cursor-pointer'}`}
                 title="Sube un archivo y crea el registro asociado"
               >
-                <Upload className="w-3 h-3 mr-2" />
-                {isUploading ? 'Subiendo...' : 'Subir Archivo'}
+                <Plus className="w-3.5 h-3.5 mr-1" />
+                {isUploading ? 'Subiendo...' : 'Adjuntar'}
               </label>
-
-              <button
-                onClick={() => {
-                  const newDoc = {
-                    id: Date.now().toString(),
-                    name: null,
-                    url: null,
-                    type: null,
-                    path: null,
-                    concept: 'Nuevo Registro Manual',
-                    date: new Date().toISOString().split('T')[0],
-                    amount: '',
-                    uploadedAt: new Date().toISOString()
-                  };
-                  setFormData(prev => ({
-                    ...prev,
-                    community: {
-                      ...(prev.community || {}),
-                      documents: [...(prev.community?.documents || []), newDoc]
-                    }
-                  }));
-                }}
-                className={`btn-classic px-4 py-1 text-[11px] font-bold flex items-center shrink-0 ${!formData.id ? 'opacity-50 cursor-not-allowed' : 'cursor-pointer'}`}
-                disabled={!formData.id}
-                title="Añade una línea al expediente sin subir ningún archivo"
-              >
-                <FileText className="w-3 h-3 mr-2" />
-                Añadir Registro Manual
-              </button>
-
               {!formData.id && (
-                <span className="text-[10px] text-red-600 font-bold ml-2">
+                <span className="text-[10px] text-red-600 font-bold">
                   Guarda la propiedad primero
                 </span>
               )}
             </div>
+          </div>
 
-            {/* Documents Table */}
-            <div className="flex-1 overflow-auto bg-white p-1 min-h-[200px]">
-              <table className="clean-table w-full">
-                <thead>
-                  <tr>
-                    <th className="w-10"></th>
-                    <th>Concepto</th>
-                    <th className="w-24 text-center">Fecha</th>
-                    <th className="w-24 text-right">Cantidad</th>
-                    <th className="w-16 text-center">Docs</th>
-                  </tr>
-                </thead>
+          {/* Documents Table */}
+          <div className="flex-1 overflow-auto bg-white min-h-[200px]">
+            <table className="modern-table w-full">
+              <thead>
+                <tr>
+                  <th className="w-[40%]">Documento</th>
+                  <th className="w-[30%]">Concepto</th>
+                  <th className="w-24 text-center">Fecha</th>
+                  <th className="w-20 text-center">Acción</th>
+                </tr>
+              </thead>
                 <tbody>
                   {documents.length === 0 ? (
                     <tr>
@@ -457,85 +422,62 @@ export default function ComunidadTab({
                   ) : (
                     documents.map((doc, idx) => (
                       <tr key={doc.id || idx}>
-                        <td className="text-center">
-                          <button 
-                            onClick={() => removeDocument(doc.id)}
-                            className="text-red-500 hover:text-red-700"
-                            title="Eliminar documento"
-                          >
-                            <Trash2 className="w-3.5 h-3.5" />
-                          </button>
+                        <td className="p-2 flex items-center text-[11px] text-gray-700">
+                          <FileText className="w-4 h-4 text-slate-400 mr-2 shrink-0" />
+                          <span className="truncate" title={doc.name || 'Sin archivo'}>{doc.name || 'Sin archivo'}</span>
                         </td>
-                        <td className="p-0">
+                        <td className="p-2">
                           <input 
                             type="text"
                             value={doc.concept || ''}
                             onChange={(e) => updateDocument(doc.id, 'concept', e.target.value)}
-                            className="win-input w-full bg-transparent border-transparent hover:border-gray-300 focus:bg-white text-[11px] font-bold px-1 m-0 h-[22px]"
+                            className="w-full border border-gray-400 px-2 py-1 text-[11px] focus:outline-none focus:border-blue-500"
                           />
                         </td>
-                        <td className="text-center w-28 p-0">
+                        <td className="text-center p-2">
                           <input 
                             type="date"
                             value={doc.date ? doc.date.split('T')[0] : ''}
                             onChange={(e) => updateDocument(doc.id, 'date', e.target.value)}
-                            className="win-input w-full bg-transparent border-transparent hover:border-gray-300 focus:bg-white text-[11px] text-center px-1 m-0 h-[22px]"
+                            className="w-full border border-gray-400 px-1 py-1 text-[11px] text-center focus:outline-none focus:border-blue-500"
                           />
                         </td>
-                        <td className="text-right w-24 p-0">
-                          <input 
-                            type="number"
-                            value={doc.amount || ''}
-                            onChange={(e) => updateDocument(doc.id, 'amount', e.target.value)}
-                            className="win-input w-full bg-transparent border-transparent hover:border-gray-300 focus:bg-white text-[11px] text-right px-1 m-0 h-[22px]"
-                            placeholder="0.00"
-                          />
-                        </td>
-                        <td className="text-center">
-                          {doc.url ? (
-                            <div className="flex justify-center items-center space-x-2">
+                        <td className="text-center p-2">
+                          <div className="flex justify-center items-center space-x-3">
+                            {doc.url ? (
                               <button 
                                 onClick={() => setPreviewDocument({ url: doc.url, type: doc.type, name: doc.name })}
-                                className="text-blue-600 hover:text-blue-800"
+                                className="text-indigo-600 hover:text-indigo-800"
                                 title="Ver documento"
                               >
                                 <Eye className="w-4 h-4" />
                               </button>
-                              <div className="flex items-center">
+                            ) : (
+                              <div className="relative flex items-center justify-center">
                                 <input 
                                   type="file" 
-                                  id={`row-file-replace-${doc.id}`}
+                                  id={`row-file-upload-${doc.id}`}
                                   className="hidden" 
                                   onChange={(e) => handleRowFileUpload(e, doc.id)}
                                   disabled={isUploading || !formData.id}
                                 />
                                 <label 
-                                  htmlFor={`row-file-replace-${doc.id}`}
-                                  className="cursor-pointer text-orange-500 hover:text-orange-700 m-0 leading-none"
-                                  title="Reemplazar documento"
+                                  htmlFor={`row-file-upload-${doc.id}`}
+                                  className="cursor-pointer text-indigo-600 hover:text-indigo-800 m-0 leading-none"
+                                  title="Subir documento a este registro"
                                 >
                                   <Upload className="w-4 h-4" />
                                 </label>
                               </div>
-                            </div>
-                          ) : (
-                            <div className="flex justify-center">
-                              <input 
-                                type="file" 
-                                id={`row-file-upload-${doc.id}`}
-                                className="hidden" 
-                                onChange={(e) => handleRowFileUpload(e, doc.id)}
-                                disabled={isUploading || !formData.id}
-                              />
-                              <label 
-                                htmlFor={`row-file-upload-${doc.id}`}
-                                className="cursor-pointer text-blue-600 hover:text-blue-800"
-                                title="Subir documento a este registro"
-                              >
-                                <Upload className="w-3.5 h-3.5 mx-auto" />
-                              </label>
-                            </div>
-                          )}
+                            )}
+                            <button 
+                              onClick={() => removeDocument(doc.id)}
+                              className="text-red-500 hover:text-red-700"
+                              title="Eliminar documento"
+                            >
+                              <Trash2 className="w-4 h-4" />
+                            </button>
+                          </div>
                         </td>
                       </tr>
                     ))
@@ -545,7 +487,6 @@ export default function ComunidadTab({
             </div>
           </div>
         </div>
-      </div>
 
       {/* Accounts Modal */}
       {showAccountsModal && (
@@ -556,7 +497,7 @@ export default function ComunidadTab({
             initialPos={{ x: isMobile ? 0 : 50, y: isMobile ? 0 : 20 }}
             onClose={() => setShowAccountsModal(false)}
           >
-            <div className="bg-[#d4d0c8] flex flex-col h-[600px]">
+            <div className="bg-[#fafafa] flex flex-col h-[600px]">
               <div className="flex-1 overflow-auto p-1">
                 <div className="bg-white border border-[#808080] shadow-[1px_1px_0px_#000] min-h-full h-full relative">
                   <Accounts 
@@ -573,7 +514,7 @@ export default function ComunidadTab({
                   />
                 </div>
               </div>
-              <div className="flex justify-end gap-2 shrink-0 pt-2 pb-1 pr-1 bg-[#d4d0c8] border-t border-[#808080]">
+              <div className="flex justify-end gap-2 shrink-0 pt-2 pb-1 pr-1 bg-[#fafafa] border-t border-[#808080]">
                 <button 
                   className="px-6 py-1 border border-gray-400 bg-gray-100 hover:bg-gray-200 shadow-sm text-[11px] font-bold uppercase" 
                   onClick={() => setShowAccountsModal(false)}

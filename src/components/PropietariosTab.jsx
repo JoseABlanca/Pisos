@@ -89,54 +89,53 @@ export default function PropietariosTab({ formData, setFormData, user, queryUser
   }, [formData.adquisitionExpenses, formData.investedCapital, formData.theoreticalSalePrice]);
 
   return (
-    <div className="flex flex-col h-full bg-[#d4d0c8]">
+    <div className="flex flex-col h-full bg-white">
       <div className="flex-1 overflow-auto p-4 flex flex-col gap-4">
         
         {/* Top Section: Asignación de Propietarios */}
         <div className="w-full flex flex-col gap-4">
           <div className="flex flex-col space-y-3">
-            <h3 className="text-[11px] font-bold text-[#000080] border-b border-[#000080] pb-1 uppercase flex items-center">
-              <Users className="w-4 h-4 mr-1" />
-              Asignación de Propietarios
-            </h3>
+            <div className="flex justify-between items-end mb-2">
+              <h3 className="text-[14px] font-bold text-slate-800 italic uppercase">
+                Asignación de Propietarios
+              </h3>
+            </div>
             
             {/* Formulario para añadir */}
-            <div className="bg-[#f0f0f0] p-2 border border-[#808080] flex items-end gap-2">
-              <div className="flex-1 space-y-1">
-                <label className="text-[10px] font-bold text-slate-700 uppercase">Seleccionar Socio / Propietario</label>
+            <div className="flex items-end gap-2 mb-2">
+              <div className="flex-1">
                 <select 
-                  className="win-input w-full"
+                  className="w-full border border-gray-400 px-2 py-1 text-[11px] focus:outline-none focus:border-blue-500 bg-white"
                   value={selectedPartnerId}
                   onChange={(e) => setSelectedPartnerId(e.target.value)}
                 >
-                  <option value="">-- Seleccionar --</option>
+                  <option value="">-- Seleccionar Propietario --</option>
                   {availablePartners.map(p => {
                     const name = p.name || `${p.firstName || ''} ${p.lastName || ''}`.trim() || p.companyName || 'Sin Nombre';
                     return <option key={p.id} value={p.id}>{name} {p.dni || p.nif || p.cif ? `(${p.dni || p.nif || p.cif})` : ''}</option>;
                   })}
                 </select>
               </div>
-              <div className="w-24 space-y-1">
-                <label className="text-[10px] font-bold text-slate-700 uppercase">% Participación</label>
+              <div className="w-24">
                 <input 
                   type="number" 
-                  className="win-input w-full text-right" 
+                  className="w-full border border-gray-400 px-2 py-1 text-[11px] text-right focus:outline-none focus:border-blue-500 bg-white"
                   value={percentage}
                   onChange={(e) => setPercentage(e.target.value)}
-                  placeholder="0"
+                  placeholder="% Participación"
                 />
               </div>
               <button 
                 onClick={handleAddOwner}
-                className="btn-classic px-4 py-1 h-[22px] flex items-center shrink-0 text-[11px] font-bold"
+                className="border border-gray-400 bg-gray-200 hover:bg-gray-300 px-4 py-1 h-[26px] text-[11px] font-bold flex items-center text-slate-800 shrink-0 shadow-sm"
               >
-                <Plus className="w-3 h-3 mr-1" /> Añadir
+                <Plus className="w-3.5 h-3.5 mr-1" /> Añadir
               </button>
             </div>
 
             {/* Tabla de propietarios asignados */}
-            <div className="bg-white border border-[#808080] shadow-[1px_1px_0px_#000] p-1">
-              <table className="clean-table w-full">
+            <div className="bg-white">
+              <table className="modern-table w-full">
                 <thead>
                   <tr>
                     <th>Nombre del Propietario / Sociedad</th>
@@ -157,18 +156,18 @@ export default function PropietariosTab({ formData, setFormData, user, queryUser
                       <tr key={owner.partnerId}>
                         <td className="font-bold text-[11px]">{owner.name}</td>
                         <td className="text-center text-[11px]">{owner.nif || '-'}</td>
-                        <td className="p-0 w-24">
+                        <td className="p-2 w-24">
                           <input 
                             type="number"
                             value={owner.percentage || ''}
                             onChange={(e) => updateOwnerPercentage(idx, e.target.value)}
-                            className="win-input w-full bg-transparent border-transparent hover:border-gray-300 focus:bg-white text-[11px] text-right px-1 m-0 h-[22px] font-bold text-[#000080]"
+                            className="w-full border border-gray-400 px-2 py-1 text-[11px] text-right focus:outline-none focus:border-blue-500 font-bold text-black"
                           />
                         </td>
                         <td className="text-center">
                           <button 
                             onClick={() => removeOwner(idx)}
-                            className="text-red-500 hover:text-red-700"
+                            className="text-gray-500 hover:text-black transition-colors"
                             title="Eliminar propietario"
                           >
                             <Trash2 className="w-3.5 h-3.5 mx-auto" />
@@ -180,10 +179,7 @@ export default function PropietariosTab({ formData, setFormData, user, queryUser
                 </tbody>
               </table>
               {/* Footer de suma */}
-              <div className={`p-2 flex justify-end items-center text-[11px] font-bold ${totalPercentage !== 100 && owners.length > 0 ? 'text-red-600 bg-red-50' : 'text-slate-700 bg-slate-50'}`}>
-                {totalPercentage !== 100 && owners.length > 0 && (
-                  <AlertCircle className="w-3.5 h-3.5 mr-1" />
-                )}
+              <div className={`p-2 flex justify-end items-center text-[11px] font-bold bg-white text-black`}>
                 TOTAL PARTICIPACIÓN: {totalPercentage.toFixed(2)} %
               </div>
             </div>
@@ -193,12 +189,11 @@ export default function PropietariosTab({ formData, setFormData, user, queryUser
         {/* Bottom Section: Tabla de Métricas */}
         <div className="w-full flex flex-col h-full min-h-[250px] mt-2">
           <div className="flex flex-col space-y-3 h-full">
-            <h3 className="text-[11px] font-bold text-[#000080] border-b border-[#000080] pb-1 uppercase flex items-center">
-              <BarChart2 className="w-4 h-4 mr-1" />
+            <h3 className="text-[14px] font-bold text-slate-800 italic uppercase mb-2">
               Métricas por Propietario
             </h3>
-            <div className="bg-white border border-[#808080] shadow-[1px_1px_0px_#000] p-1 flex-1 overflow-auto">
-              <table className="clean-table w-full">
+            <div className="bg-white flex-1 overflow-auto">
+              <table className="modern-table w-full">
                 <thead>
                   <tr>
                     <th>Propietario</th>
@@ -219,10 +214,10 @@ export default function PropietariosTab({ formData, setFormData, user, queryUser
                     owners.map((owner) => (
                       <tr key={`metrics-${owner.partnerId}`}>
                         <td className="font-bold text-[11px]">{owner.name}</td>
-                        <td className="text-right text-[11px] text-[#000080] font-bold">{owner.percentage}%</td>
-                        <td className="text-right text-[11px] italic text-slate-400">{(totalCapitalAndExpenses * (owner.percentage / 100)).toFixed(2)} €</td>
-                        <td className="text-right text-[11px] italic text-slate-400">{(theoreticalSalePrice * (owner.percentage / 100)).toFixed(2)} €</td>
-                        <td className="text-right text-[11px] italic text-slate-400">{(neto * (owner.percentage / 100)).toFixed(2)} €</td>
+                        <td className="text-right text-[11px] text-black font-bold">{owner.percentage}%</td>
+                        <td className="text-right text-[11px] text-black">{(totalCapitalAndExpenses * (owner.percentage / 100)).toFixed(2)} €</td>
+                        <td className="text-right text-[11px] text-black">{(theoreticalSalePrice * (owner.percentage / 100)).toFixed(2)} €</td>
+                        <td className="text-right text-[11px] text-black">{(neto * (owner.percentage / 100)).toFixed(2)} €</td>
                       </tr>
                     ))
                   )}
@@ -230,11 +225,11 @@ export default function PropietariosTab({ formData, setFormData, user, queryUser
                 <tfoot>
                   {owners.length > 0 && (
                     <tr className="bg-slate-50 font-bold border-t-2 border-[#808080]">
-                      <td className="text-[11px] text-[#000080] uppercase">TOTALES</td>
-                      <td className="text-right text-[11px] text-[#000080]">{totalPercentage.toFixed(2)}%</td>
-                      <td className="text-right text-[11px] text-[#000080]">{(totalCapitalAndExpenses * (totalPercentage / 100)).toFixed(2)} €</td>
-                      <td className="text-right text-[11px] text-[#000080]">{(theoreticalSalePrice * (totalPercentage / 100)).toFixed(2)} €</td>
-                      <td className="text-right text-[11px] text-[#000080]">{(neto * (totalPercentage / 100)).toFixed(2)} €</td>
+                      <td className="text-[11px] text-black uppercase">TOTALES</td>
+                      <td className="text-right text-[11px] text-black">{totalPercentage.toFixed(2)}%</td>
+                      <td className="text-right text-[11px] text-black">{(totalCapitalAndExpenses * (totalPercentage / 100)).toFixed(2)} €</td>
+                      <td className="text-right text-[11px] text-black">{(theoreticalSalePrice * (totalPercentage / 100)).toFixed(2)} €</td>
+                      <td className="text-right text-[11px] text-black">{(neto * (totalPercentage / 100)).toFixed(2)} €</td>
                     </tr>
                   )}
                 </tfoot>

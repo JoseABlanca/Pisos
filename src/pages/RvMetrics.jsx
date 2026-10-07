@@ -959,51 +959,6 @@ export default function RvMetrics() {
             </div>
           </div>
 
-          {/* Bar Chart */}
-          <div className="bg-white p-4 rounded-xl border border-slate-200 shadow-sm min-h-[350px]">
-            <div className="flex items-center justify-between mb-4">
-              <h2 className="text-sm font-bold text-slate-700">Rentabilidad por Período</h2>
-              <select 
-                value={barPeriod} 
-                onChange={e => setBarPeriod(e.target.value)} 
-                className="text-xs border-slate-300 rounded shadow-sm focus:ring-[#5b21b6] focus:border-[#5b21b6] py-1 pl-2 pr-6"
-              >
-                <option value="DAY">Diario</option>
-                <option value="MONTH">Mensual</option>
-                <option value="YEAR">Anual</option>
-              </select>
-            </div>
-            <div className="h-[300px]">
-              <ResponsiveContainer width="100%" height="100%">
-                <BarChart data={barData} margin={{ top: 5, right: 20, left: 20, bottom: 5 }}>
-                  <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="#e2e8f0" />
-                  <XAxis dataKey="period" tick={{ fontSize: 10, fill: '#64748b' }} />
-                  <YAxis tick={{ fontSize: 10, fill: '#64748b' }} tickFormatter={formatYAxis} />
-                  <Tooltip formatter={formatTooltip} cursor={{ fill: '#f1f5f9' }} />
-                  <Legend onClick={handleLegendClick} wrapperStyle={{ fontSize: '11px', cursor: 'pointer' }} />
-                  <ReferenceLine y={0} stroke="#94a3b8" />
-                  {isAccumulated ? (
-                    unit === 'EUR' ? (
-                      <Bar name="Beneficio Periodo (€)" dataKey="gains" fill="#3b82f6" radius={[4, 4, 0, 0]} hide={hiddenLines['gains']} />
-                    ) : (
-                      <Bar name="Rentabilidad Periodo (%)" dataKey="gainsPct" fill="#3b82f6" radius={[4, 4, 0, 0]} hide={hiddenLines['gainsPct']} />
-                    )
-                  ) : (
-                    tickersToRender.map((t, idx) => {
-                       const colors = ['#3b82f6', '#10b981', '#f59e0b', '#ef4444', '#8b5cf6', '#ec4899', '#06b6d4', '#14b8a6', '#f97316'];
-                       const color = colors[idx % colors.length];
-                       return unit === 'EUR' ? (
-                         <Bar key={t} name={`${t} (€)`} dataKey={`gains_${t}`} fill={color} radius={[4, 4, 0, 0]} hide={hiddenLines[`gains_${t}`]} />
-                       ) : (
-                         <Bar key={t} name={`${t} (%)`} dataKey={`gainsPct_${t}`} fill={color} radius={[4, 4, 0, 0]} hide={hiddenLines[`gainsPct_${t}`]} />
-                       )
-                    })
-                  )}
-                </BarChart>
-              </ResponsiveContainer>
-            </div>
-          </div>
-
           {/* Drawdown Chart */}
           <div className="bg-white p-4 rounded-xl border border-slate-200 shadow-sm min-h-[250px]">
             <div className="flex items-center justify-between mb-4">
@@ -1105,6 +1060,51 @@ export default function RvMetrics() {
             </div>
           </div>
           )}
+
+          {/* Bar Chart */}
+          <div className="bg-white p-4 rounded-xl border border-slate-200 shadow-sm min-h-[350px]">
+            <div className="flex items-center justify-between mb-4">
+              <h2 className="text-sm font-bold text-slate-700">Rentabilidad por Período</h2>
+              <select 
+                value={barPeriod} 
+                onChange={e => setBarPeriod(e.target.value)} 
+                className="text-xs border-slate-300 rounded shadow-sm focus:ring-[#5b21b6] focus:border-[#5b21b6] py-1 pl-2 pr-6"
+              >
+                <option value="DAY">Diario</option>
+                <option value="MONTH">Mensual</option>
+                <option value="YEAR">Anual</option>
+              </select>
+            </div>
+            <div className="h-[300px]">
+              <ResponsiveContainer width="100%" height="100%">
+                <BarChart data={barData} margin={{ top: 5, right: 20, left: 20, bottom: 5 }}>
+                  <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="#e2e8f0" />
+                  <XAxis dataKey="period" tick={{ fontSize: 10, fill: '#64748b' }} />
+                  <YAxis tick={{ fontSize: 10, fill: '#64748b' }} tickFormatter={formatYAxis} />
+                  <Tooltip formatter={formatTooltip} cursor={{ fill: '#f1f5f9' }} />
+                  <Legend onClick={handleLegendClick} wrapperStyle={{ fontSize: '11px', cursor: 'pointer' }} />
+                  <ReferenceLine y={0} stroke="#94a3b8" />
+                  {isAccumulated ? (
+                    unit === 'EUR' ? (
+                      <Bar name="Beneficio Periodo (€)" dataKey="gains" fill="#3b82f6" radius={[4, 4, 0, 0]} hide={hiddenLines['gains']} />
+                    ) : (
+                      <Bar name="Rentabilidad Periodo (%)" dataKey="gainsPct" fill="#3b82f6" radius={[4, 4, 0, 0]} hide={hiddenLines['gainsPct']} />
+                    )
+                  ) : (
+                    tickersToRender.map((t, idx) => {
+                       const colors = ['#3b82f6', '#10b981', '#f59e0b', '#ef4444', '#8b5cf6', '#ec4899', '#06b6d4', '#14b8a6', '#f97316'];
+                       const color = colors[idx % colors.length];
+                       return unit === 'EUR' ? (
+                         <Bar key={t} name={`${t} (€)`} dataKey={`gains_${t}`} fill={color} radius={[4, 4, 0, 0]} hide={hiddenLines[`gains_${t}`]} />
+                       ) : (
+                         <Bar key={t} name={`${t} (%)`} dataKey={`gainsPct_${t}`} fill={color} radius={[4, 4, 0, 0]} hide={hiddenLines[`gainsPct_${t}`]} />
+                       )
+                    })
+                  )}
+                </BarChart>
+              </ResponsiveContainer>
+            </div>
+          </div>
           </>
           )}
 

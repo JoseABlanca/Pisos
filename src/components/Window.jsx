@@ -5,8 +5,26 @@ const RESIZE_EDGE = 6; // pixels for resize handle area
 const MIN_WIDTH = 300;
 const MIN_HEIGHT = 200;
 
-export default function Window({ title, children, onClose, width = '800px', height = 'auto', initialPos = { x: 50, y: 50 }, className = "", menuItems, onMenuClick }) {
-  const [pos, setPos] = useState(initialPos);
+export default function Window({ title, children, onClose, width = '800px', height = 'auto', initialPos = { x: 50, y: 50 }, className = "", menuItems, onMenuClick, variant = 'classic' }) {
+  const isClassic = variant !== 'legacy';
+  const [pos, setPos] = useState(() => {
+    const isMobileInitial = typeof window !== 'undefined' && window.innerWidth < 768;
+    if (isMobileInitial) return { x: 0, y: 0 };
+    
+    const w = parseInt(width) || 800;
+    const hStr = String(height);
+    let h = 600;
+    if (hStr.endsWith('%')) {
+       h = (window.innerHeight * parseInt(hStr)) / 100;
+    } else if (hStr !== 'auto') {
+       h = parseInt(hStr) || 600;
+    }
+    
+    return {
+      x: Math.max(0, (window.innerWidth - w) / 2),
+      y: Math.max(0, (window.innerHeight - h) / 2)
+    };
+  });
   const [size, setSize] = useState({ 
     width: parseInt(width) || 800, 
     height: height === 'auto' ? null : (parseInt(height) || 600) 
@@ -180,7 +198,9 @@ export default function Window({ title, children, onClose, width = '800px', heig
         maxHeight: (isMaximized || isMobile) ? '100%' : '90vh',
         zIndex: isDragging || isResizing ? 1000 : 100,
       }}
-      className={`win-window flex flex-col shadow-lg border-2 border-[#808080] bg-white select-none ${className}`}
+      className={isClassic 
+        ? `flex flex-col shadow-[2px_3px_12px_rgba(0,0,0,0.35)] border border-[#888] bg-[#f0f0f0] select-none rounded-none overflow-hidden ${className}`
+        : `win-window flex flex-col shadow-lg border-2 border-[#808080] bg-white select-none ${className}`}
     >
       {/* Resize Handles */}
       {!isMaximized && resizeHandles.map(({ dir, style }) => (
@@ -195,9 +215,11 @@ export default function Window({ title, children, onClose, width = '800px', heig
       <div 
         onMouseDown={handleTitleMouseDown}
         onDoubleClick={handleMaximize}
-        className="window-title-bar flex justify-between items-center px-3 py-1.5 border-b border-gray-300 bg-white cursor-default h-8 relative"
+        className={isClassic
+          ? "window-title-bar flex items-center px-2 py-[4px] border-b border-[#ccc] bg-[#e1e1e1] cursor-move h-[32px] relative select-none shrink-0"
+          : "window-title-bar flex justify-between items-center px-3 py-1.5 border-b border-gray-300 bg-white cursor-default h-8 relative"}
       >
-        <div className="flex items-center space-x-2">
+        <div className="flex items-center space-x-2 shrink-0">
           {/* Menu Button / Icon */}
           <button 
             onPointerDown={(e) => { 
@@ -213,21 +235,32 @@ export default function Window({ title, children, onClose, width = '800px', heig
             title="Menú"
           >
             {[...Array(9)].map((_, i) => (
-              <div key={i} className={`w-1.5 h-1.5 border border-gray-400 ${[0, 1, 3, 4].includes(i) ? 'bg-gray-200' : 'bg-transparent'}`}></div>
+              <div key={i} className={`w-1.5 h-1.5 border ${isClassic ? 'border-[#888]' : 'border-gray-400'} ${[0, 1, 3, 4].includes(i) ? (isClassic ? 'bg-[#999]' : 'bg-gray-200') : 'bg-transparent'}`}></div>
             ))}
           </button>
-          <span className="text-[12px] font-normal text-gray-800 tracking-wide truncate pr-4">{title}</span>
+          {!isClassic && <span className="text-[12px] font-normal text-gray-800 tracking-wide truncate pr-4">{title}</span>}
         </div>
-        <div className="flex items-center space-x-1">
-          <button className="text-gray-500 hover:text-gray-800 focus:outline-none"><Minus className="w-4 h-4" /></button>
-          <button onClick={handleMaximize} className="text-gray-500 hover:text-gray-800 focus:outline-none">
-            <Square className="w-3.5 h-3.5" />
+
+        {isClassic && (
+          <span className="text-[12px] text-[#333] font-bold text-center flex-1 truncate px-2 select-none">
+            {title}
+          </span>
+        )}
+
+        <div className="flex items-center space-x-1 shrink-0">
+          <button className={isClassic ? "w-[20px] h-[20px] flex items-center justify-center hover:bg-[#d0d0d0] text-[#555] rounded-[2px]" : "text-gray-500 hover:text-gray-800 focus:outline-none"}>
+            <Minus className={isClassic ? "w-3.5 h-3.5" : "w-4 h-4"} />
+          </button>
+          <button onClick={handleMaximize} className={isClassic ? "w-[20px] h-[20px] flex items-center justify-center hover:bg-[#d0d0d0] text-[#555] rounded-[2px]" : "text-gray-500 hover:text-gray-800 focus:outline-none"}>
+            <Square className={isClassic ? "w-3 h-3" : "w-3.5 h-3.5"} />
           </button>
           <button 
             onClick={onClose} 
-            className="text-gray-500 hover:text-red-600 focus:outline-none ml-1"
+            className={isClassic 
+              ? "w-[20px] h-[20px] flex items-center justify-center hover:bg-red-500 hover:text-white text-[#666] rounded-[2px] transition-colors ml-1"
+              : "text-gray-500 hover:text-red-600 focus:outline-none ml-1"}
           >
-            <X className="w-4 h-4" />
+            <X className={isClassic ? "w-3.5 h-3.5" : "w-4 h-4"} />
           </button>
         </div>
       </div>
@@ -259,8 +292,8 @@ export default function Window({ title, children, onClose, width = '800px', heig
       )}
       
       {/* Window Body */}
-      <div className="flex-1 bg-white overflow-hidden flex flex-col">
-        <div className="h-full overflow-auto bg-white flex flex-col">
+      <div className={`flex-1 overflow-hidden flex flex-col ${isClassic ? 'bg-[#f0f0f0]' : 'bg-white'}`}>
+        <div className={`h-full overflow-auto flex flex-col ${isClassic ? 'bg-[#f0f0f0]' : 'bg-white'}`}>
           {children}
         </div>
       </div>

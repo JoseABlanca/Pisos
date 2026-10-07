@@ -141,9 +141,9 @@ export default function ServiciosTab({
   return (
     <div className="flex flex-col md:flex-row h-full bg-white relative">
       {/* Panel Izquierdo: Lista de Servicios */}
-      <div className="w-full md:w-1/3 border-b md:border-b-0 md:border-r border-[#a0a0a0] bg-[#f8f9fa] flex flex-col shrink-0">
-        <div className="p-3 border-b border-[#a0a0a0] flex justify-between items-center bg-slate-100">
-          <h3 className="text-[12px] font-bold text-slate-800 uppercase">Servicios Activos</h3>
+      <div className="w-full md:w-1/3 border-b md:border-b-0 md:border-r border-[#a0a0a0] bg-[#fafafa] flex flex-col shrink-0">
+        <div className="p-3 border-b border-[#a0a0a0] flex justify-between items-center bg-[#fafafa]">
+          <h3 className="text-[12px] font-bold text-[#333] uppercase">Servicios Activos</h3>
           <button 
             onClick={handleAddService}
             className="btn-classic flex items-center space-x-1 px-2 py-1"
@@ -165,16 +165,16 @@ export default function ServiciosTab({
                 onClick={() => setSelectedIndex(idx)}
                 className={`p-2 border cursor-pointer flex items-center justify-between ${
                   selectedIndex === idx 
-                    ? 'bg-blue-50 border-blue-400 shadow-sm' 
-                    : 'bg-white border-slate-200 hover:border-blue-200'
+                    ? 'bg-gray-100 border-gray-400 shadow-sm' 
+                    : 'bg-white border-slate-200 hover:border-gray-300'
                 }`}
               >
                 <div className="flex items-center space-x-3 truncate">
-                  <div className={`p-2 rounded-full ${service.active !== false ? 'bg-blue-100 text-blue-600' : 'bg-slate-200 text-slate-400'}`}>
+                  <div className={`p-2 rounded-full ${service.active !== false ? 'bg-gray-200 text-gray-700' : 'bg-slate-200 text-slate-400'}`}>
                     {getServiceIcon(service.type)}
                   </div>
                   <div className="truncate">
-                    <div className="text-[11px] font-bold text-slate-800 truncate">
+                    <div className="text-[11px] font-bold text-[#333] truncate">
                       {service.company || 'Sin Empresa'}
                     </div>
                     <div className="text-[10px] text-slate-500 flex items-center space-x-1">
@@ -349,7 +349,7 @@ export default function ServiciosTab({
               </div>
 
               <div className="flex-1 border border-[#808080] bg-white overflow-hidden flex flex-col min-h-[250px]">
-                <div className="bg-[#f0f0f0] grid grid-cols-12 gap-2 p-2 border-b border-[#808080] text-[10px] font-bold uppercase">
+                <div className="bg-[#fafafa] grid grid-cols-12 gap-2 p-2 border-b border-[#808080] text-[10px] font-bold uppercase">
                   <div className="col-span-4">Documento</div>
                   <div className="col-span-4">Concepto</div>
                   <div className="col-span-2">Fecha</div>

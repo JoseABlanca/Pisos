@@ -979,6 +979,7 @@ export default function PrintPage() {
     const normValueCebe = p.cebe ? String(p.cebe).trim().replace(/^(CEBE|CECO)/i, '').toLowerCase() : '';
     const normIncomeCecos = (p.taxIncomeCecos || []).map(c => String(c).trim().replace(/^(CEBE|CECO)/i, '').toLowerCase());
     const normExpenseCecos = (p.taxExpenseCecos || []).map(c => String(c).trim().replace(/^(CEBE|CECO)/i, '').toLowerCase());
+    const normNegativeCecos = (p.negativeCecos || []).map(c => String(c).trim().replace(/^(CEBE|CECO)/i, '').toLowerCase());
 
     const cecoMatches = (cecoCode) => {
       if (selectedCecos.length === 0) return true;
@@ -1112,6 +1113,9 @@ export default function PrintPage() {
           const lineCeco = l.ceco || entry.ceco || '';
           if (!cecoMatches(lineCeco)) return;
 
+          const cleanLineCeco = String(lineCeco).trim().replace(/^(CEBE|CECO)/i, '').toLowerCase();
+          const isNegativeCeco = normNegativeCecos.length > 0 && cleanLineCeco && normNegativeCecos.some(c => cleanLineCeco.startsWith(c));
+
           let lineMatchCebe = false;
           let lineMatchCeco = false;
 
@@ -1132,13 +1136,25 @@ export default function PrintPage() {
           if (lineMatchCebe || lineMatchCeco) {
             const isInc = accCode.startsWith('7');
             const isExp = accCode.startsWith('6');
-            if (isInc) {
+            let effectiveInc = isInc;
+            let effectiveExp = isExp;
+            if (isNegativeCeco) {
+              if (isInc) { effectiveInc = false; effectiveExp = true; }
+              else if (isExp) { effectiveInc = true; effectiveExp = false; }
+            }
+
+            if (effectiveInc) {
               cebeEntryAmount += lineAmt;
-            } else if (isExp) {
+            } else if (effectiveExp) {
               cecoEntryAmount += lineAmt;
             } else {
-              if (lineMatchCebe) cebeEntryAmount += lineAmt;
-              if (lineMatchCeco) cecoEntryAmount += lineAmt;
+              if (isNegativeCeco) {
+                if (lineMatchCebe) cecoEntryAmount += lineAmt;
+                if (lineMatchCeco) cebeEntryAmount += lineAmt;
+              } else {
+                if (lineMatchCebe) cebeEntryAmount += lineAmt;
+                if (lineMatchCeco) cecoEntryAmount += lineAmt;
+              }
             }
           }
         });
@@ -1147,6 +1163,9 @@ export default function PrintPage() {
       if (!hasLineLevelAnalytics) {
         const entryCeco = entry.ceco || '';
         if (cecoMatches(entryCeco)) {
+          const cleanEntryCeco = String(entryCeco).trim().replace(/^(CEBE|CECO)/i, '').toLowerCase();
+          const isNegativeCeco = normNegativeCecos.length > 0 && cleanEntryCeco && normNegativeCecos.some(c => cleanEntryCeco.startsWith(c));
+
           let globalCebe = false;
           if (normValueCebe && entry.cebe) {
             const normField = String(entry.cebe).trim().replace(/^(CEBE|CECO)/i, '').toLowerCase();
@@ -1157,7 +1176,8 @@ export default function PrintPage() {
             if (normIncomeCecos.some(c => normField.startsWith(c))) globalCebe = true;
           }
           if (globalCebe) {
-            cebeEntryAmount = entry.total || 0;
+            if (isNegativeCeco) cecoEntryAmount = entry.total || 0;
+            else cebeEntryAmount = entry.total || 0;
           }
 
           let globalCeco = false;
@@ -1166,7 +1186,8 @@ export default function PrintPage() {
             if (normExpenseCecos.some(c => normField.startsWith(c))) globalCeco = true;
           }
           if (globalCeco) {
-            cecoEntryAmount = entry.total || 0;
+            if (isNegativeCeco) cebeEntryAmount = entry.total || 0;
+            else cecoEntryAmount = entry.total || 0;
           }
         }
       }

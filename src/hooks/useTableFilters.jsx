@@ -257,7 +257,7 @@ export const useTableFilters = ({ columnWidths = {}, updateColumnWidth = null } 
     
     return (
       <th 
-        className={`${className} group relative hover:bg-slate-200/70 cursor-pointer select-none`} 
+        className={`${className} group relative hover:bg-slate-200/70 cursor-pointer select-none bg-inherit`} 
         style={style}
         onClick={() => {
           if (sortable) {
@@ -299,7 +299,7 @@ export const useTableFilters = ({ columnWidths = {}, updateColumnWidth = null } 
               )}
             </div>
             <button 
-              className={`p-0.5 rounded-sm hover:bg-slate-300 transition-colors filter-btn flex-shrink-0 mr-1 ${isActive ? 'bg-blue-100 text-blue-700' : 'text-slate-400'}`}
+              className={`p-0.5 rounded-sm hover:bg-slate-300 transition-colors filter-btn flex-shrink-0 mr-1 ${isActive ? 'bg-slate-300 text-slate-700' : 'text-slate-400'}`}
               onClick={(e) => {
                 e.stopPropagation();
                 const rect = e.currentTarget.getBoundingClientRect();
@@ -316,11 +316,11 @@ export const useTableFilters = ({ columnWidths = {}, updateColumnWidth = null } 
               }}
               title="Filtrar columna"
             >
-              <Filter className={`w-3 h-3 ${isActive ? 'fill-blue-200' : ''}`} />
+              <Filter className={`w-3 h-3 ${isActive ? 'fill-slate-400' : ''}`} />
             </button>
           </div>
           <div 
-            className="absolute right-[-6px] top-0 bottom-0 w-3 cursor-col-resize hover:bg-blue-400/30 active:bg-blue-500/50 z-20"
+            className="absolute right-[-6px] top-0 bottom-0 w-3 cursor-col-resize hover:bg-slate-400/30 active:bg-slate-500/50 z-20"
             onMouseDown={handleMouseDown}
           />
         </div>
@@ -432,7 +432,7 @@ export const useTableFilters = ({ columnWidths = {}, updateColumnWidth = null } 
           <div className="flex justify-end gap-1.5 pt-2 border-t border-slate-200 mt-1">
             <button 
               type="button"
-              className="px-3 py-1 text-[10px] font-bold uppercase bg-blue-600 text-white hover:bg-blue-700 rounded shadow-sm cursor-pointer" 
+              className="px-3 py-1 text-[10px] font-bold uppercase bg-slate-600 text-white hover:bg-slate-700 rounded shadow-sm cursor-pointer" 
               onClick={handleAccept}
             >
               Aceptar

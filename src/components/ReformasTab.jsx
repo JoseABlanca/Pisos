@@ -140,12 +140,12 @@ export default function ReformasTab({
   }
 
   return (
-    <div className="flex flex-col h-full bg-[#f8f9fa] overflow-hidden gap-4 p-4">
+    <div className="flex flex-col h-full bg-[#fafafa] overflow-hidden gap-4 p-4">
       
       {/* TABLA PRINCIPAL DE REFORMAS */}
       <div className="flex-1 min-h-[40%] bg-white border border-[#a0a0a0] flex flex-col shadow-sm rounded-md">
-        <div className="p-3 border-b border-[#a0a0a0] bg-slate-100 flex justify-between items-center rounded-t-md">
-          <h3 className="text-[12px] font-bold text-[#000080] uppercase">Listado de Reformas</h3>
+        <div className="p-3 border-b border-[#a0a0a0] bg-[#fafafa] flex justify-between items-center rounded-t-md">
+          <h3 className="text-[12px] font-bold text-[#000000] uppercase">Listado de Reformas</h3>
           <button 
             onClick={handleAddReform}
             className="btn-classic flex items-center space-x-1 px-2 py-1"
@@ -182,7 +182,7 @@ export default function ReformasTab({
                       <input 
                         type="radio" 
                         name="selectedReform"
-                        className="w-4 h-4 text-blue-600 cursor-pointer"
+                        className="w-4 h-4 text-black cursor-pointer"
                         checked={selectedIndex === idx}
                         onChange={() => setSelectedIndex(idx)}
                       />
@@ -211,7 +211,7 @@ export default function ReformasTab({
                     <td className="p-2" onClick={(e) => e.stopPropagation()}>
                       <input 
                         type="number" 
-                        className="win-input w-full text-[11px] text-right text-[#000080] font-bold" 
+                        className="win-input w-full text-[11px] text-right text-[#000000] font-bold" 
                         value={reform.amount !== undefined && reform.amount !== '' ? reform.amount : (reform.expenses || []).reduce((acc, curr) => acc + (parseFloat(curr.amount) || 0), 0)}
                         placeholder="0.00"
                         onChange={e => updateReformField(idx, 'amount', e.target.value)}
@@ -243,15 +243,15 @@ export default function ReformasTab({
       {/* TABLAS SECUNDARIAS (Sólo si hay reforma seleccionada) */}
       <div className={`flex-1 min-h-[40%] bg-white border border-[#a0a0a0] flex flex-col shadow-sm rounded-md transition-opacity duration-300 ${!selectedReform ? 'opacity-50 pointer-events-none' : 'opacity-100'}`}>
         {/* Sub-tabs header */}
-        <div className="flex border-b border-[#a0a0a0] bg-slate-100 rounded-t-md">
+        <div className="flex border-b border-[#a0a0a0] bg-[#fafafa] rounded-t-md">
           <button
-            className={`px-4 py-2 text-[11px] font-bold uppercase border-r border-[#a0a0a0] ${activeSubTab === 'gastos' ? 'bg-white text-[#000080] border-t-[3px] border-t-[#000080]' : 'text-slate-600 hover:bg-slate-200'}`}
+            className={`px-4 py-2 text-[11px] font-bold uppercase border-r border-[#a0a0a0] ${activeSubTab === 'gastos' ? 'bg-white text-[#000000] border-t-[3px] border-t-[#000000]' : 'text-slate-600 hover:bg-slate-200'}`}
             onClick={() => setActiveSubTab('gastos')}
           >
             Gastos de la Reforma
           </button>
           <button
-            className={`px-4 py-2 text-[11px] font-bold uppercase border-r border-[#a0a0a0] ${activeSubTab === 'liquidacion' ? 'bg-white text-[#000080] border-t-[3px] border-t-[#000080]' : 'text-slate-600 hover:bg-slate-200'}`}
+            className={`px-4 py-2 text-[11px] font-bold uppercase border-r border-[#a0a0a0] ${activeSubTab === 'liquidacion' ? 'bg-white text-[#000000] border-t-[3px] border-t-[#000000]' : 'text-slate-600 hover:bg-slate-200'}`}
             onClick={() => setActiveSubTab('liquidacion')}
           >
             Liquidación / Resumen
@@ -269,7 +269,7 @@ export default function ReformasTab({
             </div>
             <div className="flex-1 overflow-auto bg-white">
               <table className="w-full text-left text-[11px]">
-                <thead className="bg-[#f0f0f0] sticky top-0 border-b border-[#808080]">
+                <thead className="bg-[#fafafa] sticky top-0 border-b border-[#808080]">
                   <tr>
                     <th className="p-2 font-bold uppercase w-[120px]">Fecha</th>
                     <th className="p-2 font-bold uppercase min-w-[150px]">Concepto</th>
@@ -306,17 +306,17 @@ export default function ReformasTab({
                         <td className="p-2 text-center">
                           <input 
                             type="checkbox" 
-                            className="form-checkbox h-4 w-4 text-blue-600 rounded cursor-pointer"
+                            className="form-checkbox h-4 w-4 text-black rounded cursor-pointer"
                             checked={exp.capitalize || false}
                             onChange={e => updateExpense(idx, 'capitalize', e.target.checked)}
                           />
                         </td>
                         <td className="p-2">
                           {exp.doc ? (
-                            <div className="flex items-center space-x-2 bg-blue-50 p-1 rounded border border-blue-100">
-                              <FileText className="w-4 h-4 text-blue-500 shrink-0" />
+                            <div className="flex items-center space-x-2 bg-gray-100 p-1 rounded border border-blue-100">
+                              <FileText className="w-4 h-4 text-black shrink-0" />
                               <span className="truncate flex-1" title={exp.doc.name}>{exp.doc.name}</span>
-                              <button onClick={() => setPreviewDocument(exp.doc)} className="text-blue-600 hover:text-blue-800 p-1" title="Previsualizar"><Eye className="w-4 h-4"/></button>
+                              <button onClick={() => setPreviewDocument(exp.doc)} className="text-black hover:text-black p-1" title="Previsualizar"><Eye className="w-4 h-4"/></button>
                               <button onClick={() => updateExpense(idx, 'doc', null)} className="text-red-500 hover:text-red-700 p-1" title="Quitar Documento"><X className="w-4 h-4"/></button>
                             </div>
                           ) : (
@@ -345,14 +345,14 @@ export default function ReformasTab({
           <div className="flex-1 flex flex-col overflow-hidden bg-slate-50">
             <div className="p-4 border-b border-[#a0a0a0] bg-white flex items-center justify-between">
               <div>
-                <h4 className="text-[14px] font-bold text-slate-800">Coste Real de la Reforma: <span className="text-[#000080]">{totalCost.toLocaleString('es-ES', { style: 'currency', currency: 'EUR' })}</span></h4>
+                <h4 className="text-[14px] font-bold text-slate-800">Coste Real de la Reforma: <span className="text-[#000000]">{totalCost.toLocaleString('es-ES', { style: 'currency', currency: 'EUR' })}</span></h4>
                 <p className="text-[11px] text-slate-500 mt-1">Este cálculo se basa en la suma de todos los importes introducidos en la pestaña de Gastos.</p>
               </div>
             </div>
             
             <div className="p-4 flex-1 overflow-auto">
               <table className="w-full text-left text-[12px] bg-white shadow-sm border border-slate-200">
-                <thead className="bg-[#f0f0f0] border-b border-[#808080]">
+                <thead className="bg-[#fafafa] border-b border-[#808080]">
                   <tr>
                     <th className="p-3 font-bold uppercase border-r border-slate-200">Propietario</th>
                     <th className="p-3 font-bold uppercase border-r border-slate-200 text-center">% Propiedad</th>
