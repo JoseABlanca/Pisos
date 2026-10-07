@@ -164,7 +164,7 @@ function EntryRow({ entry, index, onUpdate, onDelete }) {
                 {(entry.docs || []).map((d, di) => (
                   <div key={di} className="flex items-center gap-1 bg-white border border-[#808080] px-2 py-0.5 text-[10px]">
                     <a href={d.url} target="_blank" rel="noreferrer" className="text-blue-700 underline max-w-[120px] truncate">{d.name}</a>
-                    <button onClick={() => removeDoc(di)} className="text-red-500 hover:text-red-700 ml-1">
+                    <button onClick={() => removeDoc(di)} className="text-gray-500 hover:text-gray-500 ml-1">
                       <Trash2 className="w-3 h-3" />
                     </button>
                   </div>

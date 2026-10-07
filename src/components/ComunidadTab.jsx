@@ -214,15 +214,15 @@ export default function ComunidadTab({
   };
 
   return (
-    <div className="flex flex-col h-full bg-[#fafafa]">
-      <div className="flex-1 overflow-auto p-4 flex flex-col gap-4">
+    <div className="flex flex-col h-full bg-white">
+      <div className="flex-1 overflow-auto p-4 flex flex-col gap-6">
         
         {/* Top Section: Data & Derramas */}
-        <div className="w-full flex flex-col gap-4">
+        <div className="w-full flex flex-col gap-6">
           
           {/* Datos Comunidad */}
           <div className="flex flex-col space-y-3">
-            <h3 className="text-[11px] font-bold text-black border-b border-black pb-1 uppercase">Datos Principales</h3>
+            <h3 className="text-[12px] font-bold text-slate-800 uppercase italic">Datos Principales</h3>
             
             <div className="space-y-1">
               <label className="text-[10px] font-bold text-black uppercase">Administrador:</label>
@@ -308,12 +308,12 @@ export default function ComunidadTab({
 
           {/* Derramas Section */}
           {community.hasSpecialLevy && (
-            <div className="flex flex-col space-y-3 mt-2">
-              <div className="flex justify-between items-center border-b border-black pb-1">
-                <h3 className="text-[11px] font-bold text-black uppercase">Derramas</h3>
+            <div className="flex flex-col space-y-3 pt-2">
+              <div className="flex justify-between items-center mb-2">
+                <h3 className="text-[12px] font-bold text-slate-800 uppercase italic">Derramas</h3>
                 <button 
                   onClick={addDerrama}
-                  className="flex items-center text-[10px] text-black hover:text-black font-bold"
+                  className="flex items-center text-[10px] text-gray-600 hover:text-black font-bold transition-colors"
                 >
                   <Plus className="w-3 h-3 mr-1" /> Añadir derrama
                 </button>
@@ -329,7 +329,7 @@ export default function ComunidadTab({
                 <div key={derrama.id} className="p-2 border border-[#ccc] bg-white relative">
                   <button 
                     onClick={() => removeDerrama(idx)}
-                    className="absolute top-1 right-1 text-red-500 hover:text-red-700 bg-white rounded p-0.5"
+                    className="absolute top-1 right-1 text-gray-500 hover:text-gray-500 bg-white rounded p-0.5"
                     title="Eliminar derrama"
                   >
                     <Trash2 className="w-3 h-3" />
@@ -374,9 +374,9 @@ export default function ComunidadTab({
         </div>
 
         {/* Bottom Section: Documentos */}
-        <div className="w-full flex flex-col h-full min-h-[300px] mt-4">
-          <div className="flex justify-between items-center mb-2 px-1">
-            <h3 className="text-[14px] font-bold text-slate-800 italic uppercase">Documentos</h3>
+        <div className="w-full flex flex-col h-full min-h-[300px]">
+          <div className="flex justify-between items-center mb-4 px-1">
+            <h3 className="text-[12px] font-bold text-slate-800 uppercase italic">Documentos</h3>
             <div className="flex items-center space-x-2">
               <input 
                 type="file" 
@@ -447,7 +447,7 @@ export default function ComunidadTab({
                             {doc.url ? (
                               <button 
                                 onClick={() => setPreviewDocument({ url: doc.url, type: doc.type, name: doc.name })}
-                                className="text-indigo-600 hover:text-indigo-800"
+                                className="text-gray-500 hover:text-gray-500"
                                 title="Ver documento"
                               >
                                 <Eye className="w-4 h-4" />
@@ -472,7 +472,7 @@ export default function ComunidadTab({
                             )}
                             <button 
                               onClick={() => removeDocument(doc.id)}
-                              className="text-red-500 hover:text-red-700"
+                              className="text-gray-500 hover:text-gray-500"
                               title="Eliminar documento"
                             >
                               <Trash2 className="w-4 h-4" />

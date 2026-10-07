@@ -1273,7 +1273,7 @@ function AnalyticsJournalViewer({ type, value, userIds, setPreviewDocument }) {
                     <button 
                       type="button"
                       onClick={() => handleDelete(e)} 
-                      className="text-red-400 hover:text-red-600 hover:bg-red-50 rounded p-0.5 cursor-pointer" 
+                      className="text-gray-500 hover:text-gray-500 hover:bg-gray-50 rounded p-0.5 cursor-pointer" 
                       title="Eliminar asiento"
                     >
                       <Trash2 className="w-3.5 h-3.5" />

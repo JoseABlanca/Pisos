@@ -224,7 +224,7 @@ export default function PropietariosTab({ formData, setFormData, user, queryUser
                 </tbody>
                 <tfoot>
                   {owners.length > 0 && (
-                    <tr className="bg-slate-50 font-bold border-t-2 border-[#808080]">
+                    <tr className="bg-[#f8f8f8] font-bold border-t-2 border-gray-300">
                       <td className="text-[11px] text-black uppercase">TOTALES</td>
                       <td className="text-right text-[11px] text-black">{totalPercentage.toFixed(2)}%</td>
                       <td className="text-right text-[11px] text-black">{(totalCapitalAndExpenses * (totalPercentage / 100)).toFixed(2)} €</td>

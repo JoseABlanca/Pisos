@@ -626,8 +626,8 @@ if (activeTab === 'Documentos') return (
                     <input type="date" className="win-input w-full text-[11px]" value={doc.date || ''} onChange={(e) => setFormData(prev => ({ ...prev, documentos: prev.documentos.map(x => x.id === doc.id ? { ...x, date: e.target.value } : x) }))} />
                   </div>
                   <div className="col-span-2 flex justify-center space-x-2">
-                    <button className="p-1 hover:bg-blue-50 text-blue-600 rounded" onClick={() => setPreviewDocument(doc)} title="Previsualizar"><Eye className="w-4 h-4" /></button>
-                    <button className="p-1 hover:bg-red-50 text-red-600 rounded" onClick={() => setFormData(prev => ({ ...prev, documentos: prev.documentos.filter(x => x.id !== doc.id) }))} title="Eliminar"><Trash2 className="w-4 h-4" /></button>
+                    <button className="p-1 hover:bg-blue-50 text-gray-500 rounded" onClick={() => setPreviewDocument(doc)} title="Previsualizar"><Eye className="w-4 h-4" /></button>
+                    <button className="p-1 hover:bg-gray-50 text-gray-500 rounded" onClick={() => setFormData(prev => ({ ...prev, documentos: prev.documentos.filter(x => x.id !== doc.id) }))} title="Eliminar"><Trash2 className="w-4 h-4" /></button>
                   </div>
                 </div>
               ))

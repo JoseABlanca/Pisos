@@ -22,7 +22,7 @@ export default function Window({ title, children, onClose, width = '800px', heig
     
     return {
       x: Math.max(0, (window.innerWidth - w) / 2),
-      y: Math.max(0, (window.innerHeight - h) / 2)
+      y: Math.max(20, (window.innerHeight - h) / 3) // Posicionado más arriba en lugar de centro exacto
     };
   });
   const [size, setSize] = useState({ 

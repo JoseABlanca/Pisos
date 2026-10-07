@@ -468,7 +468,7 @@ export default function TaxesExtractModal({ isOpen, onClose, property, year, ren
                                         {e.documentUrl ? (
                                           <button 
                                             onClick={() => setPreviewDoc({ url: e.documentUrl, name: e.documentName || 'Documento' })}
-                                            className="text-blue-600 hover:text-blue-800 underline inline-flex items-center gap-1 font-medium text-[10px]"
+                                            className="text-gray-500 hover:text-gray-500 underline inline-flex items-center gap-1 font-medium text-[10px]"
                                             title="Ver archivo adjunto"
                                           >
                                             <FileText className="w-3.5 h-3.5" />
@@ -553,7 +553,7 @@ export default function TaxesExtractModal({ isOpen, onClose, property, year, ren
                                     {e.documentUrl ? (
                                       <button 
                                         onClick={() => setPreviewDoc({ url: e.documentUrl, name: e.documentName || 'Documento' })}
-                                        className="text-blue-600 hover:text-blue-800 underline inline-flex items-center gap-1 font-medium text-[10px]"
+                                        className="text-gray-500 hover:text-gray-500 underline inline-flex items-center gap-1 font-medium text-[10px]"
                                         title="Ver archivo adjunto"
                                       >
                                         <FileText className="w-3.5 h-3.5" />

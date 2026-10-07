@@ -1049,7 +1049,7 @@ export default function Rentals() {
                                           setFormData({...formData, rooms: newRooms});
                                           setActiveRoomTab(Math.max(0, activeIdx - 1));
                                         }}
-                                        className="text-red-500 hover:bg-red-100 p-1 rounded border border-transparent hover:border-red-300"
+                                        className="text-gray-500 hover:bg-gray-100 p-1 rounded border border-transparent hover:border-red-300"
                                         title="Eliminar habitación"
                                       >
                                         <Trash2 className="w-4 h-4" />
@@ -1465,7 +1465,7 @@ export default function Rentals() {
                                         setFormData({...formData, documents: newDocs});
                                       }}
                                     >
-                                      <Trash2 className="w-3 h-3 text-red-600" />
+                                      <Trash2 className="w-3 h-3 text-gray-500" />
                                     </button>
                                   </td>
                                 </tr>
@@ -1742,7 +1742,7 @@ function AnalyticsJournalViewer({ type, value, userIds, setPreviewDocument }) {
         <input type="checkbox" checked={!!e.isImpuesto} onChange={() => handleTaxToggle(e)} title="Marcar como Impuesto" className="cursor-pointer w-3.5 h-3.5 accent-orange-500" />
       </td>
       <td className="p-1 text-center">
-        <button onClick={() => handleDelete(e)} className="text-red-400 hover:text-red-600 hover:bg-red-50 rounded p-0.5" title="Eliminar asiento">
+        <button onClick={() => handleDelete(e)} className="text-gray-500 hover:text-gray-500 hover:bg-gray-50 rounded p-0.5" title="Eliminar asiento">
           <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5"><polyline points="3 6 5 6 21 6"/><path d="M19 6l-1 14H6L5 6"/><path d="M10 11v6M14 11v6"/><path d="M9 6V4h6v2"/></svg>
         </button>
       </td>

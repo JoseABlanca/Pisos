@@ -878,7 +878,7 @@ export default function RealEstate() {
                         <td className="py-1 px-2 text-center">
                           <div className="flex justify-center items-center space-x-1.5">
                             <button className="border border-[#ccc] bg-[#f8f9fa] hover:bg-[#e9ecef] p-1 text-[#444] hover:text-[#111] shadow-2xs rounded-[2px]" onClick={() => setPreviewDocument(doc)} title="Previsualizar"><Eye className="w-3.5 h-3.5" /></button>
-                            <button className="border border-[#ccc] bg-[#f8f9fa] hover:bg-red-50 p-1 text-red-600 hover:text-red-700 shadow-2xs rounded-[2px]" onClick={() => deleteAssetDocument(doc.id)} title="Eliminar"><Trash2 className="w-3.5 h-3.5" /></button>
+                            <button className="border border-[#ccc] bg-[#f8f9fa] hover:bg-gray-50 p-1 text-gray-500 hover:text-gray-500 shadow-2xs rounded-[2px]" onClick={() => deleteAssetDocument(doc.id)} title="Eliminar"><Trash2 className="w-3.5 h-3.5" /></button>
                           </div>
                         </td>
                       </tr>
@@ -1116,9 +1116,9 @@ export default function RealEstate() {
             <Window 
               variant="classic"
               title={isEditing ? `Editar Activo: ${formData.reference || formData.id || 'Nuevo'}` : "Nuevo Activo"} 
-              width={isMobile ? "100%" : "1020px"}
+              width={isMobile ? "100%" : "1250px"}
               height={isMobile ? "100%" : "720px"}
-              initialPos={{ x: isMobile ? 0 : 40, y: isMobile ? 0 : 25 }}
+              initialPos={{ x: isMobile ? 0 : 40, y: isMobile ? 0 : 10 }}
               onClose={() => setShowForm(false)}
               onMenuClick={() => setShowSidebar(!showSidebar)}
             >

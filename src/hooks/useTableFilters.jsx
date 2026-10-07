@@ -10,21 +10,14 @@ export const useTableFilters = ({ columnWidths = {}, updateColumnWidth = null } 
   const [isLoaded, setIsLoaded] = useState(false);
 
   useEffect(() => {
-    if (userPreferences && !isLoaded) {
-      if (userPreferences.tableFilters) {
-        setActiveTableFilters(userPreferences.tableFilters);
-      }
+    // Disabled loading old filters per user request
+    if (!isLoaded) {
       setIsLoaded(true);
     }
-  }, [userPreferences, isLoaded]);
+  }, [isLoaded]);
 
   const persistFilters = (newFilters) => {
-    if (updatePreferences && userPreferences) {
-      updatePreferences({
-        ...userPreferences,
-        tableFilters: newFilters
-      });
-    }
+    // Disabled filter persistence per user request
   };
   
   // Custom hook to close menu when clicking outside

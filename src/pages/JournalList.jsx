@@ -517,7 +517,7 @@ export default function Journal() {
            {selectedEntryIds.size > 0 && (
              <button 
                onClick={handleDeleteSelected}
-               className="text-red-500 hover:text-red-700 p-1 rounded hover:bg-red-50 transition-colors flex items-center text-[11px] font-bold"
+               className="text-gray-500 hover:text-gray-500 p-1 rounded hover:bg-gray-50 transition-colors flex items-center text-[11px] font-bold"
                title="Eliminar asientos seleccionados"
              >
                <Trash2 className="w-4 h-4 mr-1" /> Eliminar ({selectedEntryIds.size})

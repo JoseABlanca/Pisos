@@ -329,7 +329,7 @@ export default function ReformasTab({
                           )}
                         </td>
                         <td className="p-2 flex justify-center">
-                          <button onClick={() => deleteExpense(idx)} className="p-1 hover:bg-red-100 text-red-600 rounded"><Trash2 className="w-4 h-4" /></button>
+                          <button onClick={() => deleteExpense(idx)} className="p-1 hover:bg-gray-100 text-gray-500 rounded"><Trash2 className="w-4 h-4" /></button>
                         </td>
                       </tr>
                     ))

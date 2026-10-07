@@ -260,7 +260,7 @@ export default function FinanzasTab({ formData, setFormData, rentals, user, setP
                             {exp.url ? (
                               <button
                                 onClick={() => setPreviewDocument({ url: exp.url, name: exp.name || exp.concept })}
-                                className="text-blue-600 hover:text-blue-800 p-1 mx-auto flex items-center justify-center"
+                                className="text-gray-500 hover:text-gray-500 p-1 mx-auto flex items-center justify-center"
                                 title="Ver documento"
                               >
                                 <Eye className="w-4 h-4" />
@@ -280,7 +280,7 @@ export default function FinanzasTab({ formData, setFormData, rentals, user, setP
                           <td className="text-center p-0 align-middle">
                             <button 
                               onClick={() => removeExpense(idx)}
-                              className="text-red-500 hover:text-red-700 p-1"
+                              className="text-gray-500 hover:text-gray-500 p-1"
                               title="Eliminar gasto"
                             >
                               <Trash2 className="w-3.5 h-3.5 mx-auto" />

@@ -118,7 +118,7 @@
   }
 
   .win-input {
-    @apply px-2.5 py-1 bg-white border border-[#999] text-xs text-[#222] focus:outline-none focus:border-[#2b579a] focus:bg-[#fffee0] rounded-none transition-colors shadow-2xs;
+    @apply px-2.5 py-1 bg-white border border-[#999] text-xs text-[#222] focus:outline-none focus:border-[#2b579a] focus:bg-white rounded-none transition-colors shadow-2xs;
   }
 
   /* Sidebar and Table Layouts (Photo 2) */
@@ -292,11 +292,15 @@
 }
 
 .modern-table th {
-  @apply bg-[#f0f0f0] border-b border-[#cccccc] px-3 py-2 font-bold uppercase text-[#333];
+  @apply bg-[#f0f0f0] border-b border-gray-300 px-3 py-2 font-bold uppercase text-[#333];
 }
 
 .modern-table tr {
-  @apply border-b border-gray-100;
+  @apply border-b border-gray-100 hover:bg-slate-50 transition-colors;
+}
+
+.modern-table tr:last-child {
+  @apply border-b-0;
 }
 
 .modern-table td {

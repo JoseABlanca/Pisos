@@ -726,14 +726,14 @@ export default function HipotecaTab({
                       </div>
                       <div className="col-span-2 flex justify-center space-x-2">
                         <button 
-                          className="p-1 hover:bg-blue-50 text-blue-600 rounded"
+                          className="p-1 hover:bg-gray-100 text-gray-500 hover:text-black rounded transition-colors"
                           onClick={() => setPreviewDocument(doc)}
                           title="Previsualizar"
                         >
                           <Eye className="w-4 h-4" />
                         </button>
                         <button 
-                          className="p-1 hover:bg-red-50 text-red-600 rounded"
+                          className="p-1 hover:bg-gray-100 text-gray-500 hover:text-black rounded transition-colors"
                           onClick={() => deleteDocument(doc.id)}
                           title="Eliminar"
                         >

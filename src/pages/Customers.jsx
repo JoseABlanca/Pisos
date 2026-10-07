@@ -980,7 +980,7 @@ export default function Customers() {
                                       setFormData({...formData, documents: newDocs});
                                     }}
                                   >
-                                    <Trash2 className="w-3 h-3 text-red-600" />
+                                    <Trash2 className="w-3 h-3 text-gray-500" />
                                   </button>
                                 </td>
                               </tr>
@@ -1118,7 +1118,7 @@ export default function Customers() {
                                     <div className="flex items-center justify-between px-1 bg-blue-50 text-blue-700 whitespace-nowrap overflow-hidden text-ellipsis w-full max-w-[80px]">
                                       {tr.docUrl ? (
                                         <span 
-                                          className="text-[9px] truncate cursor-pointer underline hover:text-blue-800" 
+                                          className="text-[9px] truncate cursor-pointer underline hover:text-gray-500" 
                                           title={`Ver ${tr.doc}`}
                                           onClick={() => setPreviewDocument({ name: tr.doc, url: tr.docUrl, type: tr.docUrl.includes('image') ? 'image/jpeg' : 'application/pdf' })}
                                         >
@@ -1128,7 +1128,7 @@ export default function Customers() {
                                         <span className="text-[9px] truncate" title={tr.doc}>{tr.doc}</span>
                                       )}
                                       <button 
-                                        className="ml-1 text-red-600 hover:text-red-800 shrink-0"
+                                        className="ml-1 text-gray-500 hover:text-gray-500 shrink-0"
                                         title="Eliminar adjunto"
                                         onClick={() => {
                                           const newTrs = [...formData.transactions];
@@ -1178,7 +1178,7 @@ export default function Customers() {
                                       setFormData({...formData, transactions: newTrs});
                                     }}
                                   >
-                                    <Trash2 className="w-3 h-3 text-red-600" />
+                                    <Trash2 className="w-3 h-3 text-gray-500" />
                                   </button>
                                 </td>
                               </tr>

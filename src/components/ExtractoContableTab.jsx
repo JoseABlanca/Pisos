@@ -262,7 +262,7 @@ export default function ExtractoContableTab({
           }
 
           const signedAmount = effectiveIsIncomeSide ? Math.abs(lineAmount) : -Math.abs(lineAmount);
-          const amountColor = effectiveIsIncomeSide ? 'text-green-700 font-bold' : 'text-red-600 font-bold';
+          const amountColor = effectiveIsIncomeSide ? 'text-black font-bold' : 'text-black font-bold';
 
           // Display Center (CECO or CEBE name)
           let displayCenter = '';
@@ -379,7 +379,7 @@ export default function ExtractoContableTab({
 
         const totalAmt = Math.abs(entry.total || 0);
         const signedAmount = effectiveIsIncomeSide ? totalAmt : -totalAmt;
-        const amountColor = effectiveIsIncomeSide ? 'text-green-700 font-bold' : 'text-red-600 font-bold';
+        const amountColor = effectiveIsIncomeSide ? 'text-black font-bold' : 'text-black font-bold';
 
         let displayCenter = '';
         if (entry.ceco) {
@@ -568,7 +568,7 @@ export default function ExtractoContableTab({
           <div className="flex gap-4">
             <div>
               <span className="font-bold text-slate-500 mr-1">CEBE:</span>
-              <span className="font-mono bg-white px-2 py-0.5 border border-slate-300 rounded font-semibold text-blue-900">
+              <span className="font-mono bg-white px-2 py-0.5 border border-slate-300 rounded font-semibold text-black">
                 {currentCebe || 'Ninguno'}
               </span>
             </div>
@@ -582,7 +582,7 @@ export default function ExtractoContableTab({
       )}
 
       {/* Date Range Filters & CECO Multiselect */}
-      <div className="p-2.5 bg-slate-100 border border-[#808080] win-bevel flex flex-wrap items-center gap-4 text-xs select-none relative">
+      <div className="p-2.5 bg-slate-100 border win-bevel flex flex-wrap items-center gap-4 text-xs select-none relative">
         <div className="flex items-center gap-2">
           <span className="text-[10px] font-bold text-slate-700 uppercase">Desde:</span>
           <input 
@@ -619,7 +619,7 @@ export default function ExtractoContableTab({
             {showIncomeCecoDropdown && (
               <>
                 <div className="fixed inset-0 z-40" onClick={() => setShowIncomeCecoDropdown(false)} />
-                <div className="absolute left-0 right-0 top-full mt-1 bg-white border border-[#808080] shadow-lg max-h-[200px] overflow-y-auto p-1.5 flex flex-col gap-1 rounded win-bevel z-50">
+                <div className="absolute left-0 right-0 top-full mt-1 bg-white border shadow-lg max-h-[200px] overflow-y-auto p-1.5 flex flex-col gap-1 rounded win-bevel z-50">
                   <input
                     type="text"
                     placeholder="Buscar CECO..."
@@ -629,7 +629,7 @@ export default function ExtractoContableTab({
                     onClick={e => e.stopPropagation()}
                     autoFocus
                   />
-                  <label className="flex items-center gap-1.5 text-[10px] cursor-pointer hover:bg-slate-50 py-0.5 rounded select-none font-bold text-blue-900 border-b border-slate-100 pb-1">
+                  <label className="flex items-center gap-1.5 text-[10px] cursor-pointer hover:bg-slate-50 py-0.5 rounded select-none font-bold text-black border-b border-slate-100 pb-1">
                     <input
                       type="checkbox"
                       checked={selectedIncomeCecos.length === 0}
@@ -674,7 +674,7 @@ export default function ExtractoContableTab({
             <button
               type="button"
               onClick={() => setSelectedIncomeCecos([])}
-              className="px-2 py-0.5 border border-red-300 bg-red-50 text-red-700 hover:bg-red-100 shadow-sm text-[10px] font-bold uppercase cursor-pointer rounded"
+              className="px-2 py-0.5 border border-red-300 bg-red-50 text-black hover:bg-red-100 shadow-sm text-[10px] font-bold uppercase cursor-pointer rounded"
             >
               Limpiar
             </button>
@@ -699,7 +699,7 @@ export default function ExtractoContableTab({
             {showExpenseCecoDropdown && (
               <>
                 <div className="fixed inset-0 z-40" onClick={() => setShowExpenseCecoDropdown(false)} />
-                <div className="absolute left-0 right-0 top-full mt-1 bg-white border border-[#808080] shadow-lg max-h-[200px] overflow-y-auto p-1.5 flex flex-col gap-1 rounded win-bevel z-50">
+                <div className="absolute left-0 right-0 top-full mt-1 bg-white border shadow-lg max-h-[200px] overflow-y-auto p-1.5 flex flex-col gap-1 rounded win-bevel z-50">
                   <input
                     type="text"
                     placeholder="Buscar CECO..."
@@ -709,7 +709,7 @@ export default function ExtractoContableTab({
                     onClick={e => e.stopPropagation()}
                     autoFocus
                   />
-                  <label className="flex items-center gap-1.5 text-[10px] cursor-pointer hover:bg-slate-50 py-0.5 rounded select-none font-bold text-blue-900 border-b border-slate-100 pb-1">
+                  <label className="flex items-center gap-1.5 text-[10px] cursor-pointer hover:bg-slate-50 py-0.5 rounded select-none font-bold text-black border-b border-slate-100 pb-1">
                     <input
                       type="checkbox"
                       checked={selectedExpenseCecos.length === 0}
@@ -754,7 +754,7 @@ export default function ExtractoContableTab({
             <button
               type="button"
               onClick={() => setSelectedExpenseCecos([])}
-              className="px-2 py-0.5 border border-red-300 bg-red-50 text-red-700 hover:bg-red-100 shadow-sm text-[10px] font-bold uppercase cursor-pointer rounded"
+              className="px-2 py-0.5 border border-red-300 bg-red-50 text-black hover:bg-red-100 shadow-sm text-[10px] font-bold uppercase cursor-pointer rounded"
             >
               Limpiar
             </button>
@@ -804,7 +804,7 @@ export default function ExtractoContableTab({
                   onClick={e => e.stopPropagation()}
                   autoFocus
                 />
-                <label className="flex items-center gap-1.5 text-[10px] cursor-pointer hover:bg-amber-50 py-0.5 rounded select-none font-bold text-blue-900 border-b border-slate-100 pb-1">
+                <label className="flex items-center gap-1.5 text-[10px] cursor-pointer hover:bg-amber-50 py-0.5 rounded select-none font-bold text-black border-b border-slate-100 pb-1">
                   <input
                     type="checkbox"
                     checked={selectedNegativeCecos.length === 0}
@@ -864,37 +864,37 @@ export default function ExtractoContableTab({
       <div className="flex flex-wrap items-center gap-x-6 gap-y-2 p-3 bg-slate-50 border border-slate-200 rounded shadow-sm text-xs font-bold text-slate-700 select-none">
         <div className="flex items-center gap-1.5">
           <span className="text-gray-500 uppercase text-[9px]">Ingresos:</span>
-          <span className="font-mono text-green-700 text-sm">
+          <span className="font-mono text-black text-sm">
             {totals.cebe.toLocaleString('es-ES', { minimumFractionDigits: 2 })} €
           </span>
         </div>
         <div className="w-px h-4 bg-slate-300" />
         <div className="flex items-center gap-1.5">
           <span className="text-gray-500 uppercase text-[9px]">Gastos:</span>
-          <span className="font-mono text-red-600 text-sm">
+          <span className="font-mono text-black text-sm">
             -{totals.ceco.toLocaleString('es-ES', { minimumFractionDigits: 2 })} €
           </span>
         </div>
         <div className="w-px h-4 bg-slate-300" />
         <div className="flex items-center gap-1.5">
           <span className="text-gray-500 uppercase text-[9px]">Total:</span>
-          <span className={`font-mono text-sm ${totals.balance >= 0 ? 'text-blue-900' : 'text-amber-800'}`}>
+          <span className={`font-mono text-sm ${totals.balance >= 0 ? 'text-black' : 'text-amber-800'}`}>
             {totals.balance.toLocaleString('es-ES', { minimumFractionDigits: 2 })} €
           </span>
         </div>
       </div>
 
       {/* Transactions Table */}
-      <div className="flex-1 flex flex-col min-h-[250px]">
-        <div className="bg-[#cbd5e0] font-bold p-1.5 uppercase text-[10px] border border-[#808080] border-b-0 shrink-0 flex justify-between items-center">
-          <span>Registros del Extracto</span>
+      <div className="flex-1 flex flex-col min-h-[250px] mb-2">
+        <div className="flex justify-between items-center mb-2">
+          <h3 className="text-[12px] font-bold text-slate-800 italic uppercase">Registros del Extracto</h3>
           {loading && <RefreshCw className="w-3.5 h-3.5 text-slate-600 animate-spin" />}
         </div>
         
-        <div className="flex-1 overflow-auto border border-[#808080] win-bevel bg-white">
-          <table className="win-table min-w-full">
+        <div className="flex-1 overflow-auto bg-white border border-gray-200">
+          <table className="modern-table min-w-full">
             <thead>
-              <tr className="sticky top-0 z-10 bg-[#e7e1d3]">
+              <tr className="sticky top-0 z-10">
                 <TableHeaderWithFilter label="Fecha" columnKey="dateFormatted" data={processedEntries} tableId="extractoContable" className="w-24 text-[10px]" />
                 <TableHeaderWithFilter label="Asiento Nº" columnKey="numberFormatted" data={processedEntries} tableId="extractoContable" className="w-20 text-[10px]" />
                 <TableHeaderWithFilter label="Concepto" columnKey="descriptionFormatted" data={processedEntries} tableId="extractoContable" className="text-[10px]" />
@@ -927,7 +927,7 @@ export default function ExtractoContableTab({
                         <button
                           type="button"
                           onClick={() => setSelectedJournalEntry(entry.parentEntry || entry)}
-                          className="text-blue-600 hover:text-blue-800 hover:underline font-bold flex items-center justify-center gap-1 mx-auto"
+                          className="text-black hover:text-black hover:underline font-bold flex items-center justify-center gap-1 mx-auto"
                           title="Ver asiento contable completo"
                         >
                           <FileText className="w-3 h-3 text-slate-500" />
@@ -960,7 +960,7 @@ export default function ExtractoContableTab({
                                   window.open(displayDocUrl, '_blank');
                                 }
                               }}
-                              className="text-blue-600 hover:text-blue-800 hover:underline flex items-center gap-1 font-medium text-[10px] truncate max-w-[100px]"
+                              className="text-black hover:text-black hover:underline flex items-center gap-1 font-medium text-[10px] truncate max-w-[100px]"
                               title={displayDocName}
                             >
                               <FileText className="w-3.5 h-3.5 shrink-0 text-slate-500" />
@@ -982,14 +982,14 @@ export default function ExtractoContableTab({
                                   }
                                 }
                               }}
-                              className="text-red-500 hover:text-red-700 p-0.5 shrink-0"
+                              className="text-black hover:text-black p-0.5 shrink-0"
                               title="Eliminar documento"
                             >
                               <X className="w-3 h-3" />
                             </button>
                           </div>
                         ) : (
-                          <label className="flex items-center gap-1 text-[10px] text-slate-500 hover:text-blue-600 cursor-pointer font-medium select-none">
+                          <label className="flex items-center gap-1 text-[10px] text-slate-500 hover:text-black cursor-pointer font-medium select-none">
                             <FilePlus className="w-3.5 h-3.5 text-slate-400" />
                             <span>Adjuntar</span>
                             <input 
@@ -1055,14 +1055,14 @@ export default function ExtractoContableTab({
           >
             <div className="bg-[#d4d0c8] p-3 flex flex-col gap-3 min-h-[350px] text-xs">
               {/* Header Info */}
-              <div className="grid grid-cols-2 gap-x-4 gap-y-1.5 p-2.5 bg-white border border-[#808080] win-bevel text-[11px]">
+              <div className="grid grid-cols-2 gap-x-4 gap-y-1.5 p-2.5 bg-white border win-bevel text-[11px]">
                 <div>
                   <span className="font-bold text-slate-500 mr-2 uppercase text-[9px]">Fecha:</span>
                   <span className="font-mono font-bold text-slate-800">{new Date(selectedJournalEntry.date).toLocaleDateString()}</span>
                 </div>
                 <div>
                   <span className="font-bold text-slate-500 mr-2 uppercase text-[9px]">Nº Asiento:</span>
-                  <span className="font-mono font-bold text-blue-900">{selectedJournalEntry.number || selectedJournalEntry.id?.substring(0, 6)}</span>
+                  <span className="font-mono font-bold text-black">{selectedJournalEntry.number || selectedJournalEntry.id?.substring(0, 6)}</span>
                 </div>
                 <div className="col-span-2">
                   <span className="font-bold text-slate-500 mr-2 uppercase text-[9px]">Concepto General:</span>
@@ -1077,8 +1077,8 @@ export default function ExtractoContableTab({
               </div>
 
               {/* Lines Table */}
-              <div className="flex-1 overflow-auto border border-[#808080] win-bevel bg-white max-h-[250px]">
-                <table className="win-table min-w-full">
+              <div className="flex-1 overflow-auto border win-bevel bg-white max-h-[250px]">
+                <table className="modern-table min-w-full">
                   <thead>
                     <tr className="sticky top-0 z-10 bg-[#e7e1d3]">
                       <th className="w-24 text-[10px]">Cuenta</th>
@@ -1096,7 +1096,7 @@ export default function ExtractoContableTab({
                       const accountName = accountsMap[line.accountId] || '';
                       return (
                         <tr key={idx} className="hover:bg-slate-50">
-                          <td className="font-mono text-[10px] font-bold text-blue-900">{accountCode}</td>
+                          <td className="font-mono text-[10px] font-bold text-black">{accountCode}</td>
                           <td className="truncate max-w-[120px] text-[10px] text-slate-600" title={accountName}>{accountName || 'Cargando cuenta...'}</td>
                           <td className="truncate max-w-[160px] text-[10px]" title={line.concept}>{line.concept || selectedJournalEntry.description}</td>
                           <td className="font-mono text-[9px] text-slate-500">{line.cebe || ''}</td>
@@ -1115,7 +1115,7 @@ export default function ExtractoContableTab({
               </div>
 
               {/* Actions Footer */}
-              <div className="flex justify-end gap-2 shrink-0 pt-2 border-t border-[#808080]">
+              <div className="flex justify-end gap-2 shrink-0 pt-2 ">
                 <button 
                   type="button"
                   className="px-5 py-1 border border-gray-400 bg-[#4a69bd] text-white hover:bg-[#3b5598] shadow-sm text-[11px] font-bold uppercase cursor-pointer rounded" 

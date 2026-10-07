@@ -1079,7 +1079,7 @@ export default function JournalEntry() {
                       className="w-full h-full px-2 py-1.5 outline-none focus:bg-blue-50 focus:ring-1 focus:ring-blue-400 text-right text-gray-800"
                     />
                   </td>
-                  <td className="px-2 py-1.5 text-center text-red-500 hover:text-red-700" onClick={(e) => { e.stopPropagation(); removeLine(idx); }}>
+                  <td className="px-2 py-1.5 text-center text-gray-500 hover:text-gray-500" onClick={(e) => { e.stopPropagation(); removeLine(idx); }}>
                     <Trash2 className="w-3.5 h-3.5 cursor-pointer inline-block" />
                   </td>
                 </tr>

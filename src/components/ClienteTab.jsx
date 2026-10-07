@@ -30,15 +30,15 @@ export default function ClienteTab({ formData, user, queryUserIds }) {
   }, [user, formData.name, formData.address, queryUserIds]);
 
   return (
-    <div className="flex flex-col h-full bg-[#d4d0c8]">
+    <div className="flex flex-col h-full bg-white">
       <div className="flex-1 overflow-auto p-4 flex flex-col gap-4">
         <div className="w-full flex flex-col h-full mt-2">
           <div className="flex flex-col space-y-3 h-full">
-            <h3 className="text-[11px] font-bold text-black border-b border-black pb-1 uppercase flex items-center">
+            <h3 className="text-[12px] font-bold text-slate-800 uppercase italic">
               Clientes Asociados
             </h3>
-            <div className="bg-white border border-[#808080] shadow-[1px_1px_0px_#000] p-1 flex-1 overflow-auto">
-              <table className="clean-table w-full">
+            <div className="bg-white flex-1 overflow-auto">
+              <table className="modern-table w-full">
                 <thead>
                   <tr>
                     <th>ID</th>
