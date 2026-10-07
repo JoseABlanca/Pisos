@@ -35,7 +35,8 @@ import {
   TrendingUp,
   Landmark,
   Printer,
-  RefreshCw
+  RefreshCw,
+  Menu
 } from 'lucide-react';
 import PunteoModal from './PunteoModal';
 import BankReconciliationModal from './BankReconciliationModal';
@@ -1391,8 +1392,8 @@ export default function Layout() {
                   className="p-1.5 hover:bg-white/20 rounded mr-2 flex items-center space-x-2 transition-colors"
                   onClick={() => setDropdownOpen(true)}
                 >
+                  <Menu className="w-4 h-4" />
                   <span className="text-[12px] font-semibold">{activeModule}</span>
-                  <span className="text-[9px]">▼</span>
                 </button>
               )}
             </div>
@@ -1400,9 +1401,9 @@ export default function Layout() {
             <div className="flex items-center justify-center shrink-0 w-1/3 space-x-2">
               <button
                 onClick={() => { setActiveModule('Módulos'); setActiveTab(''); navigate('/'); setShowRibbon(false); }}
-                className="flex items-center space-x-2 font-black text-lg tracking-widest uppercase text-white/90 drop-shadow-sm hover:text-white transition-colors cursor-pointer"
+                className="flex items-center space-x-2 font-black text-m tracking-widest uppercase text-white/90 drop-shadow-sm hover:text-white transition-colors cursor-pointer"
               >
-                <img src="/nexo-logo.png?v=2" alt="Nexo Logo" className="w-7 h-6 drop-shadow-m]" />
+                <img src="/nexo-logo.png?v=2" alt="Nexo Logo" className="w-6 h-5 drop-shadow-[0_0_1px_rgba(0,0,0,1)]" />
                 <span>Nexo</span>
               </button>
             </div>
