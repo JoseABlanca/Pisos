@@ -1403,7 +1403,7 @@ export default function Layout() {
                 onClick={() => { setActiveModule('Módulos'); setActiveTab(''); navigate('/'); setShowRibbon(false); }}
                 className="flex items-center space-x-2 font-black text-m tracking-widest uppercase text-white/90 drop-shadow-sm hover:text-white transition-colors cursor-pointer"
               >
-                <img src="/nexo-logo.png?v=2" alt="Nexo Logo" className="w-6 h-5 drop-shadow-[0_0_1px_rgba(0,0,0,1)]" />
+                <img src="/nexo-logo.png?v=2" alt="Nexo Logo" className="w-6 h-5 drop-shadow-m" />
                 <span>Nexo</span>
               </button>
             </div>
