@@ -10,24 +10,24 @@ export default function Window({ title, children, onClose, width = '800px', heig
   const [pos, setPos] = useState(() => {
     const isMobileInitial = typeof window !== 'undefined' && window.innerWidth < 768;
     if (isMobileInitial) return { x: 0, y: 0 };
-    
+
     const w = parseInt(width) || 800;
     const hStr = String(height);
     let h = 600;
     if (hStr.endsWith('%')) {
-       h = (window.innerHeight * parseInt(hStr)) / 100;
+      h = (window.innerHeight * parseInt(hStr)) / 100;
     } else if (hStr !== 'auto') {
-       h = parseInt(hStr) || 600;
+      h = parseInt(hStr) || 600;
     }
-    
+
     return {
       x: Math.max(0, (window.innerWidth - w) / 2),
       y: Math.max(20, (window.innerHeight - h) / 3) // Posicionado más arriba en lugar de centro exacto
     };
   });
-  const [size, setSize] = useState({ 
-    width: parseInt(width) || 800, 
-    height: height === 'auto' ? null : (parseInt(height) || 600) 
+  const [size, setSize] = useState({
+    width: parseInt(width) || 800,
+    height: height === 'auto' ? null : (parseInt(height) || 600)
   });
   const [isDragging, setIsDragging] = useState(false);
   const [isResizing, setIsResizing] = useState(false);
@@ -168,10 +168,10 @@ export default function Window({ title, children, onClose, width = '800px', heig
   };
 
   const resizeHandles = [
-    { dir: 'n',  style: { top: 0, left: RESIZE_EDGE, right: RESIZE_EDGE, height: RESIZE_EDGE } },
-    { dir: 's',  style: { bottom: 0, left: RESIZE_EDGE, right: RESIZE_EDGE, height: RESIZE_EDGE } },
-    { dir: 'e',  style: { top: RESIZE_EDGE, right: 0, bottom: RESIZE_EDGE, width: RESIZE_EDGE } },
-    { dir: 'w',  style: { top: RESIZE_EDGE, left: 0, bottom: RESIZE_EDGE, width: RESIZE_EDGE } },
+    { dir: 'n', style: { top: 0, left: RESIZE_EDGE, right: RESIZE_EDGE, height: RESIZE_EDGE } },
+    { dir: 's', style: { bottom: 0, left: RESIZE_EDGE, right: RESIZE_EDGE, height: RESIZE_EDGE } },
+    { dir: 'e', style: { top: RESIZE_EDGE, right: 0, bottom: RESIZE_EDGE, width: RESIZE_EDGE } },
+    { dir: 'w', style: { top: RESIZE_EDGE, left: 0, bottom: RESIZE_EDGE, width: RESIZE_EDGE } },
     { dir: 'nw', style: { top: 0, left: 0, width: RESIZE_EDGE, height: RESIZE_EDGE } },
     { dir: 'ne', style: { top: 0, right: 0, width: RESIZE_EDGE, height: RESIZE_EDGE } },
     { dir: 'sw', style: { bottom: 0, left: 0, width: RESIZE_EDGE, height: RESIZE_EDGE } },
@@ -198,7 +198,7 @@ export default function Window({ title, children, onClose, width = '800px', heig
         maxHeight: (isMaximized || isMobile) ? '100%' : '90vh',
         zIndex: isDragging || isResizing ? 1000 : 100,
       }}
-      className={isClassic 
+      className={isClassic
         ? `flex flex-col shadow-[2px_3px_12px_rgba(0,0,0,0.35)] border border-[#888] bg-[#f0f0f0] select-none rounded-none overflow-hidden ${className}`
         : `win-window flex flex-col shadow-lg border-2 border-[#808080] bg-white select-none ${className}`}
     >
@@ -212,30 +212,31 @@ export default function Window({ title, children, onClose, width = '800px', heig
       ))}
 
       {/* Title Bar */}
-      <div 
+      <div
         onMouseDown={handleTitleMouseDown}
         onDoubleClick={handleMaximize}
         className={isClassic
-          ? "window-title-bar flex items-center px-2 py-[4px] border-b border-[#ccc] bg-[#e1e1e1] cursor-move h-[32px] relative select-none shrink-0"
+          ? "window-title-bar flex items-center px-2 py-[4px] border-b border-[#ccc] bg-white cursor-move h-[45px] relative select-none shrink-0"
           : "window-title-bar flex justify-between items-center px-3 py-1.5 border-b border-gray-300 bg-white cursor-default h-8 relative"}
       >
         <div className="flex items-center space-x-2 shrink-0">
-          {/* Menu Button / Icon */}
-          <button 
-            onPointerDown={(e) => { 
-               e.preventDefault();
-               e.stopPropagation(); 
-               if (onMenuClick) {
-                 onMenuClick();
-               } else {
-                 setIsMobileMenuOpen(!isMobileMenuOpen); 
-               }
+          <button
+            disabled={!onMenuClick && !isMobileMenuOpen}
+            onPointerDown={(e) => {
+              if (!onMenuClick && !isMobileMenuOpen) return;
+              e.preventDefault();
+              e.stopPropagation();
+              if (onMenuClick) {
+                onMenuClick();
+              } else {
+                setIsMobileMenuOpen(!isMobileMenuOpen);
+              }
             }}
-            className="w-5 h-5 flex flex-wrap gap-[1px] hover:opacity-80 focus:outline-none"
-            title="Menú"
+            className={`w-[23px] h-[23px] flex flex-wrap gap-[1px] focus:outline-none ${(!onMenuClick && !isMobileMenuOpen) ? 'opacity-30 cursor-default' : 'hover:opacity-80 cursor-pointer'}`}
+            title="Menú lateral"
           >
             {[...Array(9)].map((_, i) => (
-              <div key={i} className={`w-1.5 h-1.5 border ${isClassic ? 'border-[#888]' : 'border-gray-400'} ${[0, 1, 3, 4].includes(i) ? (isClassic ? 'bg-[#999]' : 'bg-gray-200') : 'bg-transparent'}`}></div>
+              <div key={i} className={`w-[7px] h-[7px] border-[1.5px] ${isClassic ? 'border-gray-400' : 'border-gray-400'} ${[0, 1, 3, 4].includes(i) ? (isClassic ? 'bg-gray-200' : 'bg-gray-200') : 'bg-transparent'}`}></div>
             ))}
           </button>
           {!isClassic && <span className="text-[12px] font-normal text-gray-800 tracking-wide truncate pr-4">{title}</span>}
@@ -254,9 +255,9 @@ export default function Window({ title, children, onClose, width = '800px', heig
           <button onClick={handleMaximize} className={isClassic ? "w-[20px] h-[20px] flex items-center justify-center hover:bg-[#d0d0d0] text-[#555] rounded-[2px]" : "text-gray-500 hover:text-gray-800 focus:outline-none"}>
             <Square className={isClassic ? "w-3 h-3" : "w-3.5 h-3.5"} />
           </button>
-          <button 
-            onClick={onClose} 
-            className={isClassic 
+          <button
+            onClick={onClose}
+            className={isClassic
               ? "w-[20px] h-[20px] flex items-center justify-center hover:bg-red-500 hover:text-white text-[#666] rounded-[2px] transition-colors ml-1"
               : "text-gray-500 hover:text-red-600 focus:outline-none ml-1"}
           >
@@ -270,27 +271,27 @@ export default function Window({ title, children, onClose, width = '800px', heig
         <>
           <div className="absolute inset-0 top-8 bg-black/20 backdrop-blur-sm z-40" onClick={() => setIsMobileMenuOpen(false)}></div>
           <div className="absolute top-8 bottom-0 left-0 w-48 bg-[#f0f4f9] border-r border-gray-300 shadow-2xl z-50 text-slate-800 text-[12px] flex flex-col pb-2 overflow-y-auto">
-          {menuItems ? menuItems.map((item, idx) => (
-            <div 
-              key={idx} 
-              className="px-4 py-2 hover:bg-[#d0d0d0] cursor-pointer" 
-              onClick={() => { item.onClick(); setIsMobileMenuOpen(false); }}
-            >
-              {item.label}
-            </div>
-          )) : (
-            <>
-              <div className="px-4 py-2 hover:bg-[#d0d0d0] cursor-pointer" onClick={() => setIsMobileMenuOpen(false)}>Contabilidad</div>
-              <div className="px-4 py-2 hover:bg-[#d0d0d0] cursor-pointer" onClick={() => setIsMobileMenuOpen(false)}>Inversiones inmobiliarias</div>
-              <div className="px-4 py-2 hover:bg-[#d0d0d0] cursor-pointer" onClick={() => setIsMobileMenuOpen(false)}>Informes</div>
-              <div className="px-4 py-2 hover:bg-[#d0d0d0] cursor-pointer" onClick={() => setIsMobileMenuOpen(false)}>Herramientas</div>
-              <div className="px-4 py-2 hover:bg-[#d0d0d0] cursor-pointer" onClick={() => setIsMobileMenuOpen(false)}>Ayuda</div>
-            </>
-          )}
-        </div>
+            {menuItems ? menuItems.map((item, idx) => (
+              <div
+                key={idx}
+                className="px-4 py-2 hover:bg-[#d0d0d0] cursor-pointer"
+                onClick={() => { item.onClick(); setIsMobileMenuOpen(false); }}
+              >
+                {item.label}
+              </div>
+            )) : (
+              <>
+                <div className="px-4 py-2 hover:bg-[#d0d0d0] cursor-pointer" onClick={() => setIsMobileMenuOpen(false)}>Contabilidad</div>
+                <div className="px-4 py-2 hover:bg-[#d0d0d0] cursor-pointer" onClick={() => setIsMobileMenuOpen(false)}>Inversiones inmobiliarias</div>
+                <div className="px-4 py-2 hover:bg-[#d0d0d0] cursor-pointer" onClick={() => setIsMobileMenuOpen(false)}>Informes</div>
+                <div className="px-4 py-2 hover:bg-[#d0d0d0] cursor-pointer" onClick={() => setIsMobileMenuOpen(false)}>Herramientas</div>
+                <div className="px-4 py-2 hover:bg-[#d0d0d0] cursor-pointer" onClick={() => setIsMobileMenuOpen(false)}>Ayuda</div>
+              </>
+            )}
+          </div>
         </>
       )}
-      
+
       {/* Window Body */}
       <div className={`flex-1 overflow-hidden flex flex-col ${isClassic ? 'bg-[#f0f0f0]' : 'bg-white'}`}>
         <div className={`h-full overflow-auto flex flex-col ${isClassic ? 'bg-[#f0f0f0]' : 'bg-white'}`}>

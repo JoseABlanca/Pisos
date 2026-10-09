@@ -490,7 +490,8 @@ export default function Journal() {
   };
 
   return (
-    <div className="flex h-full bg-white relative uppercase">
+    <div className="flex flex-col h-full bg-white p-3 overflow-hidden uppercase">
+      <div className="flex-1 flex flex-col bg-white border border-[#718096] rounded shadow-md overflow-hidden relative">
       {/* Header title inside the view */}
       <div className="absolute top-0 left-0 w-full h-8 bg-white border-b border-gray-200 flex items-center px-4 z-20">
         <h2 className="text-sm font-bold text-[#2a3042]">CONSULTA DE DIARIO</h2>
@@ -721,6 +722,7 @@ export default function Journal() {
           <div className="flex justify-end bg-[#f0f0f0] p-1 border-t border-[#808080] shrink-0">
             <ZoomControl />
           </div>
+        </div>
         </div>
       </div>
     </div>

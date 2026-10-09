@@ -7,6 +7,9 @@ import { uploadFileToStorage } from '../utils/storageUtils';
 import { useNavigate } from 'react-router-dom';
 import Window from './Window';
 import { useTableFilters } from '../hooks/useTableFilters';
+import { useDragResize } from '../hooks/useDragResize';
+import AnalyticalCenters from '../pages/AnalyticalCenters';
+import JournalEntry from '../pages/JournalEntry';
 
 export default function ExtractoContableTab({ 
   formData, 
@@ -33,13 +36,11 @@ export default function ExtractoContableTab({
   const [loading, setLoading] = useState(true);
   const [selectedJournalEntry, setSelectedJournalEntry] = useState(null);
   const [accountsMap, setAccountsMap] = useState({});
-  const [selectedIncomeCecos, setSelectedIncomeCecos] = useState([]);
-  const [showIncomeCecoDropdown, setShowIncomeCecoDropdown] = useState(false);
-  const [incomeCecoSearch, setIncomeCecoSearch] = useState('');
-
-  const [selectedExpenseCecos, setSelectedExpenseCecos] = useState([]);
-  const [showExpenseCecoDropdown, setShowExpenseCecoDropdown] = useState(false);
-  const [expenseCecoSearch, setExpenseCecoSearch] = useState('');
+  // CEBE selector (estilo Analítica > Desviación)
+  const [cebeInput, setCebeInput] = useState('');
+  const [showCebeDropdown, setShowCebeDropdown] = useState(false);
+  const [showCebeSel, setShowCebeSel] = useState(false);
+  const centerDR = useDragResize({ initW: 700, initH: 500, minW: 400, minH: 300, storageKey: 'extracto_centerModal' });
 
   const [selectedNegativeCecos, setSelectedNegativeCecos] = useState(formData?.negativeCecos || []);
   const [showNegativeCecoDropdown, setShowNegativeCecoDropdown] = useState(false);
@@ -94,6 +95,20 @@ export default function ExtractoContableTab({
       return formData?.cebe || '';
     }
   }, [formData, mode]);
+
+  // Keep the CEBE text input in sync with the saved CEBE
+  useEffect(() => {
+    setCebeInput(currentCebe || '');
+  }, [currentCebe]);
+
+  const matchingCebes = useMemo(() => {
+    const q = String(cebeInput || '').trim().toLowerCase();
+    if (!q || q === String(currentCebe || '').toLowerCase()) return cebes;
+    return cebes.filter(c =>
+      String(c.code || '').toLowerCase().includes(q) ||
+      String(c.name || '').toLowerCase().includes(q)
+    );
+  }, [cebes, cebeInput, currentCebe]);
 
   const currentCeco = useMemo(() => {
     if (mode === 'rentals') {
@@ -229,19 +244,6 @@ export default function ExtractoContableTab({
 
           if (!isMatch) return;
 
-          // Apply CECO filter (selectedIncomeCecos / selectedExpenseCecos)
-          if (selectedIncomeCecos.length > 0 || selectedExpenseCecos.length > 0) {
-            const cleanLineCeco = String(lineCeco).trim().toUpperCase();
-            if (isIncomeSide && selectedIncomeCecos.length > 0) {
-              const matchesInc = selectedIncomeCecos.some(sel => cleanLineCeco.startsWith(String(sel).trim().toUpperCase()));
-              if (!matchesInc) return;
-            }
-            if (!isIncomeSide && selectedExpenseCecos.length > 0) {
-              const matchesExp = selectedExpenseCecos.some(sel => cleanLineCeco.startsWith(String(sel).trim().toUpperCase()));
-              if (!matchesExp) return;
-            }
-          }
-
           // Apply Date Range Filter
           if (startDate && entry.date < startDate) return;
           if (endDate && entry.date > endDate) return;
@@ -360,15 +362,6 @@ export default function ExtractoContableTab({
         if (!isMatch) return;
 
         const entryCeco = entry.ceco || entry.cebe || '';
-        if (selectedIncomeCecos.length > 0 || selectedExpenseCecos.length > 0) {
-          const cleanCeco = String(entryCeco).trim().toUpperCase();
-          if (isIncomeSide && selectedIncomeCecos.length > 0) {
-            if (!selectedIncomeCecos.some(sel => cleanCeco.startsWith(String(sel).trim().toUpperCase()))) return;
-          }
-          if (!isIncomeSide && selectedExpenseCecos.length > 0) {
-            if (!selectedExpenseCecos.some(sel => cleanCeco.startsWith(String(sel).trim().toUpperCase()))) return;
-          }
-        }
 
         if (startDate && entry.date < startDate) return;
         if (endDate && entry.date > endDate) return;
@@ -420,7 +413,7 @@ export default function ExtractoContableTab({
     });
 
     return rows.sort((a, b) => new Date(b.date) - new Date(a.date));
-  }, [journalEntries, currentCebe, currentCeco, mode, formData, cecos, cebes, startDate, endDate, selectedIncomeCecos, selectedExpenseCecos, selectedNegativeCecos]);
+  }, [journalEntries, currentCebe, currentCeco, mode, formData, cecos, cebes, startDate, endDate, selectedNegativeCecos]);
 
   // Apply table column filters and sorting
   const finalDisplayEntries = useMemo(() => {
@@ -469,6 +462,18 @@ export default function ExtractoContableTab({
         }
       }
     }
+  };
+
+  // Commit a CEBE value (only exact codes or empty are persisted)
+  const commitCebe = (val) => {
+    const v = String(val || '').trim();
+    if (v === String(currentCebe || '')) return;
+    if (v && !cebes.some(c => String(c.code) === v)) {
+      // Not a valid CEBE code → revert the input
+      setCebeInput(currentCebe || '');
+      return;
+    }
+    handleCebeChange({ target: { value: v } });
   };
 
   const handleCecoChange = async (e) => {
@@ -529,282 +534,149 @@ export default function ExtractoContableTab({
   };
 
   return (
-    <div className="flex flex-col gap-4 text-xs font-sans text-slate-800">
-      {/* Selector Inputs (only editable if mode === 'rentals', otherwise read-only show or select from inputs) */}
-      {mode === 'rentals' ? (
-        <div className="p-3 bg-slate-100 border border-slate-300 win-bevel flex flex-col gap-2">
-          <div className="flex flex-wrap items-center justify-between gap-4">
-            <div className="flex flex-col gap-1 max-w-sm flex-1 min-w-[200px]">
-              <label className="text-[10px] font-bold text-slate-700 uppercase">CEBE Asociado (Ingresos):</label>
-              <select 
-                className="win-input w-full cursor-pointer" 
-                value={currentCebe} 
-                onChange={handleCebeChange}
-              >
-                <option value="">-- Seleccionar CEBE --</option>
-                {cebes.map(c => (
-                  <option key={c.id} value={c.code}>{c.code} - {c.name}</option>
-                ))}
-              </select>
+    <div className="flex flex-col h-full overflow-hidden min-h-0 gap-4 text-xs font-sans text-slate-800">
+      {/* Filtros: CEBE + Desde/Hasta (estilo Analítica > Desviación) */}
+      <div className="flex flex-col gap-2 select-none">
+        <div className="flex items-center gap-4 flex-wrap">
+          {/* CEBE */}
+          <div className="flex items-center gap-1">
+            <span
+              onClick={() => setShowCebeSel(true)}
+              className="border border-[#999] bg-[#e9ecef] px-2 py-[3px] text-[11px] text-[#333] w-[50px] text-center shrink-0 font-bold cursor-pointer hover:bg-[#dcdcdc] select-none active:bg-[#c8c8c8]"
+              title="Abrir selector de CEBE (F3)"
+            >CEBE:</span>
+            <div className="relative">
+              <input
+                type="text"
+                value={cebeInput}
+                onChange={e => { setCebeInput(e.target.value); setShowCebeDropdown(true); }}
+                onFocus={() => setShowCebeDropdown(true)}
+                onBlur={() => { setShowCebeDropdown(false); commitCebe(cebeInput); }}
+                onKeyDown={e => {
+                  if (e.key === 'F3') { e.preventDefault(); setShowCebeSel(true); }
+                  else if (e.key === 'Enter') { e.preventDefault(); e.currentTarget.blur(); }
+                  else if (e.key === 'Escape') { setCebeInput(currentCebe || ''); e.currentTarget.blur(); }
+                }}
+                className="w-[160px] border border-[#999] px-2 py-[3px] text-[11px] bg-white outline-none font-mono"
+                placeholder="Seleccionar"
+              />
+              {showCebeDropdown && (
+                <div className="absolute left-0 mt-1 bg-white border border-[#999] shadow-lg z-[4000] w-[260px] max-h-[200px] overflow-y-auto rounded-sm text-[11px]">
+                  {matchingCebes.length === 0 ? (
+                    <div className="p-2 text-gray-400 italic">No hay resultados</div>
+                  ) : (
+                    matchingCebes.slice(0, 100).map(c => (
+                      <div
+                        key={c.id}
+                        onMouseDown={(e) => {
+                          e.preventDefault();
+                          setCebeInput(c.code);
+                          commitCebe(c.code);
+                          setShowCebeDropdown(false);
+                        }}
+                        className={`p-1 px-2 hover:bg-[#cce5ff] cursor-pointer truncate font-mono text-left ${c.code === currentCebe ? 'bg-[#e8f1fb] font-bold' : ''}`}
+                        title={`${c.code} - ${c.name}`}
+                      >
+                        {c.code} - {c.name}
+                      </div>
+                    ))
+                  )}
+                </div>
+              )}
             </div>
-            {onAddEntry && (
-              <button 
+            <button type="button" onClick={() => setShowCebeSel(true)} className="border border-[#999] bg-[#e1e1e1] hover:bg-[#d0d0d0] p-[2px] rounded-[2px] shadow-sm flex items-center justify-center shrink-0 w-6 h-6" title="Selector de CEBE"><FileText size={13} /></button>
+            {currentCebe && (
+              <button type="button" onClick={() => { setCebeInput(''); commitCebe(''); }} className="border border-[#999] bg-[#e1e1e1] hover:bg-[#d0d0d0] p-[2px] rounded-[2px] shadow-sm flex items-center justify-center shrink-0 w-6 h-6 text-red-600 font-bold" title="Quitar CEBE">X</button>
+            )}
+          </div>
+
+          {/* Desde */}
+          <div className="flex items-center gap-1">
+            <span className="border border-[#999] bg-[#e9ecef] px-2 py-[3px] text-[11px] text-[#333] w-[60px] text-center shrink-0 font-bold">Desde:</span>
+            <input
+              type="date"
+              className="border border-[#999] px-2 py-[2px] text-[11px] bg-white outline-none font-mono"
+              value={startDate}
+              onChange={e => setStartDate(e.target.value)}
+            />
+          </div>
+
+          {/* Hasta */}
+          <div className="flex items-center gap-1">
+            <span className="border border-[#999] bg-[#e9ecef] px-2 py-[3px] text-[11px] text-[#333] w-[60px] text-center shrink-0 font-bold">Hasta:</span>
+            <input
+              type="date"
+              className="border border-[#999] px-2 py-[2px] text-[11px] bg-white outline-none font-mono"
+              value={endDate}
+              onChange={e => setEndDate(e.target.value)}
+            />
+          </div>
+
+          <div className="flex items-center gap-2 ml-auto">
+            {(startDate || endDate || selectedNegativeCecos.length > 0 || Object.keys(activeTableFilters['extractoContable'] || {}).length > 0) && (
+              <button
                 type="button"
-                className="px-4 py-1.5 bg-[#4a69bd] text-white text-[11px] font-bold uppercase shadow-sm hover:bg-[#3b5598] self-end h-[30px] rounded"
+                onClick={() => { setStartDate(''); setEndDate(''); handleNegativeCecosChange([]); clearAllFilters(); }}
+                className="px-3 py-1 border border-gray-400 bg-gray-100 hover:bg-gray-200 shadow-sm text-[10px] font-bold uppercase cursor-pointer rounded"
+              >
+                Limpiar Filtros
+              </button>
+            )}
+            {mode === 'rentals' && onAddEntry && (
+              <button
+                type="button"
+                className="px-4 py-1 bg-[#4a69bd] text-white text-[11px] font-bold uppercase shadow-sm hover:bg-[#3b5598] rounded"
                 onClick={onAddEntry}
               >
                 + Añadir Asiento
               </button>
             )}
           </div>
-          {formData?.reference && (
-            <div className="text-[10px] text-slate-500 font-semibold uppercase mt-1">
-              Filtro por Referencia Alquiler (en Documento): <span className="font-mono bg-white px-1.5 py-0.5 border border-slate-300 rounded font-bold text-slate-700">{formData.reference}</span>
-            </div>
-          )}
         </div>
-      ) : (
-        <div className="p-3 bg-slate-100 border border-slate-300 win-bevel flex flex-col sm:flex-row sm:justify-between sm:items-center gap-2">
-          <div className="flex gap-4">
-            <div>
-              <span className="font-bold text-slate-500 mr-1">CEBE:</span>
-              <span className="font-mono bg-white px-2 py-0.5 border border-slate-300 rounded font-semibold text-black">
-                {currentCebe || 'Ninguno'}
-              </span>
-            </div>
+
+        {mode === 'rentals' && formData?.reference && (
+          <div className="text-[10px] text-slate-500 font-semibold uppercase">
+            Filtro por Referencia Alquiler (en Documento): <span className="font-mono bg-white px-1.5 py-0.5 border border-slate-300 rounded font-bold text-slate-700">{formData.reference}</span>
           </div>
-          {!currentCebe && (
-            <div className="text-[11px] text-amber-700 font-bold">
-              ⚠️ Configure un CEBE en la pestaña "Datos" para ver el extracto.
-            </div>
-          )}
-        </div>
-      )}
-
-      {/* Date Range Filters & CECO Multiselect */}
-      <div className="p-2.5 bg-slate-100 border win-bevel flex flex-wrap items-center gap-4 text-xs select-none relative">
-        <div className="flex items-center gap-2">
-          <span className="text-[10px] font-bold text-slate-700 uppercase">Desde:</span>
-          <input 
-            type="date" 
-            className="win-input px-2 py-0.5 max-w-[140px] font-mono text-[11px] border border-gray-400 bg-white" 
-            value={startDate} 
-            onChange={e => setStartDate(e.target.value)} 
-          />
-        </div>
-        <div className="flex items-center gap-2">
-          <span className="text-[10px] font-bold text-slate-700 uppercase">Hasta:</span>
-          <input 
-            type="date" 
-            className="win-input px-2 py-0.5 max-w-[140px] font-mono text-[11px] border border-gray-400 bg-white" 
-            value={endDate} 
-            onChange={e => setEndDate(e.target.value)} 
-          />
-        </div>
-           {/* CECOs Ingresos Multiselect Filter */}
-        <div className="flex items-center gap-2 relative">
-          <span className="text-[10px] font-bold text-slate-700 uppercase">CECOs Ingresos:</span>
-          <div className="relative min-w-[180px]">
-            <button
-              type="button"
-              onClick={() => setShowIncomeCecoDropdown(!showIncomeCecoDropdown)}
-              className="win-input w-full flex justify-between items-center bg-white px-2 py-1 font-mono text-[11px] border border-gray-400 cursor-pointer rounded min-h-[24px]"
-            >
-              <span className="truncate max-w-[150px] text-slate-750 font-sans">
-                {selectedIncomeCecos.length === 0 ? 'Todos los Ingresos' : selectedIncomeCecos.join(', ')}
-              </span>
-              <span className="text-[9px] text-slate-500">▼</span>
-            </button>
-            
-            {showIncomeCecoDropdown && (
-              <>
-                <div className="fixed inset-0 z-40" onClick={() => setShowIncomeCecoDropdown(false)} />
-                <div className="absolute left-0 right-0 top-full mt-1 bg-white border shadow-lg max-h-[200px] overflow-y-auto p-1.5 flex flex-col gap-1 rounded win-bevel z-50">
-                  <input
-                    type="text"
-                    placeholder="Buscar CECO..."
-                    className="w-full text-[10px] px-1.5 py-0.5 border border-slate-300 rounded mb-1 outline-none focus:border-blue-400 font-sans normal-case"
-                    value={incomeCecoSearch}
-                    onChange={e => setIncomeCecoSearch(e.target.value)}
-                    onClick={e => e.stopPropagation()}
-                    autoFocus
-                  />
-                  <label className="flex items-center gap-1.5 text-[10px] cursor-pointer hover:bg-slate-50 py-0.5 rounded select-none font-bold text-black border-b border-slate-100 pb-1">
-                    <input
-                      type="checkbox"
-                      checked={selectedIncomeCecos.length === 0}
-                      onChange={() => setSelectedIncomeCecos([])}
-                      className="mt-0.5"
-                    />
-                    <span>Todos</span>
-                  </label>
-                  {cecos
-                    .filter(c => 
-                      c.code.toLowerCase().includes(incomeCecoSearch.toLowerCase()) || 
-                      c.name.toLowerCase().includes(incomeCecoSearch.toLowerCase())
-                    )
-                    .map(c => (
-                      <label key={c.id} className="flex items-start gap-1.5 text-[10px] cursor-pointer hover:bg-slate-50 py-0.5 rounded select-none">
-                        <input
-                          type="checkbox"
-                          checked={selectedIncomeCecos.includes(c.code)}
-                          onChange={() => {
-                            setSelectedIncomeCecos(prev =>
-                              prev.includes(c.code)
-                                ? prev.filter(code => code !== c.code)
-                                : [...prev, c.code]
-                            );
-                          }}
-                          className="mt-0.5"
-                        />
-                        <span className="text-slate-700">{c.code} - {c.name}</span>
-                      </label>
-                    ))}
-                  {cecos.filter(c => 
-                    c.code.toLowerCase().includes(incomeCecoSearch.toLowerCase()) || 
-                    c.name.toLowerCase().includes(incomeCecoSearch.toLowerCase())
-                  ).length === 0 && (
-                    <span className="text-[10px] text-slate-400 italic px-1">No se encontraron CECOs</span>
-                  )}
-                </div>
-              </>
-            )}
+        )}
+        {!currentCebe && (
+          <div className="text-[11px] text-[#555] font-bold">
+            Selecciona un CEBE para ver el extracto.
           </div>
-          {selectedIncomeCecos.length > 0 && (
-            <button
-              type="button"
-              onClick={() => setSelectedIncomeCecos([])}
-              className="px-2 py-0.5 border border-red-300 bg-red-50 text-black hover:bg-red-100 shadow-sm text-[10px] font-bold uppercase cursor-pointer rounded"
-            >
-              Limpiar
-            </button>
-          )}
-        </div>
-
-        {/* CECOs Gastos Multiselect Filter */}
-        <div className="flex items-center gap-2 relative">
-          <span className="text-[10px] font-bold text-slate-700 uppercase">CECOs Gastos:</span>
-          <div className="relative min-w-[180px]">
-            <button
-              type="button"
-              onClick={() => setShowExpenseCecoDropdown(!showExpenseCecoDropdown)}
-              className="win-input w-full flex justify-between items-center bg-white px-2 py-1 font-mono text-[11px] border border-gray-400 cursor-pointer rounded min-h-[24px]"
-            >
-              <span className="truncate max-w-[150px] text-slate-750 font-sans">
-                {selectedExpenseCecos.length === 0 ? 'Todos los Gastos' : selectedExpenseCecos.join(', ')}
-              </span>
-              <span className="text-[9px] text-slate-555">▼</span>
-            </button>
-            
-            {showExpenseCecoDropdown && (
-              <>
-                <div className="fixed inset-0 z-40" onClick={() => setShowExpenseCecoDropdown(false)} />
-                <div className="absolute left-0 right-0 top-full mt-1 bg-white border shadow-lg max-h-[200px] overflow-y-auto p-1.5 flex flex-col gap-1 rounded win-bevel z-50">
-                  <input
-                    type="text"
-                    placeholder="Buscar CECO..."
-                    className="w-full text-[10px] px-1.5 py-0.5 border border-slate-300 rounded mb-1 outline-none focus:border-blue-400 font-sans normal-case"
-                    value={expenseCecoSearch}
-                    onChange={e => setExpenseCecoSearch(e.target.value)}
-                    onClick={e => e.stopPropagation()}
-                    autoFocus
-                  />
-                  <label className="flex items-center gap-1.5 text-[10px] cursor-pointer hover:bg-slate-50 py-0.5 rounded select-none font-bold text-black border-b border-slate-100 pb-1">
-                    <input
-                      type="checkbox"
-                      checked={selectedExpenseCecos.length === 0}
-                      onChange={() => setSelectedExpenseCecos([])}
-                      className="mt-0.5"
-                    />
-                    <span>Todos</span>
-                  </label>
-                  {cecos
-                    .filter(c => 
-                      c.code.toLowerCase().includes(expenseCecoSearch.toLowerCase()) || 
-                      c.name.toLowerCase().includes(expenseCecoSearch.toLowerCase())
-                    )
-                    .map(c => (
-                      <label key={c.id} className="flex items-start gap-1.5 text-[10px] cursor-pointer hover:bg-slate-50 py-0.5 rounded select-none">
-                        <input
-                          type="checkbox"
-                          checked={selectedExpenseCecos.includes(c.code)}
-                          onChange={() => {
-                            setSelectedExpenseCecos(prev =>
-                              prev.includes(c.code)
-                                ? prev.filter(code => code !== c.code)
-                                : [...prev, c.code]
-                            );
-                          }}
-                          className="mt-0.5"
-                        />
-                        <span className="text-slate-700">{c.code} - {c.name}</span>
-                      </label>
-                    ))}
-                  {cecos.filter(c => 
-                    c.code.toLowerCase().includes(expenseCecoSearch.toLowerCase()) || 
-                    c.name.toLowerCase().includes(expenseCecoSearch.toLowerCase())
-                  ).length === 0 && (
-                    <span className="text-[10px] text-slate-400 italic px-1">No se encontraron CECOs</span>
-                  )}
-                </div>
-              </>
-            )}
-          </div>
-          {selectedExpenseCecos.length > 0 && (
-            <button
-              type="button"
-              onClick={() => setSelectedExpenseCecos([])}
-              className="px-2 py-0.5 border border-red-300 bg-red-50 text-black hover:bg-red-100 shadow-sm text-[10px] font-bold uppercase cursor-pointer rounded"
-            >
-              Limpiar
-            </button>
-          )}
-        </div>
-
-
-
-        {(startDate || endDate || selectedIncomeCecos.length > 0 || selectedExpenseCecos.length > 0 || selectedNegativeCecos.length > 0 || Object.keys(activeTableFilters['extractoContable'] || {}).length > 0) && (
-          <button 
-            type="button" 
-            onClick={() => { setStartDate(''); setEndDate(''); setSelectedIncomeCecos([]); setSelectedExpenseCecos([]); handleNegativeCecosChange([]); clearAllFilters(); }} 
-            className="px-3 py-1 border border-gray-400 bg-gray-100 hover:bg-gray-200 shadow-sm text-[10px] font-bold uppercase cursor-pointer rounded ml-auto"
-          >
-            Limpiar Filtros
-          </button>
         )}
       </div>
 
-      {/* CECO Negativo — dedicated row, always visible */}
-      <div className="px-2.5 py-2 bg-amber-50 border border-amber-300 flex flex-wrap items-center gap-3 text-xs select-none relative">
-        <span className="text-[10px] font-bold text-amber-800 uppercase tracking-wide" title="Selecciona los CECOs cuyo signo quieres invertir (ej. Amortizaciones para verlas como ingreso o como gasto)">
-          ± CECO Negativo (invertir signo):
+      {/* CECO (invertir signo) — dedicated row, always visible */}
+      <div className="flex flex-wrap items-center gap-3 text-xs select-none relative">
+        <span className="border border-[#999] bg-[#e9ecef] px-2 py-[3px] text-[11px] text-[#333] font-bold" title="Selecciona los CECOs cuyo signo quieres invertir (ej. Amortizaciones para verlas como ingreso o como gasto)">
+          CECO (invertir signo):
         </span>
         <div className="relative min-w-[220px]">
           <button
             type="button"
             onClick={() => setShowNegativeCecoDropdown(!showNegativeCecoDropdown)}
-            className="w-full flex justify-between items-center bg-white px-2 py-1 font-mono text-[11px] border border-amber-400 cursor-pointer rounded min-h-[24px] hover:border-amber-600"
+            className="w-full flex justify-between items-center bg-white px-2 py-[3px] font-mono text-[11px] border border-[#999] cursor-pointer min-h-[24px] hover:border-[#666]"
           >
             <span className="truncate max-w-[200px] font-sans text-slate-800">
               {selectedNegativeCecos.length === 0 ? 'Ninguno seleccionado' : selectedNegativeCecos.join(', ')}
             </span>
-            <span className="text-[9px] text-amber-600 ml-2">▼</span>
+            <span className="text-[9px] text-slate-500 ml-2">▼</span>
           </button>
 
           {showNegativeCecoDropdown && (
             <>
               <div className="fixed inset-0 z-40" onClick={() => setShowNegativeCecoDropdown(false)} />
-              <div className="absolute left-0 top-full mt-1 bg-white border border-amber-400 shadow-lg max-h-[220px] overflow-y-auto p-1.5 flex flex-col gap-1 rounded z-50 min-w-[260px]">
+              <div className="absolute left-0 top-full mt-1 bg-white border border-[#999] shadow-lg max-h-[220px] overflow-y-auto p-1.5 flex flex-col gap-1 rounded-sm z-50 min-w-[260px]">
                 <input
                   type="text"
                   placeholder="Buscar CECO..."
-                  className="w-full text-[10px] px-1.5 py-0.5 border border-slate-300 rounded mb-1 outline-none focus:border-amber-400 font-sans"
+                  className="w-full text-[10px] px-1.5 py-0.5 border border-slate-300 rounded mb-1 outline-none focus:border-blue-400 font-sans"
                   value={negativeCecoSearch}
                   onChange={e => setNegativeCecoSearch(e.target.value)}
                   onClick={e => e.stopPropagation()}
                   autoFocus
                 />
-                <label className="flex items-center gap-1.5 text-[10px] cursor-pointer hover:bg-amber-50 py-0.5 rounded select-none font-bold text-black border-b border-slate-100 pb-1">
+                <label className="flex items-center gap-1.5 text-[10px] cursor-pointer hover:bg-slate-50 py-0.5 rounded select-none font-bold text-black border-b border-slate-100 pb-1">
                   <input
                     type="checkbox"
                     checked={selectedNegativeCecos.length === 0}
@@ -819,7 +691,7 @@ export default function ExtractoContableTab({
                     c.name.toLowerCase().includes(negativeCecoSearch.toLowerCase())
                   )
                   .map(c => (
-                    <label key={c.id} className="flex items-start gap-1.5 text-[10px] cursor-pointer hover:bg-amber-50 py-0.5 rounded select-none">
+                    <label key={c.id} className="flex items-start gap-1.5 text-[10px] cursor-pointer hover:bg-slate-50 py-0.5 rounded select-none">
                       <input
                         type="checkbox"
                         checked={selectedNegativeCecos.includes(c.code)}
@@ -846,13 +718,13 @@ export default function ExtractoContableTab({
         </div>
         {selectedNegativeCecos.length > 0 && (
           <>
-            <span className="text-[10px] text-amber-700 font-semibold">
+            <span className="text-[10px] text-slate-600 font-semibold">
               {selectedNegativeCecos.length} CECO{selectedNegativeCecos.length > 1 ? 's' : ''} con signo invertido
             </span>
             <button
               type="button"
               onClick={() => handleNegativeCecosChange([])}
-              className="px-2 py-0.5 border border-amber-400 bg-amber-100 text-amber-900 hover:bg-amber-200 shadow-sm text-[10px] font-bold uppercase cursor-pointer rounded"
+              className="px-2 py-0.5 border border-gray-400 bg-gray-100 text-black hover:bg-gray-200 shadow-sm text-[10px] font-bold uppercase cursor-pointer rounded"
             >
               Quitar
             </button>
@@ -861,21 +733,21 @@ export default function ExtractoContableTab({
       </div>
 
       {/* Metrics Row (Written text, no cards) */}
-      <div className="flex flex-wrap items-center gap-x-6 gap-y-2 p-3 bg-slate-50 border border-slate-200 rounded shadow-sm text-xs font-bold text-slate-700 select-none">
+      <div className="flex flex-wrap items-center gap-x-6 gap-y-2 p-3 bg-[#f0f0f0] border border-gray-300 rounded shadow-sm text-xs font-bold text-gray-700 select-none shrink-0">
         <div className="flex items-center gap-1.5">
           <span className="text-gray-500 uppercase text-[9px]">Ingresos:</span>
           <span className="font-mono text-black text-sm">
             {totals.cebe.toLocaleString('es-ES', { minimumFractionDigits: 2 })} €
           </span>
         </div>
-        <div className="w-px h-4 bg-slate-300" />
+        <div className="w-px h-4 bg-gray-300" />
         <div className="flex items-center gap-1.5">
           <span className="text-gray-500 uppercase text-[9px]">Gastos:</span>
           <span className="font-mono text-black text-sm">
             -{totals.ceco.toLocaleString('es-ES', { minimumFractionDigits: 2 })} €
           </span>
         </div>
-        <div className="w-px h-4 bg-slate-300" />
+        <div className="w-px h-4 bg-gray-300" />
         <div className="flex items-center gap-1.5">
           <span className="text-gray-500 uppercase text-[9px]">Total:</span>
           <span className={`font-mono text-sm ${totals.balance >= 0 ? 'text-black' : 'text-amber-800'}`}>
@@ -885,23 +757,23 @@ export default function ExtractoContableTab({
       </div>
 
       {/* Transactions Table */}
-      <div className="flex-1 flex flex-col min-h-[250px] mb-2">
-        <div className="flex justify-between items-center mb-2">
-          <h3 className="text-[12px] font-bold text-slate-800 italic uppercase">Registros del Extracto</h3>
+      <div className="flex-1 flex flex-col min-h-0 mb-2">
+        <div className="flex justify-between items-center mb-2 shrink-0">
+          <h3 className="text-[12px] font-bold text-gray-800 italic uppercase">Registros del Extracto</h3>
           {loading && <RefreshCw className="w-3.5 h-3.5 text-slate-600 animate-spin" />}
         </div>
         
-        <div className="flex-1 overflow-auto bg-white border border-gray-200">
-          <table className="modern-table min-w-full">
-            <thead>
-              <tr className="sticky top-0 z-10">
-                <TableHeaderWithFilter label="Fecha" columnKey="dateFormatted" data={processedEntries} tableId="extractoContable" className="w-24 text-[10px]" />
-                <TableHeaderWithFilter label="Asiento Nº" columnKey="numberFormatted" data={processedEntries} tableId="extractoContable" className="w-20 text-[10px]" />
-                <TableHeaderWithFilter label="Concepto" columnKey="descriptionFormatted" data={processedEntries} tableId="extractoContable" className="text-[10px]" />
-                <TableHeaderWithFilter label="CECO" columnKey="cecoFormatted" data={processedEntries} tableId="extractoContable" className="w-48 text-[10px]" />
-                <TableHeaderWithFilter label="Importe" columnKey="signedAmount" data={processedEntries} tableId="extractoContable" className="w-32 text-right text-[10px]" />
-                <TableHeaderWithFilter label="Documento" columnKey="documentFormatted" data={processedEntries} tableId="extractoContable" className="w-36 text-[10px]" />
-                <TableHeaderWithFilter label="Imp." columnKey="impuestoFormatted" data={processedEntries} tableId="extractoContable" className="w-12 text-center text-[10px]" />
+        <div className="flex-1 overflow-auto bg-white border border-gray-300 rounded-sm">
+          <table className="modern-table min-w-full border-0 relative">
+            <thead className="sticky -top-px z-20 shadow-[0_-1px_0_0_#f0f0f0] bg-[#f0f0f0]">
+              <tr className="bg-[#f0f0f0]">
+                <TableHeaderWithFilter label="Fecha" columnKey="dateFormatted" data={processedEntries} tableId="extractoContable" className="text-[10px] bg-[#f0f0f0] z-20 !border-b-0" />
+                <TableHeaderWithFilter label="Asiento Nº" columnKey="numberFormatted" data={processedEntries} tableId="extractoContable" className="text-[10px] bg-[#f0f0f0] z-20 !border-b-0" />
+                <TableHeaderWithFilter label="Concepto" columnKey="descriptionFormatted" data={processedEntries} tableId="extractoContable" className="text-[10px] bg-[#f0f0f0] z-20 !border-b-0" />
+                <TableHeaderWithFilter label="CECO" columnKey="cecoFormatted" data={processedEntries} tableId="extractoContable" className="text-[10px] bg-[#f0f0f0] z-20 !border-b-0" />
+                <TableHeaderWithFilter label="Importe" columnKey="signedAmount" data={processedEntries} tableId="extractoContable" className="text-right text-[10px] bg-[#f0f0f0] z-20 !border-b-0" />
+                <TableHeaderWithFilter label="Documento" columnKey="documentFormatted" data={processedEntries} tableId="extractoContable" className="text-[10px] bg-[#f0f0f0] z-20 !border-b-0" />
+                <TableHeaderWithFilter label="Imp." columnKey="impuestoFormatted" data={processedEntries} tableId="extractoContable" className="text-center text-[10px] bg-[#f0f0f0] z-20 !border-b-0" />
               </tr>
             </thead>
             <tbody>
@@ -927,11 +799,10 @@ export default function ExtractoContableTab({
                         <button
                           type="button"
                           onClick={() => setSelectedJournalEntry(entry.parentEntry || entry)}
-                          className="text-black hover:text-black hover:underline font-bold flex items-center justify-center gap-1 mx-auto"
-                          title="Ver asiento contable completo"
+                          className="text-black hover:text-black font-bold flex items-center justify-center mx-auto cursor-pointer"
+                          title="Ver y editar asiento contable completo"
                         >
-                          <FileText className="w-3 h-3 text-slate-500" />
-                          <span>{entry.numberFormatted}</span>
+                          <span className="underline decoration-black">{entry.numberFormatted}</span>
                         </button>
                       </td>
                       <td className="truncate max-w-[200px]" title={entry.description}>{entry.description}</td>
@@ -1044,98 +915,44 @@ export default function ExtractoContableTab({
 
       {renderFilterMenu()}
 
-      {/* Retro Windows-style popup modal to view and access full seat details */}
+      {/* Editor Modal de Asiento */}
       {selectedJournalEntry && (
         <div className="fixed inset-0 bg-black/45 backdrop-blur-sm flex items-center justify-center z-[100]">
           <Window 
-            title={`Asiento Contable Nº ${selectedJournalEntry.number || selectedJournalEntry.id?.substring(0, 6)}`}
-            width="800px"
-            initialPos={{ x: 100, y: 50 }}
+            title={`Editar Asiento Contable Nº ${selectedJournalEntry.number || selectedJournalEntry.id?.substring(0, 6)}`}
+            width="1150px"
+            height="750px"
+            initialPos={{ x: 50, y: 50 }}
             onClose={() => setSelectedJournalEntry(null)}
           >
-            <div className="bg-[#d4d0c8] p-3 flex flex-col gap-3 min-h-[350px] text-xs">
-              {/* Header Info */}
-              <div className="grid grid-cols-2 gap-x-4 gap-y-1.5 p-2.5 bg-white border win-bevel text-[11px]">
-                <div>
-                  <span className="font-bold text-slate-500 mr-2 uppercase text-[9px]">Fecha:</span>
-                  <span className="font-mono font-bold text-slate-800">{new Date(selectedJournalEntry.date).toLocaleDateString()}</span>
-                </div>
-                <div>
-                  <span className="font-bold text-slate-500 mr-2 uppercase text-[9px]">Nº Asiento:</span>
-                  <span className="font-mono font-bold text-black">{selectedJournalEntry.number || selectedJournalEntry.id?.substring(0, 6)}</span>
-                </div>
-                <div className="col-span-2">
-                  <span className="font-bold text-slate-500 mr-2 uppercase text-[9px]">Concepto General:</span>
-                  <span className="text-slate-800 font-semibold">{selectedJournalEntry.description}</span>
-                </div>
-                {selectedJournalEntry.document && (
-                  <div className="col-span-2">
-                    <span className="font-bold text-slate-500 mr-2 uppercase text-[9px]">Referencia Doc:</span>
-                    <span className="font-mono bg-slate-100 px-1 border border-slate-350 font-bold text-slate-700">{selectedJournalEntry.document}</span>
-                  </div>
-                )}
-              </div>
-
-              {/* Lines Table */}
-              <div className="flex-1 overflow-auto border win-bevel bg-white max-h-[250px]">
-                <table className="modern-table min-w-full">
-                  <thead>
-                    <tr className="sticky top-0 z-10 bg-[#e7e1d3]">
-                      <th className="w-24 text-[10px]">Cuenta</th>
-                      <th className="text-[10px]">Nombre Cuenta</th>
-                      <th className="text-[10px]">Apunte / Concepto</th>
-                      <th className="w-16 text-[10px]">CEBE</th>
-                      <th className="w-16 text-[10px]">CECO</th>
-                      <th className="w-24 text-right text-[10px]">Debe</th>
-                      <th className="w-24 text-right text-[10px]">Haber</th>
-                    </tr>
-                  </thead>
-                  <tbody>
-                    {(selectedJournalEntry.lines || []).map((line, idx) => {
-                      const accountCode = line.accountCode || '';
-                      const accountName = accountsMap[line.accountId] || '';
-                      return (
-                        <tr key={idx} className="hover:bg-slate-50">
-                          <td className="font-mono text-[10px] font-bold text-black">{accountCode}</td>
-                          <td className="truncate max-w-[120px] text-[10px] text-slate-600" title={accountName}>{accountName || 'Cargando cuenta...'}</td>
-                          <td className="truncate max-w-[160px] text-[10px]" title={line.concept}>{line.concept || selectedJournalEntry.description}</td>
-                          <td className="font-mono text-[9px] text-slate-500">{line.cebe || ''}</td>
-                          <td className="font-mono text-[9px] text-slate-500">{line.ceco || ''}</td>
-                          <td className="font-mono text-[10px] text-right text-slate-700 font-bold">
-                            {line.debit && Number(line.debit) > 0 ? Number(line.debit).toLocaleString('es-ES', { minimumFractionDigits: 2 }) + ' €' : ''}
-                          </td>
-                          <td className="font-mono text-[10px] text-right text-slate-700 font-bold">
-                            {line.credit && Number(line.credit) > 0 ? Number(line.credit).toLocaleString('es-ES', { minimumFractionDigits: 2 }) + ' €' : ''}
-                          </td>
-                        </tr>
-                      );
-                    })}
-                  </tbody>
-                </table>
-              </div>
-
-              {/* Actions Footer */}
-              <div className="flex justify-end gap-2 shrink-0 pt-2 ">
-                <button 
-                  type="button"
-                  className="px-5 py-1 border border-gray-400 bg-[#4a69bd] text-white hover:bg-[#3b5598] shadow-sm text-[11px] font-bold uppercase cursor-pointer rounded" 
-                  onClick={() => {
-                    navigate('/journal-entry', { state: { editEntry: selectedJournalEntry } });
-                    setSelectedJournalEntry(null);
-                  }}
-                >
-                  Editar Asiento
-                </button>
-                <button 
-                  type="button"
-                  className="px-5 py-1 border border-gray-400 bg-gray-100 hover:bg-gray-200 shadow-sm text-[11px] font-bold uppercase cursor-pointer rounded" 
-                  onClick={() => setSelectedJournalEntry(null)}
-                >
-                  Cerrar
-                </button>
-              </div>
+            <div className="bg-white flex flex-col w-full h-full relative overflow-hidden">
+              <JournalEntry 
+                isModal={true} 
+                initialEntry={selectedJournalEntry} 
+                onClose={() => setSelectedJournalEntry(null)} 
+              />
             </div>
           </Window>
+        </div>
+      )}
+
+      {/* Selector de CEBE (igual que en Analítica > Desviación) */}
+      {showCebeSel && (
+        <div className="fixed inset-0 z-[4000] flex items-center justify-center pointer-events-none">
+          <div className="pointer-events-auto shadow-2xl relative" style={{ width: centerDR.size.w, height: centerDR.size.h, left: centerDR.pos.x, top: centerDR.pos.y, position: 'absolute' }}>
+            <div onMouseDown={e => centerDR.onDragDown(e)} className="h-[30px] bg-[#4472c4] flex items-center justify-between px-3 cursor-move shrink-0">
+              <span className="text-white text-[12px] font-bold">Selección de CEBE</span>
+              <button type="button" onClick={() => setShowCebeSel(false)} className="w-[22px] h-[22px] flex items-center justify-center hover:bg-red-500 text-white"><X size={14} strokeWidth={2.5} /></button>
+            </div>
+            <div className="bg-white" style={{ height: 'calc(100% - 30px)' }}>
+              <AnalyticalCenters type="cebe" isModal={true} onSelect={(val) => { setCebeInput(val || ''); if ((val || '') !== (currentCebe || '')) handleCebeChange({ target: { value: val || '' } }); setShowCebeSel(false); }} />
+            </div>
+
+            {/* Resize Handles */}
+            <div onMouseDown={e => centerDR.onResizeDown(e, 'e')} className="absolute top-0 right-0 w-2 h-full cursor-e-resize" />
+            <div onMouseDown={e => centerDR.onResizeDown(e, 's')} className="absolute bottom-0 left-0 w-full h-2 cursor-s-resize" />
+            <div onMouseDown={e => centerDR.onResizeDown(e, 'se')} className="absolute bottom-0 right-0 w-3 h-3 cursor-se-resize z-10" />
+          </div>
         </div>
       )}
     </div>

@@ -246,8 +246,8 @@ export default function TrialBalance() {
   };
 
   return (
-    <div className="flex flex-col h-full bg-[#f0f0f0] font-sans text-[11px] text-slate-800">
-      <div className="flex flex-1 overflow-hidden relative">
+    <div className="flex flex-col h-full bg-white p-3 font-sans text-[11px] text-slate-800 overflow-hidden">
+      <div className="flex flex-1 overflow-hidden relative bg-white border border-[#718096] rounded shadow-md">
         {/* Sidebar Filters */}
         {showSidebar && (
         <>

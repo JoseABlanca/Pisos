@@ -1,5 +1,5 @@
 import { useState, useEffect, useMemo, useCallback } from 'react';
-import { Search, Download, Trash2, X, FileArchive, FileText, Building2, User, Landmark, Zap, Users as UsersIcon, Wrench, UserCircle, PieChart, Eye } from 'lucide-react';
+import { Search, Download, Trash2, X, FileArchive, FileText, Building2, User, Landmark, Zap, Users as UsersIcon, Wrench, UserCircle, PieChart, Eye, HelpCircle, Plus } from 'lucide-react';
 import { useNavigate, useOutletContext } from 'react-router-dom';
 import { db } from '../firebase/config';
 import { collection, query, where, getDocs, onSnapshot, doc, setDoc, deleteDoc, enableNetwork, disableNetwork } from 'firebase/firestore';
@@ -34,6 +34,7 @@ export default function RealEstate() {
   const [showSidebar, setShowSidebar] = useState(true);
   const [isUploading, setIsUploading] = useState(false);
   const [statusFilter, setStatusFilter] = useState('todos');
+  const [activeHelpTooltip, setActiveHelpTooltip] = useState(null);
 
   useEffect(() => {
     const handleResize = () => setIsMobile(window.innerWidth < 768);
@@ -63,7 +64,7 @@ export default function RealEstate() {
 
   useEffect(() => {
     if (!user) return;
-    
+
     const unsubPartners = onSnapshot(
       query(collection(db, 'partners'), where('userId', 'in', queryUserIds?.length > 0 ? queryUserIds : [user.uid])),
       (snap) => {
@@ -116,7 +117,7 @@ export default function RealEstate() {
   const transformServices = (servicesData) => {
     if (Array.isArray(servicesData)) return servicesData;
     if (!servicesData || typeof servicesData !== 'object') return [];
-    
+
     const mapped = [];
     const mapping = {
       electricity: 'Electricidad',
@@ -410,12 +411,12 @@ export default function RealEstate() {
     if (!target) return;
     setSelectedTenantIndex(null);
     setSelectedServiceIndex(null);
-    
+
     // Find the latest property from properties state to avoid stale data
     const latestProperty = properties.find(p => p.id === target.id) || target;
     const financialsObj = latestProperty.financials || {};
 
-    setFormData({ 
+    setFormData({
       ...latestProperty,
       purchaseDate: latestProperty.purchaseDate || financialsObj.acquisitionDate || '',
       acquisitionPrice: latestProperty.acquisitionPrice || financialsObj.purchasePrice || '',
@@ -507,8 +508,8 @@ export default function RealEstate() {
 
     try {
       if (isEditing) {
-        updatedProperty = { 
-          ...formData, 
+        updatedProperty = {
+          ...formData,
           monthlyRent: calculatedMonthlyRent.toString(),
           financials: syncedFinancials
         };
@@ -518,12 +519,12 @@ export default function RealEstate() {
         }
         setProperties(newProps);
       } else {
-        const newId = formData.id && !properties.find(p => p.id === formData.id) 
-          ? formData.id 
+        const newId = formData.id && !properties.find(p => p.id === formData.id)
+          ? formData.id
           : doc(collection(db, 'properties')).id;
-        updatedProperty = { 
-          ...formData, 
-          id: newId, 
+        updatedProperty = {
+          ...formData,
+          id: newId,
           monthlyRent: calculatedMonthlyRent.toString(),
           financials: syncedFinancials
         };
@@ -533,7 +534,7 @@ export default function RealEstate() {
         }
         setProperties(newProps);
       }
-      
+
       await savePropertyToCloud(updatedProperty);
       if (updatedAccessory) {
         await savePropertyToCloud(updatedAccessory);
@@ -578,7 +579,7 @@ export default function RealEstate() {
   const filteredProperties = properties.filter(p => {
     if (statusFilter !== 'todos' && (p.status || 'activo') !== statusFilter) return false;
     if (!isFilterActive && !filterValue) return true;
-    
+
     let val = String(p[filterColumn] || '').toLowerCase();
     if (filterColumn === 'tenants' && Array.isArray(p.tenants)) {
       val = p.tenants.map(t => t.name === 'OTRO' ? t.customName : t.name).join(' ').toLowerCase();
@@ -592,7 +593,7 @@ export default function RealEstate() {
       case '<=': return val <= searchVal;
       case '>=': return val >= searchVal;
       case '<>': return val !== searchVal;
-      case 'contains': 
+      case 'contains':
       default:
         return val.includes(searchVal);
     }
@@ -602,7 +603,7 @@ export default function RealEstate() {
     return filteredProperties.map(p => {
       const activeRentalsForP = rentals.filter(r => r.propertyId === p.id && r.status === 'activo');
       const calculatedRentForP = activeRentalsForP.reduce((sum, r) => sum + (parseFloat(r.rentAmount) || 0), 0);
-      
+
       const activeTenantsNames = activeRentalsForP.flatMap(r => {
         const names = [];
         if (Array.isArray(r.tenants)) {
@@ -620,10 +621,10 @@ export default function RealEstate() {
         }
         return names;
       }).filter(Boolean);
-      
+
       const uniqueActiveTenantsNames = [...new Set(activeTenantsNames)];
       const tenantDisplay = uniqueActiveTenantsNames.join(', ') || '(Sin inquilino)';
-      
+
       return {
         ...p,
         tenantDisplay,
@@ -656,7 +657,7 @@ export default function RealEstate() {
     }, (error) => {
       console.error("Error fetching accounts realtime:", error);
     });
-    
+
     const qCebes = query(collection(db, 'analytical_centers'), where('userId', 'in', queryUserIds?.length > 0 ? queryUserIds : [user.uid]), where('type', '==', 'cebe'));
     const unsubCebes = onSnapshot(qCebes, (snap) => setCebes(snap.docs.map(d => ({ ...d.data(), id: d.id }))));
 
@@ -753,14 +754,14 @@ export default function RealEstate() {
       return (
         <div className="flex flex-col gap-5">
           <div className={`grid ${isMobile ? 'grid-cols-1' : 'grid-cols-2'} gap-5`}>
-          <div className="space-y-2.5">
-            <div className="space-y-1">
-              <label className="text-[10px] font-bold text-[#444] uppercase tracking-wide block">Nombre de la Finca:</label>
-              <input type="text" className="w-full border border-[#999] px-2.5 py-1 text-[11px] text-[#222] bg-white outline-none focus:border-[#2b579a] focus:bg-[#fffee0] transition-colors rounded-none shadow-xs" value={formData.name || ''} onChange={e => setFormData({ ...formData, name: e.target.value })} />
-            </div>
-            <div className="space-y-1">
-              <label className="text-[10px] font-bold text-[#444] uppercase tracking-wide block">Activo Accesorio (Opcional):</label>
-              <select className="w-full border border-[#999] px-2 py-1 text-[11px] text-[#222] bg-white outline-none focus:border-[#2b579a] focus:bg-[#fffee0] transition-colors rounded-none shadow-xs cursor-pointer" value={formData.accessoryPropertyId || ''} onChange={e => {
+            <div className="space-y-2.5">
+              <div className="space-y-1">
+                <label className="text-[10px] font-bold text-[#444] uppercase tracking-wide block">Nombre de la Finca:</label>
+                <input type="text" className="w-full border border-[#999] px-2.5 py-1 text-[11px] text-[#222] bg-white outline-none focus:border-[#2b579a] focus:bg-[#fffee0] transition-colors rounded-none shadow-xs" value={formData.name || ''} onChange={e => setFormData({ ...formData, name: e.target.value })} />
+              </div>
+              <div className="space-y-1">
+                <label className="text-[10px] font-bold text-[#444] uppercase tracking-wide block">Activo Accesorio (Opcional):</label>
+                <select className="w-full border border-[#999] px-2 py-1 text-[11px] text-[#222] bg-white outline-none focus:border-[#2b579a] focus:bg-[#fffee0] transition-colors rounded-none shadow-xs cursor-pointer" value={formData.accessoryPropertyId || ''} onChange={e => {
                   const val = e.target.value;
                   setFormData({ ...formData, accessoryPropertyId: val });
                   if (val) {
@@ -770,129 +771,120 @@ export default function RealEstate() {
                     setAccessoryFormData(null);
                   }
                 }}>
-                <option value="">-- Ninguno --</option>
-                {properties.filter(p => p.id !== formData.id).map(p => (
-                  <option key={p.id} value={p.name}>{p.name}</option>
-                ))}
-              </select>
+                  <option value="">-- Ninguno --</option>
+                  {properties.filter(p => p.id !== formData.id).map(p => (
+                    <option key={p.id} value={p.name}>{p.name}</option>
+                  ))}
+                </select>
+              </div>
+              <div className="space-y-1">
+                <label className="text-[10px] font-bold text-[#444] uppercase tracking-wide block">Dirección:</label>
+                <input type="text" className="w-full border border-[#999] px-2.5 py-1 text-[11px] text-[#222] bg-white outline-none focus:border-[#2b579a] focus:bg-[#fffee0] transition-colors rounded-none shadow-xs" value={formData.address || ''} onChange={e => setFormData({ ...formData, address: e.target.value })} />
+              </div>
+              <div className="space-y-1">
+                <label className="text-[10px] font-bold text-[#444] uppercase tracking-wide block">País:</label>
+                <input type="text" className="w-full border border-[#999] px-2.5 py-1 text-[11px] text-[#222] bg-white outline-none focus:border-[#2b579a] focus:bg-[#fffee0] transition-colors rounded-none shadow-xs" value={formData.country || ''} onChange={e => setFormData({ ...formData, country: e.target.value })} />
+              </div>
+              <div className="space-y-1">
+                <label className="text-[10px] font-bold text-[#444] uppercase tracking-wide block">Región/Provincia:</label>
+                <input type="text" className="w-full border border-[#999] px-2.5 py-1 text-[11px] text-[#222] bg-white outline-none focus:border-[#2b579a] focus:bg-[#fffee0] transition-colors rounded-none shadow-xs" value={formData.region || ''} onChange={e => setFormData({ ...formData, region: e.target.value })} />
+              </div>
+              <div className="space-y-1">
+                <label className="text-[10px] font-bold text-[#444] uppercase tracking-wide block">Población:</label>
+                <input type="text" className="w-full border border-[#999] px-2.5 py-1 text-[11px] text-[#222] bg-white outline-none focus:border-[#2b579a] focus:bg-[#fffee0] transition-colors rounded-none shadow-xs" value={formData.city || ''} onChange={e => setFormData({ ...formData, city: e.target.value })} />
+              </div>
+              <div className="space-y-1">
+                <label className="text-[10px] font-bold text-[#444] uppercase tracking-wide block">Código Postal:</label>
+                <input type="text" className="w-full border border-[#999] px-2.5 py-1 text-[11px] text-[#222] bg-white outline-none focus:border-[#2b579a] focus:bg-[#fffee0] transition-colors rounded-none shadow-xs" value={formData.cp || ''} onChange={e => setFormData({ ...formData, cp: e.target.value })} />
+              </div>
             </div>
-            <div className="space-y-1">
-              <label className="text-[10px] font-bold text-[#444] uppercase tracking-wide block">Dirección:</label>
-              <input type="text" className="w-full border border-[#999] px-2.5 py-1 text-[11px] text-[#222] bg-white outline-none focus:border-[#2b579a] focus:bg-[#fffee0] transition-colors rounded-none shadow-xs" value={formData.address || ''} onChange={e => setFormData({ ...formData, address: e.target.value })} />
-            </div>
-            <div className="space-y-1">
-              <label className="text-[10px] font-bold text-[#444] uppercase tracking-wide block">País:</label>
-              <input type="text" className="w-full border border-[#999] px-2.5 py-1 text-[11px] text-[#222] bg-white outline-none focus:border-[#2b579a] focus:bg-[#fffee0] transition-colors rounded-none shadow-xs" value={formData.country || ''} onChange={e => setFormData({ ...formData, country: e.target.value })} />
-            </div>
-            <div className="space-y-1">
-              <label className="text-[10px] font-bold text-[#444] uppercase tracking-wide block">Región/Provincia:</label>
-              <input type="text" className="w-full border border-[#999] px-2.5 py-1 text-[11px] text-[#222] bg-white outline-none focus:border-[#2b579a] focus:bg-[#fffee0] transition-colors rounded-none shadow-xs" value={formData.region || ''} onChange={e => setFormData({ ...formData, region: e.target.value })} />
-            </div>
-            <div className="space-y-1">
-              <label className="text-[10px] font-bold text-[#444] uppercase tracking-wide block">Población:</label>
-              <input type="text" className="w-full border border-[#999] px-2.5 py-1 text-[11px] text-[#222] bg-white outline-none focus:border-[#2b579a] focus:bg-[#fffee0] transition-colors rounded-none shadow-xs" value={formData.city || ''} onChange={e => setFormData({ ...formData, city: e.target.value })} />
-            </div>
-            <div className="space-y-1">
-              <label className="text-[10px] font-bold text-[#444] uppercase tracking-wide block">Código Postal:</label>
-              <input type="text" className="w-full border border-[#999] px-2.5 py-1 text-[11px] text-[#222] bg-white outline-none focus:border-[#2b579a] focus:bg-[#fffee0] transition-colors rounded-none shadow-xs" value={formData.cp || ''} onChange={e => setFormData({ ...formData, cp: e.target.value })} />
-            </div>
-          </div>
-          <div className="space-y-2.5">
-            <div className="space-y-1">
-              <label className="text-[10px] font-bold text-[#444] uppercase tracking-wide block">Ref. Catastral:</label>
-              <input type="text" className="w-full border border-[#999] px-2.5 py-1 text-[11px] text-[#222] bg-white outline-none focus:border-[#2b579a] focus:bg-[#fffee0] transition-colors rounded-none shadow-xs font-mono" value={formData.catastral || ''} onChange={e => setFormData({ ...formData, catastral: e.target.value })} />
-            </div>
-            <div className="space-y-1">
-              <label className="text-[10px] font-bold text-[#444] uppercase tracking-wide block">Reg. Propiedad:</label>
-              <input type="text" className="w-full border border-[#999] px-2.5 py-1 text-[11px] text-[#222] bg-white outline-none focus:border-[#2b579a] focus:bg-[#fffee0] transition-colors rounded-none shadow-xs" placeholder="Tomo, Libro, Finca..." value={formData.registry || ''} onChange={e => setFormData({ ...formData, registry: e.target.value })} />
-            </div>
-            <div className="space-y-1">
-              <label className="text-[10px] font-bold text-[#444] uppercase tracking-wide block">Número de cuenta:</label>
-              <input type="text" className="w-full border border-[#999] px-2.5 py-1 text-[11px] text-[#222] bg-white outline-none focus:border-[#2b579a] focus:bg-[#fffee0] transition-colors rounded-none shadow-xs font-mono" value={formData.accountNumber || ''} onChange={e => setFormData({ ...formData, accountNumber: e.target.value })} />
-            </div>
-            <div className="space-y-1">
-              <label className="text-[10px] font-bold text-[#444] uppercase tracking-wide block" title="Doble clic en la caja de abajo para ir a la configuración de cuentas">Cuenta contable asociada:</label>
-              <select className="w-full border border-[#999] px-2 py-1 text-[11px] text-[#222] bg-white outline-none focus:border-[#2b579a] focus:bg-[#fffee0] transition-colors rounded-none shadow-xs cursor-pointer" value={formData.accountingAccount || ''} onChange={e => setFormData({ ...formData, accountingAccount: e.target.value })} onDoubleClick={() => navigate('/accounts')} title="Doble clic para añadir/editar cuentas">
-                <option value=""></option>
-                {formData.accountingAccount && !availableAccounts.some(acc => acc.code === formData.accountingAccount) && (
-                  <option value={formData.accountingAccount}>{formData.accountingAccount} (No en PGC / Inválida)</option>
-                )}
-                {availableAccounts.map(acc => (
-                  <option key={acc.code} value={acc.code}>{acc.code} - {acc.name}</option>
-                ))}
-              </select>
-            </div>
-            <div className="space-y-1">
-              <label className="text-[10px] font-bold text-[#444] uppercase tracking-wide block">CEBE Asociado:</label>
-              <select className="w-full border border-[#999] px-2 py-1 text-[11px] text-[#222] bg-white outline-none focus:border-[#2b579a] focus:bg-[#fffee0] transition-colors rounded-none shadow-xs cursor-pointer" value={formData.cebe || ''} onChange={e => setFormData({ ...formData, cebe: e.target.value })}>
-                <option value=""></option>
-                {cebes.map(c => (
-                  <option key={c.id} value={c.code}>{c.code} - {c.name}</option>
-                ))}
-              </select>
-            </div>
-          </div>
-        </div>
-        <div className="flex-1 flex flex-col bg-white border border-[#ccc] shadow-xs mt-2">
-          <div className="px-3 py-1.5 border-b border-[#ccc] flex justify-between items-center bg-[#fafafa]">
-            <h3 className="text-[11px] font-bold text-[#333] uppercase">Documentos ({formData.name || 'Activo'})</h3>
-            <div className="relative">
-              <input type="file" multiple id="asset-doc-upload" className="hidden" onChange={handleAssetFileUpload} disabled={isUploading} />
-              <label htmlFor="asset-doc-upload" className={`border border-[#888] bg-[#e1e1e1] hover:bg-[#d0d0d0] active:bg-[#c0c0c0] px-3 py-1 text-[11px] text-[#333] font-bold shadow-xs flex items-center space-x-1.5 cursor-pointer select-none transition-colors rounded-none ${isUploading ? 'opacity-50 pointer-events-none' : ''}`}>
-                <FileArchive className="w-3.5 h-3.5 text-[#444]" />
-                <span>{isUploading ? 'Subiendo...' : 'Subir Documento'}</span>
-              </label>
-            </div>
-          </div>
-          <div className="flex-1 bg-white overflow-hidden flex flex-col min-h-[180px]">
-            <div className="flex-1 overflow-auto">
-              <table style={{ zoom: tableZoom }} className="w-full border-collapse text-[11px] border-0">
-                <thead className="sticky top-0 bg-[#fafafa] border-b border-[#ccc] text-[#333]">
-                  <tr>
-                    <TableHeaderWithFilter key="name" label="Documento" columnKey="name" data={formData.docs} tableId="realestate-docs" className="w-[35%] py-1.5 px-2.5 text-left font-bold border-r border-[#ccc] text-[10px] text-[#333] uppercase" />
-                    <TableHeaderWithFilter key="concept" label="Concepto" columnKey="concept" data={formData.docs} tableId="realestate-docs" className="w-[35%] py-1.5 px-2.5 text-left font-bold border-r border-[#ccc] text-[10px] text-[#333] uppercase" />
-                    <TableHeaderWithFilter key="date" label="Fecha" columnKey="date" data={formData.docs} tableId="realestate-docs" className="w-[18%] py-1.5 px-2.5 text-left font-bold border-r border-[#ccc] text-[10px] text-[#333] uppercase" />
-                    <th className="w-[12%] py-1.5 px-2 text-center font-bold text-[10px] text-[#333] uppercase">Acción</th>
-                  </tr>
-                </thead>
-                <tbody>
-                  {(!formData.docs || formData.docs.length === 0) ? (
-                    <tr>
-                      <td colSpan="4" className="text-center text-[#888] italic py-8 bg-[#fafafa]">No hay documentos asociados a este activo.</td>
-                    </tr>
-                  ) : (
-                    applyTableFilters(formData.docs, 'realestate-docs').map((doc) => (
-                      <tr key={doc.id} className="border-b border-[#eee] hover:bg-[#f5f7fa]">
-                        <td className="py-1 px-2.5 border-r border-[#eee]">
-                          <div className="flex items-center space-x-2 truncate">
-                            <FileText className="w-3.5 h-3.5 text-[#666] shrink-0" />
-                            <span className="truncate text-[#222]" title={doc.name}>{doc.name}</span>
-                          </div>
-                        </td>
-                        <td className="py-0.5 px-1.5 border-r border-[#eee]">
-                          <input type="text" className="w-full border border-[#ccc] focus:border-[#2b579a] px-2 py-0.5 text-[11px] bg-white outline-none focus:bg-[#fffee0] rounded-none" value={doc.concept || ''} onChange={(e) => updateAssetDocument(doc.id, 'concept', e.target.value)} placeholder="Ej. Escritura, IBI..." />
-                        </td>
-                        <td className="py-0.5 px-1.5 border-r border-[#eee]">
-                          <input type="date" className="w-full border border-[#ccc] focus:border-[#2b579a] px-2 py-0.5 text-[11px] bg-white outline-none focus:bg-[#fffee0] rounded-none" value={doc.date || ''} onChange={(e) => updateAssetDocument(doc.id, 'date', e.target.value)} />
-                        </td>
-                        <td className="py-1 px-2 text-center">
-                          <div className="flex justify-center items-center space-x-1.5">
-                            <button className="border border-[#ccc] bg-[#f8f9fa] hover:bg-[#e9ecef] p-1 text-[#444] hover:text-[#111] shadow-2xs rounded-[2px]" onClick={() => setPreviewDocument(doc)} title="Previsualizar"><Eye className="w-3.5 h-3.5" /></button>
-                            <button className="border border-[#ccc] bg-[#f8f9fa] hover:bg-gray-50 p-1 text-gray-500 hover:text-gray-500 shadow-2xs rounded-[2px]" onClick={() => deleteAssetDocument(doc.id)} title="Eliminar"><Trash2 className="w-3.5 h-3.5" /></button>
-                          </div>
-                        </td>
-                      </tr>
-                    ))
+            <div className="space-y-2.5">
+              <div className="space-y-1">
+                <label className="text-[10px] font-bold text-[#444] uppercase tracking-wide block">Ref. Catastral:</label>
+                <input type="text" className="w-full border border-[#999] px-2.5 py-1 text-[11px] text-[#222] bg-white outline-none focus:border-[#2b579a] focus:bg-[#fffee0] transition-colors rounded-none shadow-xs font-mono" value={formData.catastral || ''} onChange={e => setFormData({ ...formData, catastral: e.target.value })} />
+              </div>
+              <div className="space-y-1">
+                <label className="text-[10px] font-bold text-[#444] uppercase tracking-wide block">Reg. Propiedad:</label>
+                <input type="text" className="w-full border border-[#999] px-2.5 py-1 text-[11px] text-[#222] bg-white outline-none focus:border-[#2b579a] focus:bg-[#fffee0] transition-colors rounded-none shadow-xs" placeholder="Tomo, Libro, Finca..." value={formData.registry || ''} onChange={e => setFormData({ ...formData, registry: e.target.value })} />
+              </div>
+              <div className="space-y-1">
+                <label className="text-[10px] font-bold text-[#444] uppercase tracking-wide block">Número de cuenta:</label>
+                <input type="text" className="w-full border border-[#999] px-2.5 py-1 text-[11px] text-[#222] bg-white outline-none focus:border-[#2b579a] focus:bg-[#fffee0] transition-colors rounded-none shadow-xs font-mono" value={formData.accountNumber || ''} onChange={e => setFormData({ ...formData, accountNumber: e.target.value })} />
+              </div>
+              <div className="space-y-1">
+                <label className="text-[10px] font-bold text-[#444] uppercase tracking-wide block" title="Doble clic en la caja de abajo para ir a la configuración de cuentas">Cuenta contable asociada:</label>
+                <select className="w-full border border-[#999] px-2 py-1 text-[11px] text-[#222] bg-white outline-none focus:border-[#2b579a] focus:bg-[#fffee0] transition-colors rounded-none shadow-xs cursor-pointer" value={formData.accountingAccount || ''} onChange={e => setFormData({ ...formData, accountingAccount: e.target.value })} onDoubleClick={() => navigate('/accounts')} title="Doble clic para añadir/editar cuentas">
+                  <option value=""></option>
+                  {formData.accountingAccount && !availableAccounts.some(acc => acc.code === formData.accountingAccount) && (
+                    <option value={formData.accountingAccount}>{formData.accountingAccount} (No en PGC / Inválida)</option>
                   )}
-                </tbody>
-              </table>
+                  {availableAccounts.map(acc => (
+                    <option key={acc.code} value={acc.code}>{acc.code} - {acc.name}</option>
+                  ))}
+                </select>
+              </div>
+            </div>
+          </div>
+          <div className="flex-1 flex flex-col mt-4">
+            <div className="flex justify-between items-end mb-2">
+              <h3 className="text-[11px] font-bold text-[#333] italic uppercase tracking-wide">Documentos</h3>
+              <div className="relative">
+                <input type="file" multiple id="asset-doc-upload" className="hidden" onChange={handleAssetFileUpload} disabled={isUploading} />
+                <label htmlFor="asset-doc-upload" className={`border border-gray-300 bg-[#f5f5f5] hover:bg-[#ebebeb] px-3 py-1 text-[11px] text-[#333] font-medium flex items-center space-x-1.5 cursor-pointer transition-colors ${isUploading ? 'opacity-50 pointer-events-none' : ''}`}>
+                  <Plus className="w-3.5 h-3.5 text-gray-500" />
+                  <span>{isUploading ? 'Subiendo...' : 'Adjuntar'}</span>
+                </label>
+              </div>
+            </div>
+            <div className="flex-1 bg-white overflow-hidden flex flex-col min-h-[180px]">
+              <div className="flex-1 overflow-auto border border-gray-50 rounded-sm">
+                <table style={{ zoom: tableZoom }} className="modern-table w-full border-0">
+                  <thead>
+                    <tr>
+                      <th className="w-[30%] text-left text-[10px]">Documento</th>
+                      <th className="w-[35%] text-left text-[10px]">Concepto</th>
+                      <th className="w-[20%] text-left text-[10px]">Fecha</th>
+                      <th className="w-[15%] text-center text-[10px]">Acción</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {(!formData.docs || formData.docs.length === 0) ? (
+                      <tr>
+                        <td colSpan="4" className="text-center text-[#888] italic py-8">No hay documentos asociados a este activo.</td>
+                      </tr>
+                    ) : (
+                      applyTableFilters(formData.docs, 'realestate-docs').map((doc) => (
+                        <tr key={doc.id}>
+                          <td className="py-2 px-3">
+                            <div className="flex items-center space-x-2 truncate">
+                              <FileText className="w-3.5 h-3.5 text-gray-500 shrink-0" />
+                              <span className="truncate text-gray-700" title={doc.name}>{doc.name}</span>
+                            </div>
+                          </td>
+                          <td className="py-1 px-2">
+                            <input type="text" className="w-full border border-transparent hover:border-gray-300 focus:border-[#2b579a] px-2 py-1 text-[11px] bg-transparent focus:bg-white outline-none transition-colors rounded-none" value={doc.concept || ''} onChange={(e) => updateAssetDocument(doc.id, 'concept', e.target.value)} placeholder="Añadir concepto..." />
+                          </td>
+                          <td className="py-1 px-2">
+                            <input type="date" className="w-full border border-transparent hover:border-gray-300 focus:border-[#2b579a] px-2 py-1 text-[11px] bg-transparent focus:bg-white outline-none transition-colors rounded-none text-gray-700" value={doc.date || ''} onChange={(e) => updateAssetDocument(doc.id, 'date', e.target.value)} />
+                          </td>
+                          <td className="py-2 px-3 text-center">
+                            <div className="flex justify-center items-center space-x-4">
+                              <button className="text-gray-500 hover:text-blue-600 transition-colors" onClick={() => setPreviewDocument(doc)} title="Previsualizar"><Eye className="w-3.5 h-3.5" /></button>
+                              <button className="text-gray-500 hover:text-red-600 transition-colors" onClick={() => deleteAssetDocument(doc.id)} title="Eliminar"><Trash2 className="w-3.5 h-3.5" /></button>
+                            </div>
+                          </td>
+                        </tr>
+                      ))
+                    )}
+                  </tbody>
+                </table>
+              </div>
             </div>
           </div>
         </div>
-      </div>
       );
     }
-    
+
     if (activeTab === 'Hipoteca') return <HipotecaTab formData={formData} setFormData={setFormData} user={user} isMobile={isMobile} setPreviewDocument={setPreviewDocument} isUploading={isUploading} setIsUploading={setIsUploading} availableAccounts={availableAccounts} cecos={cecos} queryUserIds={queryUserIds} />;
     if (activeTab === 'Servicios') return <ServiciosTab formData={formData} setFormData={setFormData} user={user} isMobile={isMobile} setPreviewDocument={setPreviewDocument} isUploading={isUploading} setIsUploading={setIsUploading} availableAccounts={availableAccounts} />;
     if (activeTab === 'Comunidad') return <ComunidadTab formData={formData} setFormData={setFormData} user={user} isMobile={isMobile} setPreviewDocument={setPreviewDocument} isUploading={isUploading} setIsUploading={setIsUploading} availableAccounts={availableAccounts} />;
@@ -910,7 +902,7 @@ export default function RealEstate() {
             <div className="flex-1 overflow-hidden flex flex-col">
               {finanzasSubTab === 'principal' && <FinanzasTab formData={formData} setFormData={setFormData} rentals={rentals} user={user} setPreviewDocument={setPreviewDocument} />}
               {finanzasSubTab === 'accesorio' && <FinanzasTab formData={accessoryFormData} setFormData={setAccessoryFormData} rentals={rentals} user={user} setPreviewDocument={setPreviewDocument} />}
-              {finanzasSubTab === 'agrupado' && <div className="flex-1 pointer-events-none opacity-80 flex flex-col"><FinanzasTab formData={combinedFormData} setFormData={() => {}} rentals={rentals} user={user} setPreviewDocument={setPreviewDocument} /></div>}
+              {finanzasSubTab === 'agrupado' && <div className="flex-1 pointer-events-none opacity-80 flex flex-col"><FinanzasTab formData={combinedFormData} setFormData={() => { }} rentals={rentals} user={user} setPreviewDocument={setPreviewDocument} /></div>}
             </div>
           </div>
         );
@@ -955,9 +947,9 @@ export default function RealEstate() {
             </div>
             <div className="relative" onClick={e => e.stopPropagation()}>
               <input type="text" placeholder="Buscar en el fichero (Alt+B)" value={filterValue} onChange={(e) => {
-                  setFilterValue(e.target.value);
-                  setIsFilterActive(e.target.value.length > 0);
-                }} className="pl-2 pr-8 py-1 border-b border-gray-400 text-[12px] w-64 outline-none focus:border-blue-500" />
+                setFilterValue(e.target.value);
+                setIsFilterActive(e.target.value.length > 0);
+              }} className="pl-2 pr-8 py-1 border-b border-gray-400 text-[12px] w-64 outline-none focus:border-blue-500" />
               <Search className="w-4 h-4 absolute right-1 top-1/2 -translate-y-1/2 text-gray-500" />
             </div>
           </div>
@@ -979,10 +971,10 @@ export default function RealEstate() {
                   {visibleColumns.includes('accountingAccount') && <TableHeaderWithFilter label="Cuenta Contable" columnKey="accountingAccount" data={propertiesWithCalculatedRentals} tableId="properties" className="hidden md:table-cell" />}
                   {visibleColumns.includes('cebe') && <TableHeaderWithFilter label="CEBE" columnKey="cebe" data={propertiesWithCalculatedRentals} tableId="properties" className="hidden md:table-cell" />}
                   {visibleColumns.includes('ceco') && <TableHeaderWithFilter label="CECO" columnKey="ceco" data={propertiesWithCalculatedRentals} tableId="properties" className="hidden md:table-cell" />}
-                  
+
                   {visibleColumns.includes('tenantDisplay') && <TableHeaderWithFilter label="Inquilino" columnKey="tenantDisplay" data={propertiesWithCalculatedRentals} tableId="properties" className="w-24 md:w-32" />}
                   {visibleColumns.includes('rentTotal') && <TableHeaderWithFilter label="Renta Mensual" columnKey="rentTotal" data={propertiesWithCalculatedRentals} tableId="properties" className="text-right" />}
-                  
+
                   {visibleColumns.includes('bank') && <TableHeaderWithFilter label="Banco" columnKey="bank" data={propertiesWithCalculatedRentals} tableId="properties" />}
                   {visibleColumns.includes('loanNumber') && <TableHeaderWithFilter label="Nº Préstamo" columnKey="loanNumber" data={propertiesWithCalculatedRentals} tableId="properties" />}
                   {visibleColumns.includes('loanAmount') && <TableHeaderWithFilter label="Imp. Concedido" columnKey="loanAmount" data={propertiesWithCalculatedRentals} tableId="properties" className="text-right" />}
@@ -1020,10 +1012,10 @@ export default function RealEstate() {
                     {visibleColumns.includes('accountingAccount') && <EditableCell className="hidden md:table-cell" value={p.accountingAccount} onSave={(val) => handleSaveField(p, 'accountingAccount', val)} />}
                     {visibleColumns.includes('cebe') && <EditableCell className="hidden md:table-cell" value={p.cebe} options={cebes.map(c => ({ id: c.id, name: c.name }))} onSave={(val) => handleSaveField(p, 'cebe', val)} />}
                     {visibleColumns.includes('ceco') && <EditableCell className="hidden md:table-cell" value={p.ceco} options={cecos.map(c => ({ id: c.id, name: c.name }))} onSave={(val) => handleSaveField(p, 'ceco', val)} />}
-                    
+
                     {visibleColumns.includes('tenantDisplay') && <td className="truncate max-w-[100px]" title={p.tenantDisplay}>{p.tenantDisplay}</td>}
                     {visibleColumns.includes('rentTotal') && <td className="text-right">{p.rentTotal}</td>}
-                    
+
                     {visibleColumns.includes('bank') && <EditableCell value={p.bank} onSave={(val) => handleSaveField(p, 'bank', val)} />}
                     {visibleColumns.includes('loanNumber') && <EditableCell value={p.loanNumber} onSave={(val) => handleSaveField(p, 'loanNumber', val)} />}
                     {visibleColumns.includes('loanAmount') && <EditableCell className="text-right" type="number" value={p.loanAmount} onSave={(val) => handleSaveField(p, 'loanAmount', val)} />}
@@ -1051,17 +1043,13 @@ export default function RealEstate() {
         </div>
       </div>
 
-      <div className="flex justify-between items-center bg-[#fafafa] p-1 border-t border-[#808080] text-[10px]">
-        <div>{filteredProperties.length} activos encontrados</div>
-      </div>
-
       {/* Excel-style Filter Menu */}
       {renderFilterMenu()}
 
       {/* Preview Modal */}
       {previewDocument && (
         <div className="fixed inset-0 bg-black/40 backdrop-blur-sm flex items-center justify-center z-[60]">
-          <Window 
+          <Window
             title={`Vista Previa: ${previewDocument.name}`}
             width={isMobile ? "100%" : "800px"}
             initialPos={{ x: isMobile ? 0 : 100, y: isMobile ? 0 : 50 }}
@@ -1075,28 +1063,28 @@ export default function RealEstate() {
                 </div>
                 <div className="flex-1 overflow-auto bg-slate-100 flex items-center justify-center relative">
                   {(previewDocument.type?.toLowerCase().includes('pdf') || previewDocument.name.toLowerCase().endsWith('.pdf')) ? (
-                    <object 
-                      data={previewDocument.url} 
+                    <object
+                      data={previewDocument.url}
                       type="application/pdf"
-                      className="absolute inset-0 w-full h-full border-none" 
-                      title={previewDocument.name} 
+                      className="absolute inset-0 w-full h-full border-none"
+                      title={previewDocument.name}
                     >
-                      <iframe 
-                        src={`https://docs.google.com/viewer?url=${encodeURIComponent(previewDocument.url)}&embedded=true`} 
-                        className="absolute inset-0 w-full h-full border-none" 
-                        title={previewDocument.name} 
+                      <iframe
+                        src={`https://docs.google.com/viewer?url=${encodeURIComponent(previewDocument.url)}&embedded=true`}
+                        className="absolute inset-0 w-full h-full border-none"
+                        title={previewDocument.name}
                       />
                     </object>
                   ) : (previewDocument.type?.toLowerCase().includes('image') || previewDocument.name.toLowerCase().match(/\.(jpg|jpeg|png)$/)) ? (
-                    <img 
-                      src={previewDocument.url} 
-                      alt={previewDocument.name} 
-                      className="max-w-full max-h-full object-contain" 
+                    <img
+                      src={previewDocument.url}
+                      alt={previewDocument.name}
+                      className="max-w-full max-h-full object-contain"
                     />
                   ) : (
                     <div className="text-slate-500 font-bold p-10 text-center flex flex-col items-center">
                       <FileText className="w-16 h-16 text-slate-300 mb-4" />
-                      Vista previa no disponible en el navegador para este tipo de archivo.<br/>
+                      Vista previa no disponible en el navegador para este tipo de archivo.<br />
                       <a href={previewDocument.url} download={previewDocument.name} className="text-blue-600 underline mt-2 block">
                         Haz clic aquí para descargarlo manualmente
                       </a>
@@ -1113,33 +1101,54 @@ export default function RealEstate() {
       {showForm && (
         <ErrorBoundary>
           <div className="fixed inset-0 bg-gray-500/50 backdrop-blur-xs flex items-center justify-center z-50">
-            <Window 
+            <Window
               variant="classic"
-              title={isEditing ? `Editar Activo: ${formData.reference || formData.id || 'Nuevo'}` : "Nuevo Activo"} 
+              title={isEditing ? `Editar Activo: ${formData.reference || formData.id || 'Nuevo'}` : "Nuevo Activo"}
               width={isMobile ? "100%" : "1250px"}
               height={isMobile ? "100%" : "720px"}
               initialPos={{ x: isMobile ? 0 : 40, y: isMobile ? 0 : 10 }}
               onClose={() => setShowForm(false)}
               onMenuClick={() => setShowSidebar(!showSidebar)}
             >
-              <div className="flex flex-1 h-full min-h-0 bg-[#fafafa] relative">
+              <div className="flex flex-1 h-full min-h-0 bg-white relative">
                 {/* Sidebar - shown when showSidebar=true on both mobile and desktop */}
                 {showSidebar && (
-                  <div className={`bg-[#fafafa] border-r border-[#ccc] shrink-0 overflow-y-auto p-2 flex flex-col ${isMobile ? 'absolute inset-y-0 left-0 z-30 w-52' : 'w-52'}`}>
-                    <div className="border border-[#ccc] bg-[#f8f9fa] flex flex-col p-1 gap-1">
+                  <div className={`bg-white border-r border-[#ccc] shrink-0 overflow-y-auto p-2 flex flex-col ${isMobile ? 'absolute inset-y-0 left-0 z-30 w-52' : 'w-52'}`}>
+                    <div className="border border-[#ccc] bg-white flex flex-col p-1 gap-1">
                       {tabs.map((tab) => {
                         const isActive = activeTab === tab.id;
                         return (
                           <button
                             key={tab.id}
                             onClick={() => { setActiveTab(tab.id); setOpenFilterMenu(null); if (isMobile) setShowSidebar(false); }}
-                            className={`w-full text-left px-3 py-2 text-[11px] transition-all border ${
-                              isActive
-                                ? 'bg-[#e1e1e1] text-[#111] border-[#888] shadow-[inset_0_1px_2px_rgba(0,0,0,0.12)] border-l-4 border-l-[#2b579a] font-bold'
-                                : 'bg-white text-[#555] border-[#ddd] hover:bg-[#e9ecef] hover:text-[#111] font-medium'
-                            }`}
+                            className={`w-full flex items-center justify-between px-3 py-2 text-[11px] transition-all border ${isActive
+                              ? 'bg-[#e1e1e1] text-[#111] border-[#888] shadow-[inset_0_1px_2px_rgba(0,0,0,0.12)] border-l-4 border-l-[#2b579a] font-bold'
+                              : 'bg-white text-[#555] border-[#ddd] hover:bg-[#e9ecef] hover:text-[#111] font-medium'
+                              }`}
                           >
-                            {tab.id}
+                            <span>{tab.id}</span>
+                            {['Finanzas', 'Hipoteca', 'Reformas', 'Extracto ingresos gastos'].includes(tab.id) && (
+                              <div className="relative flex items-center">
+                                <HelpCircle
+                                  className="w-3.5 h-3.5 text-gray-500 hover:text-[#2b579a] transition-colors shrink-0"
+                                  onClick={(e) => {
+                                    e.stopPropagation();
+                                    setActiveHelpTooltip(activeHelpTooltip === tab.id ? null : tab.id);
+                                  }}
+                                />
+                                {activeHelpTooltip === tab.id && (
+                                  <>
+                                    <div className="fixed inset-0 z-40 cursor-default" onClick={(e) => { e.stopPropagation(); setActiveHelpTooltip(null); }}></div>
+                                    <div className="absolute left-6 top-1/2 -translate-y-1/2 z-50 bg-[#fffee0] border border-[#dcd9a3] shadow-md p-2 text-[10px] text-gray-800 w-36 rounded font-normal text-left whitespace-normal leading-tight" onClick={e => e.stopPropagation()}>
+                                      {tab.id === 'Finanzas' && 'Calculo para total propietarios'}
+                                      {tab.id === 'Hipoteca' && 'Calculo por propietario individual'}
+                                      {tab.id === 'Reformas' && 'Calculo para total propietarios'}
+                                      {tab.id === 'Extracto ingresos gastos' && 'Calculo por propietario individual'}
+                                    </div>
+                                  </>
+                                )}
+                              </div>
+                            )}
                           </button>
                         );
                       })}
@@ -1151,23 +1160,21 @@ export default function RealEstate() {
                   <div className="absolute inset-0 z-20 bg-black/30" onClick={() => setShowSidebar(false)} />
                 )}
                 {/* Tab Content Container */}
-                <div className="flex-1 bg-[#fafafa] flex flex-col relative overflow-hidden">
-                  <div className="flex-1 overflow-auto bg-[#fafafa] p-3">
-                    <div className="bg-white border border-[#ccc] shadow-sm p-4 min-h-full">
-                      {renderTabContent()}
-                    </div>
+                <div className="flex-1 bg-white flex flex-col relative overflow-hidden">
+                  <div className="flex-1 flex flex-col min-h-0 overflow-auto p-5">
+                    {renderTabContent()}
                   </div>
 
                   {/* Action Buttons */}
                   <div className="flex justify-end gap-2 p-3 bg-[#f5f5f5] border-t border-[#ccc] shrink-0">
-                    <button 
-                      className="w-[85px] py-[4px] border border-[#a0a0a0] bg-[#f5f5f5] hover:bg-[#e8e8e8] active:bg-[#d0d0d0] text-[12px] text-slate-800 shadow-xs font-normal select-none" 
+                    <button
+                      className="w-[85px] py-[4px] border border-[#a0a0a0] bg-[#f5f5f5] hover:bg-[#e8e8e8] active:bg-[#d0d0d0] text-[12px] text-slate-800 shadow-xs font-normal select-none"
                       onClick={handleSave}
                     >
                       Aceptar
                     </button>
-                    <button 
-                      className="w-[85px] py-[4px] border border-[#a0a0a0] bg-[#f5f5f5] hover:bg-[#e8e8e8] active:bg-[#d0d0d0] text-[12px] text-slate-800 shadow-xs font-normal select-none" 
+                    <button
+                      className="w-[85px] py-[4px] border border-[#a0a0a0] bg-[#f5f5f5] hover:bg-[#e8e8e8] active:bg-[#d0d0d0] text-[12px] text-slate-800 shadow-xs font-normal select-none"
                       onClick={() => setShowForm(false)}
                     >
                       Cancelar
@@ -1179,9 +1186,10 @@ export default function RealEstate() {
           </div>
         </ErrorBoundary>
       )}
-      
-      {/* Bottom Bar for Zoom */}
-      <div className="flex justify-end bg-[#fafafa] p-1 border-t border-gray-300 shrink-0 mt-auto z-10">
+
+      {/* Bottom Bar for Zoom & Count */}
+      <div className="flex justify-between items-center bg-[#fafafa] p-1 border-t border-gray-300 shrink-0 mt-auto z-10 text-[10px]">
+        <div className="text-[#333] pl-1 font-medium">{filteredProperties.length} activos encontrados</div>
         <ZoomControl />
       </div>
     </div>

@@ -326,7 +326,7 @@ export default function ServiciosTab({
             </div>
 
             {/* Expediente Digital del Servicio */}
-            <div className="p-4 flex-1 flex flex-col bg-slate-50">
+            <div className="p-4 flex-1 flex flex-col bg-white">
               <div className="flex justify-between items-center mb-3">
                 <h3 className="text-[12px] font-bold text-slate-800 uppercase italic">Documentos ({selectedService.company || selectedService.type})</h3>
                 <div className="relative">
@@ -349,7 +349,7 @@ export default function ServiciosTab({
               </div>
 
               <div className="flex-1 border border-[#808080] bg-white overflow-hidden flex flex-col min-h-[250px]">
-                <div className="bg-[#fafafa] grid grid-cols-12 gap-2 p-2 border-b border-[#808080] text-[10px] font-bold uppercase">
+                <div className="bg-[#f0f0f0] grid grid-cols-12 gap-2 p-2 border-b border-[#808080] text-[10px] font-bold uppercase">
                   <div className="col-span-4">Documento</div>
                   <div className="col-span-4">Concepto</div>
                   <div className="col-span-2">Fecha</div>

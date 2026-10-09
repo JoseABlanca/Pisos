@@ -742,10 +742,10 @@ export default function Rentals() {
             onClose={() => setShowForm(false)}
             onMenuClick={() => setShowModalSidebar(!showModalSidebar)}
           >
-            <div className="flex flex-1 h-full min-h-0 bg-[#d4d0c8] relative">
+            <div className="flex flex-1 h-full min-h-0 bg-white relative">
               {/* Sidebar */}
               {showModalSidebar && (
-                <div className={`bg-[#f0f0f0] border-r border-[#808080] shrink-0 overflow-y-auto p-2 flex flex-col shadow-[inset_-1px_0_0_rgba(0,0,0,0.1)] ${isMobile ? 'absolute inset-y-0 left-0 z-30 w-56' : 'w-56'}`}>
+                <div className={`bg-white border-r border-[#ccc] shrink-0 overflow-y-auto p-2 flex flex-col shadow-[inset_-1px_0_0_rgba(0,0,0,0.1)] ${isMobile ? 'absolute inset-y-0 left-0 z-30 w-56' : 'w-56'}`}>
                   <div className="bg-white border border-[#a0a0a0] flex flex-col">
                     {formTabs.map(tab => (
                       <button 
@@ -769,9 +769,8 @@ export default function Rentals() {
               )}
               
               {/* Main Content Area */}
-              <div className="flex-1 bg-[#d4d0c8] flex flex-col relative overflow-hidden">
-                <div className="flex-1 overflow-auto bg-[#d4d0c8] p-3">
-                  <div className="bg-[#d4d0c8] border border-white shadow-[1px_1px_0px_#000] p-4 min-h-full">
+              <div className="flex-1 bg-white flex flex-col relative overflow-hidden">
+                <div className="flex-1 overflow-auto bg-white p-5">
                     
                     {activeFormTab === 'general' && (
                       <div className="flex flex-col gap-6">
@@ -1498,10 +1497,8 @@ export default function Rentals() {
                     )}
 
                   </div>
-                </div>
-
                 {/* Action Buttons */}
-                <div className="flex justify-end gap-2 shrink-0 pt-2 pb-1 pr-1 bg-[#d4d0c8] border-t border-[#808080]">
+                <div className="flex justify-end gap-2 shrink-0 pt-2 pb-1 pr-1 bg-[#f5f5f5] border-t border-[#ccc]">
                   <button className="px-6 py-1 border border-gray-400 bg-gray-100 hover:bg-gray-200 shadow-sm text-[11px] font-bold uppercase" onClick={handleSave}>Aceptar</button>
                   <button className="px-6 py-1 border border-gray-400 bg-gray-100 hover:bg-gray-200 shadow-sm text-[11px] font-bold uppercase" onClick={() => setShowForm(false)}>Cancelar</button>
                 </div>

@@ -245,7 +245,7 @@ function SearchableSelector({ items, value, onChange, placeholder, type, id, onK
   );
 }
 
-export default function JournalEntry() {
+export default function JournalEntry({ isModal, initialEntry, onClose }) {
   const { user, queryUserIds } = useAuth();
   const location = useLocation();
   const navigate = useNavigate();
@@ -372,9 +372,10 @@ export default function JournalEntry() {
   }, [user]);
 
   useEffect(() => {
-    if (location.state?.editEntry && accounts.length > 0) {
+    const editSource = initialEntry || location.state?.editEntry;
+    if (editSource && accounts.length > 0) {
       setHasCleanedCebes(false);
-      const { editEntry } = location.state;
+      const editEntry = editSource;
       setEntryId(editEntry.id);
       setIsEditing(true);
       setDate(editEntry.date ? editEntry.date.split('T')[0] : '');
@@ -598,7 +599,8 @@ export default function JournalEntry() {
       if (isEditing) {
         await updateJournalEntry(user.uid, entryId, globalDescription, formattedLines, originalLines, date, analytics, globalDocUrl, globalDocName, nextEntryNumber);
         alert(`Asiento ${nextEntryNumber} actualizado correctamente.`);
-        navigate('/journal-list');
+        if (isModal && onClose) onClose();
+        else navigate('/journal-list');
       } else {
         await registerJournalEntry(user.uid, globalDescription, formattedLines, date, analytics, entryId, globalDocUrl, globalDocName);
         alert(`Asiento ${entryNumber} guardado correctamente.`);
@@ -772,8 +774,8 @@ export default function JournalEntry() {
         account: acct ? acct.code : (l.accountCode || ''),
         description: l.description || entry.description || '',
         document: l.document || '',
-        ceco: l.ceco || entry.ceco || '',
-        cebe: l.cebe || entry.cebe || '',
+        ceco: (entry.lines && entry.lines.some(line => line.ceco || line.cebe)) ? (l.ceco || '') : (entry.ceco || ''),
+        cebe: (entry.lines && entry.lines.some(line => line.ceco || line.cebe)) ? (l.cebe || '') : (entry.cebe || ''),
         debit: parseFloat(l.debit) || 0,
         credit: parseFloat(l.credit) || 0,
         image: null,
@@ -820,7 +822,8 @@ export default function JournalEntry() {
   }, [journalHistory, copyModalSearch, accounts]);
 
   return (
-    <div className="flex flex-col h-full bg-white relative">
+    <div className="flex flex-col h-full bg-white p-3 overflow-hidden">
+      <div className="flex-1 flex flex-col bg-white border border-[#718096] rounded shadow-md overflow-hidden relative">
       {/* Header Info */}
       <div className="flex flex-wrap items-center gap-x-4 gap-y-2 px-4 py-2 bg-gray-100 border-b border-gray-300 text-[11px] font-bold text-gray-700 overflow-hidden w-full">
         <div className="flex items-center">
@@ -1273,28 +1276,32 @@ export default function JournalEntry() {
                 <h2 className="font-bold text-[13px] tracking-wide">COPIAR ASIENTO DEL DIARIO</h2>
               </div>
               <div className="flex items-center gap-3">
-                <div className="flex items-center border-b border-white/40 px-1 w-64">
-                  <input 
-                    autoFocus
-                    type="text" 
-                    placeholder="Buscar en el fichero (Alt+B)" 
-                    className="w-full text-[12px] py-0.5 outline-none bg-transparent text-white placeholder-white/60"
-                    value={copyModalSearch}
-                    onChange={(e) => setCopyModalSearch(e.target.value)}
-                  />
-                  <Search className="w-4 h-4 text-white/60 ml-1" />
-                </div>
-                <span className="text-[11px] text-white/70">{groupedJournalForCopy.length} asiento(s)</span>
-                <button 
-                  onClick={() => setShowCopySidebar(!showCopySidebar)} 
-                  className="text-white/80 hover:text-white p-1 rounded hover:bg-white/20 transition-colors"
-                  title={showCopySidebar ? 'Ocultar Filtros' : 'Mostrar Filtros'}
-                >
-                  <PanelLeft className="w-4 h-4" />
-                </button>
                 <button onClick={() => { setShowCopyModal(false); setCopyModalSearch(''); setCopyModalSelectedId(null); setCopyDateFilter('Todos'); setCopySelectedMonths([]); setCopySelectedQuarters([]); setCopySelectedYears([]); setCopyFocusedAccountName(''); }} className="hover:bg-white/20 p-1 rounded">
                   <X className="w-5 h-5" />
                 </button>
+              </div>
+            </div>
+
+            {/* Sub-header Toolbar */}
+            <div className="flex justify-between items-center px-4 py-1.5 bg-gray-100 border-b border-gray-300 shrink-0">
+              <button 
+                onClick={() => setShowCopySidebar(!showCopySidebar)} 
+                className="text-gray-500 hover:text-blue-600 p-1 rounded hover:bg-gray-200 transition-colors"
+                title={showCopySidebar ? 'Ocultar Filtros' : 'Mostrar Filtros'}
+              >
+                <PanelLeft className="w-4 h-4" />
+              </button>
+              
+              <div className="flex items-center border-b border-gray-400 pb-0.5 w-64 mr-2">
+                <input 
+                  autoFocus
+                  type="text" 
+                  placeholder="Buscar en el fichero (Alt+B)" 
+                  className="w-full text-[12px] py-0.5 outline-none bg-transparent text-gray-700"
+                  value={copyModalSearch}
+                  onChange={(e) => setCopyModalSearch(e.target.value)}
+                />
+                <Search className="w-4 h-4 text-gray-400 ml-1" />
               </div>
             </div>
 
@@ -1472,12 +1479,13 @@ export default function JournalEntry() {
                         <td className="px-2 py-2 text-right text-red-600 font-sans tabular-nums">
                           {flatCopyLines.reduce((s, l) => s + l.credit, 0).toLocaleString('es-ES', {minimumFractionDigits: 2, maximumFractionDigits: 2})}
                         </td>
-                        <td colSpan="2"></td>
+                        <td colSpan="2" className="border-none bg-transparent"></td>
                       </tr>
-                      <tr className="text-[10px] text-gray-600 border-t border-gray-200">
-                        <td colSpan="13" className="px-4 py-1.5 text-left italic normal-case">
+                      <tr className="text-[10px] text-gray-600">
+                        <td colSpan="11" className="px-4 py-1.5 text-left italic normal-case border-t border-gray-200">
                           {copyFocusedAccountName ? `Cuenta seleccionada: ${copyFocusedAccountName}` : '\u00A0'}
                         </td>
+                        <td colSpan="2" className="border-none bg-transparent"></td>
                       </tr>
                     </tfoot>
                   </table>
@@ -1487,8 +1495,9 @@ export default function JournalEntry() {
 
             {/* Footer actions */}
             <div className="px-4 py-2 border-t border-gray-200 bg-gray-50 flex items-center justify-between shrink-0">
-              <span className="text-[11px] text-gray-500 normal-case">
-                {copyModalSelectedId ? 'Asiento seleccionado — pulsa Copiar o haz doble clic para cargar las líneas' : 'Selecciona un asiento de la lista'}
+              <span className="text-[11px] text-gray-500 normal-case flex items-center gap-2">
+                <span className="font-bold text-gray-700">{groupedJournalForCopy.length} asiento(s)</span>
+                {copyModalSelectedId ? <span className="text-blue-600">— Asiento seleccionado, pulsa Copiar</span> : ''}
               </span>
               <div className="flex gap-2">
                 <button
@@ -1522,6 +1531,7 @@ export default function JournalEntry() {
         );
       })()}
 
+      </div>
     </div>
   );
 }

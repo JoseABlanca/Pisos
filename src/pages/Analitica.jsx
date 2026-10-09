@@ -1350,7 +1350,8 @@ export default function Analitica() {
 
   /* ═══════════════════════════════════════════════════════════════════════ */
   return (
-    <div className="w-full h-full flex flex-col bg-white font-[Segoe_UI,Tahoma,sans-serif] text-[12px] text-[#333] select-none">
+    <div className="w-full h-full flex flex-col bg-white p-3 overflow-hidden font-[Segoe_UI,Tahoma,sans-serif] text-[12px] text-[#333] select-none">
+      <div className="flex-1 flex flex-col bg-white border border-[#718096] rounded shadow-md overflow-hidden relative">
 
       {/* ── TOOLBAR (Foto 1 exact) ──────────────────────────────────────────── */}
       <div className="bg-[#f3f4f6] border-b border-gray-300 flex items-center px-2 py-1 h-[80px] space-x-1 shrink-0 overflow-x-auto whitespace-nowrap">
@@ -1831,7 +1832,7 @@ export default function Analitica() {
               </div>
             </div>
             {/* Bottom Bar for Zoom */}
-            <div className="flex justify-end bg-[#f0f0f0] p-1 border-t border-gray-300 mt-2 shrink-0">
+            <div className="flex justify-end bg-[#f0f0f0] p-1 border-t border-gray-300 shrink-0">
               <ZoomControl />
             </div>
           </div>
@@ -2384,6 +2385,7 @@ export default function Analitica() {
           </div>
         </div>
       )}
+      </div>
     </div>
   );
 }

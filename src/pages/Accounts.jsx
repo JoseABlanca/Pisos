@@ -653,7 +653,8 @@ export default function Accounts({ isModal = false, onAccountSelect = null }) {
         </div>
       )}
 
-      <div className="w-full h-full flex flex-col bg-[#cbd5e0]">
+      <div className="w-full h-full flex flex-col bg-white p-3 overflow-hidden">
+        <div className="flex-1 flex flex-col min-h-0 bg-white border border-[#718096] rounded shadow-md overflow-hidden">
 
 
           {/* Top Ribbon Toolbar */}
@@ -893,6 +894,7 @@ export default function Accounts({ isModal = false, onAccountSelect = null }) {
           </div>
 
         </div>
+      </div>
     </div>
   );
 }

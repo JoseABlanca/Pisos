@@ -51,6 +51,15 @@ export default function Login() {
         {/* Top accent bar */}
         <div className="absolute top-0 left-0 w-full h-1 bg-gradient-to-r from-primary to-primary-container" />
         
+        {/* Logo (archivo en public/nexo-logo.png) */}
+        <div className="flex justify-center mb-4 mt-2">
+          <img
+            src="/nexo-logo.png?v=2"
+            alt="Nexo Logo"
+            className="w-16 h-16 object-contain drop-shadow-md"
+          />
+        </div>
+
         <h1 className="text-display font-display font-extrabold text-primary text-4xl mb-2 text-center tracking-tighter">
           Nexo
         </h1>

@@ -3,9 +3,9 @@ import { FileText, Plus, Trash2, PieChart, Database, BarChart2, Upload, Eye } fr
 import { uploadFileToStorage } from '../utils/storageUtils';
 
 export default function FinanzasTab({ formData, setFormData, rentals, user, setPreviewDocument }) {
-  const [activeSubTab, setActiveSubTab] = useState('Datos');
   const [isUploading, setIsUploading] = useState(false);
   const [isFocused, setIsFocused] = useState(false);
+  const [activeDeleteMenu, setActiveDeleteMenu] = useState(null);
   
   // Ensure adquisition expenses array exists
   const adquisitionExpenses = Array.isArray(formData.adquisitionExpenses) ? formData.adquisitionExpenses : [];
@@ -24,6 +24,16 @@ export default function FinanzasTab({ formData, setFormData, rentals, user, setP
       newExp.splice(idx, 1);
       return { ...prev, adquisitionExpenses: newExp };
     });
+    setActiveDeleteMenu(null);
+  };
+
+  const removeDocument = (idx) => {
+    setFormData(prev => {
+      const newExp = [...(prev.adquisitionExpenses || [])];
+      newExp[idx] = { ...newExp[idx], url: null, name: null };
+      return { ...prev, adquisitionExpenses: newExp };
+    });
+    setActiveDeleteMenu(null);
   };
 
   const updateExpense = (idx, field, value) => {
@@ -50,10 +60,14 @@ export default function FinanzasTab({ formData, setFormData, rentals, user, setP
 
   const handleRowFileUpload = async (e, idx) => {
     const file = e.target.files[0];
-    if (!file || !user || !formData.id) return;
+    if (!file || !user) return;
+    if (!formData.id) {
+      alert('Debes guardar el inmueble antes de adjuntar un documento.');
+      return;
+    }
     setIsUploading(true);
     try {
-      const url = await uploadFileToStorage(file, user.uid, formData.id);
+      const url = await uploadFileToStorage(file, user.uid, 'properties', formData.id, 'adquisitionExpenses');
       setFormData(prev => {
         const newExp = [...(prev.adquisitionExpenses || [])];
         newExp[idx] = { 
@@ -72,287 +86,236 @@ export default function FinanzasTab({ formData, setFormData, rentals, user, setP
     }
   };
 
-  const renderSubTab = () => {
-    if (activeSubTab === 'Datos') {
-      return (
-        <div className="flex flex-col gap-4 p-4 flex-1 overflow-auto bg-white">
-          <div className="space-y-4 max-w-sm">
-            <div className="space-y-1">
-              <label className="text-[10px] font-bold text-slate-700 uppercase">Fecha de compra:</label>
-              <input 
-                type="date" 
-                className="win-input w-full" 
-                value={formData.purchaseDate || ''} 
-                onChange={e => setFormData({ ...formData, purchaseDate: e.target.value })} 
-              />
-            </div>
-            <div className="space-y-1">
-              <label className="text-[10px] font-bold text-slate-700 uppercase">Precio de adquisición:</label>
-              <div className="relative">
-                <input 
-                  type="number" 
-                  className="win-input w-full text-right pr-6" 
-                  value={formData.acquisitionPrice || ''} 
-                  onChange={e => setFormData({ ...formData, acquisitionPrice: e.target.value })} 
-                />
-                <span className="absolute right-2 top-1/2 -translate-y-1/2 text-[11px] text-gray-500">€</span>
-              </div>
-            </div>
-            <div className="space-y-1">
-              <label className="text-[10px] font-bold text-slate-700 uppercase">Capital aportado:</label>
-              <div className="relative">
-                <input 
-                  type="number" 
-                  className="win-input w-full text-right pr-6" 
-                  value={formData.investedCapital || ''} 
-                  onChange={e => setFormData({ ...formData, investedCapital: e.target.value })} 
-                />
-                <span className="absolute right-2 top-1/2 -translate-y-1/2 text-[11px] text-gray-500">€</span>
-              </div>
-            </div>
-            <div className="space-y-1">
-              <label className="text-[10px] font-bold text-slate-700 uppercase" title="Suma automática de las reformas marcadas para capitalizar">Total reformas capitalizable:</label>
-              <div className="relative">
-                <input 
-                  type="text" 
-                  className="win-input w-full text-right pr-6 bg-slate-50 text-slate-500 cursor-not-allowed" 
-                  value={totalCapitalizedReforms.toLocaleString('es-ES', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
-                  readOnly 
-                />
-                <span className="absolute right-2 top-1/2 -translate-y-1/2 text-[11px] text-gray-500">€</span>
-              </div>
-            </div>
-            <div className="space-y-1">
-              <label className="text-[10px] font-bold text-slate-700 uppercase" title="Suma de Capital Aportado, Gastos de Adquisición y Reformas Capitalizables. Escribe para sobrescribir manualmente.">Total Inversión:</label>
-              <div className="relative">
-                <input 
-                  type={isFocused ? "number" : "text"} 
-                  step="any"
-                  className="win-input w-full text-right pr-6 bg-blue-50 text-blue-900 font-bold focus:bg-blue-100" 
-                  value={
-                    isFocused
-                      ? (formData.totalInversionOverride !== undefined && formData.totalInversionOverride !== null ? formData.totalInversionOverride : ((parseFloat(formData.investedCapital) || 0) + totalCapitalizedReforms + totalAdquisitionExpenses).toFixed(2))
-                      : (formData.totalInversionOverride !== undefined && formData.totalInversionOverride !== '' && formData.totalInversionOverride !== null
-                          ? (parseFloat(formData.totalInversionOverride) || 0).toLocaleString('es-ES', { minimumFractionDigits: 2, maximumFractionDigits: 2 })
-                          : ((parseFloat(formData.investedCapital) || 0) + totalCapitalizedReforms + totalAdquisitionExpenses).toLocaleString('es-ES', { minimumFractionDigits: 2, maximumFractionDigits: 2 }))
-                  }
-                  onChange={e => setFormData({ ...formData, totalInversionOverride: e.target.value })}
-                  onFocus={() => setIsFocused(true)}
-                  onBlur={() => setIsFocused(false)}
-                />
-                {formData.totalInversionOverride !== undefined && formData.totalInversionOverride !== '' && formData.totalInversionOverride !== null && (
-                  <button 
-                    type="button"
-                    onMouseDown={e => {
-                      e.preventDefault();
-                      setFormData({ ...formData, totalInversionOverride: '' });
-                    }}
-                    className="absolute left-2 top-1/2 -translate-y-1/2 text-[9px] text-red-500 hover:text-red-700 font-bold bg-white border border-red-200 rounded px-1"
-                    title="Restaurar valor autocalculado"
-                  >
-                    RESET
-                  </button>
-                )}
-                <span className="absolute right-2 top-1/2 -translate-y-1/2 text-[11px] text-blue-900 font-bold pointer-events-none">€</span>
-              </div>
-            </div>
-            <div className="space-y-1">
-              <label className="text-[10px] font-bold text-slate-700 uppercase">Precio teórico de venta:</label>
-              <div className="relative">
-                <input 
-                  type="number" 
-                  className="win-input w-full text-right pr-6" 
-                  value={formData.theoreticalSalePrice || ''} 
-                  onChange={e => setFormData({ ...formData, theoreticalSalePrice: e.target.value })} 
-                />
-                <span className="absolute right-2 top-1/2 -translate-y-1/2 text-[11px] text-gray-500">€</span>
-              </div>
-            </div>
-            <div className="space-y-1">
-              <label className="text-[10px] font-bold text-slate-700 uppercase">Honorarios de Agencia:</label>
-              <div className="relative">
-                <input 
-                  type="number" 
-                  className="win-input w-full text-right pr-6" 
-                  value={formData.agentFees || ''} 
-                  onChange={e => setFormData({ ...formData, agentFees: e.target.value })} 
-                />
-                <span className="absolute right-2 top-1/2 -translate-y-1/2 text-[11px] text-gray-500">€</span>
-              </div>
-            </div>
-            <div className="space-y-1">
-              <label className="text-[10px] font-bold text-slate-700 uppercase">Valor Actual:</label>
-              <div className="relative">
-                <input 
-                  type="number" 
-                  className="win-input w-full text-right pr-6" 
-                  value={formData.currentValue || ''} 
-                  onChange={e => setFormData({ ...formData, currentValue: e.target.value })} 
-                />
-                <span className="absolute right-2 top-1/2 -translate-y-1/2 text-[11px] text-gray-500">€</span>
-              </div>
-            </div>
-          </div>
-
-          {/* Gastos de Adquisición Table (Full Width) */}
-          <div className="space-y-2 mt-2">
-            <h3 className="text-[11px] font-bold text-[#000080] border-b border-[#000080] pb-1 uppercase flex items-center justify-between">
-              <div className="flex items-center">
-                <Database className="w-4 h-4 mr-1" />
-                Gastos de Adquisición
-              </div>
-              <button 
-                onClick={handleAddExpense}
-                className="btn-classic px-2 py-0.5 h-[20px] flex items-center text-[10px]"
-              >
-                <Plus className="w-3 h-3 mr-1" /> Añadir Gasto
-              </button>
-            </h3>
-            
-            <div className="bg-white border border-[#808080] shadow-[1px_1px_0px_#000] p-1 h-[300px] flex flex-col">
-              <div className="flex-1 overflow-auto">
-                <table className="clean-table w-full">
-                  <thead>
-                    <tr>
-                      <th className="w-28 text-center">Fecha</th>
-                      <th>Concepto</th>
-                      <th className="w-28 text-right">Cantidad (€)</th>
-                      <th className="w-16 text-center">Documento</th>
-                      <th className="w-8"></th>
-                    </tr>
-                  </thead>
-                  <tbody>
-                    {adquisitionExpenses.length === 0 ? (
-                      <tr>
-                        <td colSpan="5" className="text-center text-slate-500 py-4 italic text-[11px]">
-                          No hay gastos añadidos
-                        </td>
-                      </tr>
-                    ) : (
-                      adquisitionExpenses.map((exp, idx) => (
-                        <tr key={idx}>
-                          <td className="p-0 w-28">
-                            <input 
-                              type="date"
-                              value={exp.date || ''}
-                              onChange={(e) => updateExpense(idx, 'date', e.target.value)}
-                              className="win-input w-full bg-transparent border-transparent hover:border-gray-300 focus:bg-white text-[11px] px-1 m-0 h-[22px] text-center"
-                            />
-                          </td>
-                          <td className="p-0">
-                            <input 
-                              type="text"
-                              value={exp.concept || ''}
-                              onChange={(e) => updateExpense(idx, 'concept', e.target.value)}
-                              className="win-input w-full bg-transparent border-transparent hover:border-gray-300 focus:bg-white text-[11px] px-1 m-0 h-[22px]"
-                              placeholder="Ej: Notaría, ITP..."
-                            />
-                          </td>
-                          <td className="p-0 w-28">
-                            <input 
-                              type="number"
-                              value={exp.amount || ''}
-                              onChange={(e) => updateExpense(idx, 'amount', e.target.value)}
-                              className="win-input w-full bg-transparent border-transparent hover:border-gray-300 focus:bg-white text-[11px] text-right px-1 m-0 h-[22px]"
-                            />
-                          </td>
-                          <td className="text-center p-0 w-16 align-middle">
-                            {exp.url ? (
-                              <button
-                                onClick={() => setPreviewDocument({ url: exp.url, name: exp.name || exp.concept })}
-                                className="text-gray-500 hover:text-gray-500 p-1 mx-auto flex items-center justify-center"
-                                title="Ver documento"
-                              >
-                                <Eye className="w-4 h-4" />
-                              </button>
-                            ) : (
-                              <label className="cursor-pointer text-slate-400 hover:text-blue-600 p-1 mx-auto flex items-center justify-center" title="Subir documento">
-                                <Upload className="w-4 h-4" />
-                                <input
-                                  type="file"
-                                  className="hidden"
-                                  onChange={(e) => handleRowFileUpload(e, idx)}
-                                  disabled={isUploading}
-                                />
-                              </label>
-                            )}
-                          </td>
-                          <td className="text-center p-0 align-middle">
-                            <button 
-                              onClick={() => removeExpense(idx)}
-                              className="text-gray-500 hover:text-gray-500 p-1"
-                              title="Eliminar gasto"
-                            >
-                              <Trash2 className="w-3.5 h-3.5 mx-auto" />
-                            </button>
-                          </td>
-                        </tr>
-                      ))
-                    )}
-                  </tbody>
-                  <tfoot>
-                    <tr className="bg-slate-50 font-bold border-t-2 border-[#808080]">
-                      <td colSpan="2" className="text-[11px] text-[#000080] uppercase py-1 text-right pr-4">Total Gastos</td>
-                      <td className="text-right text-[11px] text-[#000080] py-1">{totalAdquisitionExpenses.toFixed(2)} €</td>
-                      <td colSpan="2"></td>
-                    </tr>
-                  </tfoot>
-                </table>
-              </div>
-            </div>
-          </div>
-        </div>
-      );
-    }
-
-    if (activeSubTab === 'Métricas') {
-      return (
-        <div className="flex justify-center items-center h-full bg-white text-slate-500">
-          <div className="flex flex-col items-center gap-2">
-            <BarChart2 className="w-8 h-8 opacity-50" />
-            <p>Sección de Métricas Financieras (En desarrollo...)</p>
-          </div>
-        </div>
-      );
-    }
-
-    if (activeSubTab === 'Extracto') {
-      return (
-        <div className="flex justify-center items-center h-full bg-white text-slate-500 py-10">
-          <p className="italic text-[11px]">Sección de Extracto (En desarrollo...)</p>
-        </div>
-      );
-    }
-  };
-
-  const subTabs = [
-    { id: 'Datos', label: 'Datos Financieros' },
-    { id: 'Métricas', label: 'Métricas' },
-    { id: 'Extracto', label: 'Extracto' }
-  ];
-
   return (
     <div className="flex flex-col h-full bg-white overflow-hidden">
-      {/* Sub-navigation bar */}
-      <div className="bg-white border-b border-gray-200 flex px-2 pt-2 gap-1">
-        {subTabs.map(tab => (
-          <button
-            key={tab.id}
-            onClick={() => setActiveSubTab(tab.id)}
-            className={`px-4 py-1.5 text-[12px] font-medium border-t border-x rounded-t-sm transition-colors ${
-              activeSubTab === tab.id
-                ? 'bg-white border-gray-200 text-blue-600 border-b-white -mb-[1px] relative z-10'
-                : 'bg-gray-50 border-transparent text-gray-500 hover:bg-gray-100'
-            }`}
-          >
-            {tab.label}
-          </button>
-        ))}
+      <div className="flex flex-col gap-4 flex-1 overflow-auto bg-white">
+        <div className="space-y-2 w-full">
+          <h3 className="text-[12px] font-bold text-slate-800 uppercase italic">Datos</h3>
+          <div className="border border-[#808080] p-4 bg-white">
+            <div className="space-y-4 max-w-sm">
+              <div className="space-y-1">
+                <label className="text-[10px] font-bold text-slate-700 uppercase">Fecha de compra:</label>
+            <input 
+              type="date" 
+              className="win-input w-full" 
+              value={formData.purchaseDate || ''} 
+              onChange={e => setFormData({ ...formData, purchaseDate: e.target.value })} 
+            />
+          </div>
+          <div className="space-y-1">
+            <label className="text-[10px] font-bold text-slate-700 uppercase">Precio de adquisición:</label>
+            <div className="relative">
+              <input 
+                type="number" 
+                className="win-input w-full text-right pr-6" 
+                value={formData.acquisitionPrice || ''} 
+                onChange={e => setFormData({ ...formData, acquisitionPrice: e.target.value })} 
+              />
+              <span className="absolute right-2 top-1/2 -translate-y-1/2 text-[11px] text-gray-500">€</span>
+            </div>
+          </div>
+          <div className="space-y-1">
+            <label className="text-[10px] font-bold text-slate-700 uppercase">Capital aportado:</label>
+            <div className="relative">
+              <input 
+                type="number" 
+                className="win-input w-full text-right pr-6" 
+                value={formData.investedCapital || ''} 
+                onChange={e => setFormData({ ...formData, investedCapital: e.target.value })} 
+              />
+              <span className="absolute right-2 top-1/2 -translate-y-1/2 text-[11px] text-gray-500">€</span>
+            </div>
+          </div>
+          <div className="space-y-1">
+            <label className="text-[10px] font-bold text-slate-700 uppercase" title="Suma automática de las reformas marcadas para capitalizar">Total reformas capitalizable:</label>
+            <div className="relative">
+              <input 
+                type="text" 
+                className="win-input w-full text-right pr-6 bg-slate-50 text-slate-500 cursor-not-allowed" 
+                value={totalCapitalizedReforms.toLocaleString('es-ES', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+                readOnly 
+              />
+              <span className="absolute right-2 top-1/2 -translate-y-1/2 text-[11px] text-gray-500">€</span>
+            </div>
+          </div>
+          <div className="space-y-1">
+            <label className="text-[10px] font-bold text-slate-700 uppercase" title="Suma de Capital Aportado y Reformas Capitalizables. Escribe para sobrescribir manualmente.">Total Inversión:</label>
+            <div className="relative">
+              <input 
+                type={isFocused ? "number" : "text"} 
+                step="any"
+                className="win-input w-full text-right pr-6 text-black font-bold" 
+                value={
+                  isFocused
+                    ? (formData.totalInversionOverride !== undefined && formData.totalInversionOverride !== null ? formData.totalInversionOverride : ((parseFloat(formData.investedCapital) || 0) + totalCapitalizedReforms).toFixed(2))
+                    : (formData.totalInversionOverride !== undefined && formData.totalInversionOverride !== '' && formData.totalInversionOverride !== null
+                        ? (parseFloat(formData.totalInversionOverride) || 0).toLocaleString('es-ES', { minimumFractionDigits: 2, maximumFractionDigits: 2 })
+                        : ((parseFloat(formData.investedCapital) || 0) + totalCapitalizedReforms).toLocaleString('es-ES', { minimumFractionDigits: 2, maximumFractionDigits: 2 }))
+                }
+                onChange={e => setFormData({ ...formData, totalInversionOverride: e.target.value })}
+                onFocus={() => setIsFocused(true)}
+                onBlur={() => setIsFocused(false)}
+              />
+              {formData.totalInversionOverride !== undefined && formData.totalInversionOverride !== '' && formData.totalInversionOverride !== null && (
+                <button 
+                  type="button"
+                  onMouseDown={e => {
+                    e.preventDefault();
+                    setFormData({ ...formData, totalInversionOverride: '' });
+                  }}
+                  className="absolute left-2 top-1/2 -translate-y-1/2 text-[9px] text-red-500 hover:text-red-700 font-bold bg-white border border-red-200 rounded px-1"
+                  title="Restaurar valor autocalculado"
+                >
+                  RESET
+                </button>
+              )}
+              <span className="absolute right-2 top-1/2 -translate-y-1/2 text-[11px] text-black font-bold pointer-events-none">€</span>
+            </div>
+          </div>
+          <div className="space-y-1">
+            <label className="text-[10px] font-bold text-slate-700 uppercase">Precio teórico de venta:</label>
+            <div className="relative">
+              <input 
+                type="number" 
+                className="win-input w-full text-right pr-6" 
+                value={formData.theoreticalSalePrice || ''} 
+                onChange={e => setFormData({ ...formData, theoreticalSalePrice: e.target.value })} 
+              />
+              <span className="absolute right-2 top-1/2 -translate-y-1/2 text-[11px] text-gray-500">€</span>
+            </div>
+          </div>
+          <div className="space-y-1">
+            <label className="text-[10px] font-bold text-slate-700 uppercase" title="Suma automática de los gastos de adquisición">Gastos adquisición:</label>
+            <div className="relative">
+              <input 
+                type="text" 
+                className="win-input w-full text-right pr-6 bg-slate-50 text-slate-500 cursor-not-allowed" 
+                value={totalAdquisitionExpenses.toLocaleString('es-ES', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+                readOnly 
+              />
+              <span className="absolute right-2 top-1/2 -translate-y-1/2 text-[11px] text-gray-500">€</span>
+            </div>
+          </div>
+            </div>
+        </div>
       </div>
-      
-      {/* Main Content Area */}
-      <div className="flex-1 relative">
-        {renderSubTab()}
+        {/* Gastos de Adquisición Table (Full Width) */}
+        <div className="space-y-2 mt-6">
+          <div className="flex justify-between items-center mb-4">
+            <h3 className="text-[12px] font-bold text-slate-800 uppercase italic">Gastos de Adquisición</h3>
+            <button 
+              onClick={handleAddExpense}
+              className="btn-classic flex items-center space-x-1 px-3 py-1 cursor-pointer"
+            >
+              <Plus className="w-4 h-4" />
+              <span className="text-[11px] font-bold">Añadir Gasto</span>
+            </button>
+          </div>
+          
+          <div className="border border-[#808080] bg-white overflow-hidden flex flex-col">
+            <div className="bg-[#f0f0f0] grid grid-cols-12 gap-0 border-b border-[#808080] text-[10px] font-bold uppercase">
+              <div className="col-span-2 p-2">Fecha</div>
+              <div className="col-span-5 p-2">Concepto</div>
+              <div className="col-span-3 p-2 text-right">Cantidad (€)</div>
+              <div className="col-span-2 p-2 text-center">Acción</div>
+            </div>
+            <div className="flex-1 overflow-auto bg-white">
+              {adquisitionExpenses.length === 0 ? (
+                <div className="text-center text-slate-400 italic py-8 text-[11px]">No hay gastos añadidos</div>
+              ) : (
+                adquisitionExpenses.map((exp, idx) => (
+                  <div key={idx} className="grid grid-cols-12 gap-0 items-center text-[11px] border-b border-slate-100">
+                    <div className="col-span-2 p-1">
+                      <input 
+                        type="date"
+                        value={exp.date || ''}
+                        onChange={(e) => updateExpense(idx, 'date', e.target.value)}
+                        className="w-full bg-transparent border-transparent hover:border-gray-300 focus:bg-white focus:border-blue-400 text-[11px] px-1 outline-none h-[24px]"
+                      />
+                    </div>
+                    <div className="col-span-5 flex items-center truncate p-1">
+                      <input 
+                        type="text"
+                        value={exp.concept || ''}
+                        onChange={(e) => updateExpense(idx, 'concept', e.target.value)}
+                        className="w-full bg-transparent border-transparent hover:border-gray-300 focus:bg-white focus:border-blue-400 text-[11px] px-1 outline-none h-[24px]"
+                        placeholder="Ej. Notaría, ITP..."
+                      />
+                    </div>
+                    <div className="col-span-3 p-1">
+                      <input 
+                        type="number"
+                        value={exp.amount || ''}
+                        onChange={(e) => updateExpense(idx, 'amount', e.target.value)}
+                        className="w-full text-right bg-transparent border-transparent hover:border-gray-300 focus:bg-white focus:border-blue-400 text-[11px] px-1 outline-none h-[24px]"
+                      />
+                    </div>
+                    <div className="col-span-2 flex justify-center space-x-2 p-1 relative">
+                      {exp.url ? (
+                        <button
+                          onClick={() => setPreviewDocument({ url: exp.url, name: exp.name || exp.concept })}
+                          className="p-1 hover:bg-gray-100 text-gray-500 hover:text-black rounded transition-colors"
+                          title="Ver documento"
+                        >
+                          <Eye className="w-4 h-4" />
+                        </button>
+                      ) : (
+                        <label className="p-1 hover:bg-gray-100 text-gray-500 hover:text-black rounded transition-colors cursor-pointer m-0 flex items-center justify-center" title="Subir documento">
+                          <Upload className="w-4 h-4" />
+                          <input
+                            type="file"
+                            className="hidden"
+                            onChange={(e) => handleRowFileUpload(e, idx)}
+                            disabled={isUploading}
+                          />
+                        </label>
+                      )}
+                      
+                      <div className="relative">
+                        <button 
+                          onClick={() => {
+                            if (exp.url) {
+                              setActiveDeleteMenu(activeDeleteMenu === idx ? null : idx);
+                            } else {
+                              if (window.confirm('¿Eliminar este registro?')) {
+                                removeExpense(idx);
+                              }
+                            }
+                          }}
+                          className="p-1 hover:bg-gray-100 text-gray-500 hover:text-black rounded transition-colors flex items-center justify-center"
+                          title="Eliminar"
+                        >
+                          <Trash2 className="w-4 h-4" />
+                        </button>
+
+                        {activeDeleteMenu === idx && (
+                          <>
+                            <div className="fixed inset-0 z-40" onClick={() => setActiveDeleteMenu(null)}></div>
+                            <div className="absolute right-0 top-6 bg-white border border-gray-200 shadow-lg rounded-sm py-1 z-50 text-[11px] w-32 whitespace-nowrap flex flex-col">
+                              <button 
+                                onClick={() => removeDocument(idx)} 
+                                className="w-full text-left px-3 py-2 hover:bg-gray-100 text-slate-700"
+                              >
+                                Borrar documento
+                              </button>
+                              <div className="h-px bg-gray-200 w-full my-0.5"></div>
+                              <button 
+                                onClick={() => removeExpense(idx)} 
+                                className="w-full text-left px-3 py-2 text-red-600 hover:bg-red-50 font-medium"
+                              >
+                                Borrar registro
+                              </button>
+                            </div>
+                          </>
+                        )}
+                      </div>
+                    </div>
+                  </div>
+                ))
+              )}
+            </div>
+          </div>
+        </div>
       </div>
     </div>
   );
