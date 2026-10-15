@@ -23,6 +23,7 @@ import EditableCell from '../components/EditableCell';
 import { handleExportFormat } from '../utils/exportUtils';
 import ZoomControl from '../components/ZoomControl';
 import { DEFAULT_PROPERTIES } from '../utils/defaultData';
+import Accounts from './Accounts';
 
 export default function RealEstate() {
   const { tableZoom } = useOutletContext() || { tableZoom: 1 };
@@ -96,6 +97,7 @@ export default function RealEstate() {
   const [isEditing, setIsEditing] = useState(false);
   const [activeTab, setActiveTab] = useState('Datos');
   const [availableAccounts, setAvailableAccounts] = useState([]);
+  const [showAccountsModal, setShowAccountsModal] = useState(false);
   const [cebes, setCebes] = useState([]);
   const [cecos, setCecos] = useState([]);
 
@@ -757,11 +759,11 @@ export default function RealEstate() {
             <div className="space-y-2.5">
               <div className="space-y-1">
                 <label className="text-[10px] font-bold text-[#444] uppercase tracking-wide block">Nombre de la Finca:</label>
-                <input type="text" className="w-full border border-[#999] px-2.5 py-1 text-[11px] text-[#222] bg-white outline-none focus:border-[#2b579a] focus:bg-[#fffee0] transition-colors rounded-none shadow-xs" value={formData.name || ''} onChange={e => setFormData({ ...formData, name: e.target.value })} />
+                <input type="text" className="win-input w-full" value={formData.name || ''} onChange={e => setFormData({ ...formData, name: e.target.value })} />
               </div>
               <div className="space-y-1">
                 <label className="text-[10px] font-bold text-[#444] uppercase tracking-wide block">Activo Accesorio (Opcional):</label>
-                <select className="w-full border border-[#999] px-2 py-1 text-[11px] text-[#222] bg-white outline-none focus:border-[#2b579a] focus:bg-[#fffee0] transition-colors rounded-none shadow-xs cursor-pointer" value={formData.accessoryPropertyId || ''} onChange={e => {
+                <select className="win-input w-full cursor-pointer" value={formData.accessoryPropertyId || ''} onChange={e => {
                   const val = e.target.value;
                   setFormData({ ...formData, accessoryPropertyId: val });
                   if (val) {
@@ -779,49 +781,61 @@ export default function RealEstate() {
               </div>
               <div className="space-y-1">
                 <label className="text-[10px] font-bold text-[#444] uppercase tracking-wide block">Dirección:</label>
-                <input type="text" className="w-full border border-[#999] px-2.5 py-1 text-[11px] text-[#222] bg-white outline-none focus:border-[#2b579a] focus:bg-[#fffee0] transition-colors rounded-none shadow-xs" value={formData.address || ''} onChange={e => setFormData({ ...formData, address: e.target.value })} />
+                <input type="text" className="win-input w-full" value={formData.address || ''} onChange={e => setFormData({ ...formData, address: e.target.value })} />
               </div>
               <div className="space-y-1">
                 <label className="text-[10px] font-bold text-[#444] uppercase tracking-wide block">País:</label>
-                <input type="text" className="w-full border border-[#999] px-2.5 py-1 text-[11px] text-[#222] bg-white outline-none focus:border-[#2b579a] focus:bg-[#fffee0] transition-colors rounded-none shadow-xs" value={formData.country || ''} onChange={e => setFormData({ ...formData, country: e.target.value })} />
+                <input type="text" className="win-input w-full" value={formData.country || ''} onChange={e => setFormData({ ...formData, country: e.target.value })} />
               </div>
               <div className="space-y-1">
                 <label className="text-[10px] font-bold text-[#444] uppercase tracking-wide block">Región/Provincia:</label>
-                <input type="text" className="w-full border border-[#999] px-2.5 py-1 text-[11px] text-[#222] bg-white outline-none focus:border-[#2b579a] focus:bg-[#fffee0] transition-colors rounded-none shadow-xs" value={formData.region || ''} onChange={e => setFormData({ ...formData, region: e.target.value })} />
+                <input type="text" className="win-input w-full" value={formData.region || ''} onChange={e => setFormData({ ...formData, region: e.target.value })} />
               </div>
               <div className="space-y-1">
                 <label className="text-[10px] font-bold text-[#444] uppercase tracking-wide block">Población:</label>
-                <input type="text" className="w-full border border-[#999] px-2.5 py-1 text-[11px] text-[#222] bg-white outline-none focus:border-[#2b579a] focus:bg-[#fffee0] transition-colors rounded-none shadow-xs" value={formData.city || ''} onChange={e => setFormData({ ...formData, city: e.target.value })} />
+                <input type="text" className="win-input w-full" value={formData.city || ''} onChange={e => setFormData({ ...formData, city: e.target.value })} />
               </div>
               <div className="space-y-1">
                 <label className="text-[10px] font-bold text-[#444] uppercase tracking-wide block">Código Postal:</label>
-                <input type="text" className="w-full border border-[#999] px-2.5 py-1 text-[11px] text-[#222] bg-white outline-none focus:border-[#2b579a] focus:bg-[#fffee0] transition-colors rounded-none shadow-xs" value={formData.cp || ''} onChange={e => setFormData({ ...formData, cp: e.target.value })} />
+                <input type="text" className="win-input w-full" value={formData.cp || ''} onChange={e => setFormData({ ...formData, cp: e.target.value })} />
               </div>
             </div>
             <div className="space-y-2.5">
               <div className="space-y-1">
                 <label className="text-[10px] font-bold text-[#444] uppercase tracking-wide block">Ref. Catastral:</label>
-                <input type="text" className="w-full border border-[#999] px-2.5 py-1 text-[11px] text-[#222] bg-white outline-none focus:border-[#2b579a] focus:bg-[#fffee0] transition-colors rounded-none shadow-xs font-mono" value={formData.catastral || ''} onChange={e => setFormData({ ...formData, catastral: e.target.value })} />
+                <input type="text" className="win-input w-full font-mono" value={formData.catastral || ''} onChange={e => setFormData({ ...formData, catastral: e.target.value })} />
               </div>
               <div className="space-y-1">
                 <label className="text-[10px] font-bold text-[#444] uppercase tracking-wide block">Reg. Propiedad:</label>
-                <input type="text" className="w-full border border-[#999] px-2.5 py-1 text-[11px] text-[#222] bg-white outline-none focus:border-[#2b579a] focus:bg-[#fffee0] transition-colors rounded-none shadow-xs" placeholder="Tomo, Libro, Finca..." value={formData.registry || ''} onChange={e => setFormData({ ...formData, registry: e.target.value })} />
+                <input type="text" className="win-input w-full" placeholder="Tomo, Libro, Finca..." value={formData.registry || ''} onChange={e => setFormData({ ...formData, registry: e.target.value })} />
               </div>
               <div className="space-y-1">
                 <label className="text-[10px] font-bold text-[#444] uppercase tracking-wide block">Número de cuenta:</label>
-                <input type="text" className="w-full border border-[#999] px-2.5 py-1 text-[11px] text-[#222] bg-white outline-none focus:border-[#2b579a] focus:bg-[#fffee0] transition-colors rounded-none shadow-xs font-mono" value={formData.accountNumber || ''} onChange={e => setFormData({ ...formData, accountNumber: e.target.value })} />
+                <input type="text" className="win-input w-full font-mono" value={formData.accountNumber || ''} onChange={e => setFormData({ ...formData, accountNumber: e.target.value })} />
               </div>
               <div className="space-y-1">
-                <label className="text-[10px] font-bold text-[#444] uppercase tracking-wide block" title="Doble clic en la caja de abajo para ir a la configuración de cuentas">Cuenta contable asociada:</label>
-                <select className="w-full border border-[#999] px-2 py-1 text-[11px] text-[#222] bg-white outline-none focus:border-[#2b579a] focus:bg-[#fffee0] transition-colors rounded-none shadow-xs cursor-pointer" value={formData.accountingAccount || ''} onChange={e => setFormData({ ...formData, accountingAccount: e.target.value })} onDoubleClick={() => navigate('/accounts')} title="Doble clic para añadir/editar cuentas">
-                  <option value=""></option>
-                  {formData.accountingAccount && !availableAccounts.some(acc => acc.code === formData.accountingAccount) && (
-                    <option value={formData.accountingAccount}>{formData.accountingAccount} (No en PGC / Inválida)</option>
+                <label className="text-[10px] font-bold text-[#444] uppercase tracking-wide block">Cuenta contable asociada:</label>
+                <div className="flex gap-1">
+                  <input 
+                    type="text" 
+                    className="win-input flex-1 bg-white cursor-pointer" 
+                    placeholder="Haga clic para seleccionar cuenta..." 
+                    value={formData.accountingAccount ? `${formData.accountingAccount} - ${availableAccounts.find(acc => acc.code === formData.accountingAccount)?.name || ''}` : ''} 
+                    readOnly 
+                    onClick={() => setShowAccountsModal(true)} 
+                    title="Haga clic para abrir la ventana de cuentas contables"
+                  />
+                  {formData.accountingAccount && (
+                    <button 
+                      type="button" 
+                      className="btn-classic px-2 text-red-600 font-bold" 
+                      onClick={() => setFormData({ ...formData, accountingAccount: '' })}
+                      title="Quitar cuenta"
+                    >
+                      X
+                    </button>
                   )}
-                  {availableAccounts.map(acc => (
-                    <option key={acc.code} value={acc.code}>{acc.code} - {acc.name}</option>
-                  ))}
-                </select>
+                </div>
               </div>
             </div>
           </div>
@@ -862,10 +876,10 @@ export default function RealEstate() {
                             </div>
                           </td>
                           <td className="py-1 px-2">
-                            <input type="text" className="w-full border border-transparent hover:border-gray-300 focus:border-[#2b579a] px-2 py-1 text-[11px] bg-transparent focus:bg-white outline-none transition-colors rounded-none" value={doc.concept || ''} onChange={(e) => updateAssetDocument(doc.id, 'concept', e.target.value)} placeholder="Añadir concepto..." />
+                            <input type="text" className="w-full bg-transparent border-transparent hover:border-gray-300 focus:bg-white focus:border-[#666] focus:shadow-[inset_0_1px_2px_rgba(0,0,0,0.12)] text-[11px] px-1 outline-none h-[24px] transition-colors rounded-sm" value={doc.concept || ''} onChange={(e) => updateAssetDocument(doc.id, 'concept', e.target.value)} placeholder="Añadir concepto..." />
                           </td>
                           <td className="py-1 px-2">
-                            <input type="date" className="w-full border border-transparent hover:border-gray-300 focus:border-[#2b579a] px-2 py-1 text-[11px] bg-transparent focus:bg-white outline-none transition-colors rounded-none text-gray-700" value={doc.date || ''} onChange={(e) => updateAssetDocument(doc.id, 'date', e.target.value)} />
+                            <input type="date" className="w-full bg-transparent border-transparent hover:border-gray-300 focus:bg-white focus:border-[#666] focus:shadow-[inset_0_1px_2px_rgba(0,0,0,0.12)] text-[11px] px-1 outline-none h-[24px] transition-colors rounded-sm" value={doc.date || ''} onChange={(e) => updateAssetDocument(doc.id, 'date', e.target.value)} />
                           </td>
                           <td className="py-2 px-3 text-center">
                             <div className="flex justify-center items-center space-x-4">
@@ -949,7 +963,7 @@ export default function RealEstate() {
               <input type="text" placeholder="Buscar en el fichero (Alt+B)" value={filterValue} onChange={(e) => {
                 setFilterValue(e.target.value);
                 setIsFilterActive(e.target.value.length > 0);
-              }} className="pl-2 pr-8 py-1 border-b border-gray-400 text-[12px] w-64 outline-none focus:border-blue-500" />
+              }} className="pl-2 pr-8 py-1 border-b border-gray-400 text-[12px] w-64 outline-none focus:border-[#666]" />
               <Search className="w-4 h-4 absolute right-1 top-1/2 -translate-y-1/2 text-gray-500" />
             </div>
           </div>
@@ -1097,6 +1111,40 @@ export default function RealEstate() {
         </div>
       )}
 
+      {/* Accounts Modal */}
+      {showAccountsModal && (
+        <div className="fixed inset-0 bg-black/40 backdrop-blur-sm flex items-center justify-center z-[70]">
+          <Window 
+            title="Configuración de Cuentas Contables"
+            width={isMobile ? "100%" : "900px"}
+            initialPos={{ x: isMobile ? 0 : 50, y: isMobile ? 0 : 20 }}
+            onClose={() => setShowAccountsModal(false)}
+          >
+            <div className="bg-[#d4d0c8] flex flex-col h-[600px]">
+              <div className="flex-1 overflow-auto p-1">
+                <div className="bg-white border border-[#808080] shadow-[1px_1px_0px_#000] min-h-full h-full relative">
+                  <Accounts 
+                    isModal={true} 
+                    onAccountSelect={(code) => {
+                      setFormData(prev => ({ ...prev, accountingAccount: code }));
+                      setShowAccountsModal(false);
+                    }} 
+                  />
+                </div>
+              </div>
+              <div className="flex justify-end gap-2 shrink-0 pt-2 pb-1 pr-1 bg-[#d4d0c8] border-t border-[#808080]">
+                <button 
+                  className="px-6 py-1 border border-gray-400 bg-gray-100 hover:bg-gray-200 shadow-sm text-[11px] font-bold uppercase" 
+                  onClick={() => setShowAccountsModal(false)}
+                >
+                  Cerrar
+                </button>
+              </div>
+            </div>
+          </Window>
+        </div>
+      )}
+
       {/* Property Form Window */}
       {showForm && (
         <ErrorBoundary>
@@ -1113,7 +1161,10 @@ export default function RealEstate() {
               <div className="flex flex-1 h-full min-h-0 bg-white relative">
                 {/* Sidebar - shown when showSidebar=true on both mobile and desktop */}
                 {showSidebar && (
-                  <div className={`bg-white border-r border-[#ccc] shrink-0 overflow-y-auto p-2 flex flex-col ${isMobile ? 'absolute inset-y-0 left-0 z-30 w-52' : 'w-52'}`}>
+                  <div 
+                    onScroll={() => { if (activeHelpTooltip) setActiveHelpTooltip(null); }}
+                    className={`bg-white border-r border-[#ccc] shrink-0 overflow-y-auto p-2 flex flex-col ${isMobile ? 'absolute inset-y-0 left-0 z-30 w-52' : 'w-52'}`}
+                  >
                     <div className="border border-[#ccc] bg-white flex flex-col p-1 gap-1">
                       {tabs.map((tab) => {
                         const isActive = activeTab === tab.id;
@@ -1126,34 +1177,72 @@ export default function RealEstate() {
                               : 'bg-white text-[#555] border-[#ddd] hover:bg-[#e9ecef] hover:text-[#111] font-medium'
                               }`}
                           >
-                            <span>{tab.id}</span>
+                            <span className="truncate pr-1">{tab.id}</span>
                             {['Finanzas', 'Hipoteca', 'Reformas', 'Extracto ingresos gastos'].includes(tab.id) && (
-                              <div className="relative flex items-center">
-                                <HelpCircle
-                                  className="w-3.5 h-3.5 text-gray-500 hover:text-[#2b579a] transition-colors shrink-0"
-                                  onClick={(e) => {
-                                    e.stopPropagation();
-                                    setActiveHelpTooltip(activeHelpTooltip === tab.id ? null : tab.id);
-                                  }}
-                                />
-                                {activeHelpTooltip === tab.id && (
-                                  <>
-                                    <div className="fixed inset-0 z-40 cursor-default" onClick={(e) => { e.stopPropagation(); setActiveHelpTooltip(null); }}></div>
-                                    <div className="absolute left-6 top-1/2 -translate-y-1/2 z-50 bg-[#fffee0] border border-[#dcd9a3] shadow-md p-2 text-[10px] text-gray-800 w-36 rounded font-normal text-left whitespace-normal leading-tight" onClick={e => e.stopPropagation()}>
-                                      {tab.id === 'Finanzas' && 'Calculo para total propietarios'}
-                                      {tab.id === 'Hipoteca' && 'Calculo por propietario individual'}
-                                      {tab.id === 'Reformas' && 'Calculo para total propietarios'}
-                                      {tab.id === 'Extracto ingresos gastos' && 'Calculo por propietario individual'}
-                                    </div>
-                                  </>
-                                )}
-                              </div>
+                              <HelpCircle
+                                title="Haga clic para ver información"
+                                className={`w-3.5 h-3.5 transition-colors shrink-0 cursor-pointer ${
+                                  activeHelpTooltip?.id === tab.id ? 'text-[#2b579a]' : 'text-gray-400 hover:text-[#2b579a]'
+                                }`}
+                                onClick={(e) => {
+                                  e.stopPropagation();
+                                  if (activeHelpTooltip?.id === tab.id) {
+                                    setActiveHelpTooltip(null);
+                                  } else {
+                                    const rect = e.currentTarget.getBoundingClientRect();
+                                    const tooltipWidth = 210;
+                                    const left = (rect.right + tooltipWidth + 16 > window.innerWidth)
+                                      ? Math.max(12, rect.left - tooltipWidth - 8)
+                                      : rect.right + 8;
+                                    setActiveHelpTooltip({
+                                      id: tab.id,
+                                      top: rect.top + rect.height / 2,
+                                      left: left
+                                    });
+                                  }
+                                }}
+                              />
                             )}
                           </button>
                         );
                       })}
                     </div>
                   </div>
+                )}
+                {/* Floating tooltip for help notes */}
+                {activeHelpTooltip && (
+                  <>
+                    <div
+                      className="fixed inset-0 z-[100] cursor-default bg-transparent"
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        setActiveHelpTooltip(null);
+                      }}
+                    />
+                    <div
+                      className="fixed z-[101] bg-[#fffee0] border border-[#dcd9a3] shadow-[0_4px_14px_rgba(0,0,0,0.18)] p-2.5 text-[11px] text-gray-800 rounded font-normal text-left whitespace-normal leading-snug w-52 pointer-events-auto select-none"
+                      style={{
+                        top: `${activeHelpTooltip.top}px`,
+                        left: `${activeHelpTooltip.left}px`,
+                        transform: 'translateY(-50%)'
+                      }}
+                      onClick={(e) => e.stopPropagation()}
+                    >
+                      <div className="font-bold text-[10px] text-[#2b579a] uppercase tracking-wider mb-1.5 pb-1 border-b border-[#e2dea0] flex items-center justify-between">
+                        <span className="truncate">{activeHelpTooltip.id}</span>
+                        <X
+                          className="w-3 h-3 text-gray-400 hover:text-gray-700 cursor-pointer shrink-0 ml-1"
+                          onClick={() => setActiveHelpTooltip(null)}
+                        />
+                      </div>
+                      <div className="text-gray-700">
+                        {activeHelpTooltip.id === 'Finanzas' && 'Cálculo para total propietarios'}
+                        {activeHelpTooltip.id === 'Hipoteca' && 'Cálculo por propietario individual'}
+                        {activeHelpTooltip.id === 'Reformas' && 'Cálculo para total propietarios'}
+                        {activeHelpTooltip.id === 'Extracto ingresos gastos' && 'Cálculo por propietario individual'}
+                      </div>
+                    </div>
+                  </>
                 )}
                 {/* Mobile backdrop to close sidebar */}
                 {isMobile && showSidebar && (

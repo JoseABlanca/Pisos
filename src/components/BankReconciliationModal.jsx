@@ -58,14 +58,14 @@ export default function BankReconciliationModal({ isOpen, onClose }) {
         <div className="px-4 py-3 flex flex-wrap gap-4 items-center text-[11px] text-gray-800 border-b border-gray-200 overflow-x-auto shrink-0">
           <div className="flex items-center space-x-2 whitespace-nowrap">
             <span className="font-semibold">Fecha inicial / final</span>
-            <input type="date" defaultValue="2026-01-01" className="border border-gray-400 px-1 py-0.5 w-28 outline-none focus:border-blue-500" />
+            <input type="date" defaultValue="2026-01-01" className="border border-gray-400 px-1 py-0.5 w-28 outline-none focus:border-[#666] focus:shadow-[inset_0_1px_2px_rgba(0,0,0,0.12)]" />
             <span>/</span>
-            <input type="date" defaultValue="2026-12-31" className="border border-gray-400 px-1 py-0.5 w-28 outline-none focus:border-blue-500" />
+            <input type="date" defaultValue="2026-12-31" className="border border-gray-400 px-1 py-0.5 w-28 outline-none focus:border-[#666] focus:shadow-[inset_0_1px_2px_rgba(0,0,0,0.12)]" />
           </div>
           
           <div className="flex items-center space-x-2 whitespace-nowrap">
             <span className="font-semibold">Banco:</span>
-            <select className="border border-gray-400 px-1 py-0.5 w-64 outline-none focus:border-blue-500">
+            <select className="border border-gray-400 px-1 py-0.5 w-64 outline-none focus:border-[#666] focus:shadow-[inset_0_1px_2px_rgba(0,0,0,0.12)]">
               {bankAccounts.length === 0 ? (
                 <option>Cargando cuentas...</option>
               ) : (
@@ -80,7 +80,7 @@ export default function BankReconciliationModal({ isOpen, onClose }) {
 
           <div className="flex items-center space-x-2 whitespace-nowrap">
             <span className="font-semibold">Movimientos:</span>
-            <select className="border border-gray-400 px-1 py-0.5 w-24 outline-none focus:border-blue-500">
+            <select className="border border-gray-400 px-1 py-0.5 w-24 outline-none focus:border-[#666] focus:shadow-[inset_0_1px_2px_rgba(0,0,0,0.12)]">
               <option>Todos</option>
             </select>
           </div>
@@ -127,7 +127,7 @@ export default function BankReconciliationModal({ isOpen, onClose }) {
                 <span className="text-[11px] text-gray-700 font-semibold mb-1">Movimientos</span>
                 <div className="flex-1 border border-gray-400 overflow-auto bg-white">
                   <table className="w-full text-left text-[11px] whitespace-nowrap">
-                    <thead className="sticky top-0 bg-white shadow-sm">
+                    <thead className="sticky top-0 bg-[#fafafa] shadow-sm">
                       <tr className="border-b border-gray-400 text-gray-700">
                         <th className="px-2 py-1 font-normal border-r border-gray-300">PUNTEO</th>
                         <th className="px-2 py-1 font-normal border-r border-gray-300">DIARIO</th>
@@ -155,7 +155,7 @@ export default function BankReconciliationModal({ isOpen, onClose }) {
                 </div>
                 <div className="flex-1 border border-gray-400 overflow-auto bg-white">
                   <table className="w-full text-left text-[11px] whitespace-nowrap">
-                    <thead className="sticky top-0 bg-white shadow-sm">
+                    <thead className="sticky top-0 bg-[#fafafa] shadow-sm">
                       <tr className="border-b border-gray-400 text-gray-700">
                         <th className="px-2 py-1 font-normal border-r border-gray-300">PUNTEO</th>
                         <th className="px-2 py-1 font-normal border-r border-gray-300">FECHA</th>

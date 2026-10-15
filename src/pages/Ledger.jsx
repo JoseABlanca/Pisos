@@ -617,8 +617,8 @@ export default function Ledger({ initialMode }) {
           <div className="flex-1 bg-white flex flex-col min-w-0">
             <div className="flex-1 overflow-auto">
               <table className="w-full h-full text-left border-collapse text-[11px] font-sans" style={{ zoom: tableZoom }}>
-              <thead className="bg-white sticky top-0 z-10 border-b border-gray-300 text-gray-800">
-                <tr>
+              <thead className="bg-[#fafafa] sticky top-0 z-10 border-b border-gray-200 text-gray-800">
+                <tr className="border-b border-gray-200">
                   <th className="px-2 py-1.5 font-normal w-24">FECHA</th>
                   <th className="px-2 py-1.5 font-normal w-12 text-center">ASI.</th>
                   <th className="px-2 py-1.5 font-normal w-12 text-center">ORD.</th>
@@ -680,23 +680,15 @@ export default function Ledger({ initialMode }) {
                 <tr>
                   <td colSpan="4" className="px-2 py-2 align-bottom font-bold text-left">{selectedAccount?.name}</td>
                   <td className="px-2 py-2 text-right space-y-0.5 text-[#2a3042]">
-                    <div>TOTAL:</div>
-                    <div>SALDO PUNTEADO:</div>
-                    <div>SALDO SIN PUNTEAR:</div>
+                    <div>TOTAL SALDOS:</div>
                   </td>
                   <td className="px-2 py-2 text-right space-y-0.5 text-red-600 font-bold">
                     <div>{totalDebit.toLocaleString('es-ES', {minimumFractionDigits: 2})}</div>
-                    <div>0,00</div>
-                    <div>0,00</div>
                   </td>
                   <td className="px-2 py-2 text-right space-y-0.5 text-red-600 font-bold">
                     <div>{totalCredit.toLocaleString('es-ES', {minimumFractionDigits: 2})}</div>
-                    <div>0,00</div>
-                    <div>{totalCredit.toLocaleString('es-ES', {minimumFractionDigits: 2})}</div>
                   </td>
                   <td className="px-2 py-2 text-right space-y-0.5 text-red-600 font-bold">
-                    <div>{endBalance.toLocaleString('es-ES', {minimumFractionDigits: 2})}{endBalance < 0 ? '-' : ''}</div>
-                    <div>0,00</div>
                     <div>{endBalance.toLocaleString('es-ES', {minimumFractionDigits: 2})}{endBalance < 0 ? '-' : ''}</div>
                   </td>
                   <td colSpan="4"></td>

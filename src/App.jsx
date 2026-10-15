@@ -65,6 +65,7 @@ function App() {
             <Route path="print" element={<PrintPage />} />
             <Route path="settings" element={<Settings />} />
             <Route path="customers" element={<Customers />} />
+            <Route path="clientes" element={<Navigate to="/customers" replace />} />
             <Route path="real-estate" element={<RealEstate />} />
             <Route path="taxes-real-estate" element={<TaxesRealEstate />} />
             <Route path="taxes-total" element={<TaxesTotal />} />

@@ -544,7 +544,7 @@ export default function LaboralContratos() {
             </div>
           ) : (
             <table className="w-full text-left border-collapse border border-[#ccc]">
-              <thead className="bg-[#f8f9fa]">
+              <thead className="bg-[#fafafa]">
                 <tr>
                   <th className="py-[6px] px-2 text-[10px] font-bold text-[#333] uppercase border border-[#ccc]">FECHA (ASIENTO)</th>
                   <th className="py-[6px] px-2 text-[10px] font-bold text-[#333] uppercase border border-[#ccc]">CUENTA</th>
@@ -603,7 +603,7 @@ if (activeTab === 'Documentos') return (
           </div>
         </div>
         <div className="flex-1 bg-white overflow-hidden flex flex-col min-h-[200px] rounded-b-md">
-          <div className="bg-[#f0f0f0] grid grid-cols-12 gap-2 p-2 border-b border-[#808080] text-[10px] font-bold uppercase">
+          <div className="bg-[#fafafa] grid grid-cols-12 gap-2 p-2 text-[10px] font-bold uppercase text-[#333] border-b border-slate-100">
             <div className="col-span-4">Documento</div>
             <div className="col-span-4">Concepto</div>
             <div className="col-span-2">Fecha</div>
@@ -647,7 +647,7 @@ if (activeTab === 'Documentos') return (
             <div className="flex items-center space-x-2" />
             <div className="relative" onClick={e => e.stopPropagation()}>
               <input type="text" placeholder="Buscar contrato..." value={filterValue} onChange={e => setFilterValue(e.target.value)}
-                className="pl-2 pr-8 py-1 border-b border-gray-400 text-[12px] w-64 outline-none focus:border-blue-500" />
+                className="pl-2 pr-8 py-1 border-b border-gray-400 text-[12px] w-64 outline-none focus:border-[#666]" />
               <Search className="w-4 h-4 absolute right-1 top-1/2 -translate-y-1/2 text-gray-500" />
             </div>
           </div>

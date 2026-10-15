@@ -434,7 +434,7 @@ export default function RvMetrics() {
                 <div className="overflow-x-auto font-sans">
                   <table style={{ zoom: tableZoom }} className="w-full text-[12px] text-left border-collapse">
                     <thead>
-                      <tr className="bg-[#f2f2f2] text-slate-700 font-bold border-b border-slate-300">
+                      <tr className="bg-[#fafafa] text-slate-700 font-bold border-b border-slate-100">
                         <th className="py-2.5 px-4 font-bold">Métrica</th>
                         <th className="py-2.5 px-4 text-right font-bold">Importe (€) / Valor</th>
                         <th className="py-2.5 px-4 text-right font-bold">Porcentaje (%)</th>

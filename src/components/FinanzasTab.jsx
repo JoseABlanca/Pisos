@@ -93,8 +93,8 @@ export default function FinanzasTab({ formData, setFormData, rentals, user, setP
           <h3 className="text-[12px] font-bold text-slate-800 uppercase italic">Datos</h3>
           <div className="border border-[#808080] p-4 bg-white">
             <div className="space-y-4 max-w-sm">
-              <div className="space-y-1">
-                <label className="text-[10px] font-bold text-slate-700 uppercase">Fecha de compra:</label>
+              <div className="space-y-2.5">
+                <label className="text-[10px] font-bold text-[#444] uppercase tracking-wide block">Fecha de compra:</label>
             <input 
               type="date" 
               className="win-input w-full" 
@@ -102,8 +102,8 @@ export default function FinanzasTab({ formData, setFormData, rentals, user, setP
               onChange={e => setFormData({ ...formData, purchaseDate: e.target.value })} 
             />
           </div>
-          <div className="space-y-1">
-            <label className="text-[10px] font-bold text-slate-700 uppercase">Precio de adquisición:</label>
+          <div className="space-y-2.5">
+            <label className="text-[10px] font-bold text-[#444] uppercase tracking-wide block">Precio de adquisición:</label>
             <div className="relative">
               <input 
                 type="number" 
@@ -114,8 +114,8 @@ export default function FinanzasTab({ formData, setFormData, rentals, user, setP
               <span className="absolute right-2 top-1/2 -translate-y-1/2 text-[11px] text-gray-500">€</span>
             </div>
           </div>
-          <div className="space-y-1">
-            <label className="text-[10px] font-bold text-slate-700 uppercase">Capital aportado:</label>
+          <div className="space-y-2.5">
+            <label className="text-[10px] font-bold text-[#444] uppercase tracking-wide block">Capital aportado:</label>
             <div className="relative">
               <input 
                 type="number" 
@@ -126,8 +126,8 @@ export default function FinanzasTab({ formData, setFormData, rentals, user, setP
               <span className="absolute right-2 top-1/2 -translate-y-1/2 text-[11px] text-gray-500">€</span>
             </div>
           </div>
-          <div className="space-y-1">
-            <label className="text-[10px] font-bold text-slate-700 uppercase" title="Suma automática de las reformas marcadas para capitalizar">Total reformas capitalizable:</label>
+          <div className="space-y-2.5">
+            <label className="text-[10px] font-bold text-[#444] uppercase tracking-wide block" title="Suma automática de las reformas marcadas para capitalizar">Total reformas capitalizable:</label>
             <div className="relative">
               <input 
                 type="text" 
@@ -138,8 +138,8 @@ export default function FinanzasTab({ formData, setFormData, rentals, user, setP
               <span className="absolute right-2 top-1/2 -translate-y-1/2 text-[11px] text-gray-500">€</span>
             </div>
           </div>
-          <div className="space-y-1">
-            <label className="text-[10px] font-bold text-slate-700 uppercase" title="Suma de Capital Aportado y Reformas Capitalizables. Escribe para sobrescribir manualmente.">Total Inversión:</label>
+          <div className="space-y-2.5">
+            <label className="text-[10px] font-bold text-[#444] uppercase tracking-wide block" title="Suma de Capital Aportado y Reformas Capitalizables. Escribe para sobrescribir manualmente.">Total Inversión:</label>
             <div className="relative">
               <input 
                 type={isFocused ? "number" : "text"} 
@@ -172,8 +172,8 @@ export default function FinanzasTab({ formData, setFormData, rentals, user, setP
               <span className="absolute right-2 top-1/2 -translate-y-1/2 text-[11px] text-black font-bold pointer-events-none">€</span>
             </div>
           </div>
-          <div className="space-y-1">
-            <label className="text-[10px] font-bold text-slate-700 uppercase">Precio teórico de venta:</label>
+          <div className="space-y-2.5">
+            <label className="text-[10px] font-bold text-[#444] uppercase tracking-wide block">Precio teórico de venta:</label>
             <div className="relative">
               <input 
                 type="number" 
@@ -184,8 +184,8 @@ export default function FinanzasTab({ formData, setFormData, rentals, user, setP
               <span className="absolute right-2 top-1/2 -translate-y-1/2 text-[11px] text-gray-500">€</span>
             </div>
           </div>
-          <div className="space-y-1">
-            <label className="text-[10px] font-bold text-slate-700 uppercase" title="Suma automática de los gastos de adquisición">Gastos adquisición:</label>
+          <div className="space-y-2.5">
+            <label className="text-[10px] font-bold text-[#444] uppercase tracking-wide block" title="Suma automática de los gastos de adquisición">Gastos adquisición:</label>
             <div className="relative">
               <input 
                 type="text" 
@@ -213,7 +213,7 @@ export default function FinanzasTab({ formData, setFormData, rentals, user, setP
           </div>
           
           <div className="border border-[#808080] bg-white overflow-hidden flex flex-col">
-            <div className="bg-[#f0f0f0] grid grid-cols-12 gap-0 border-b border-[#808080] text-[10px] font-bold uppercase">
+            <div className="bg-[#fafafa] grid grid-cols-12 gap-0 text-[10px] font-bold uppercase text-[#333] border-b border-slate-100">
               <div className="col-span-2 p-2">Fecha</div>
               <div className="col-span-5 p-2">Concepto</div>
               <div className="col-span-3 p-2 text-right">Cantidad (€)</div>
@@ -230,7 +230,7 @@ export default function FinanzasTab({ formData, setFormData, rentals, user, setP
                         type="date"
                         value={exp.date || ''}
                         onChange={(e) => updateExpense(idx, 'date', e.target.value)}
-                        className="w-full bg-transparent border-transparent hover:border-gray-300 focus:bg-white focus:border-blue-400 text-[11px] px-1 outline-none h-[24px]"
+                        className="w-full bg-transparent border-transparent hover:border-gray-300 focus:bg-white focus:border-[#666] focus:shadow-[inset_0_1px_2px_rgba(0,0,0,0.12)] text-[11px] px-1 outline-none h-[24px]"
                       />
                     </div>
                     <div className="col-span-5 flex items-center truncate p-1">
@@ -238,7 +238,7 @@ export default function FinanzasTab({ formData, setFormData, rentals, user, setP
                         type="text"
                         value={exp.concept || ''}
                         onChange={(e) => updateExpense(idx, 'concept', e.target.value)}
-                        className="w-full bg-transparent border-transparent hover:border-gray-300 focus:bg-white focus:border-blue-400 text-[11px] px-1 outline-none h-[24px]"
+                        className="w-full bg-transparent border-transparent hover:border-gray-300 focus:bg-white focus:border-[#666] focus:shadow-[inset_0_1px_2px_rgba(0,0,0,0.12)] text-[11px] px-1 outline-none h-[24px]"
                         placeholder="Ej. Notaría, ITP..."
                       />
                     </div>
@@ -247,7 +247,7 @@ export default function FinanzasTab({ formData, setFormData, rentals, user, setP
                         type="number"
                         value={exp.amount || ''}
                         onChange={(e) => updateExpense(idx, 'amount', e.target.value)}
-                        className="w-full text-right bg-transparent border-transparent hover:border-gray-300 focus:bg-white focus:border-blue-400 text-[11px] px-1 outline-none h-[24px]"
+                        className="w-full text-right bg-transparent border-transparent hover:border-gray-300 focus:bg-white focus:border-[#666] focus:shadow-[inset_0_1px_2px_rgba(0,0,0,0.12)] text-[11px] px-1 outline-none h-[24px]"
                       />
                     </div>
                     <div className="col-span-2 flex justify-center space-x-2 p-1 relative">

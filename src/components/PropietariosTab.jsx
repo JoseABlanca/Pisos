@@ -105,7 +105,7 @@ export default function PropietariosTab({ formData, setFormData, user, queryUser
             <div className="flex items-end gap-2 mb-2">
               <div className="flex-1">
                 <select 
-                  className="w-full border border-gray-400 px-2 py-1 text-[11px] focus:outline-none focus:border-blue-500 bg-white"
+                  className="w-full border border-gray-400 px-2 py-1 text-[11px] focus:outline-none focus:border-[#666] focus:shadow-[inset_0_1px_2px_rgba(0,0,0,0.12)] bg-white"
                   value={selectedPartnerId}
                   onChange={(e) => setSelectedPartnerId(e.target.value)}
                 >
@@ -119,7 +119,7 @@ export default function PropietariosTab({ formData, setFormData, user, queryUser
               <div className="w-24">
                 <input 
                   type="number" 
-                  className="w-full border border-gray-400 px-2 py-1 text-[11px] text-right focus:outline-none focus:border-blue-500 bg-white"
+                  className="w-full border border-gray-400 px-2 py-1 text-[11px] text-right focus:outline-none focus:border-[#666] focus:shadow-[inset_0_1px_2px_rgba(0,0,0,0.12)] bg-white"
                   value={percentage}
                   onChange={(e) => setPercentage(e.target.value)}
                   placeholder="% Participación"
@@ -161,7 +161,7 @@ export default function PropietariosTab({ formData, setFormData, user, queryUser
                             type="number"
                             value={owner.percentage || ''}
                             onChange={(e) => updateOwnerPercentage(idx, e.target.value)}
-                            className="w-full border border-gray-400 px-2 py-1 text-[11px] text-right focus:outline-none focus:border-blue-500 font-bold text-black"
+                            className="w-full border border-gray-400 px-2 py-1 text-[11px] text-right focus:outline-none focus:border-[#666] focus:shadow-[inset_0_1px_2px_rgba(0,0,0,0.12)] font-bold text-black"
                           />
                         </td>
                         <td className="text-center">
@@ -180,7 +180,7 @@ export default function PropietariosTab({ formData, setFormData, user, queryUser
               </table>
               {/* Footer de suma */}
               <div className={`p-2 flex justify-end items-center text-[11px] font-bold bg-white text-black`}>
-                TOTAL PARTICIPACIÓN: {totalPercentage.toFixed(2)} %
+                TOTAL PARTICIPACIÓN: {totalPercentage.toLocaleString('de-DE', { minimumFractionDigits: 2, maximumFractionDigits: 2 })} %
               </div>
             </div>
           </div>
@@ -214,10 +214,10 @@ export default function PropietariosTab({ formData, setFormData, user, queryUser
                     owners.map((owner) => (
                       <tr key={`metrics-${owner.partnerId}`}>
                         <td className="font-bold text-[11px]">{owner.name}</td>
-                        <td className="text-right text-[11px] text-black font-bold">{owner.percentage}%</td>
-                        <td className="text-right text-[11px] text-black">{(totalCapitalAndExpenses * (owner.percentage / 100)).toFixed(2)} €</td>
-                        <td className="text-right text-[11px] text-black">{(theoreticalSalePrice * (owner.percentage / 100)).toFixed(2)} €</td>
-                        <td className="text-right text-[11px] text-black">{(neto * (owner.percentage / 100)).toFixed(2)} €</td>
+                        <td className="text-right text-[11px] text-black">{(parseFloat(owner.percentage) || 0).toLocaleString('de-DE', { minimumFractionDigits: 2, maximumFractionDigits: 2 })} %</td>
+                        <td className="text-right text-[11px] text-black">{(totalCapitalAndExpenses * ((parseFloat(owner.percentage) || 0) / 100)).toLocaleString('de-DE', { minimumFractionDigits: 2, maximumFractionDigits: 2 })} €</td>
+                        <td className="text-right text-[11px] text-black">{(theoreticalSalePrice * ((parseFloat(owner.percentage) || 0) / 100)).toLocaleString('de-DE', { minimumFractionDigits: 2, maximumFractionDigits: 2 })} €</td>
+                        <td className="text-right text-[11px] text-black">{(neto * ((parseFloat(owner.percentage) || 0) / 100)).toLocaleString('de-DE', { minimumFractionDigits: 2, maximumFractionDigits: 2 })} €</td>
                       </tr>
                     ))
                   )}
@@ -226,10 +226,10 @@ export default function PropietariosTab({ formData, setFormData, user, queryUser
                   {owners.length > 0 && (
                     <tr className="bg-[#f8f8f8] font-bold border-t-2 border-gray-300">
                       <td className="text-[11px] text-black uppercase">TOTALES</td>
-                      <td className="text-right text-[11px] text-black">{totalPercentage.toFixed(2)}%</td>
-                      <td className="text-right text-[11px] text-black">{(totalCapitalAndExpenses * (totalPercentage / 100)).toFixed(2)} €</td>
-                      <td className="text-right text-[11px] text-black">{(theoreticalSalePrice * (totalPercentage / 100)).toFixed(2)} €</td>
-                      <td className="text-right text-[11px] text-black">{(neto * (totalPercentage / 100)).toFixed(2)} €</td>
+                      <td className="text-right text-[11px] text-black">{totalPercentage.toLocaleString('de-DE', { minimumFractionDigits: 2, maximumFractionDigits: 2 })} %</td>
+                      <td className="text-right text-[11px] text-black">{(totalCapitalAndExpenses * (totalPercentage / 100)).toLocaleString('de-DE', { minimumFractionDigits: 2, maximumFractionDigits: 2 })} €</td>
+                      <td className="text-right text-[11px] text-black">{(theoreticalSalePrice * (totalPercentage / 100)).toLocaleString('de-DE', { minimumFractionDigits: 2, maximumFractionDigits: 2 })} €</td>
+                      <td className="text-right text-[11px] text-black">{(neto * (totalPercentage / 100)).toLocaleString('de-DE', { minimumFractionDigits: 2, maximumFractionDigits: 2 })} €</td>
                     </tr>
                   )}
                 </tfoot>

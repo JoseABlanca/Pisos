@@ -514,7 +514,7 @@ export default function CfActivos() {
                 placeholder="Buscar en el fichero (Alt+B)"
                 value={searchQuery}
                 onChange={(e) => setSearchQuery(e.target.value)}
-                className="pl-2 pr-8 py-1 border-b border-gray-400 text-[12px] w-64 outline-none focus:border-blue-500 bg-transparent"
+                className="pl-2 pr-8 py-1 border-b border-gray-400 text-[12px] w-64 outline-none focus:border-[#666] bg-transparent"
               />
               <Search className="w-4 h-4 absolute right-1 top-1/2 -translate-y-1/2 text-gray-500" />
             </div>
@@ -1024,7 +1024,7 @@ function SearchableSelect({ options, value, onChange, placeholder }) {
               autoFocus
               type="text"
               placeholder="Buscar..."
-              className="win-input w-full text-[11px] px-2 py-1.5 focus:border-blue-500 font-sans"
+              className="win-input w-full text-[11px] px-2 py-1.5 font-sans"
               value={search}
               onChange={(e) => setSearch(e.target.value)}
             />
@@ -1197,8 +1197,8 @@ function AnalyticsJournalViewer({ type, value, userIds, setPreviewDocument }) {
       ) : (
         <div className="overflow-x-auto border border-[#808080]">
           <table style={{ zoom: tableZoom }} className="w-full win-table bg-white">
-            <thead className="bg-[#d4d0c8] select-none text-[10px]">
-              <tr className="border-b border-[#808080]">
+            <thead className="bg-[#fafafa] select-none text-[10px] text-[#333]">
+              <tr className="border-b border-[#eee]">
                 <th className="p-1.5 text-left font-bold border-r border-[#808080]">Fecha</th>
                 <th className="p-1.5 text-left font-bold border-r border-[#808080]">Concepto</th>
                 <th className="p-1.5 text-left font-bold border-r border-[#808080]">Documento</th>

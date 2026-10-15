@@ -35,9 +35,9 @@ export default function Customers() {
   const [activeFormTab, setActiveFormTab] = useState('general');
   const [showModalSidebar, setShowModalSidebar] = useState(true);
   const formTabs = [
-    { id: 'general', name: 'DETALLES GENERALES' },
-    { id: 'docs', name: 'DOCUMENTOS' },
-    { id: 'trans', name: 'TRANSACCIONES' }
+    { id: 'general', name: 'Detalles Generales' },
+    { id: 'docs', name: 'Documentos' },
+    { id: 'trans', name: 'Transacciones' }
   ];
   const [filterColumn, setFilterColumn] = useState('name');
   const [filterOperator, setFilterOperator] = useState('contains');
@@ -590,7 +590,7 @@ export default function Customers() {
                   setFilterValue(e.target.value);
                   setIsFilterActive(e.target.value.length > 0);
                 }}
-                className="pl-2 pr-8 py-1 border-b border-gray-400 text-[12px] w-64 outline-none focus:border-blue-500"
+                className="pl-2 pr-8 py-1 border-b border-gray-400 text-[12px] w-64 outline-none focus:border-[#666]"
               />
               <Search className="w-4 h-4 absolute right-1 top-1/2 -translate-y-1/2 text-gray-500" />
             </div>
@@ -691,24 +691,26 @@ export default function Customers() {
             onClose={() => setShowForm(false)}
             onMenuClick={() => setShowModalSidebar(!showModalSidebar)}
           >
-            <div className="flex h-full bg-[#d4d0c8] relative overflow-hidden">
+            <div className="flex flex-1 h-full min-h-0 bg-white relative">
               {/* Sidebar */}
               {showModalSidebar && (
-                <div className={`bg-white border-r border-[#ccc] shrink-0 overflow-y-auto p-2 flex flex-col shadow-[inset_-1px_0_0_rgba(0,0,0,0.1)] ${isMobile ? 'absolute inset-y-0 left-0 z-30 w-56' : 'w-56'}`}>
-                  <div className="bg-white border border-[#a0a0a0] flex flex-col">
-                    {formTabs.map(tab => (
-                      <button 
-                        key={tab.id}
-                        onClick={() => { setActiveFormTab(tab.id); if (isMobile) setShowModalSidebar(false); }}
-                        className={`w-full text-left px-4 py-2.5 text-[12px] transition-colors border-y ${
-                          activeFormTab === tab.id 
-                            ? 'bg-[#c0c0c0] text-black border-[#a0a0a0] shadow-[inset_0px_1px_1px_rgba(0,0,0,0.1)] font-semibold' 
-                            : 'bg-white text-slate-700 border-transparent hover:bg-[#f8f8f8]'
-                        }`}
-                      >
-                        {tab.name}
-                      </button>
-                    ))}
+                <div className={`bg-white border-r border-[#ccc] shrink-0 overflow-y-auto p-2 flex flex-col ${isMobile ? 'absolute inset-y-0 left-0 z-30 w-52' : 'w-52'}`}>
+                  <div className="border border-[#ccc] bg-white flex flex-col p-1 gap-1">
+                    {formTabs.map(tab => {
+                      const isActive = activeFormTab === tab.id;
+                      return (
+                        <button 
+                          key={tab.id}
+                          onClick={() => { setActiveFormTab(tab.id); if (isMobile) setShowModalSidebar(false); }}
+                          className={`w-full flex items-center justify-between px-3 py-2 text-[11px] transition-all border ${isActive
+                            ? 'bg-[#e1e1e1] text-[#111] border-[#888] shadow-[inset_0_1px_2px_rgba(0,0,0,0.12)] border-l-4 border-l-[#2b579a] font-bold'
+                            : 'bg-white text-[#555] border-[#ddd] hover:bg-[#e9ecef] hover:text-[#111] font-medium'
+                          }`}
+                        >
+                          <span className="truncate pr-1">{tab.name}</span>
+                        </button>
+                      );
+                    })}
                   </div>
                 </div>
               )}
@@ -718,9 +720,8 @@ export default function Customers() {
               )}
               
               {/* Main Content Area */}
-              <div className="flex-1 bg-[#d4d0c8] flex flex-col relative overflow-hidden">
-                <div className="flex-1 overflow-auto bg-[#d4d0c8] p-3">
-                  <div className="bg-[#d4d0c8] border border-white shadow-[1px_1px_0px_#000] p-4 min-h-full flex flex-col space-y-4">
+              <div className="flex-1 bg-white flex flex-col relative overflow-hidden">
+                <div className="flex-1 overflow-auto bg-white p-5 space-y-4">
                       
               {/* Header Fields (Photo 1) */}
               {/* Header Fields (Photo 1) - Aligned to the left in a single column */}
@@ -1193,9 +1194,9 @@ export default function Customers() {
 
                   </div>
                 {/* Action Buttons */}
-                <div className="flex justify-end gap-2 shrink-0 pt-2 pb-1 pr-1 bg-[#f5f5f5] border-t border-[#ccc]">
-                  <button className="px-6 py-1 border border-gray-400 bg-gray-100 hover:bg-gray-200 shadow-sm text-[11px] font-bold uppercase" onClick={handleSave}>Aceptar</button>
-                  <button className="px-6 py-1 border border-gray-400 bg-gray-100 hover:bg-gray-200 shadow-sm text-[11px] font-bold uppercase" onClick={() => setShowForm(false)}>Cancelar</button>
+                <div className="flex justify-end gap-2 p-3 bg-[#f5f5f5] border-t border-[#ccc] shrink-0">
+                  <button className="w-[85px] py-[4px] border border-[#a0a0a0] bg-[#f5f5f5] hover:bg-[#e8e8e8] active:bg-[#d0d0d0] text-[12px] text-slate-800 shadow-xs font-normal select-none" onClick={handleSave}>Aceptar</button>
+                  <button className="w-[85px] py-[4px] border border-[#a0a0a0] bg-[#f5f5f5] hover:bg-[#e8e8e8] active:bg-[#d0d0d0] text-[12px] text-slate-800 shadow-xs font-normal select-none" onClick={() => setShowForm(false)}>Cancelar</button>
                 </div>
               </div>
             </div>

@@ -16,27 +16,32 @@ export default function TrialBalance() {
   const [totals, setTotals] = useState({ debit: 0, credit: 0, balance: 0 });
 
   const [sidebarWidth, setSidebarWidth] = useState(200);
-  const isDragging = useRef(false);
+  const dragState = useRef({ active: false, startX: 0, startW: 200 });
 
   const handleMouseMove = useCallback((e) => {
-    if (!isDragging.current) return;
-    const newWidth = e.clientX;
+    if (!dragState.current.active) return;
+    const delta = e.clientX - dragState.current.startX;
+    const newWidth = dragState.current.startW + delta;
     if (newWidth > 150 && newWidth < 600) {
       setSidebarWidth(newWidth);
     }
   }, []);
 
   const handleMouseUp = useCallback(() => {
-    isDragging.current = false;
+    dragState.current.active = false;
     document.removeEventListener('mousemove', handleMouseMove);
     document.removeEventListener('mouseup', handleMouseUp);
   }, [handleMouseMove]);
 
   const handleMouseDown = useCallback((e) => {
-    isDragging.current = true;
+    dragState.current = {
+      active: true,
+      startX: e.clientX,
+      startW: sidebarWidth
+    };
     document.addEventListener('mousemove', handleMouseMove);
     document.addEventListener('mouseup', handleMouseUp);
-  }, [handleMouseMove, handleMouseUp]);
+  }, [handleMouseMove, handleMouseUp, sidebarWidth]);
   const [selectedAccount, setSelectedAccount] = useState(null);
   const [selectedYears, setSelectedYears] = useState([]);
   const [selectedMonths, setSelectedMonths] = useState([]);
@@ -246,8 +251,21 @@ export default function TrialBalance() {
   };
 
   return (
-    <div className="flex flex-col h-full bg-white p-3 font-sans text-[11px] text-slate-800 overflow-hidden">
-      <div className="flex flex-1 overflow-hidden relative bg-white border border-[#718096] rounded shadow-md">
+    <div className="flex h-full bg-white relative font-sans text-[11px] text-slate-800">
+      <div className="absolute top-0 left-0 w-full h-8 bg-white border-b border-gray-200 flex items-center px-4 z-20">
+        <h2 className="text-sm font-normal text-gray-800 tracking-wide uppercase">BALANCE DE SUMAS Y SALDO</h2>
+        <div className="ml-auto flex items-center">
+          <button 
+            onClick={(e) => { e.stopPropagation(); setShowSidebar(!showSidebar); }}
+            className="p-1 hover:bg-gray-100 rounded text-gray-500 border border-transparent hover:border-gray-300 transition-colors"
+            title="Mostrar/Ocultar Filtros"
+          >
+            <PanelLeft className="w-4 h-4 text-slate-700" />
+          </button>
+        </div>
+      </div>
+      <div className="flex w-full h-full flex-col bg-white overflow-hidden pt-8">
+        <div className="flex flex-1 overflow-hidden relative bg-white">
         {/* Sidebar Filters */}
         {showSidebar && (
         <>
@@ -360,19 +378,10 @@ export default function TrialBalance() {
 
         {/* Main Table Area */}
         <div className="flex-1 flex flex-col bg-white overflow-hidden relative">
-           <div className="flex bg-[#f3f4f6] border-b border-gray-300 px-2 py-0.5 justify-between items-center text-[10px]">
-             <div className="text-gray-500 font-semibold">Consultas</div>
-             <button 
-               onClick={() => setShowSidebar(!showSidebar)} 
-               className="p-1 hover:bg-black/10 rounded transition-colors"
-               title="Mostrar/Ocultar Filtros"
-             >
-               <PanelLeft className="w-4 h-4 text-slate-700" />
-             </button>
-           </div>
+           {/* Consultas header removed and toggle moved to top header */}
            <div className="flex-1 overflow-auto">
              <table className="w-full text-left border-collapse whitespace-nowrap" style={{ zoom: tableZoom }}>
-                <thead className="sticky top-0 bg-white shadow-sm z-10 border-b border-gray-300">
+                <thead className="sticky top-0 bg-[#fafafa] z-10 border-b border-gray-200">
                    <tr>
                       <th className="px-2 py-1 font-normal border-r border-gray-200 w-24">CUENTA</th>
                       <th className="px-2 py-1 font-normal border-r border-gray-200">TÍTULO</th>
@@ -449,6 +458,7 @@ export default function TrialBalance() {
              </div>
          </div>
       </div>
+    </div>
     </div>
   );
 }

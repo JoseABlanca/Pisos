@@ -133,7 +133,7 @@ export default function LaboralEmpresas() {
             <div className="flex items-center space-x-2" />
             <div className="relative" onClick={e => e.stopPropagation()}>
               <input type="text" placeholder="Buscar empresa..." value={filterValue} onChange={e => setFilterValue(e.target.value)}
-                className="pl-2 pr-8 py-1 border-b border-gray-400 text-[12px] w-64 outline-none focus:border-blue-500" />
+                className="pl-2 pr-8 py-1 border-b border-gray-400 text-[12px] w-64 outline-none focus:border-[#666]" />
               <Search className="w-4 h-4 absolute right-1 top-1/2 -translate-y-1/2 text-gray-500" />
             </div>
           </div>

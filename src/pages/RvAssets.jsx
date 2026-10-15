@@ -843,7 +843,7 @@ export default function RvAssets() {
                 placeholder="Buscar en el fichero (Alt+B)"
                 value={searchQuery}
                 onChange={(e) => setSearchQuery(e.target.value)}
-                className="pl-2 pr-8 py-1 border-b border-gray-400 text-[12px] w-64 outline-none focus:border-blue-500 bg-transparent"
+                className="pl-2 pr-8 py-1 border-b border-gray-400 text-[12px] w-64 outline-none focus:border-[#666] bg-transparent"
               />
               <Search className="w-4 h-4 absolute right-1 top-1/2 -translate-y-1/2 text-gray-500" />
             </div>
@@ -1121,7 +1121,7 @@ export default function RvAssets() {
                         </div>
                         <div className="flex-1 overflow-auto border border-gray-300 rounded-sm">
                           <table style={{ zoom: tableZoom }} className="clean-table">
-                            <thead className="sticky top-0 bg-[#f8fafc] z-10">
+                            <thead className="sticky top-0 bg-[#fafafa] z-10">
                               <tr>
                                 <th>Fecha</th>
                                 <th className="text-right">Precio de Cierre ({formData.currency})</th>

@@ -214,7 +214,7 @@ function AccountSelector({ accounts, onSelect, onClose }) {
       <div className="bg-white overflow-auto" style={{ height: 300 }}>
         <table className="w-full text-[12px] border-collapse">
           <thead>
-            <tr className="bg-[#f0f0f0] border-b border-[#ccc] sticky top-0">
+            <tr className="bg-[#fafafa] sticky top-0 border-b border-[#f0f0f0]">
               <th className="text-left px-2 py-[3px] font-normal text-[#555] w-[100px]">CUENTA</th>
               <th className="text-left px-2 py-[3px] font-normal text-[#555]">DESCRIPCIÓN</th>
             </tr>
@@ -359,7 +359,7 @@ const MultiSelectDropdown = ({ label, options, selected, onChange }) => {
             placeholder="Buscar..." 
             value={search} 
             onChange={e => setSearch(e.target.value)} 
-            className="w-full border border-slate-300 px-1 py-0.5 text-[10px] outline-none focus:border-blue-500 rounded-sm"
+            className="w-full border border-slate-300 px-1 py-0.5 text-[10px] outline-none focus:border-[#666] focus:shadow-[inset_0_1px_2px_rgba(0,0,0,0.12)] rounded-sm"
           />
           <div className="overflow-y-auto max-h-36 flex flex-col">
             {filteredOptions.length === 0 ? (
@@ -1350,8 +1350,30 @@ export default function Analitica() {
 
   /* ═══════════════════════════════════════════════════════════════════════ */
   return (
-    <div className="w-full h-full flex flex-col bg-white p-3 overflow-hidden font-[Segoe_UI,Tahoma,sans-serif] text-[12px] text-[#333] select-none">
-      <div className="flex-1 flex flex-col bg-white border border-[#718096] rounded shadow-md overflow-hidden relative">
+    <div className="flex h-full bg-white relative font-sans text-[12px] text-[#333] select-none">
+      <div className="absolute top-0 left-0 w-full h-8 bg-white border-b border-gray-200 flex items-center px-4 z-20">
+        <h2 className="text-sm font-normal text-gray-800 tracking-wide uppercase">CONTROL DE GESTION</h2>
+        <div className="ml-auto flex items-center space-x-4">
+          <div className="relative" onClick={e => e.stopPropagation()}>
+            <input 
+              type="text" 
+              placeholder="Buscar en el fichero (Alt+B)"
+              value={searchQuery} onChange={e => setSearchQuery(e.target.value)}
+              className="pl-2 pr-8 py-1 border-b border-gray-400 text-[12px] w-64 outline-none focus:border-[#666] focus:shadow-[inset_0_1px_2px_rgba(0,0,0,0.12)] bg-transparent text-[#333] placeholder:text-gray-400"
+            />
+            <Search className="w-4 h-4 absolute right-1 top-1/2 -translate-y-1/2 text-gray-400 pointer-events-none" />
+          </div>
+          <button 
+            onClick={(e) => { e.stopPropagation(); setSidebarVisible(p => !p); }}
+            className="p-1 hover:bg-gray-100 rounded text-gray-500 border border-transparent hover:border-gray-300 transition-colors"
+            title="Ocultar/Mostrar filtros"
+          >
+            <IcoSidebarToggle />
+          </button>
+        </div>
+      </div>
+      <div className="flex w-full h-full flex-col bg-white overflow-hidden pt-8 font-[Segoe_UI,Tahoma,sans-serif]">
+        <div className="flex-1 flex flex-col bg-white border border-[#718096] rounded shadow-md overflow-hidden relative">
 
       {/* ── TOOLBAR (Foto 1 exact) ──────────────────────────────────────────── */}
       <div className="bg-[#f3f4f6] border-b border-gray-300 flex items-center px-2 py-1 h-[80px] space-x-1 shrink-0 overflow-x-auto whitespace-nowrap">
@@ -1581,25 +1603,7 @@ export default function Analitica() {
         {/* ── TABLE AREA ────────────────────────────────────────────────────── */}
         <div className="flex-1 flex flex-col overflow-hidden bg-white">
 
-          {/* Thin bar above table with sidebar toggle and search */}
-          <div className="flex items-center justify-end border-b border-[#e0e0e0] bg-[#f8f9fa] px-4 py-1 shrink-0 space-x-3">
-            <div className="relative" onClick={e => e.stopPropagation()}>
-              <input 
-                type="text" 
-                placeholder="Buscar en el fichero (Alt+B)"
-                value={searchQuery} onChange={e => setSearchQuery(e.target.value)}
-                className="pl-2 pr-8 py-1 border-b border-gray-400 text-[12px] w-64 outline-none focus:border-blue-500 bg-transparent text-[#333] placeholder:text-gray-400"
-              />
-              <Search className="w-4 h-4 absolute right-1 top-1/2 -translate-y-1/2 text-gray-400 pointer-events-none" />
-            </div>
-            <button 
-              onClick={(e) => { e.stopPropagation(); setSidebarVisible(p => !p); }}
-              className="p-1 hover:bg-gray-200 rounded text-gray-500 border border-transparent hover:border-gray-400"
-              title="Ocultar/Mostrar filtros"
-            >
-              <IcoSidebarToggle />
-            </button>
-          </div>
+          {/* Thin bar above table with sidebar toggle and search removed */}
 
           {/* Table */}
           <div className="flex-1 flex flex-col overflow-hidden bg-white" onClick={() => setSelectedRowId(null)}>
@@ -1616,7 +1620,7 @@ export default function Analitica() {
                       {MONTHS_HDR.map((_, i) => shouldRenderMonth(i) && <col key={i} style={{ width: 80 }} />)}
                     </colgroup>
                     <thead>
-                      <tr className="sticky top-0 bg-white border-b border-[#d6d6d6] z-10">
+                      <tr className="sticky top-0 bg-[#fafafa] border-b border-[#f0f0f0] z-10">
                         <th className="text-left font-normal text-[#555] text-[10px] uppercase tracking-wider py-[5px] px-2">
                           <span>{viewMode === 'analitica' ? 'CEBE / CECO' : 'CUENTA'}</span>
                         </th>
@@ -2260,7 +2264,7 @@ export default function Analitica() {
             <div className="flex-1 overflow-auto bg-white p-2">
               <table className="w-full border-collapse text-[11px] border border-[#ccc]">
                 <thead>
-                  <tr className="bg-[#f0f0f0] border-b border-[#ccc] text-[#333]">
+                  <tr className="bg-[#fafafa] border-b border-[#eee] text-[#333]">
                     <th className="py-1 px-2 text-left font-bold border-r border-[#ccc]">MES</th>
                     <th className="py-1 px-2 text-right font-bold border-r border-[#ccc]">PRESUPUESTO</th>
                     <th className="py-1 px-2 text-right font-bold border-r border-[#ccc]">SALDO</th>
@@ -2386,6 +2390,7 @@ export default function Analitica() {
         </div>
       )}
       </div>
+    </div>
     </div>
   );
 }

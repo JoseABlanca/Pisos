@@ -236,7 +236,7 @@ export default function Window({ title, children, onClose, width = '800px', heig
             title="Menú lateral"
           >
             {[...Array(9)].map((_, i) => (
-              <div key={i} className={`w-[7px] h-[7px] border-[1.5px] ${isClassic ? 'border-gray-400' : 'border-gray-400'} ${[0, 1, 3, 4].includes(i) ? (isClassic ? 'bg-gray-200' : 'bg-gray-200') : 'bg-transparent'}`}></div>
+              <div key={i} className="w-[7px] h-[7px] border-[1.5px] border-[#888] bg-transparent"></div>
             ))}
           </button>
           {!isClassic && <span className="text-[12px] font-normal text-gray-800 tracking-wide truncate pr-4">{title}</span>}

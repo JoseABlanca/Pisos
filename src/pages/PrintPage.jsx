@@ -8172,7 +8172,7 @@ export default function PrintPage() {
                       value={accountsSearch} 
                       onChange={(e) => setAccountsSearch(e.target.value)} 
                       placeholder="Buscar cuenta..." 
-                      className="w-full text-[10px] px-1.5 py-0.5 border border-slate-300 rounded mb-1 outline-none focus:border-blue-400 font-sans normal-case" 
+                      className="w-full text-[10px] px-1.5 py-0.5 border border-slate-300 rounded mb-1 outline-none focus:border-[#666] focus:shadow-[inset_0_1px_2px_rgba(0,0,0,0.12)] font-sans normal-case" 
                       onClick={(e) => e.stopPropagation()} 
                     />
                     <label className="flex items-center gap-1.5 text-[10px] cursor-pointer hover:bg-slate-50 py-0.5 rounded select-none font-bold text-blue-900 border-b border-slate-100 pb-1">
@@ -8225,7 +8225,7 @@ export default function PrintPage() {
                       value={cebeSearch} 
                       onChange={(e) => setCebeSearch(e.target.value)} 
                       placeholder="Buscar CEBE..." 
-                      className="w-full text-[10px] px-1.5 py-0.5 border border-slate-300 rounded mb-1 outline-none focus:border-blue-400 font-sans normal-case" 
+                      className="w-full text-[10px] px-1.5 py-0.5 border border-slate-300 rounded mb-1 outline-none focus:border-[#666] focus:shadow-[inset_0_1px_2px_rgba(0,0,0,0.12)] font-sans normal-case" 
                       onClick={(e) => e.stopPropagation()} 
                     />
                     <label className="flex items-center gap-1.5 text-[10px] cursor-pointer hover:bg-slate-50 py-0.5 rounded select-none font-bold text-blue-900 border-b border-slate-100 pb-1">
@@ -8300,7 +8300,7 @@ export default function PrintPage() {
                       value={docSearch} 
                       onChange={(e) => setDocSearch(e.target.value)} 
                       placeholder="Buscar documento..." 
-                      className="w-full text-[10px] px-1.5 py-0.5 border border-slate-300 rounded mb-1 outline-none focus:border-blue-400 font-sans normal-case" 
+                      className="w-full text-[10px] px-1.5 py-0.5 border border-slate-300 rounded mb-1 outline-none focus:border-[#666] focus:shadow-[inset_0_1px_2px_rgba(0,0,0,0.12)] font-sans normal-case" 
                       onClick={(e) => e.stopPropagation()} 
                     />
                     <label className="flex items-center gap-1.5 text-[10px] cursor-pointer hover:bg-slate-50 py-0.5 rounded select-none font-bold text-blue-900 border-b border-slate-100 pb-1">
@@ -8350,7 +8350,7 @@ export default function PrintPage() {
                     value={cecoSearch} 
                     onChange={(e) => setCecoSearch(e.target.value)} 
                     placeholder="Buscar CECO..." 
-                    className="w-full text-[10px] px-1.5 py-0.5 border border-slate-300 rounded mb-1 outline-none focus:border-blue-400 font-sans normal-case" 
+                    className="w-full text-[10px] px-1.5 py-0.5 border border-slate-300 rounded mb-1 outline-none focus:border-[#666] focus:shadow-[inset_0_1px_2px_rgba(0,0,0,0.12)] font-sans normal-case" 
                     onClick={(e) => e.stopPropagation()} 
                   />
                   <label className="flex items-center gap-1.5 text-[10px] cursor-pointer hover:bg-slate-50 py-0.5 rounded select-none font-bold text-blue-900 border-b border-slate-100 pb-1">

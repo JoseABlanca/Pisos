@@ -333,7 +333,7 @@ export default function AnalyticalCenters({ type, isModal = false, onSelect = nu
   };
 
   return (
-    <div className={`w-full h-full relative ${isModal ? 'p-0' : 'p-4'}`}>
+    <div className={`w-full h-full relative ${isModal ? 'p-0' : 'bg-white'}`}>
       {deleteConfirm && (
         <div className="fixed inset-0 bg-black/40 backdrop-blur-sm z-[9999] flex items-center justify-center" onClick={() => setDeleteConfirm(null)}>
           <div className="bg-[#ece9d8] border-2 border-[#0054e3] shadow-lg w-[420px]" onClick={e => e.stopPropagation()}>
@@ -369,7 +369,25 @@ export default function AnalyticalCenters({ type, isModal = false, onSelect = nu
         </div>
       )}
 
-      <div className="w-full h-full flex flex-col bg-[#cbd5e0]">
+      <div className="flex w-full h-full bg-white relative font-sans">
+        {!isModal && (
+          <div className="absolute top-0 left-0 w-full h-8 bg-white border-b border-gray-200 flex items-center px-4 z-20">
+            <h2 className="text-sm font-normal text-gray-800 tracking-wide uppercase">{type === 'ceco' ? 'CENTROS DE COSTES' : 'CENTROS DE RESPONSABILIDAD'}</h2>
+            <div className="ml-auto flex items-center space-x-4">
+               <div className="relative">
+                 <input 
+                   type="text" 
+                   placeholder="Buscar en el fichero (Alt+B)"
+                   value={searchQuery}
+                   onChange={(e) => setSearchQuery(e.target.value)}
+                   className="pl-2 pr-8 py-1 border-b border-gray-400 text-[12px] w-64 outline-none focus:border-[#666] bg-transparent"
+                 />
+                 <Search className="w-4 h-4 absolute right-1 top-1/2 -translate-y-1/2 text-gray-500" />
+               </div>
+            </div>
+          </div>
+        )}
+      <div className={`flex w-full h-full flex-col bg-white overflow-hidden ${!isModal ? 'pt-8' : ''}`}>
         <div className="bg-[#f3f4f6] border-b border-gray-300 flex items-center px-2 py-1 h-[80px] space-x-1 shrink-0 overflow-x-auto whitespace-nowrap">
           <button onClick={handleNew} className="flex flex-col items-center justify-center min-w-[70px] hover:bg-gray-200/50 p-1 rounded cursor-pointer border border-transparent hover:border-gray-300 transition-transform hover:scale-105">
             <CustomIcon type="Nuevo" />
@@ -437,26 +455,28 @@ export default function AnalyticalCenters({ type, isModal = false, onSelect = nu
           )}
         </div>
 
-        <div className="flex-1 flex bg-white border-x border-b border-[#718096] overflow-hidden">
+        <div className="flex-1 flex bg-white overflow-hidden">
           <div className="flex-1 flex flex-col bg-white overflow-hidden relative">
-            {/* Header with Title and Search */}
-            <div className="flex justify-between items-center px-4 py-2 border-b border-[#d1d5db] shrink-0 bg-white">
-              <span className="text-[12px] text-gray-700 font-semibold uppercase">{title}</span>
-              <div className="relative flex items-center">
-                <input 
-                  type="text" 
-                  placeholder="Buscar en el fichero (Alt+B)"
-                  value={searchQuery}
-                  onChange={(e) => setSearchQuery(e.target.value)}
-                  className="w-[220px] pr-5 py-[2px] text-[11px] text-right border-b border-[#aaa] outline-none focus:border-b-[#4472c4] bg-transparent placeholder:text-[#aaa]"
-                />
-                <Search size={13} className="absolute right-0 text-[#aaa] pointer-events-none" />
+            {/* Header with Title and Search (Modal mode only) */}
+            {isModal && (
+              <div className="flex justify-between items-center px-4 py-2 border-b border-[#d1d5db] shrink-0 bg-white">
+                <span className="text-[12px] text-gray-700 font-semibold uppercase">{title}</span>
+                <div className="relative flex items-center">
+                  <input 
+                    type="text" 
+                    placeholder="Buscar en el fichero (Alt+B)"
+                    value={searchQuery}
+                    onChange={(e) => setSearchQuery(e.target.value)}
+                    className="w-[220px] pr-5 py-[2px] text-[11px] text-right border-b border-[#aaa] outline-none focus:border-b-[#4472c4] bg-transparent placeholder:text-[#aaa]"
+                  />
+                  <Search size={13} className="absolute right-0 text-[#aaa] pointer-events-none" />
+                </div>
               </div>
-            </div>
+            )}
             {/* Table wrapper */}
             <div className="flex-1 overflow-auto bg-white relative">
               <table style={{ zoom: tableZoom }} className="w-full border-collapse">
-              <thead className="sticky top-0 bg-white shadow-[0_1px_0_#d1d5db] z-10">
+              <thead className="sticky top-0 bg-[#fafafa] shadow-[0_1px_0_#d1d5db] z-10">
                 <tr className="text-gray-700">
                   <th className="px-3 py-2 text-left text-[11px] font-normal border-r border-[#d1d5db] uppercase w-48">CÓDIGO</th>
                   <th className="px-3 py-2 text-left text-[11px] font-normal uppercase">DESCRIPCIÓN</th>
@@ -513,6 +533,7 @@ export default function AnalyticalCenters({ type, isModal = false, onSelect = nu
           <div className="flex justify-end p-1 bg-[#f0f0f0] border-t border-[#808080]">
             <ZoomControl />
           </div>
+        </div>
         </div>
         </div>
       </div>

@@ -264,7 +264,7 @@ export default function ExtractoContableTab({
           }
 
           const signedAmount = effectiveIsIncomeSide ? Math.abs(lineAmount) : -Math.abs(lineAmount);
-          const amountColor = effectiveIsIncomeSide ? 'text-black font-bold' : 'text-black font-bold';
+          const amountColor = 'text-black';
 
           // Display Center (CECO or CEBE name)
           let displayCenter = '';
@@ -372,7 +372,7 @@ export default function ExtractoContableTab({
 
         const totalAmt = Math.abs(entry.total || 0);
         const signedAmount = effectiveIsIncomeSide ? totalAmt : -totalAmt;
-        const amountColor = effectiveIsIncomeSide ? 'text-black font-bold' : 'text-black font-bold';
+        const amountColor = 'text-black';
 
         let displayCenter = '';
         if (entry.ceco) {
@@ -536,88 +536,155 @@ export default function ExtractoContableTab({
   return (
     <div className="flex flex-col h-full overflow-hidden min-h-0 gap-4 text-xs font-sans text-slate-800">
       {/* Filtros: CEBE + Desde/Hasta (estilo Analítica > Desviación) */}
+      {/* Filtros: CEBE, Desde/Hasta e Invertir Signo (Estilo formulario de la foto) */}
       <div className="flex flex-col gap-2 select-none">
-        <div className="flex items-center gap-4 flex-wrap">
+        <div className="flex items-end gap-3 flex-wrap">
           {/* CEBE */}
-          <div className="flex items-center gap-1">
-            <span
+          <div className="space-y-1 min-w-[200px] flex-1 max-w-[260px]">
+            <label
               onClick={() => setShowCebeSel(true)}
-              className="border border-[#999] bg-[#e9ecef] px-2 py-[3px] text-[11px] text-[#333] w-[50px] text-center shrink-0 font-bold cursor-pointer hover:bg-[#dcdcdc] select-none active:bg-[#c8c8c8]"
+              className="text-[10px] font-bold text-[#444] uppercase tracking-wide block cursor-pointer hover:text-black"
               title="Abrir selector de CEBE (F3)"
-            >CEBE:</span>
-            <div className="relative">
+            >
+              CEBE:
+            </label>
+            <div className="flex gap-1">
               <input
                 type="text"
-                value={cebeInput}
-                onChange={e => { setCebeInput(e.target.value); setShowCebeDropdown(true); }}
-                onFocus={() => setShowCebeDropdown(true)}
-                onBlur={() => { setShowCebeDropdown(false); commitCebe(cebeInput); }}
+                readOnly
+                value={cebeInput || ''}
+                onClick={() => setShowCebeSel(true)}
                 onKeyDown={e => {
-                  if (e.key === 'F3') { e.preventDefault(); setShowCebeSel(true); }
-                  else if (e.key === 'Enter') { e.preventDefault(); e.currentTarget.blur(); }
-                  else if (e.key === 'Escape') { setCebeInput(currentCebe || ''); e.currentTarget.blur(); }
+                  if (e.key === 'Enter' || e.key === ' ' || e.key === 'F3') {
+                    e.preventDefault();
+                    setShowCebeSel(true);
+                  }
                 }}
-                className="w-[160px] border border-[#999] px-2 py-[3px] text-[11px] bg-white outline-none font-mono"
-                placeholder="Seleccionar"
+                className="win-input flex-1 font-mono text-[11px] h-[30px] cursor-pointer hover:border-[#666]"
+                placeholder="-- Seleccionar CEBE --"
               />
-              {showCebeDropdown && (
-                <div className="absolute left-0 mt-1 bg-white border border-[#999] shadow-lg z-[4000] w-[260px] max-h-[200px] overflow-y-auto rounded-sm text-[11px]">
-                  {matchingCebes.length === 0 ? (
-                    <div className="p-2 text-gray-400 italic">No hay resultados</div>
-                  ) : (
-                    matchingCebes.slice(0, 100).map(c => (
-                      <div
-                        key={c.id}
-                        onMouseDown={(e) => {
-                          e.preventDefault();
-                          setCebeInput(c.code);
-                          commitCebe(c.code);
-                          setShowCebeDropdown(false);
-                        }}
-                        className={`p-1 px-2 hover:bg-[#cce5ff] cursor-pointer truncate font-mono text-left ${c.code === currentCebe ? 'bg-[#e8f1fb] font-bold' : ''}`}
-                        title={`${c.code} - ${c.name}`}
-                      >
-                        {c.code} - {c.name}
-                      </div>
-                    ))
-                  )}
-                </div>
-              )}
+              <button 
+                type="button" 
+                className="btn-classic px-2.5 text-red-600 font-bold flex items-center justify-center shrink-0 cursor-pointer text-xs h-[30px]" 
+                onClick={() => {
+                  setCebeInput('');
+                  handleCebeChange({ target: { value: '' } });
+                }}
+                title="Quitar CEBE"
+              >
+                X
+              </button>
             </div>
-            <button type="button" onClick={() => setShowCebeSel(true)} className="border border-[#999] bg-[#e1e1e1] hover:bg-[#d0d0d0] p-[2px] rounded-[2px] shadow-sm flex items-center justify-center shrink-0 w-6 h-6" title="Selector de CEBE"><FileText size={13} /></button>
-            {currentCebe && (
-              <button type="button" onClick={() => { setCebeInput(''); commitCebe(''); }} className="border border-[#999] bg-[#e1e1e1] hover:bg-[#d0d0d0] p-[2px] rounded-[2px] shadow-sm flex items-center justify-center shrink-0 w-6 h-6 text-red-600 font-bold" title="Quitar CEBE">X</button>
-            )}
           </div>
 
           {/* Desde */}
-          <div className="flex items-center gap-1">
-            <span className="border border-[#999] bg-[#e9ecef] px-2 py-[3px] text-[11px] text-[#333] w-[60px] text-center shrink-0 font-bold">Desde:</span>
+          <div className="space-y-1 w-[140px]">
+            <label className="text-[10px] font-bold text-[#444] uppercase tracking-wide block">
+              Desde:
+            </label>
             <input
               type="date"
-              className="border border-[#999] px-2 py-[2px] text-[11px] bg-white outline-none font-mono"
+              className="win-input w-full font-mono text-[11px] h-[30px]"
               value={startDate}
               onChange={e => setStartDate(e.target.value)}
             />
           </div>
 
           {/* Hasta */}
-          <div className="flex items-center gap-1">
-            <span className="border border-[#999] bg-[#e9ecef] px-2 py-[3px] text-[11px] text-[#333] w-[60px] text-center shrink-0 font-bold">Hasta:</span>
+          <div className="space-y-1 w-[140px]">
+            <label className="text-[10px] font-bold text-[#444] uppercase tracking-wide block">
+              Hasta:
+            </label>
             <input
               type="date"
-              className="border border-[#999] px-2 py-[2px] text-[11px] bg-white outline-none font-mono"
+              className="win-input w-full font-mono text-[11px] h-[30px]"
               value={endDate}
               onChange={e => setEndDate(e.target.value)}
             />
           </div>
 
-          <div className="flex items-center gap-2 ml-auto">
+          {/* CECO (invertir signo) */}
+          <div className="space-y-1 min-w-[220px] flex-1 max-w-[280px] relative">
+            <label 
+              className="text-[10px] font-bold text-[#444] uppercase tracking-wide block" 
+              title="Selecciona los CECOs cuyo signo quieres invertir (ej. Amortizaciones para verlas como ingreso o como gasto)"
+            >
+              CECO (Invertir signo):
+            </label>
+            <div className="relative">
+              <button
+                type="button"
+                onClick={() => setShowNegativeCecoDropdown(!showNegativeCecoDropdown)}
+                className="win-input w-full flex justify-between items-center cursor-pointer text-[11px] text-left hover:border-[#666] h-[30px]"
+              >
+                <span className="truncate font-sans text-slate-800">
+                  {selectedNegativeCecos.length === 0 ? 'Ninguno seleccionado' : selectedNegativeCecos.join(', ')}
+                </span>
+                <span className="text-[9px] text-slate-500 ml-2">▼</span>
+              </button>
+
+              {showNegativeCecoDropdown && (
+                <>
+                  <div className="fixed inset-0 z-40" onClick={() => setShowNegativeCecoDropdown(false)} />
+                  <div className="absolute left-0 top-full mt-1 bg-white border border-gray-300 shadow-lg max-h-[220px] overflow-y-auto p-1.5 flex flex-col gap-1 rounded-sm z-50 min-w-[260px]">
+                    <input
+                      type="text"
+                      placeholder="Buscar CECO..."
+                      className="w-full text-[10px] px-1.5 py-0.5 border border-slate-300 rounded mb-1 outline-none focus:border-[#666] focus:shadow-[inset_0_1px_2px_rgba(0,0,0,0.12)] font-sans"
+                      value={negativeCecoSearch}
+                      onChange={e => setNegativeCecoSearch(e.target.value)}
+                      onClick={e => e.stopPropagation()}
+                      autoFocus
+                    />
+                    <label className="flex items-center gap-1.5 text-[10px] cursor-pointer hover:bg-slate-50 py-0.5 rounded select-none font-bold text-black border-b border-slate-100 pb-1">
+                      <input
+                        type="checkbox"
+                        checked={selectedNegativeCecos.length === 0}
+                        onChange={() => handleNegativeCecosChange([])}
+                        className="mt-0.5"
+                      />
+                      <span>Ninguno</span>
+                    </label>
+                    {cecos
+                      .filter(c =>
+                        c.code.toLowerCase().includes(negativeCecoSearch.toLowerCase()) ||
+                        c.name.toLowerCase().includes(negativeCecoSearch.toLowerCase())
+                      )
+                      .map(c => (
+                        <label key={c.id} className="flex items-start gap-1.5 text-[10px] cursor-pointer hover:bg-slate-50 py-0.5 rounded select-none">
+                          <input
+                            type="checkbox"
+                            checked={selectedNegativeCecos.includes(c.code)}
+                            onChange={() => {
+                              const next = selectedNegativeCecos.includes(c.code)
+                                ? selectedNegativeCecos.filter(code => code !== c.code)
+                                : [...selectedNegativeCecos, c.code];
+                              handleNegativeCecosChange(next);
+                            }}
+                            className="mt-0.5"
+                          />
+                          <span className="text-slate-700">{c.code} - {c.name}</span>
+                        </label>
+                      ))}
+                    {cecos.filter(c =>
+                      c.code.toLowerCase().includes(negativeCecoSearch.toLowerCase()) ||
+                      c.name.toLowerCase().includes(negativeCecoSearch.toLowerCase())
+                    ).length === 0 && (
+                      <span className="text-[10px] text-slate-400 italic px-1">No se encontraron CECOs</span>
+                    )}
+                  </div>
+                </>
+              )}
+            </div>
+          </div>
+
+          {/* Botones de acción */}
+          <div className="flex items-end gap-2 pb-0.5 ml-auto">
             {(startDate || endDate || selectedNegativeCecos.length > 0 || Object.keys(activeTableFilters['extractoContable'] || {}).length > 0) && (
               <button
                 type="button"
                 onClick={() => { setStartDate(''); setEndDate(''); handleNegativeCecosChange([]); clearAllFilters(); }}
-                className="px-3 py-1 border border-gray-400 bg-gray-100 hover:bg-gray-200 shadow-sm text-[10px] font-bold uppercase cursor-pointer rounded"
+                className="btn-classic px-3 h-[30px] text-[10px] font-bold uppercase cursor-pointer"
               >
                 Limpiar Filtros
               </button>
@@ -625,7 +692,7 @@ export default function ExtractoContableTab({
             {mode === 'rentals' && onAddEntry && (
               <button
                 type="button"
-                className="px-4 py-1 bg-[#4a69bd] text-white text-[11px] font-bold uppercase shadow-sm hover:bg-[#3b5598] rounded"
+                className="px-4 h-[30px] bg-[#4a69bd] text-white text-[11px] font-bold uppercase shadow-sm hover:bg-[#3b5598] rounded cursor-pointer"
                 onClick={onAddEntry}
               >
                 + Añadir Asiento
@@ -646,94 +713,8 @@ export default function ExtractoContableTab({
         )}
       </div>
 
-      {/* CECO (invertir signo) — dedicated row, always visible */}
-      <div className="flex flex-wrap items-center gap-3 text-xs select-none relative">
-        <span className="border border-[#999] bg-[#e9ecef] px-2 py-[3px] text-[11px] text-[#333] font-bold" title="Selecciona los CECOs cuyo signo quieres invertir (ej. Amortizaciones para verlas como ingreso o como gasto)">
-          CECO (invertir signo):
-        </span>
-        <div className="relative min-w-[220px]">
-          <button
-            type="button"
-            onClick={() => setShowNegativeCecoDropdown(!showNegativeCecoDropdown)}
-            className="w-full flex justify-between items-center bg-white px-2 py-[3px] font-mono text-[11px] border border-[#999] cursor-pointer min-h-[24px] hover:border-[#666]"
-          >
-            <span className="truncate max-w-[200px] font-sans text-slate-800">
-              {selectedNegativeCecos.length === 0 ? 'Ninguno seleccionado' : selectedNegativeCecos.join(', ')}
-            </span>
-            <span className="text-[9px] text-slate-500 ml-2">▼</span>
-          </button>
-
-          {showNegativeCecoDropdown && (
-            <>
-              <div className="fixed inset-0 z-40" onClick={() => setShowNegativeCecoDropdown(false)} />
-              <div className="absolute left-0 top-full mt-1 bg-white border border-[#999] shadow-lg max-h-[220px] overflow-y-auto p-1.5 flex flex-col gap-1 rounded-sm z-50 min-w-[260px]">
-                <input
-                  type="text"
-                  placeholder="Buscar CECO..."
-                  className="w-full text-[10px] px-1.5 py-0.5 border border-slate-300 rounded mb-1 outline-none focus:border-blue-400 font-sans"
-                  value={negativeCecoSearch}
-                  onChange={e => setNegativeCecoSearch(e.target.value)}
-                  onClick={e => e.stopPropagation()}
-                  autoFocus
-                />
-                <label className="flex items-center gap-1.5 text-[10px] cursor-pointer hover:bg-slate-50 py-0.5 rounded select-none font-bold text-black border-b border-slate-100 pb-1">
-                  <input
-                    type="checkbox"
-                    checked={selectedNegativeCecos.length === 0}
-                    onChange={() => handleNegativeCecosChange([])}
-                    className="mt-0.5"
-                  />
-                  <span>Ninguno</span>
-                </label>
-                {cecos
-                  .filter(c =>
-                    c.code.toLowerCase().includes(negativeCecoSearch.toLowerCase()) ||
-                    c.name.toLowerCase().includes(negativeCecoSearch.toLowerCase())
-                  )
-                  .map(c => (
-                    <label key={c.id} className="flex items-start gap-1.5 text-[10px] cursor-pointer hover:bg-slate-50 py-0.5 rounded select-none">
-                      <input
-                        type="checkbox"
-                        checked={selectedNegativeCecos.includes(c.code)}
-                        onChange={() => {
-                          const next = selectedNegativeCecos.includes(c.code)
-                            ? selectedNegativeCecos.filter(code => code !== c.code)
-                            : [...selectedNegativeCecos, c.code];
-                          handleNegativeCecosChange(next);
-                        }}
-                        className="mt-0.5"
-                      />
-                      <span className="text-slate-700">{c.code} - {c.name}</span>
-                    </label>
-                  ))}
-                {cecos.filter(c =>
-                  c.code.toLowerCase().includes(negativeCecoSearch.toLowerCase()) ||
-                  c.name.toLowerCase().includes(negativeCecoSearch.toLowerCase())
-                ).length === 0 && (
-                  <span className="text-[10px] text-slate-400 italic px-1">No se encontraron CECOs</span>
-                )}
-              </div>
-            </>
-          )}
-        </div>
-        {selectedNegativeCecos.length > 0 && (
-          <>
-            <span className="text-[10px] text-slate-600 font-semibold">
-              {selectedNegativeCecos.length} CECO{selectedNegativeCecos.length > 1 ? 's' : ''} con signo invertido
-            </span>
-            <button
-              type="button"
-              onClick={() => handleNegativeCecosChange([])}
-              className="px-2 py-0.5 border border-gray-400 bg-gray-100 text-black hover:bg-gray-200 shadow-sm text-[10px] font-bold uppercase cursor-pointer rounded"
-            >
-              Quitar
-            </button>
-          </>
-        )}
-      </div>
-
-      {/* Metrics Row (Written text, no cards) */}
-      <div className="flex flex-wrap items-center gap-x-6 gap-y-2 p-3 bg-[#f0f0f0] border border-gray-300 rounded shadow-sm text-xs font-bold text-gray-700 select-none shrink-0">
+      {/* Metrics Row */}
+      <div className="flex flex-wrap items-center gap-x-6 gap-y-2 py-1 bg-white text-xs font-bold text-gray-700 select-none shrink-0">
         <div className="flex items-center gap-1.5">
           <span className="text-gray-500 uppercase text-[9px]">Ingresos:</span>
           <span className="font-mono text-black text-sm">
@@ -765,15 +746,15 @@ export default function ExtractoContableTab({
         
         <div className="flex-1 overflow-auto bg-white border border-gray-300 rounded-sm">
           <table className="modern-table min-w-full border-0 relative">
-            <thead className="sticky -top-px z-20 shadow-[0_-1px_0_0_#f0f0f0] bg-[#f0f0f0]">
-              <tr className="bg-[#f0f0f0]">
-                <TableHeaderWithFilter label="Fecha" columnKey="dateFormatted" data={processedEntries} tableId="extractoContable" className="text-[10px] bg-[#f0f0f0] z-20 !border-b-0" />
-                <TableHeaderWithFilter label="Asiento Nº" columnKey="numberFormatted" data={processedEntries} tableId="extractoContable" className="text-[10px] bg-[#f0f0f0] z-20 !border-b-0" />
-                <TableHeaderWithFilter label="Concepto" columnKey="descriptionFormatted" data={processedEntries} tableId="extractoContable" className="text-[10px] bg-[#f0f0f0] z-20 !border-b-0" />
-                <TableHeaderWithFilter label="CECO" columnKey="cecoFormatted" data={processedEntries} tableId="extractoContable" className="text-[10px] bg-[#f0f0f0] z-20 !border-b-0" />
-                <TableHeaderWithFilter label="Importe" columnKey="signedAmount" data={processedEntries} tableId="extractoContable" className="text-right text-[10px] bg-[#f0f0f0] z-20 !border-b-0" />
-                <TableHeaderWithFilter label="Documento" columnKey="documentFormatted" data={processedEntries} tableId="extractoContable" className="text-[10px] bg-[#f0f0f0] z-20 !border-b-0" />
-                <TableHeaderWithFilter label="Imp." columnKey="impuestoFormatted" data={processedEntries} tableId="extractoContable" className="text-center text-[10px] bg-[#f0f0f0] z-20 !border-b-0" />
+            <thead className="sticky -top-px z-20 shadow-[0_-1px_0_0_#fafafa] bg-[#fafafa]">
+              <tr className="bg-[#fafafa]">
+                <TableHeaderWithFilter label="Fecha" columnKey="dateFormatted" data={processedEntries} tableId="extractoContable" className="text-[10px] bg-[#fafafa] z-20 !border-b !border-gray-100" />
+                <TableHeaderWithFilter label="Asiento Nº" columnKey="numberFormatted" data={processedEntries} tableId="extractoContable" className="text-[10px] bg-[#fafafa] z-20 !border-b !border-gray-100" />
+                <TableHeaderWithFilter label="Concepto" columnKey="descriptionFormatted" data={processedEntries} tableId="extractoContable" className="text-[10px] bg-[#fafafa] z-20 !border-b !border-gray-100" />
+                <TableHeaderWithFilter label="CECO" columnKey="cecoFormatted" data={processedEntries} tableId="extractoContable" className="text-[10px] bg-[#fafafa] z-20 !border-b !border-gray-100" />
+                <TableHeaderWithFilter label="Importe" columnKey="signedAmount" data={processedEntries} tableId="extractoContable" className="text-right text-[10px] bg-[#fafafa] z-20 !border-b !border-gray-100" />
+                <TableHeaderWithFilter label="Documento" columnKey="documentFormatted" data={processedEntries} tableId="extractoContable" className="text-[10px] bg-[#fafafa] z-20 !border-b !border-gray-100" />
+                <TableHeaderWithFilter label="Imp." columnKey="impuestoFormatted" data={processedEntries} tableId="extractoContable" className="text-center text-[10px] bg-[#fafafa] z-20 !border-b !border-gray-100" />
               </tr>
             </thead>
             <tbody>
@@ -799,24 +780,25 @@ export default function ExtractoContableTab({
                         <button
                           type="button"
                           onClick={() => setSelectedJournalEntry(entry.parentEntry || entry)}
-                          className="text-black hover:text-black font-bold flex items-center justify-center mx-auto cursor-pointer"
+                          className="font-bold flex items-center justify-center mx-auto cursor-pointer hover:underline"
+                          style={{ color: '#4560a9' }}
                           title="Ver y editar asiento contable completo"
                         >
-                          <span className="underline decoration-black">{entry.numberFormatted}</span>
+                          <span className="underline decoration-[#4560a9]">{entry.numberFormatted}</span>
                         </button>
                       </td>
                       <td className="truncate max-w-[200px]" title={entry.description}>{entry.description}</td>
-                      <td className="font-mono text-[10px] font-semibold">
+                      <td className="font-mono text-[10px]">
                         <div className="flex items-center gap-1.5 flex-wrap">
                           <span>{displayCenter}</span>
                           {entry.isNegativeCeco && (
-                            <span className="px-1 py-0.2 bg-amber-100 text-amber-800 text-[9px] font-bold rounded border border-amber-300" title="CECO Negativo (Signo invertido)">
+                            <span className="px-1 py-0.2 bg-amber-100 text-amber-800 text-[9px] rounded border border-amber-300" title="CECO Negativo (Signo invertido)">
                               CECO -
                             </span>
                           )}
                         </div>
                       </td>
-                      <td className={`text-right font-mono font-semibold ${amountColor}`}>
+                      <td className={`text-right font-mono ${amountColor}`}>
                         {signedAmount > 0 ? '+' : ''}{signedAmount.toLocaleString('es-ES', { minimumFractionDigits: 2 })} €
                       </td>
                       <td className="p-1">
@@ -831,10 +813,10 @@ export default function ExtractoContableTab({
                                   window.open(displayDocUrl, '_blank');
                                 }
                               }}
-                              className="text-black hover:text-black hover:underline flex items-center gap-1 font-medium text-[10px] truncate max-w-[100px]"
+                              className="text-[#4560a9] hover:underline flex items-center gap-1 text-[10px] truncate max-w-[100px]"
                               title={displayDocName}
                             >
-                              <FileText className="w-3.5 h-3.5 shrink-0 text-slate-500" />
+                              <FileText className="w-3.5 h-3.5 shrink-0 text-[#4560a9]" />
                               <span className="truncate">{displayDocName}</span>
                             </button>
                             <button
@@ -860,7 +842,7 @@ export default function ExtractoContableTab({
                             </button>
                           </div>
                         ) : (
-                          <label className="flex items-center gap-1 text-[10px] text-slate-500 hover:text-black cursor-pointer font-medium select-none">
+                          <label className="flex items-center gap-1 text-[10px] text-slate-500 hover:text-black cursor-pointer select-none">
                             <FilePlus className="w-3.5 h-3.5 text-slate-400" />
                             <span>Adjuntar</span>
                             <input 
@@ -936,23 +918,40 @@ export default function ExtractoContableTab({
         </div>
       )}
 
-      {/* Selector de CEBE (igual que en Analítica > Desviación) */}
+      {/* Selector de CEBE */}
       {showCebeSel && (
-        <div className="fixed inset-0 z-[4000] flex items-center justify-center pointer-events-none">
-          <div className="pointer-events-auto shadow-2xl relative" style={{ width: centerDR.size.w, height: centerDR.size.h, left: centerDR.pos.x, top: centerDR.pos.y, position: 'absolute' }}>
-            <div onMouseDown={e => centerDR.onDragDown(e)} className="h-[30px] bg-[#4472c4] flex items-center justify-between px-3 cursor-move shrink-0">
-              <span className="text-white text-[12px] font-bold">Selección de CEBE</span>
-              <button type="button" onClick={() => setShowCebeSel(false)} className="w-[22px] h-[22px] flex items-center justify-center hover:bg-red-500 text-white"><X size={14} strokeWidth={2.5} /></button>
+        <div className="fixed inset-0 bg-black/40 backdrop-blur-sm flex items-center justify-center z-[4000]">
+          <Window 
+            title="Selección de Centro de Beneficio (CEBE)"
+            width="900px"
+            height="620px"
+            initialPos={{ x: 60, y: 30 }}
+            onClose={() => setShowCebeSel(false)}
+          >
+            <div className="bg-[#d4d0c8] flex flex-col h-[560px]">
+              <div className="flex-1 overflow-auto p-1">
+                <div className="bg-white border border-[#808080] shadow-[1px_1px_0px_#000] min-h-full h-full relative">
+                  <AnalyticalCenters 
+                    type="cebe" 
+                    isModal={true} 
+                    onSelect={(val) => { 
+                      setCebeInput(val || ''); 
+                      if ((val || '') !== (currentCebe || '')) handleCebeChange({ target: { value: val || '' } }); 
+                      setShowCebeSel(false); 
+                    }} 
+                  />
+                </div>
+              </div>
+              <div className="flex justify-end gap-2 shrink-0 pt-2 pb-1 pr-1 bg-[#d4d0c8] border-t border-[#808080]">
+                <button 
+                  className="px-6 py-1 border border-gray-400 bg-gray-100 hover:bg-gray-200 shadow-sm text-[11px] font-bold uppercase" 
+                  onClick={() => setShowCebeSel(false)}
+                >
+                  Cerrar
+                </button>
+              </div>
             </div>
-            <div className="bg-white" style={{ height: 'calc(100% - 30px)' }}>
-              <AnalyticalCenters type="cebe" isModal={true} onSelect={(val) => { setCebeInput(val || ''); if ((val || '') !== (currentCebe || '')) handleCebeChange({ target: { value: val || '' } }); setShowCebeSel(false); }} />
-            </div>
-
-            {/* Resize Handles */}
-            <div onMouseDown={e => centerDR.onResizeDown(e, 'e')} className="absolute top-0 right-0 w-2 h-full cursor-e-resize" />
-            <div onMouseDown={e => centerDR.onResizeDown(e, 's')} className="absolute bottom-0 left-0 w-full h-2 cursor-s-resize" />
-            <div onMouseDown={e => centerDR.onResizeDown(e, 'se')} className="absolute bottom-0 right-0 w-3 h-3 cursor-se-resize z-10" />
-          </div>
+          </Window>
         </div>
       )}
     </div>

@@ -273,7 +273,7 @@ export default function AccountingEntryModal({ isOpen, onClose, onSaveSuccess, u
               </div>
               <div className="flex-1 bg-white border border-[#808080] overflow-y-auto min-h-[250px]">
                 <table className="w-full text-[10px] win-table">
-                  <thead className="sticky top-0 bg-[#e7e1d3] shadow-sm">
+                  <thead className="sticky top-0 bg-[#fafafa] shadow-sm">
                     <tr>
                       <th className="text-left w-20 px-2">Fecha</th>
                       <th className="text-left px-2">Concepto</th>
@@ -324,14 +324,14 @@ export default function AccountingEntryModal({ isOpen, onClose, onSaveSuccess, u
                     type="date" 
                     value={date}
                     onChange={(e) => setDate(e.target.value)}
-                    className="px-1 py-0.5 border border-gray-300 rounded focus:border-blue-500 outline-none"
+                    className="px-1 py-0.5 border border-gray-300 rounded focus:border-[#666] focus:shadow-[inset_0_1px_2px_rgba(0,0,0,0.12)] outline-none"
                   />
                 </div>
                 {cebes.length > 0 && (
                   <div className="flex items-center gap-1">
                     <span className="text-gray-500">CEBE:</span>
                     <select
-                      className="px-1 py-0.5 border border-gray-300 rounded focus:border-blue-500 outline-none text-[10px] font-normal"
+                      className="px-1 py-0.5 border border-gray-300 rounded focus:border-[#666] focus:shadow-[inset_0_1px_2px_rgba(0,0,0,0.12)] outline-none text-[10px] font-normal"
                       value={selectedCebe}
                       onChange={(e) => setSelectedCebe(e.target.value)}
                     >
@@ -344,7 +344,7 @@ export default function AccountingEntryModal({ isOpen, onClose, onSaveSuccess, u
                   <div className="flex items-center gap-1">
                     <span className="text-gray-500">CECO:</span>
                     <select
-                      className="px-1 py-0.5 border border-gray-300 rounded focus:border-blue-500 outline-none text-[10px] font-normal"
+                      className="px-1 py-0.5 border border-gray-300 rounded focus:border-[#666] focus:shadow-[inset_0_1px_2px_rgba(0,0,0,0.12)] outline-none text-[10px] font-normal"
                       value={selectedCeco}
                       onChange={(e) => setSelectedCeco(e.target.value)}
                     >
@@ -389,16 +389,16 @@ export default function AccountingEntryModal({ isOpen, onClose, onSaveSuccess, u
               {/* Grid Container */}
               <div className="flex-1 overflow-auto">
                 <table className="w-full text-left border-collapse text-[11px]">
-                  <thead className="bg-white sticky top-0 z-10 border-b border-gray-300">
+                  <thead className="bg-[#fafafa] sticky top-0 z-10 border-b border-gray-200">
                     <tr>
-                      <th className="border-b border-gray-300 px-2 py-1.5 font-bold w-10 text-center text-gray-600 uppercase">ORDEN</th>
-                      <th className="border-b border-gray-300 px-2 py-1.5 font-bold w-28 text-gray-600 uppercase">CUENTA</th>
-                      <th className="border-b border-gray-300 px-2 py-1.5 font-bold w-40 text-gray-600 uppercase">TÍTULO CUENTA</th>
-                      <th className="border-b border-gray-300 px-2 py-1.5 font-bold flex-1 text-gray-600 uppercase">CONCEPTO</th>
-                      <th className="border-b border-gray-300 px-2 py-1.5 font-bold w-24 text-gray-600 uppercase">DOCUMENTO</th>
-                      <th className="border-b border-gray-300 px-2 py-1.5 font-bold w-24 text-right text-gray-600 uppercase">DEBE</th>
-                      <th className="border-b border-gray-300 px-2 py-1.5 font-bold w-24 text-right text-gray-600 uppercase">HABER</th>
-                      <th className="border-b border-gray-300 px-2 py-1.5 font-bold w-8 text-center"></th>
+                      <th className="px-2 py-1.5 font-bold w-10 text-center text-gray-600 uppercase border-b border-gray-200">ORDEN</th>
+                      <th className="px-2 py-1.5 font-bold w-28 text-gray-600 uppercase border-b border-gray-200">CUENTA</th>
+                      <th className="px-2 py-1.5 font-bold w-40 text-gray-600 uppercase border-b border-gray-200">TÍTULO CUENTA</th>
+                      <th className="px-2 py-1.5 font-bold flex-1 text-gray-600 uppercase border-b border-gray-200">CONCEPTO</th>
+                      <th className="px-2 py-1.5 font-bold w-24 text-gray-600 uppercase border-b border-gray-200">DOCUMENTO</th>
+                      <th className="px-2 py-1.5 font-bold w-24 text-right text-gray-600 uppercase border-b border-gray-200">DEBE</th>
+                      <th className="px-2 py-1.5 font-bold w-24 text-right text-gray-600 uppercase border-b border-gray-200">HABER</th>
+                      <th className="px-2 py-1.5 font-bold w-8 text-center border-b border-gray-200"></th>
                     </tr>
                   </thead>
                   <tbody>
@@ -617,7 +617,7 @@ export function AccountSelector({ accounts, value, onChange }) {
 
             <div className="max-h-[200px] overflow-y-auto bg-white border border-[#808080]">
               <table className="w-full text-[11px]">
-                <thead className="bg-[#d4d0c8] text-left sticky top-0 border-b border-[#808080]">
+                <thead className="bg-[#fafafa] text-left sticky top-0 border-b border-gray-200 text-[#333]">
                   <tr>
                     <th className="p-1 w-16">Cta.</th>
                     <th className="p-1">Nombre</th>

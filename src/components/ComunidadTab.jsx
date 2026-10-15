@@ -154,60 +154,30 @@ export default function ComunidadTab({
     return acc ? `${acc.code} - ${acc.name}` : code;
   };
 
-  const renderAccountSelector = (fieldId, currentValue, onChangeCallback) => {
-    const isDropdownOpen = activeDropdown === fieldId;
+  const renderAccountSelector = (fieldId, currentValue, onChangeCallback, inputClassName) => {
     return (
-      <div className="relative">
+      <div className="flex gap-1">
         <input 
           type="text"
-          className="win-input w-full cursor-pointer"
-          value={isDropdownOpen ? searchValue : getAccountDisplay(currentValue)}
-          onChange={e => {
-            setSearchValue(e.target.value);
-            setActiveDropdown(fieldId);
-          }}
+          className={inputClassName || "win-input flex-1 cursor-pointer bg-white"}
+          value={getAccountDisplay(currentValue)}
           onClick={() => {
-            setActiveDropdown(fieldId);
-            setSearchValue('');
-          }}
-          onBlur={() => setTimeout(() => { if (activeDropdown === fieldId) setActiveDropdown(null) }, 200)}
-          onDoubleClick={() => {
             setActiveAccountField(fieldId);
             setShowAccountsModal(true);
           }}
-          placeholder="Buscar o doble clic para añadir..."
-          title="Doble clic para buscar o añadir una cuenta contable"
+          readOnly
+          placeholder="Haga clic para seleccionar cuenta..."
+          title="Haga clic para abrir la ventana de cuentas contables"
         />
-        
-        {isDropdownOpen && (
-          <div className="absolute z-50 w-full mt-1 bg-white border border-[#808080] shadow-lg max-h-48 overflow-y-auto">
-            {(availableAccounts || [])
-              .filter(acc => 
-                !searchValue || 
-                acc.code.toLowerCase().includes(searchValue.toLowerCase()) || 
-                acc.name.toLowerCase().includes(searchValue.toLowerCase())
-              )
-              .map(acc => (
-                <div 
-                  key={acc.code}
-                  className="px-2 py-1 text-[11px] cursor-pointer hover:bg-[#316ac5] hover:text-white"
-                  onMouseDown={(e) => {
-                    e.preventDefault();
-                    onChangeCallback(acc.code);
-                    setActiveDropdown(null);
-                  }}
-                >
-                  {acc.code} - {acc.name}
-                </div>
-            ))}
-            {(availableAccounts || []).filter(acc => 
-                !searchValue || 
-                acc.code.toLowerCase().includes(searchValue.toLowerCase()) || 
-                acc.name.toLowerCase().includes(searchValue.toLowerCase())
-            ).length === 0 && (
-              <div className="px-2 py-1 text-[11px] text-gray-500 italic">No hay resultados</div>
-            )}
-          </div>
+        {currentValue && (
+          <button 
+            type="button" 
+            className="btn-classic px-2 text-red-600 font-bold" 
+            onClick={() => onChangeCallback('')}
+            title="Quitar cuenta"
+          >
+            X
+          </button>
         )}
       </div>
     );
@@ -224,8 +194,8 @@ export default function ComunidadTab({
           <div className="flex flex-col space-y-3">
             <h3 className="text-[12px] font-bold text-slate-800 uppercase italic">Datos Principales</h3>
             
-            <div className="space-y-1">
-              <label className="text-[10px] font-bold text-black uppercase">Administrador:</label>
+            <div className="space-y-2.5">
+              <label className="text-[10px] font-bold text-[#444] uppercase tracking-wide block">Administrador:</label>
               <input 
                 type="text" 
                 className="win-input w-full" 
@@ -236,8 +206,8 @@ export default function ComunidadTab({
             </div>
             
             <div className="grid grid-cols-2 gap-3">
-              <div className="space-y-1">
-                <label className="text-[10px] font-bold text-black uppercase">Teléfono:</label>
+              <div className="space-y-2.5">
+                <label className="text-[10px] font-bold text-[#444] uppercase tracking-wide block">Teléfono:</label>
                 <input 
                   type="text" 
                   className="win-input w-full" 
@@ -245,8 +215,8 @@ export default function ComunidadTab({
                   onChange={e => updateCommunityField('adminPhone', e.target.value)} 
                 />
               </div>
-              <div className="space-y-1">
-                <label className="text-[10px] font-bold text-black uppercase">Email:</label>
+              <div className="space-y-2.5">
+                <label className="text-[10px] font-bold text-[#444] uppercase tracking-wide block">Email:</label>
                 <input 
                   type="email" 
                   className="win-input w-full" 
@@ -257,8 +227,8 @@ export default function ComunidadTab({
             </div>
 
             <div className="grid grid-cols-3 gap-3">
-              <div className="space-y-1">
-                <label className="text-[10px] font-bold text-black uppercase">Cuota Ordinaria (€):</label>
+              <div className="space-y-2.5">
+                <label className="text-[10px] font-bold text-[#444] uppercase tracking-wide block">Cuota Ordinaria (€):</label>
                 <input 
                   type="number" 
                   className="win-input w-full text-right" 
@@ -267,8 +237,8 @@ export default function ComunidadTab({
                   placeholder="0.00"
                 />
               </div>
-              <div className="space-y-1">
-                <label className="text-[10px] font-bold text-black uppercase">Día Cobro:</label>
+              <div className="space-y-2.5">
+                <label className="text-[10px] font-bold text-[#444] uppercase tracking-wide block">Día Cobro:</label>
                 <input 
                   type="number" 
                   min="1"
@@ -279,9 +249,8 @@ export default function ComunidadTab({
                   placeholder="1-31"
                 />
               </div>
-              <div className="space-y-1 relative">
-                <label 
-                  className="text-[10px] font-bold text-black uppercase cursor-help"
+              <div className="space-y-2.5 relative">
+                <label className="text-[10px] font-bold text-[#444] uppercase tracking-wide block"
                   title="Doble clic en la caja de abajo para ir a la configuración de cuentas"
                 >
                   Cuenta Contable:
@@ -309,65 +278,75 @@ export default function ComunidadTab({
           {/* Derramas Section */}
           {community.hasSpecialLevy && (
             <div className="flex flex-col space-y-3 pt-2">
-              <div className="flex justify-between items-center mb-2">
+              <div className="flex justify-between items-center mb-1 px-1">
                 <h3 className="text-[12px] font-bold text-slate-800 uppercase italic">Derramas</h3>
                 <button 
+                  type="button"
                   onClick={addDerrama}
-                  className="flex items-center text-[10px] text-gray-600 hover:text-black font-bold transition-colors"
+                  className="border border-gray-400 bg-gray-200 hover:bg-gray-300 px-3 py-1 text-[11px] font-bold flex items-center text-slate-800 shrink-0 shadow-sm cursor-pointer"
+                  title="Añadir derrama"
                 >
-                  <Plus className="w-3 h-3 mr-1" /> Añadir derrama
+                  <Plus className="w-3.5 h-3.5 mr-1" /> Añadir derrama
                 </button>
               </div>
 
-              {derramas.length === 0 && (
-                <div className="text-[11px] text-slate-500 italic text-center py-2">
-                  No hay derramas configuradas. Pulsa 'Añadir derrama'.
-                </div>
-              )}
-
-              {derramas.map((derrama, idx) => (
-                <div key={derrama.id} className="p-2 border border-[#ccc] bg-white relative">
-                  <button 
-                    onClick={() => removeDerrama(idx)}
-                    className="absolute top-1 right-1 text-gray-500 hover:text-gray-500 bg-white rounded p-0.5"
-                    title="Eliminar derrama"
-                  >
-                    <Trash2 className="w-3 h-3" />
-                  </button>
-                  <div className="grid grid-cols-2 gap-3 pr-4 mb-2">
-                    <div className="space-y-1">
-                      <label className="text-[10px] font-bold text-black uppercase">Importe (€):</label>
-                      <input 
-                        type="number" 
-                        className="win-input w-full text-right" 
-                        value={derrama.amount || ''} 
-                        onChange={e => updateDerrama(idx, 'amount', e.target.value)} 
-                      />
-                    </div>
-                    <div className="space-y-1">
-                      <label className="text-[10px] font-bold text-black uppercase">Fecha Final:</label>
-                      <input 
-                        type="date" 
-                        className="win-input w-full" 
-                        value={derrama.endDate || ''} 
-                        onChange={e => updateDerrama(idx, 'endDate', e.target.value)} 
-                      />
-                    </div>
-                  </div>
-                  <div className="grid grid-cols-2 gap-3 pr-4">
-                    <div className="space-y-1">
-                      <label className="text-[10px] font-bold text-black uppercase">Días Restantes:</label>
-                      <div className="win-input w-full bg-gray-100 flex items-center justify-center font-bold text-[12px] text-black h-[22px]">
-                        {calculateRemainingDays(derrama.endDate)} días
-                      </div>
-                    </div>
-                    <div className="space-y-1">
-                      <label className="text-[10px] font-bold text-black uppercase">Cuenta Contable:</label>
-                      {renderAccountSelector(`derrama_${idx}`, derrama.accountingAccount, (val) => updateDerrama(idx, 'accountingAccount', val))}
-                    </div>
-                  </div>
-                </div>
-              ))}
+              <div className="overflow-auto bg-white">
+                <table className="modern-table w-full">
+                  <thead>
+                    <tr>
+                      <th className="w-44 text-center !bg-[#fafafa]">Fecha Final</th>
+                      <th className="w-36 text-center !bg-[#fafafa]">Días Restantes</th>
+                      <th className="text-right !bg-[#fafafa]">Importe (€)</th>
+                      <th className="w-16 text-center !bg-[#fafafa]">Acción</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {derramas.length === 0 ? (
+                      <tr>
+                        <td colSpan="4" className="text-center text-slate-500 py-4 italic text-[11px]">
+                          No hay derramas configuradas. Pulsa 'Añadir derrama'.
+                        </td>
+                      </tr>
+                    ) : (
+                      derramas.map((derrama, idx) => (
+                        <tr key={derrama.id || idx} className="hover:bg-slate-50 transition-colors">
+                          <td className="p-2 text-center">
+                            <input 
+                              type="date" 
+                              className="w-full bg-transparent border-transparent hover:border-gray-300 focus:bg-white focus:border-[#666] focus:shadow-[inset_0_1px_2px_rgba(0,0,0,0.12)] text-[11px] px-1 outline-none h-[24px] text-center text-black transition-colors rounded-sm" 
+                              value={derrama.endDate || ''} 
+                              onChange={e => updateDerrama(idx, 'endDate', e.target.value)} 
+                            />
+                          </td>
+                          <td className="p-2 text-center font-bold text-[11px] text-black whitespace-nowrap">
+                            {calculateRemainingDays(derrama.endDate)} {derrama.endDate ? 'días' : ''}
+                          </td>
+                          <td className="p-2">
+                            <input 
+                              type="number" 
+                              step="0.01"
+                              className="w-full bg-transparent border-transparent hover:border-gray-300 focus:bg-white focus:border-[#666] focus:shadow-[inset_0_1px_2px_rgba(0,0,0,0.12)] text-[11px] px-1 outline-none h-[24px] text-right font-bold text-black transition-colors rounded-sm" 
+                              value={derrama.amount || ''} 
+                              onChange={e => updateDerrama(idx, 'amount', e.target.value)} 
+                              placeholder="0.00"
+                            />
+                          </td>
+                          <td className="text-center p-2">
+                            <button 
+                              type="button"
+                              onClick={() => removeDerrama(idx)}
+                              className="text-gray-500 hover:text-red-600 transition-colors p-1"
+                              title="Eliminar derrama"
+                            >
+                              <Trash2 className="w-3.5 h-3.5 mx-auto" />
+                            </button>
+                          </td>
+                        </tr>
+                      ))
+                    )}
+                  </tbody>
+                </table>
+              </div>
             </div>
           )}
 
@@ -431,7 +410,7 @@ export default function ComunidadTab({
                             type="text"
                             value={doc.concept || ''}
                             onChange={(e) => updateDocument(doc.id, 'concept', e.target.value)}
-                            className="w-full border border-gray-400 px-2 py-1 text-[11px] focus:outline-none focus:border-blue-500"
+                            className="w-full bg-transparent border-transparent hover:border-gray-300 focus:bg-white focus:border-[#666] focus:shadow-[inset_0_1px_2px_rgba(0,0,0,0.12)] text-[11px] px-1 outline-none h-[24px]"
                           />
                         </td>
                         <td className="text-center p-2">
@@ -439,7 +418,7 @@ export default function ComunidadTab({
                             type="date"
                             value={doc.date ? doc.date.split('T')[0] : ''}
                             onChange={(e) => updateDocument(doc.id, 'date', e.target.value)}
-                            className="w-full border border-gray-400 px-1 py-1 text-[11px] text-center focus:outline-none focus:border-blue-500"
+                            className="w-full bg-transparent border-transparent hover:border-gray-300 focus:bg-white focus:border-[#666] focus:shadow-[inset_0_1px_2px_rgba(0,0,0,0.12)] text-[11px] px-1 outline-none h-[24px] text-center"
                           />
                         </td>
                         <td className="text-center p-2">

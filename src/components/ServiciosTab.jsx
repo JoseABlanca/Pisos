@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { Upload, Trash2, Eye, FileText, Plus, Zap, Droplet, Wifi, Shield, Package, Power } from 'lucide-react';
+import { Upload, Trash2, Eye, FileText, Plus } from 'lucide-react';
 import { uploadFileToStorage } from '../utils/storageUtils';
 import Window from './Window';
 import Accounts from '../pages/Accounts';
@@ -16,8 +16,6 @@ export default function ServiciosTab({
 }) {
   const [selectedIndex, setSelectedIndex] = useState(null);
   const [showAccountsModal, setShowAccountsModal] = useState(false);
-  const [accountSearch, setAccountSearch] = useState('');
-  const [showDropdown, setShowDropdown] = useState(false);
 
   const services = formData.services || [];
   const selectedService = selectedIndex !== null ? services[selectedIndex] : null;
@@ -127,16 +125,7 @@ export default function ServiciosTab({
     }
   };
 
-  const getServiceIcon = (type) => {
-    switch (type) {
-      case 'Electricidad': return <Zap className="w-4 h-4" />;
-      case 'Agua': return <Droplet className="w-4 h-4" />;
-      case 'Gas Natural': return <Power className="w-4 h-4" />;
-      case 'Internet / Fibra': return <Wifi className="w-4 h-4" />;
-      case 'Seguros Hogar': return <Shield className="w-4 h-4" />;
-      default: return <Package className="w-4 h-4" />;
-    }
-  };
+
 
   return (
     <div className="flex flex-col md:flex-row h-full bg-white relative">
@@ -169,20 +158,15 @@ export default function ServiciosTab({
                     : 'bg-white border-slate-200 hover:border-gray-300'
                 }`}
               >
-                <div className="flex items-center space-x-3 truncate">
-                  <div className={`p-2 rounded-full ${service.active !== false ? 'bg-gray-200 text-gray-700' : 'bg-slate-200 text-slate-400'}`}>
-                    {getServiceIcon(service.type)}
+                <div className="truncate">
+                  <div className="text-[11px] font-bold text-[#333] truncate">
+                    {service.company || 'Sin Empresa'}
                   </div>
-                  <div className="truncate">
-                    <div className="text-[11px] font-bold text-[#333] truncate">
-                      {service.company || 'Sin Empresa'}
-                    </div>
-                    <div className="text-[10px] text-slate-500 flex items-center space-x-1">
-                      <span>{service.type}</span>
-                      {service.active === false && (
-                        <span className="text-red-500 font-semibold ml-1">(Baja)</span>
-                      )}
-                    </div>
+                  <div className="text-[10px] text-slate-500 flex items-center space-x-1">
+                    <span>{service.type}</span>
+                    {service.active === false && (
+                      <span className="text-red-500 font-semibold ml-1">(Baja)</span>
+                    )}
                   </div>
                 </div>
               </div>
@@ -202,8 +186,7 @@ export default function ServiciosTab({
             {/* Cabecera del Detalle */}
             <div className="p-4 border-b border-[#e0e0e0] bg-white">
               <div className="flex justify-between items-start mb-4">
-                <h3 className="text-[14px] font-bold text-slate-800 uppercase flex items-center gap-2">
-                  {getServiceIcon(selectedService.type)}
+                <h3 className="text-[14px] font-bold text-slate-800 uppercase">
                   Detalles del Servicio
                 </h3>
                 <button 
@@ -215,8 +198,8 @@ export default function ServiciosTab({
               </div>
 
               <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                <div className="space-y-1">
-                  <label className="text-[10px] font-bold text-slate-700 uppercase">Empresa Suministradora:</label>
+                <div className="space-y-2.5">
+                  <label className="text-[10px] font-bold text-[#444] uppercase tracking-wide block">Empresa Suministradora:</label>
                   <input 
                     type="text" 
                     className="win-input w-full" 
@@ -225,8 +208,8 @@ export default function ServiciosTab({
                     placeholder="Ej. Iberdrola, Vodafone..."
                   />
                 </div>
-                <div className="space-y-1">
-                  <label className="text-[10px] font-bold text-slate-700 uppercase">Tipo de Servicio:</label>
+                <div className="space-y-2.5">
+                  <label className="text-[10px] font-bold text-[#444] uppercase tracking-wide block">Tipo de Servicio:</label>
                   <select 
                     className="win-input w-full"
                     value={selectedService.type || 'Electricidad'}
@@ -241,8 +224,8 @@ export default function ServiciosTab({
                     <option value="Otro">Otro</option>
                   </select>
                 </div>
-                <div className="space-y-1">
-                  <label className="text-[10px] font-bold text-slate-700 uppercase">Contrato / Referencia:</label>
+                <div className="space-y-2.5">
+                  <label className="text-[10px] font-bold text-[#444] uppercase tracking-wide block">Contrato / Referencia:</label>
                   <input 
                     type="text" 
                     className="win-input w-full" 
@@ -252,62 +235,28 @@ export default function ServiciosTab({
                   />
                 </div>
                 
-                <div className="space-y-1 relative">
-                  <label 
-                    className="text-[10px] font-bold text-slate-700 uppercase cursor-help"
-                    title="Doble clic en la caja de abajo para ir a la configuración de cuentas"
-                  >
+                <div className="space-y-2.5 relative">
+                  <label className="text-[10px] font-bold text-[#444] uppercase tracking-wide block">
                     Cuenta Contable Asociada:
                   </label>
-                  <div className="relative">
+                  <div className="flex gap-1">
                     <input 
                       type="text"
-                      className="win-input w-full cursor-pointer"
-                      value={showDropdown ? accountSearch : getAccountDisplay(selectedService.accountingAccount)}
-                      onChange={e => {
-                        setAccountSearch(e.target.value);
-                        setShowDropdown(true);
-                      }}
-                      onClick={() => {
-                        setShowDropdown(true);
-                        setAccountSearch('');
-                      }}
-                      onBlur={() => setTimeout(() => setShowDropdown(false), 200)}
-                      onDoubleClick={() => setShowAccountsModal(true)}
-                      placeholder="Buscar o doble clic para añadir..."
-                      title="Doble clic para buscar o añadir una cuenta contable"
+                      className="win-input flex-1 cursor-pointer bg-white"
+                      value={getAccountDisplay(selectedService.accountingAccount)}
+                      onClick={() => setShowAccountsModal(true)}
+                      readOnly
+                      placeholder="Haga clic para seleccionar cuenta..."
+                      title="Haga clic para abrir la ventana de cuentas contables"
                     />
-                    
-                    {showDropdown && (
-                      <div className="absolute z-50 w-full mt-1 bg-white border border-[#808080] shadow-lg max-h-48 overflow-y-auto">
-                        {(availableAccounts || [])
-                          .filter(acc => 
-                            !accountSearch || 
-                            acc.code.toLowerCase().includes(accountSearch.toLowerCase()) || 
-                            acc.name.toLowerCase().includes(accountSearch.toLowerCase())
-                          )
-                          .map(acc => (
-                            <div 
-                              key={acc.code}
-                              className="px-2 py-1 text-[11px] cursor-pointer hover:bg-[#316ac5] hover:text-white"
-                              onMouseDown={(e) => {
-                                e.preventDefault();
-                                updateServiceField(selectedIndex, 'accountingAccount', acc.code);
-                                setShowDropdown(false);
-                              }}
-                            >
-                              {acc.code} - {acc.name}
-                            </div>
-                        ))}
-                        {(availableAccounts || []).filter(acc => 
-                            !accountSearch || 
-                            acc.code.toLowerCase().includes(accountSearch.toLowerCase()) || 
-                            acc.name.toLowerCase().includes(accountSearch.toLowerCase())
-                        ).length === 0 && (
-                          <div className="px-2 py-1 text-[11px] text-gray-500 italic">No hay resultados</div>
-                        )}
-                      </div>
-                    )}
+                    <button 
+                      type="button" 
+                      className="btn-classic px-2.5 text-red-600 font-bold flex items-center justify-center shrink-0 cursor-pointer text-xs" 
+                      onClick={() => updateServiceField(selectedIndex, 'accountingAccount', '')}
+                      title="Quitar cuenta asociada"
+                    >
+                      X
+                    </button>
                   </div>
                 </div>
 
@@ -349,7 +298,7 @@ export default function ServiciosTab({
               </div>
 
               <div className="flex-1 border border-[#808080] bg-white overflow-hidden flex flex-col min-h-[250px]">
-                <div className="bg-[#f0f0f0] grid grid-cols-12 gap-2 p-2 border-b border-[#808080] text-[10px] font-bold uppercase">
+                <div className="bg-[#fafafa] grid grid-cols-12 gap-2 p-2 text-[10px] font-bold uppercase text-[#333] border-b border-slate-100">
                   <div className="col-span-4">Documento</div>
                   <div className="col-span-4">Concepto</div>
                   <div className="col-span-2">Fecha</div>

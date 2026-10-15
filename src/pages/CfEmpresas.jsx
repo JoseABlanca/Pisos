@@ -68,7 +68,7 @@ function SearchableSelect({ options, value, onChange, placeholder }) {
               autoFocus
               type="text"
               placeholder="Buscar..."
-              className="w-full text-[11px] px-2 py-1 border border-gray-300 outline-none mb-1 focus:border-blue-500 font-sans"
+              className="w-full text-[11px] px-2 py-1 border border-gray-300 outline-none mb-1 focus:border-[#666] focus:shadow-[inset_0_1px_2px_rgba(0,0,0,0.12)] font-sans"
               value={search}
               onChange={(e) => setSearch(e.target.value)}
             />
@@ -487,7 +487,7 @@ export default function CfEmpresas() {
                 placeholder="Buscar en el fichero (Alt+B)"
                 value={searchQuery}
                 onChange={(e) => setSearchQuery(e.target.value)}
-                className="pl-2 pr-8 py-1 border-b border-gray-400 text-[12px] w-64 outline-none focus:border-blue-500 bg-transparent"
+                className="pl-2 pr-8 py-1 border-b border-gray-400 text-[12px] w-64 outline-none focus:border-[#666] focus:shadow-[inset_0_1px_2px_rgba(0,0,0,0.12)] bg-transparent"
               />
               <Search className="w-4 h-4 absolute right-1 top-1/2 -translate-y-1/2 text-gray-500" />
             </div>

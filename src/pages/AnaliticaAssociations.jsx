@@ -129,7 +129,7 @@ function CenterSelectorModal({ type, items, onSelect, onClose }) {
         <div className="flex-1 overflow-auto p-1">
           <table style={{ zoom: tableZoom }} className="w-full border-collapse text-[11px] text-left">
             <thead>
-              <tr className="sticky top-0 bg-[#f2f2f2] border-b border-slate-300 font-bold text-slate-700">
+              <tr className="sticky top-0 bg-[#fafafa] border-b border-slate-100 font-bold text-slate-700">
                 <th className="py-2 px-3 font-bold">Código</th>
                 <th className="py-2 px-3 font-bold">Descripción</th>
               </tr>
@@ -373,7 +373,7 @@ export default function AnaliticaAssociations() {
       <div className="flex-1 overflow-auto" onClick={() => setSelected(null)}>
         <table style={{ zoom: tableZoom }} className="w-full border-collapse text-[11px]">
           <thead>
-            <tr className="sticky top-0 bg-white border-b border-[#d6d6d6] z-10">
+            <tr className="sticky top-0 bg-[#fafafa] border-b border-[#f0f0f0] z-10">
               <th className="text-left font-normal text-[#555] text-[10px] uppercase py-[5px] px-2 w-[110px]">CUENTA</th>
               <th className="text-left font-normal text-[#555] text-[10px] uppercase py-[5px] px-2">DESCRIPCIÓN</th>
               <th className="text-left font-normal text-[#555] text-[10px] uppercase py-[5px] px-2 w-[140px]">CEBE</th>

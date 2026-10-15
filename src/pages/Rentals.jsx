@@ -1,5 +1,5 @@
 import { useState, useEffect, useMemo } from 'react';
-import { useNavigate, useOutletContext } from 'react-router-dom';
+import { useNavigate, useOutletContext, useSearchParams } from 'react-router-dom';
 import { db } from '../firebase/config';
 import { collection, query, where, onSnapshot, doc, setDoc, deleteDoc, updateDoc } from 'firebase/firestore';
 import { deleteJournalEntry } from '../services/accounting';
@@ -26,6 +26,7 @@ export default function Rentals() {
   const { tableZoom } = useOutletContext() || { tableZoom: 1 };
   const { user, queryUserIds } = useAuth();
   const navigate = useNavigate();
+  const [searchParams, setSearchParams] = useSearchParams();
   const [rentals, setRentals] = useState([]);
   const [properties, setProperties] = useState([]);
   const [customers, setCustomers] = useState([]);
@@ -306,6 +307,28 @@ export default function Rentals() {
     setActiveFormTab('general');
   };
 
+  useEffect(() => {
+    const editId = searchParams.get('editId') || searchParams.get('editRentalId');
+    if (editId && rentals.length > 0) {
+      const target = rentals.find(r => 
+        r.docId === editId || 
+        r.id === editId || 
+        r._originalId === editId || 
+        (r.reference && r.reference.toLowerCase() === editId.toLowerCase())
+      );
+      if (target) {
+        setSelectedRental(target);
+        setFormData(target);
+        setIsEditing(true);
+        setShowForm(true);
+        setActiveFormTab('general');
+        searchParams.delete('editId');
+        searchParams.delete('editRentalId');
+        setSearchParams(searchParams, { replace: true });
+      }
+    }
+  }, [searchParams, rentals]);
+
   const handleOpenAccounting = (type) => {
     if (type === 'ingresos') {
       if (!formData.incomeCebeId) {
@@ -528,7 +551,7 @@ export default function Rentals() {
         {/* Table View */}
         <div className="flex-1 flex flex-col bg-white overflow-hidden relative" onClick={() => setSelectedRental(null)}>
           {/* Header with Title and Search */}
-          <div className="flex justify-between items-center px-4 py-2 border-b border-gray-200 bg-[#f8f9fa]">
+          <div className="flex justify-between items-center px-4 py-2 border-b border-gray-200 bg-white">
             <div className="flex items-center space-x-3">
               <button 
                 onClick={(e) => { e.stopPropagation(); setShowSidebar(!showSidebar); }}
@@ -542,7 +565,7 @@ export default function Rentals() {
               <input 
                 type="text" 
                 placeholder="Buscar alquileres..." 
-                className="pl-2 pr-8 py-1 border-b border-gray-400 text-[12px] w-64 outline-none focus:border-blue-500 bg-transparent"
+                className="pl-2 pr-8 py-1 border-b border-gray-400 text-[12px] w-64 outline-none focus:border-[#666] bg-transparent"
                 value={searchQuery}
                 onChange={(e) => setSearchQuery(e.target.value)}
               />
@@ -745,21 +768,23 @@ export default function Rentals() {
             <div className="flex flex-1 h-full min-h-0 bg-white relative">
               {/* Sidebar */}
               {showModalSidebar && (
-                <div className={`bg-white border-r border-[#ccc] shrink-0 overflow-y-auto p-2 flex flex-col shadow-[inset_-1px_0_0_rgba(0,0,0,0.1)] ${isMobile ? 'absolute inset-y-0 left-0 z-30 w-56' : 'w-56'}`}>
-                  <div className="bg-white border border-[#a0a0a0] flex flex-col">
-                    {formTabs.map(tab => (
-                      <button 
-                        key={tab.id}
-                        onClick={() => { setActiveFormTab(tab.id); if (isMobile) setShowModalSidebar(false); }}
-                        className={`w-full text-left px-4 py-2.5 text-[12px] transition-colors border-y ${
-                          activeFormTab === tab.id 
-                            ? 'bg-[#c0c0c0] text-black border-[#a0a0a0] shadow-[inset_0px_1px_1px_rgba(0,0,0,0.1)] font-semibold' 
-                            : 'bg-white text-slate-700 border-transparent hover:bg-[#f8f8f8]'
-                        }`}
-                      >
-                        {tab.name}
-                      </button>
-                    ))}
+                <div className={`bg-white border-r border-[#ccc] shrink-0 overflow-y-auto p-2 flex flex-col ${isMobile ? 'absolute inset-y-0 left-0 z-30 w-52' : 'w-52'}`}>
+                  <div className="border border-[#ccc] bg-white flex flex-col p-1 gap-1">
+                    {formTabs.map(tab => {
+                      const isActive = activeFormTab === tab.id;
+                      return (
+                        <button 
+                          key={tab.id}
+                          onClick={() => { setActiveFormTab(tab.id); if (isMobile) setShowModalSidebar(false); }}
+                          className={`w-full flex items-center justify-between px-3 py-2 text-[11px] transition-all border ${isActive
+                            ? 'bg-[#e1e1e1] text-[#111] border-[#888] shadow-[inset_0_1px_2px_rgba(0,0,0,0.12)] border-l-4 border-l-[#2b579a] font-bold'
+                            : 'bg-white text-[#555] border-[#ddd] hover:bg-[#e9ecef] hover:text-[#111] font-medium'
+                          }`}
+                        >
+                          <span className="truncate pr-1">{tab.name}</span>
+                        </button>
+                      );
+                    })}
                   </div>
                 </div>
               )}
@@ -821,10 +846,10 @@ export default function Rentals() {
                                           return (
                                             <div key={tId} className="flex items-center space-x-1 bg-white border border-gray-400 px-2 py-1 text-[10px] shadow-[1px_1px_0px_#808080]">
                                               <span 
-                                                className="font-bold text-blue-800 cursor-pointer hover:underline"
+                                                className="font-bold text-[#4560a9] cursor-pointer hover:underline"
                                                 onClick={() => {
                                                   if (cust) {
-                                                    navigate(`/clientes?editName=${encodeURIComponent(cust.name)}`);
+                                                    navigate(`/customers?editName=${encodeURIComponent(cust.name)}`);
                                                   }
                                                 }}
                                                 title="Ver ficha del cliente"
@@ -1203,7 +1228,7 @@ export default function Rentals() {
                           </div>
                           
                           <table style={{ zoom: tableZoom }} className="w-full text-[11px] border-collapse bg-white border border-gray-300">
-                            <thead className="bg-[#f0f0f0]">
+                            <thead className="bg-[#fafafa]">
                               <tr>
                                 <th className="border border-gray-300 p-1.5 text-left">Concepto</th>
                                 <th className="border border-gray-300 p-1.5 text-right w-24">Importe (€)</th>
@@ -1336,7 +1361,7 @@ export default function Rentals() {
                             <div className="mt-6 border-t border-[#a0a0a0] pt-4">
                               <h3 className="text-[11px] font-bold text-slate-800 uppercase mb-2">Ingreso Neto de Propietarios</h3>
                               <table style={{ zoom: tableZoom }} className="w-full text-[11px] border-collapse bg-white border border-gray-300">
-                                <thead className="bg-[#e0e0e0]">
+                                <thead className="bg-[#fafafa]">
                                   <tr>
                                     <th className="border border-gray-300 p-1.5 text-left">Propietario</th>
                                     <th className="border border-gray-300 p-1.5 text-right w-24">% Propiedad</th>
@@ -1350,7 +1375,7 @@ export default function Rentals() {
                                     return (
                                       <tr key={idx}>
                                         <td className="border border-gray-300 p-1.5">{owner.name || 'Desconocido'}</td>
-                                        <td className="border border-gray-300 p-1.5 text-right">{perc.toFixed(2)}%</td>
+                                        <td className="border border-gray-300 p-1.5 text-right">{perc.toLocaleString('es-ES', { minimumFractionDigits: 2, maximumFractionDigits: 2 })} %</td>
                                         <td className={`border border-gray-300 p-1.5 text-right font-semibold ${ownerNet >= 0 ? 'text-green-700' : 'text-red-600'}`}>
                                           {ownerNet.toLocaleString('es-ES', { minimumFractionDigits: 2, maximumFractionDigits: 2 })} €
                                         </td>
@@ -1423,7 +1448,7 @@ export default function Rentals() {
                           }}
                         >
                           <table style={{ zoom: tableZoom }} className="win-table min-w-full">
-                          <thead className="sticky top-0 bg-[#f0f0f0]">
+                          <thead className="sticky top-0 bg-[#fafafa]">
                             <tr>
                               <TableHeaderWithFilter key="name" label="Nombre del Archivo" columnKey="name" data={formData.documents} tableId="rentals-docs" />
                               <TableHeaderWithFilter key="type" label="Tipo" columnKey="type" data={formData.documents} tableId="rentals-docs" />
@@ -1498,9 +1523,9 @@ export default function Rentals() {
 
                   </div>
                 {/* Action Buttons */}
-                <div className="flex justify-end gap-2 shrink-0 pt-2 pb-1 pr-1 bg-[#f5f5f5] border-t border-[#ccc]">
-                  <button className="px-6 py-1 border border-gray-400 bg-gray-100 hover:bg-gray-200 shadow-sm text-[11px] font-bold uppercase" onClick={handleSave}>Aceptar</button>
-                  <button className="px-6 py-1 border border-gray-400 bg-gray-100 hover:bg-gray-200 shadow-sm text-[11px] font-bold uppercase" onClick={() => setShowForm(false)}>Cancelar</button>
+                <div className="flex justify-end gap-2 p-3 bg-[#f5f5f5] border-t border-[#ccc] shrink-0">
+                  <button className="w-[85px] py-[4px] border border-[#a0a0a0] bg-[#f5f5f5] hover:bg-[#e8e8e8] active:bg-[#d0d0d0] text-[12px] text-slate-800 shadow-xs font-normal select-none" onClick={handleSave}>Aceptar</button>
+                  <button className="w-[85px] py-[4px] border border-[#a0a0a0] bg-[#f5f5f5] hover:bg-[#e8e8e8] active:bg-[#d0d0d0] text-[12px] text-slate-800 shadow-xs font-normal select-none" onClick={() => setShowForm(false)}>Cancelar</button>
                 </div>
               </div>
             </div>
@@ -1762,7 +1787,7 @@ function AnalyticsJournalViewer({ type, value, userIds, setPreviewDocument }) {
       ) : (
         <div className="overflow-x-auto border border-[#808080]">
           <table style={{ zoom: tableZoom }} className="w-full win-table bg-white">
-            <thead className="bg-[#e7e1d3] sticky top-0">
+            <thead className="bg-[#fafafa] sticky top-0">
               <tr>
                 <th className="text-left p-1.5 w-20 text-[10px]">Fecha</th>
                 <th className="text-left p-1.5 text-[10px]">Concepto</th>

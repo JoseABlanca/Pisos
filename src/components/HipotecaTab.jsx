@@ -4,6 +4,7 @@ import { uploadFileToStorage } from '../utils/storageUtils';
 import { db } from '../firebase/config';
 import { collection, query, where, onSnapshot } from 'firebase/firestore';
 import Accounts from '../pages/Accounts';
+import Window from './Window';
 
 export default function HipotecaTab({ 
   formData, 
@@ -436,8 +437,8 @@ export default function HipotecaTab({
             <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
               {/* Columna Izquierda */}
               <div className="space-y-3">
-                <div className="space-y-1">
-                  <label className="text-[10px] font-bold text-slate-700 uppercase">Nombre Entidad Financiera:</label>
+                <div className="space-y-2.5">
+                  <label className="text-[10px] font-bold text-[#444] uppercase tracking-wide block">Nombre Entidad Financiera:</label>
                   <input 
                     type="text" 
                     className="win-input w-full" 
@@ -445,8 +446,8 @@ export default function HipotecaTab({
                     onChange={e => setFormData({ ...formData, bank: e.target.value })} 
                   />
                 </div>
-                <div className="space-y-1">
-                  <label className="text-[10px] font-bold text-slate-700 uppercase">Nº Préstamo:</label>
+                <div className="space-y-2.5">
+                  <label className="text-[10px] font-bold text-[#444] uppercase tracking-wide block">Nº Préstamo:</label>
                   <input 
                     type="text" 
                     className="win-input w-full" 
@@ -455,54 +456,52 @@ export default function HipotecaTab({
                   />
                 </div>
                 
-                <div className="space-y-1">
-                  <label className="text-[10px] font-bold text-slate-700 uppercase">Cuenta Amortización Principal:</label>
+                <div className="space-y-2.5">
+                  <label className="text-[10px] font-bold text-[#444] uppercase tracking-wide block">Cuenta Amortización Principal:</label>
                   <div className="flex gap-1">
                     <input 
                       type="text" 
-                      className="win-input flex-1 bg-slate-50 cursor-pointer font-mono" 
+                      className="win-input flex-1 bg-[#fafafa] cursor-pointer font-mono text-gray-800" 
                       placeholder="Haga clic para seleccionar cuenta..."
                       value={formData.mortgageAccount ? `${formData.mortgageAccount} - ${availableAccounts.find(a => a.code === formData.mortgageAccount)?.name || ''}` : ''}
                       readOnly
                       onClick={() => setShowAccountsModal(true)}
                     />
-                    {formData.mortgageAccount && (
-                      <button 
-                        type="button" 
-                        className="btn-classic px-2 text-red-600 font-bold" 
-                        onClick={() => setFormData({ ...formData, mortgageAccount: '' })}
-                      >
-                        X
-                      </button>
-                    )}
+                    <button 
+                      type="button" 
+                      className="btn-classic px-2.5 text-red-600 font-bold flex items-center justify-center shrink-0 cursor-pointer text-xs" 
+                      onClick={() => setFormData({ ...formData, mortgageAccount: '' })}
+                      title="Quitar cuenta"
+                    >
+                      X
+                    </button>
                   </div>
                 </div>
 
-                <div className="space-y-1">
-                  <label className="text-[10px] font-bold text-slate-700 uppercase">CECO Intereses Hipoteca:</label>
+                <div className="space-y-2.5">
+                  <label className="text-[10px] font-bold text-[#444] uppercase tracking-wide block">CECO Intereses Hipoteca:</label>
                   <div className="flex gap-1">
                     <input 
                       type="text" 
-                      className="win-input flex-1 bg-slate-50 cursor-pointer font-mono" 
+                      className="win-input flex-1 bg-[#fafafa] cursor-pointer font-mono text-gray-800" 
                       placeholder="Haga clic para seleccionar CECO..."
                       value={formData.mortgageCeco ? `${formData.mortgageCeco} - ${cecos.find(c => c.code === formData.mortgageCeco)?.name || ''}` : ''}
                       readOnly
                       onClick={() => setShowCecosModal(true)}
                     />
-                    {formData.mortgageCeco && (
-                      <button 
-                        type="button" 
-                        className="btn-classic px-2 text-red-600 font-bold" 
-                        onClick={() => setFormData({ ...formData, mortgageCeco: '' })}
-                      >
-                        X
-                      </button>
-                    )}
+                    <button 
+                      type="button" 
+                      className="btn-classic px-2.5 text-red-600 font-bold flex items-center justify-center shrink-0 cursor-pointer text-xs" 
+                      onClick={() => setFormData({ ...formData, mortgageCeco: '' })}
+                      title="Quitar CECO"
+                    >
+                      X
+                    </button>
                   </div>
                 </div>
 
-                <div className="space-y-1">
-                  <label className="text-[10px] font-bold text-slate-700 uppercase">Tipo de Hipoteca:</label>
+                <div className="space-y-2.5">
+                  <label className="text-[10px] font-bold text-[#444] uppercase tracking-wide block">Tipo de Hipoteca:</label>
                   <select 
                     className="win-input w-full"
                     value={formData.mortgageType || 'fija'}
@@ -516,8 +515,8 @@ export default function HipotecaTab({
 
                 {formData.mortgageType === 'mixta' && (
                   <div className="grid grid-cols-2 gap-2">
-                    <div className="space-y-1">
-                      <label className="text-[10px] font-bold text-slate-700 uppercase">Años de Fija:</label>
+                    <div className="space-y-2.5">
+                      <label className="text-[10px] font-bold text-[#444] uppercase tracking-wide block">Años de Fija:</label>
                       <input 
                         type="number" 
                         className="win-input w-full" 
@@ -525,8 +524,8 @@ export default function HipotecaTab({
                         onChange={e => setFormData({ ...formData, fixedYears: e.target.value })} 
                       />
                     </div>
-                    <div className="space-y-1">
-                      <label className="text-[10px] font-bold text-slate-700 uppercase">Años Variables:</label>
+                    <div className="space-y-2.5">
+                      <label className="text-[10px] font-bold text-[#444] uppercase tracking-wide block">Años Variables:</label>
                       <input 
                         type="number" 
                         className="win-input w-full" 
@@ -539,8 +538,8 @@ export default function HipotecaTab({
 
                 {/* Tipos de interes dependiendo de la hipoteca */}
                 {(formData.mortgageType === 'fija' || formData.mortgageType === 'mixta') && (
-                  <div className="space-y-1">
-                    <label className="text-[10px] font-bold text-slate-700 uppercase">Tipo de Interés Fijo (%):</label>
+                  <div className="space-y-2.5">
+                    <label className="text-[10px] font-bold text-[#444] uppercase tracking-wide block">Tipo de Interés Fijo (%):</label>
                     <input 
                       type="number" 
                       step="0.01"
@@ -552,8 +551,8 @@ export default function HipotecaTab({
                 )}
 
                 {(formData.mortgageType === 'variable' || formData.mortgageType === 'mixta') && (
-                  <div className="space-y-1">
-                    <label className="text-[10px] font-bold text-slate-700 uppercase">Tipo de Interés Variable (Euribor + Diferencial):</label>
+                  <div className="space-y-2.5">
+                    <label className="text-[10px] font-bold text-[#444] uppercase tracking-wide block">Tipo de Interés Variable (Euribor + Diferencial):</label>
                     <input 
                       type="text" 
                       className="win-input w-full" 
@@ -566,8 +565,8 @@ export default function HipotecaTab({
                 
                 {/* if it's strictly variable, we still might need the current 'interest' to calculate the simulated table */}
                 {formData.mortgageType === 'variable' && (
-                  <div className="space-y-1">
-                    <label className="text-[10px] font-bold text-slate-700 uppercase">Interés de Salida / Actual para simulación (%):</label>
+                  <div className="space-y-2.5">
+                    <label className="text-[10px] font-bold text-[#444] uppercase tracking-wide block">Interés de Salida / Actual para simulación (%):</label>
                     <input 
                       type="number" 
                       step="0.01"
@@ -578,11 +577,11 @@ export default function HipotecaTab({
                   </div>
                 )}
 
-                <div className="space-y-1">
-                  <label className="text-[10px] font-bold text-slate-700 uppercase">Último Tipo de Interés Real (%):</label>
+                <div className="space-y-2.5">
+                  <label className="text-[10px] font-bold text-[#444] uppercase tracking-wide block">Último Tipo de Interés Real (%):</label>
                   <input 
                     type="text" 
-                    className="win-input w-full bg-slate-50 font-semibold text-blue-900" 
+                    className="win-input w-full bg-[#fafafa] font-semibold text-gray-800" 
                     value={formData.lastInterestRate !== undefined ? `${Number(formData.lastInterestRate).toFixed(2)} %` : '0.00 %'} 
                     readOnly
                   />
@@ -591,8 +590,8 @@ export default function HipotecaTab({
 
               {/* Columna Derecha */}
               <div className="space-y-3">
-                <div className="space-y-1">
-                  <label className="text-[10px] font-bold text-slate-700 uppercase">Capital Concedido (€):</label>
+                <div className="space-y-2.5">
+                  <label className="text-[10px] font-bold text-[#444] uppercase tracking-wide block">Capital Concedido (€):</label>
                   <input 
                     type="number" 
                     step="0.01"
@@ -601,30 +600,30 @@ export default function HipotecaTab({
                     onChange={e => setFormData({ ...formData, loanAmount: e.target.value })} 
                   />
                 </div>
-                <div className="space-y-1">
-                  <label className="text-[10px] font-bold text-slate-700 uppercase">Capital Pendiente (€):</label>
+                <div className="space-y-2.5">
+                  <label className="text-[10px] font-bold text-[#444] uppercase tracking-wide block">Capital Pendiente (€):</label>
                   <input 
                     type="number" 
-                    step="0.01"
-                    className="win-input w-full text-right bg-slate-50 font-semibold" 
+                    step="0.01" 
+                    className="win-input w-full text-right bg-[#fafafa] text-gray-800" 
                     value={formData.mortgagePending || ''} 
-                    readOnly
+                    readOnly 
                   />
                 </div>
-                <div className="space-y-1">
-                  <label className="text-[10px] font-bold text-slate-700 uppercase">Intereses Generados (€):</label>
+                <div className="space-y-2.5">
+                  <label className="text-[10px] font-bold text-[#444] uppercase tracking-wide block">Intereses Generados (€):</label>
                   <input 
                     type="number" 
-                    step="0.01"
-                    className="win-input w-full text-right bg-slate-50 font-semibold" 
+                    step="0.01" 
+                    className="win-input w-full text-right bg-[#fafafa] text-gray-800" 
                     value={formData.generatedInterests || ''} 
-                    readOnly
+                    readOnly 
                   />
                 </div>
 
                 <div className="grid grid-cols-3 gap-2">
-                  <div className="space-y-1">
-                    <label className="text-[10px] font-bold text-slate-700 uppercase">Inicio:</label>
+                  <div className="space-y-2.5">
+                    <label className="text-[10px] font-bold text-[#444] uppercase tracking-wide block">Inicio:</label>
                     <input 
                       type="date" 
                       className="win-input w-full" 
@@ -632,8 +631,8 @@ export default function HipotecaTab({
                       onChange={e => setFormData({ ...formData, mortgageStart: e.target.value })} 
                     />
                   </div>
-                  <div className="space-y-1">
-                    <label className="text-[10px] font-bold text-slate-700 uppercase">Meses Tot.:</label>
+                  <div className="space-y-2.5">
+                    <label className="text-[10px] font-bold text-[#444] uppercase tracking-wide block">Meses Tot.:</label>
                     <input 
                       type="number" 
                       className="win-input w-full text-right" 
@@ -641,22 +640,22 @@ export default function HipotecaTab({
                       onChange={e => setFormData({ ...formData, totalMonths: e.target.value })} 
                     />
                   </div>
-                  <div className="space-y-1">
-                    <label className="text-[10px] font-bold text-slate-700 uppercase">Restantes:</label>
+                  <div className="space-y-2.5">
+                    <label className="text-[10px] font-bold text-[#444] uppercase tracking-wide block">Restantes:</label>
                     <input 
                       type="number" 
-                      className="win-input w-full text-right bg-slate-100" 
+                      className="win-input w-full text-right bg-[#fafafa] font-semibold text-gray-800" 
                       value={remainingMonths} 
                       readOnly
                       disabled
                     />
                   </div>
                 </div>
-                <div className="space-y-1">
-                  <label className="text-[10px] font-bold text-slate-700 uppercase">Fecha Vencimiento:</label>
+                <div className="space-y-2.5">
+                  <label className="text-[10px] font-bold text-[#444] uppercase tracking-wide block">Fecha Vencimiento:</label>
                   <input 
                     type="date" 
-                    className="win-input w-full bg-slate-100 font-semibold" 
+                    className="win-input w-full bg-[#fafafa] font-semibold text-gray-800" 
                     value={formData.expiry || ''} 
                     readOnly
                     disabled
@@ -690,59 +689,73 @@ export default function HipotecaTab({
               </div>
             </div>
 
-            <div className="flex-1 border border-[#808080] bg-white overflow-hidden flex flex-col min-h-[300px]">
-              <div className="bg-[#f0f0f0] grid grid-cols-12 gap-2 p-2 border-b border-[#808080] text-[10px] font-bold uppercase">
-                <div className="col-span-4">Documento</div>
-                <div className="col-span-4">Concepto</div>
-                <div className="col-span-2">Fecha</div>
-                <div className="col-span-2 text-center">Acción</div>
-              </div>
-              <div className="flex-1 overflow-auto p-2 space-y-2">
-                {(!formData.mortgageDocs || formData.mortgageDocs.length === 0) ? (
-                  <div className="text-center text-slate-400 italic py-8 text-[11px]">No hay documentos</div>
-                ) : (
-                  formData.mortgageDocs.map((doc) => (
-                    <div key={doc.id} className="grid grid-cols-12 gap-2 items-center text-[11px] border-b border-slate-100 pb-2">
-                      <div className="col-span-4 flex items-center space-x-2 truncate">
-                        <FileText className="w-4 h-4 text-slate-400 shrink-0" />
-                        <span className="truncate" title={doc.name}>{doc.name}</span>
-                      </div>
-                      <div className="col-span-4">
-                        <input
-                          type="text"
-                          className="win-input w-full text-[11px]"
-                          value={doc.concept || ''}
-                          onChange={(e) => updateDocument(doc.id, 'concept', e.target.value)}
-                          placeholder="Ej. Escritura, Recibo..."
-                        />
-                      </div>
-                      <div className="col-span-2">
-                        <input
-                          type="date"
-                          className="win-input w-full text-[11px]"
-                          value={doc.date || ''}
-                          onChange={(e) => updateDocument(doc.id, 'date', e.target.value)}
-                        />
-                      </div>
-                      <div className="col-span-2 flex justify-center space-x-2">
-                        <button 
-                          className="p-1 hover:bg-gray-100 text-gray-500 hover:text-black rounded transition-colors"
-                          onClick={() => setPreviewDocument(doc)}
-                          title="Previsualizar"
-                        >
-                          <Eye className="w-4 h-4" />
-                        </button>
-                        <button 
-                          className="p-1 hover:bg-gray-100 text-gray-500 hover:text-black rounded transition-colors"
-                          onClick={() => deleteDocument(doc.id)}
-                          title="Eliminar"
-                        >
-                          <Trash2 className="w-4 h-4" />
-                        </button>
-                      </div>
-                    </div>
-                  ))
-                )}
+            <div className="flex-1 bg-white overflow-hidden flex flex-col min-h-[180px]">
+              <div className="flex-1 overflow-auto border border-gray-50 rounded-sm">
+                <table className="modern-table w-full border-0">
+                  <thead>
+                    <tr>
+                      <th className="w-[30%] text-left text-[10px]">Documento</th>
+                      <th className="w-[35%] text-left text-[10px]">Concepto</th>
+                      <th className="w-[20%] text-left text-[10px]">Fecha</th>
+                      <th className="w-[15%] text-center text-[10px]">Acción</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {(!formData.mortgageDocs || formData.mortgageDocs.length === 0) ? (
+                      <tr>
+                        <td colSpan="4" className="text-center text-[#888] italic py-8">No hay documentos</td>
+                      </tr>
+                    ) : (
+                      formData.mortgageDocs.map((doc) => (
+                        <tr key={doc.id}>
+                          <td className="py-2 px-3">
+                            <div className="flex items-center space-x-2 truncate">
+                              <FileText className="w-3.5 h-3.5 text-gray-500 shrink-0" />
+                              <span className="truncate text-gray-700" title={doc.name}>{doc.name}</span>
+                            </div>
+                          </td>
+                          <td className="py-1 px-2">
+                            <input
+                              type="text"
+                              className="w-full bg-transparent border-transparent hover:border-gray-300 focus:bg-white focus:border-[#666] focus:shadow-[inset_0_1px_2px_rgba(0,0,0,0.12)] text-[11px] px-1 outline-none h-[24px] transition-colors rounded-sm"
+                              value={doc.concept || ''}
+                              onChange={(e) => updateDocument(doc.id, 'concept', e.target.value)}
+                              placeholder="Ej. Escritura, Recibo..."
+                            />
+                          </td>
+                          <td className="py-1 px-2">
+                            <input
+                              type="date"
+                              className="w-full bg-transparent border-transparent hover:border-gray-300 focus:bg-white focus:border-[#666] focus:shadow-[inset_0_1px_2px_rgba(0,0,0,0.12)] text-[11px] px-1 outline-none h-[24px] transition-colors rounded-sm"
+                              value={doc.date || ''}
+                              onChange={(e) => updateDocument(doc.id, 'date', e.target.value)}
+                            />
+                          </td>
+                          <td className="py-2 px-3 text-center">
+                            <div className="flex justify-center items-center space-x-4">
+                              <button 
+                                type="button"
+                                className="text-gray-500 hover:text-blue-600 transition-colors"
+                                onClick={() => setPreviewDocument(doc)}
+                                title="Previsualizar"
+                              >
+                                <Eye className="w-3.5 h-3.5" />
+                              </button>
+                              <button 
+                                type="button"
+                                className="text-gray-500 hover:text-red-600 transition-colors"
+                                onClick={() => deleteDocument(doc.id)}
+                                title="Eliminar"
+                              >
+                                <Trash2 className="w-3.5 h-3.5" />
+                              </button>
+                            </div>
+                          </td>
+                        </tr>
+                      ))
+                    )}
+                  </tbody>
+                </table>
               </div>
             </div>
           </div>
@@ -752,7 +765,7 @@ export default function HipotecaTab({
           <div className="h-full flex flex-col">
             <h3 className="text-[12px] font-bold text-slate-800 uppercase italic mb-4">Cuadro de Amortización Teórico (Simulado)</h3>
             <div className="flex-1 border border-[#808080] bg-white overflow-hidden flex flex-col min-h-[300px]">
-              <div className="bg-[#f0f0f0] grid grid-cols-7 gap-2 p-2 border-b border-[#808080] text-[10px] font-bold uppercase text-right">
+              <div className="bg-[#fafafa] grid grid-cols-7 gap-2 p-2 text-[10px] font-bold uppercase text-right text-[#333] border-b border-slate-100">
                 <div className="text-center">Mes</div>
                 <div className="text-center">Fecha</div>
                 <div>Cuota</div>
@@ -803,7 +816,7 @@ export default function HipotecaTab({
               </div>
             ) : (
               <div className="flex-1 border border-[#808080] bg-white overflow-hidden flex flex-col min-h-[300px]">
-                <div className="bg-[#f0f0f0] grid grid-cols-7 gap-2 p-2 border-b border-[#808080] text-[10px] font-bold uppercase text-right">
+                <div className="bg-[#fafafa] grid grid-cols-7 gap-2 p-2 text-[10px] font-bold uppercase text-right text-[#333] border-b border-slate-100">
                   <div className="text-center">Mes</div>
                   <div className="text-center">Fecha</div>
                   <div>Cuota</div>
@@ -841,97 +854,109 @@ export default function HipotecaTab({
 
       {/* Accounts Selection Modal */}
       {showAccountsModal && (
-        <div className="fixed inset-0 bg-black/40 backdrop-blur-sm flex items-center justify-center z-[9999] p-4">
-          <div className="bg-white shadow-2xl rounded-lg flex flex-col w-[90vw] h-[90vh] overflow-hidden max-w-[1000px] border border-gray-400">
-            <div className="flex justify-between items-center px-4 py-2 bg-[#4e80c8] text-white select-none">
-              <h2 className="font-bold text-[13px] tracking-wide uppercase">Selección de Cuenta Contable</h2>
-              <button type="button" onClick={() => setShowAccountsModal(false)} className="hover:bg-white/20 p-1 rounded">
-                <X className="w-5 h-5" />
-              </button>
+        <div className="fixed inset-0 bg-black/40 backdrop-blur-sm flex items-center justify-center z-[9999]">
+          <Window 
+            title="Configuración de Cuentas Contables"
+            width={isMobile ? "100%" : "900px"}
+            initialPos={{ x: isMobile ? 0 : 50, y: isMobile ? 0 : 20 }}
+            onClose={() => setShowAccountsModal(false)}
+          >
+            <div className="bg-[#d4d0c8] flex flex-col h-[600px]">
+              <div className="flex-1 overflow-auto p-1">
+                <div className="bg-white border border-[#808080] shadow-[1px_1px_0px_#000] min-h-full h-full relative">
+                  <Accounts 
+                    isModal={true} 
+                    onAccountSelect={(code) => {
+                      setFormData(prev => ({ ...prev, mortgageAccount: code }));
+                      setShowAccountsModal(false);
+                    }} 
+                  />
+                </div>
+              </div>
+              <div className="flex justify-end gap-2 shrink-0 pt-2 pb-1 pr-1 bg-[#d4d0c8] border-t border-[#808080]">
+                <button 
+                  className="px-6 py-1 border border-gray-400 bg-gray-100 hover:bg-gray-200 shadow-sm text-[11px] font-bold uppercase" 
+                  onClick={() => setShowAccountsModal(false)}
+                >
+                  Cerrar
+                </button>
+              </div>
             </div>
-            <div className="flex-1 overflow-hidden relative">
-              <Accounts 
-                isModal={true} 
-                onAccountSelect={(code) => {
-                  setFormData({ ...formData, mortgageAccount: code });
-                  setShowAccountsModal(false);
-                }} 
-              />
-            </div>
-          </div>
+          </Window>
         </div>
       )}
 
       {/* CECO Selection Modal */}
       {showCecosModal && (
-        <div className="fixed inset-0 bg-black/40 backdrop-blur-sm flex items-center justify-center z-[9999] p-4">
-          <div className="bg-white shadow-2xl rounded-lg flex flex-col w-[90vw] h-[90vh] overflow-hidden max-w-[800px] border border-gray-400">
-            <div className="flex justify-between items-center px-4 py-2 bg-[#4e80c8] text-white select-none">
-              <h2 className="font-bold text-[13px] tracking-wide uppercase">Selección de Centro de Coste (CECO)</h2>
-              <button type="button" onClick={() => setShowCecosModal(false)} className="hover:bg-white/20 p-1 rounded">
-                <X className="w-5 h-5" />
-              </button>
-            </div>
-            <div className="p-3 border-b border-slate-200 bg-slate-50 flex gap-2">
-              <input 
-                type="text" 
-                placeholder="Buscar por código o nombre..." 
-                className="win-input flex-1"
-                value={cecoSearch}
-                onChange={e => setCecoSearch(e.target.value)}
-                autoFocus
-              />
-            </div>
-            <div className="flex-1 overflow-auto p-2">
-              <table className="w-full border-collapse">
-                <thead>
-                  <tr className="bg-slate-100 text-slate-700 text-[10px] font-bold uppercase sticky top-0">
-                    <th className="px-3 py-2 text-left border-b border-slate-200 w-32">Código</th>
-                    <th className="px-3 py-2 text-left border-b border-slate-200">Descripción</th>
-                  </tr>
-                </thead>
-                <tbody>
-                  {filteredCecos.map(c => (
-                    <tr 
-                      key={c.id} 
-                      className="hover:bg-[#e8f0fe] cursor-pointer text-[11px] border-b border-slate-100"
-                      onDoubleClick={() => {
-                        setFormData({ ...formData, mortgageCeco: c.code });
-                        setShowCecosModal(false);
-                      }}
-                      onClick={() => setSelectedCecoTemp(c.code)}
-                    >
-                      <td className={`px-3 py-2 font-mono ${selectedCecoTemp === c.code ? 'bg-[#316ac5] text-white font-bold' : ''}`}>{c.code}</td>
-                      <td className={`px-3 py-2 ${selectedCecoTemp === c.code ? 'bg-[#316ac5] text-white font-bold' : ''}`}>{c.name}</td>
+        <div className="fixed inset-0 bg-black/40 backdrop-blur-sm flex items-center justify-center z-[9999]">
+          <Window 
+            title="Selección de Centro de Coste (CECO)"
+            width={isMobile ? "100%" : "800px"}
+            initialPos={{ x: isMobile ? 0 : 60, y: isMobile ? 0 : 30 }}
+            onClose={() => setShowCecosModal(false)}
+          >
+            <div className="bg-[#d4d0c8] flex flex-col h-[500px]">
+              <div className="p-2 border-b border-[#808080] bg-[#f5f5f5] flex gap-2">
+                <input 
+                  type="text" 
+                  placeholder="Buscar por código o nombre..." 
+                  className="win-input flex-1"
+                  value={cecoSearch}
+                  onChange={e => setCecoSearch(e.target.value)}
+                  autoFocus
+                />
+              </div>
+              <div className="flex-1 overflow-auto p-1 bg-white">
+                <table className="w-full border-collapse">
+                  <thead>
+                    <tr className="bg-[#fafafa] text-slate-700 text-[10px] font-bold uppercase sticky top-0 border-b border-slate-100">
+                      <th className="px-3 py-2 text-left border-b border-slate-100 w-32">Código</th>
+                      <th className="px-3 py-2 text-left border-b border-slate-100">Descripción</th>
                     </tr>
-                  ))}
-                  {filteredCecos.length === 0 && (
-                    <tr>
-                      <td colSpan="2" className="p-8 text-center text-slate-400 italic">No se encontraron CECOs.</td>
-                    </tr>
-                  )}
-                </tbody>
-              </table>
+                  </thead>
+                  <tbody>
+                    {filteredCecos.map(c => (
+                      <tr 
+                        key={c.id} 
+                        className="hover:bg-[#e8f0fe] cursor-pointer text-[11px] border-b border-slate-100"
+                        onDoubleClick={() => {
+                          setFormData({ ...formData, mortgageCeco: c.code });
+                          setShowCecosModal(false);
+                        }}
+                        onClick={() => setSelectedCecoTemp(c.code)}
+                      >
+                        <td className={`px-3 py-2 font-mono ${selectedCecoTemp === c.code ? 'bg-[#316ac5] text-white font-bold' : ''}`}>{c.code}</td>
+                        <td className={`px-3 py-2 ${selectedCecoTemp === c.code ? 'bg-[#316ac5] text-white font-bold' : ''}`}>{c.name}</td>
+                      </tr>
+                    ))}
+                    {filteredCecos.length === 0 && (
+                      <tr>
+                        <td colSpan="2" className="p-8 text-center text-slate-400 italic">No se encontraron CECOs.</td>
+                      </tr>
+                    )}
+                  </tbody>
+                </table>
+              </div>
+              <div className="bg-[#d4d0c8] px-4 py-3 flex justify-end space-x-2 border-t border-[#808080]">
+                <button 
+                  type="button"
+                  onClick={() => {
+                    if (selectedCecoTemp) {
+                      setFormData({ ...formData, mortgageCeco: selectedCecoTemp });
+                      setShowCecosModal(false);
+                    }
+                  }} 
+                  disabled={!selectedCecoTemp}
+                  className="btn-classic px-5 py-1 text-[10px] font-bold bg-[#e1e1e1] border-[#888] text-[#333] hover:bg-[#d0d0d0] disabled:opacity-50"
+                >
+                  Aceptar
+                </button>
+                <button type="button" onClick={() => setShowCecosModal(false)} className="btn-classic px-5 py-1 text-[10px] font-bold bg-[#e1e1e1] border-[#888] text-[#333] hover:bg-[#d0d0d0]">
+                  Cancelar
+                </button>
+              </div>
             </div>
-            <div className="bg-[#d4d0c8] px-4 py-3 flex justify-end space-x-2 border-t border-[#808080]">
-              <button 
-                type="button"
-                onClick={() => {
-                  if (selectedCecoTemp) {
-                    setFormData({ ...formData, mortgageCeco: selectedCecoTemp });
-                    setShowCecosModal(false);
-                  }
-                }} 
-                disabled={!selectedCecoTemp}
-                className="btn-classic px-5 py-1 text-[10px] font-bold bg-[#e1e1e1] border-[#888] text-[#333] hover:bg-[#d0d0d0] disabled:opacity-50"
-              >
-                Aceptar
-              </button>
-              <button type="button" onClick={() => setShowCecosModal(false)} className="btn-classic px-5 py-1 text-[10px] font-bold bg-[#e1e1e1] border-[#888] text-[#333] hover:bg-[#d0d0d0]">
-                Cancelar
-              </button>
-            </div>
-          </div>
+          </Window>
         </div>
       )}
     </div>

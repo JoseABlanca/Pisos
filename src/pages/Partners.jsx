@@ -25,15 +25,13 @@ export default function Partners() {
   const [selectedPartner, setSelectedPartner] = useState(null);
   const [isEditing, setIsEditing] = useState(false);
   const [searchQuery, setSearchQuery] = useState('');
-  const [activeFormTab, setActiveFormTab] = useState('general');
+  const [activeFormTab, setActiveFormTab] = useState('contact');
   const [gainView, setGainView] = useState('neta');
   const [showSidebar, setShowSidebar] = useState(true);
 
   const formTabs = [
-    { id: 'general', name: 'GENERAL' },
-    { id: 'contact', name: 'CONTACTO' },
-    { id: 'financial', name: 'PARTICIPACIÓN' },
-    { id: 'docs', name: 'DOCUMENTOS' }
+    { id: 'contact', name: 'Contacto' },
+    { id: 'financial', name: 'Participación' }
   ];
   const [filterColumn, setFilterColumn] = useState('name');
   const [filterOperator, setFilterOperator] = useState('contains');
@@ -233,7 +231,7 @@ export default function Partners() {
     });
     setIsEditing(false);
     setShowForm(true);
-    setActiveFormTab('general');
+    setActiveFormTab('contact');
   };
 
   const handleEdit = (partner = null) => {
@@ -242,7 +240,7 @@ export default function Partners() {
     setFormData({ ...target });
     setIsEditing(true);
     setShowForm(true);
-    setActiveFormTab('general');
+    setActiveFormTab('contact');
   };
 
   const handleDelete = () => {
@@ -266,6 +264,8 @@ export default function Partners() {
         newDocs.push({
           id: Date.now() + Math.random().toString(36).substring(7),
           name: file.name,
+          concept: '',
+          date: new Date().toISOString().split('T')[0],
           url,
           type: file.type || 'application/octet-stream',
           uploadedAt: new Date().toISOString()
@@ -283,6 +283,13 @@ export default function Partners() {
       setIsUploading(false);
       e.target.value = '';
     }
+  };
+
+  const updatePartnerDocument = (docId, field, val) => {
+    setFormData(prev => ({
+      ...prev,
+      documents: (prev.documents || []).map(d => d.id === docId ? { ...d, [field]: val } : d)
+    }));
   };
 
   const deletePartnerDocument = (docId) => {
@@ -386,7 +393,7 @@ export default function Partners() {
                   setFilterValue(e.target.value);
                   setIsFilterActive(e.target.value.length > 0);
                 }}
-                className="pl-2 pr-8 py-1 border-b border-gray-400 text-[12px] w-64 outline-none focus:border-blue-500"
+                className="pl-2 pr-8 py-1 border-b border-gray-400 text-[12px] w-64 outline-none focus:border-[#666]"
               />
               <Search className="w-4 h-4 absolute right-1 top-1/2 -translate-y-1/2 text-gray-500" />
             </div>
@@ -477,7 +484,7 @@ export default function Partners() {
           <Window 
             title={`${isEditing ? 'EDITAR' : 'NUEVO'} PROPIETARIO`} 
             onClose={() => setShowForm(false)}
-            width={isMobile ? '100%' : '950px'}
+            width={isMobile ? '100%' : '1020px'}
             height={isMobile ? '100%' : '650px'}
             initialPos={isMobile ? { x: 0, y: 0 } : { x: 50, y: 30 }}
             onMenuClick={() => setShowSidebar(!showSidebar)}
@@ -485,21 +492,23 @@ export default function Partners() {
             <div className="flex h-[800px] bg-white relative">
               {/* Sidebar */}
               {showSidebar && (
-                <div className={`bg-white border-r border-[#808080] shrink-0 overflow-y-auto p-2 flex flex-col shadow-[inset_-1px_0_0_rgba(0,0,0,0.1)] ${isMobile ? 'absolute inset-y-0 left-0 z-30 w-56' : 'w-56'}`}>
-                  <div className="bg-white border border-[#a0a0a0] flex flex-col">
-                    {formTabs.map(tab => (
-                      <button 
-                        key={tab.id}
-                        onClick={() => { setActiveFormTab(tab.id); if (isMobile) setShowSidebar(false); }}
-                        className={`w-full text-left px-4 py-2.5 text-[12px] transition-colors border-y ${
-                          activeFormTab === tab.id 
-                            ? 'bg-[#c0c0c0] text-black border-[#a0a0a0] shadow-[inset_0px_1px_1px_rgba(0,0,0,0.1)] font-semibold' 
-                            : 'bg-white text-slate-700 border-transparent hover:bg-[#f8f8f8]'
-                        }`}
-                      >
-                        {tab.name}
-                      </button>
-                    ))}
+                <div className={`bg-white border-r border-[#ccc] shrink-0 overflow-y-auto p-2 flex flex-col ${isMobile ? 'absolute inset-y-0 left-0 z-30 w-52' : 'w-52'}`}>
+                  <div className="border border-[#ccc] bg-white flex flex-col p-1 gap-1">
+                    {formTabs.map(tab => {
+                      const isActive = activeFormTab === tab.id;
+                      return (
+                        <button 
+                          key={tab.id}
+                          onClick={() => { setActiveFormTab(tab.id); if (isMobile) setShowSidebar(false); }}
+                          className={`w-full flex items-center justify-between px-3 py-2 text-[11px] transition-all border ${isActive
+                            ? 'bg-[#e1e1e1] text-[#111] border-[#888] shadow-[inset_0_1px_2px_rgba(0,0,0,0.12)] border-l-4 border-l-[#2b579a] font-bold'
+                            : 'bg-white text-[#555] border-[#ddd] hover:bg-[#e9ecef] hover:text-[#111] font-medium'
+                          }`}
+                        >
+                          <span className="truncate pr-1">{tab.name}</span>
+                        </button>
+                      );
+                    })}
                   </div>
                 </div>
               )}
@@ -512,136 +521,201 @@ export default function Partners() {
               <div className="flex-1 bg-white flex flex-col relative overflow-hidden">
                 <div className="flex-1 overflow-auto bg-white p-5">
                       
-                      {activeFormTab === 'general' && (
-                  <div className={`grid ${isMobile ? 'grid-cols-1' : 'grid-cols-2'} gap-4`}>
-                    <div className="space-y-3">
-                      <div className="space-y-1">
-                        <label className="text-[10px] font-bold text-slate-700 uppercase">ID Propietario:</label>
-                        <input type="text" value={formData.id} disabled className="win-input w-full bg-slate-100 font-mono" />
-                      </div>
-                      <div className="space-y-1">
-                        <label className="text-[10px] font-bold text-slate-700 uppercase">Nombre / Razón Social:</label>
-                        <input 
-                          type="text" 
-                          value={formData.name} 
-                          onChange={e => setFormData({...formData, name: e.target.value})}
-                          className="win-input w-full" 
-                        />
-                      </div>
-                      <div className="space-y-1">
-                        <label className="text-[10px] font-bold text-slate-700 uppercase">DNI / CIF:</label>
-                        <input 
-                          type="text" 
-                          value={formData.dni} 
-                          onChange={e => setFormData({...formData, dni: e.target.value})}
-                          className="win-input w-full" 
-                        />
-                      </div>
-                    </div>
-                    <div className="space-y-3">
-                      <div className="space-y-1">
-                        <label className="text-[10px] font-bold text-slate-700 uppercase">Estado:</label>
-                        <select 
-                          value={formData.status} 
-                          onChange={e => setFormData({...formData, status: e.target.value})}
-                          className="win-input w-full"
-                        >
-                          <option value="activo">Activo</option>
-                          <option value="inactivo">Inactivo</option>
-                        </select>
-                      </div>
-                    </div>
-                  </div>
-                )}
+                  {activeFormTab === 'contact' && (
+                    <div className="space-y-4">
+                      {/* Datos Generales y de Contacto */}
+                      <div className={`grid ${isMobile ? 'grid-cols-1' : 'grid-cols-2'} gap-4`}>
+                        <div className="space-y-3">
+                          <div className="space-y-1">
+                            <label className="text-[10px] font-bold text-gray-700 uppercase">ID Propietario:</label>
+                            <input type="text" value={formData.id} disabled className="win-input w-full bg-[#fafafa] font-mono" />
+                          </div>
+                          <div className="space-y-1">
+                            <label className="text-[10px] font-bold text-gray-700 uppercase">Nombre / Razón Social:</label>
+                            <input 
+                              type="text" 
+                              value={formData.name} 
+                              onChange={e => setFormData({...formData, name: e.target.value})}
+                              className="win-input w-full" 
+                            />
+                          </div>
+                          <div className="space-y-1">
+                            <label className="text-[10px] font-bold text-gray-700 uppercase">DNI / CIF:</label>
+                            <input 
+                              type="text" 
+                              value={formData.dni} 
+                              onChange={e => setFormData({...formData, dni: e.target.value})}
+                              className="win-input w-full" 
+                            />
+                          </div>
+                          <div className="space-y-1">
+                            <label className="text-[10px] font-bold text-gray-700 uppercase">Estado:</label>
+                            <select 
+                              value={formData.status} 
+                              onChange={e => setFormData({...formData, status: e.target.value})}
+                              className="win-input w-full"
+                            >
+                              <option value="activo">Activo</option>
+                              <option value="inactivo">Inactivo</option>
+                            </select>
+                          </div>
+                        </div>
 
-                               {activeFormTab === 'contact' && (
-                  <div className="space-y-3">
-                    <div className={`grid ${isMobile ? 'grid-cols-1' : 'grid-cols-2'} gap-4`}>
-                      <div className="space-y-1">
-                        <label className="text-[10px] font-bold text-slate-700 uppercase">Teléfono:</label>
-                        <input 
-                          type="text" 
-                          value={formData.phone} 
-                          onChange={e => setFormData({...formData, phone: e.target.value})}
-                          className="win-input w-full" 
-                        />
+                        <div className="space-y-3">
+                          <div className="space-y-1">
+                            <label className="text-[10px] font-bold text-gray-700 uppercase">Teléfono:</label>
+                            <input 
+                              type="text" 
+                              value={formData.phone} 
+                              onChange={e => setFormData({...formData, phone: e.target.value})}
+                              className="win-input w-full" 
+                            />
+                          </div>
+                          <div className="space-y-1">
+                            <label className="text-[10px] font-bold text-gray-700 uppercase">Email:</label>
+                            <input 
+                              type="email" 
+                              value={formData.email} 
+                              onChange={e => setFormData({...formData, email: e.target.value})}
+                              className="win-input w-full" 
+                            />
+                          </div>
+                          <div className="space-y-1">
+                            <label className="text-[10px] font-bold text-gray-700 uppercase">Dirección:</label>
+                            <input 
+                              type="text" 
+                              value={formData.address || ''} 
+                              onChange={e => setFormData({...formData, address: e.target.value})}
+                              className="win-input w-full" 
+                            />
+                          </div>
+                          <div className="space-y-1">
+                            <label className="text-[10px] font-bold text-gray-700 uppercase">IBAN:</label>
+                            <input 
+                              type="text" 
+                              value={formData.iban || ''} 
+                              onChange={e => setFormData({...formData, iban: e.target.value})}
+                              className="win-input w-full font-mono" 
+                              placeholder="ES00 0000 0000 0000 0000 0000"
+                            />
+                          </div>
+                        </div>
                       </div>
-                      <div className="space-y-1">
-                        <label className="text-[10px] font-bold text-slate-700 uppercase">Email:</label>
-                        <input 
-                          type="email" 
-                          value={formData.email} 
-                          onChange={e => setFormData({...formData, email: e.target.value})}
-                          className="win-input w-full" 
-                        />
+
+                      {/* Documentos mediante tabla abajo */}
+                      <div className="mt-4 pt-3 border-t border-gray-200">
+                        <div className="flex justify-between items-end mb-2">
+                          <h3 className="text-[11px] font-bold text-[#333] italic uppercase tracking-wide">DOCUMENTOS</h3>
+                          <div className="relative">
+                            <input 
+                              type="file" 
+                              multiple 
+                              id="partner-doc-upload" 
+                              className="hidden" 
+                              onChange={handlePartnerFileUpload} 
+                              disabled={isUploading} 
+                            />
+                            <label 
+                              htmlFor="partner-doc-upload" 
+                              className={`border border-gray-300 bg-[#f5f5f5] hover:bg-[#ebebeb] px-3 py-1 text-[11px] text-[#333] font-medium flex items-center space-x-1.5 cursor-pointer transition-colors ${isUploading ? 'opacity-50 pointer-events-none' : ''}`}
+                            >
+                              <Plus className="w-3.5 h-3.5 text-gray-500" />
+                              <span>{isUploading ? 'Subiendo...' : 'Adjuntar'}</span>
+                            </label>
+                          </div>
+                        </div>
+                        <div className="overflow-auto border border-gray-200 rounded-sm bg-white">
+                          <table style={{ zoom: tableZoom }} className="modern-table w-full !border-0">
+                              <thead>
+                                <tr>
+                                  <th className="w-[30%] text-left text-[10px]">DOCUMENTO</th>
+                                  <th className="w-[35%] text-left text-[10px]">CONCEPTO</th>
+                                  <th className="w-[20%] text-left text-[10px]">FECHA</th>
+                                  <th className="w-[15%] text-center text-[10px]">ACCIÓN</th>
+                                </tr>
+                              </thead>
+                              <tbody>
+                                {(!formData.documents || formData.documents.length === 0) ? (
+                                  <tr>
+                                    <td colSpan="4" className="text-center text-[#888] italic py-8">No hay documentos asociados a este propietario.</td>
+                                  </tr>
+                                ) : (
+                                  formData.documents.map((doc) => (
+                                    <tr key={doc.id}>
+                                      <td className="py-2 px-3">
+                                        <div className="flex items-center space-x-2 truncate">
+                                          <FileText className="w-3.5 h-3.5 text-gray-500 shrink-0" />
+                                          <span className="truncate text-gray-700" title={doc.name}>{doc.name}</span>
+                                        </div>
+                                      </td>
+                                      <td className="py-1 px-2">
+                                        <input 
+                                          type="text" 
+                                          className="w-full bg-transparent border-transparent hover:border-gray-300 focus:bg-white focus:border-[#666] focus:shadow-[inset_0_1px_2px_rgba(0,0,0,0.12)] text-[11px] px-1 outline-none h-[24px] transition-colors rounded-sm" 
+                                          value={doc.concept || ''} 
+                                          onChange={(e) => updatePartnerDocument(doc.id, 'concept', e.target.value)} 
+                                          placeholder="Añadir concepto..." 
+                                        />
+                                      </td>
+                                      <td className="py-1 px-2">
+                                        <input 
+                                          type="date" 
+                                          className="w-full bg-transparent border-transparent hover:border-gray-300 focus:bg-white focus:border-[#666] focus:shadow-[inset_0_1px_2px_rgba(0,0,0,0.12)] text-[11px] px-1 outline-none h-[24px] transition-colors rounded-sm" 
+                                          value={doc.date || ''} 
+                                          onChange={(e) => updatePartnerDocument(doc.id, 'date', e.target.value)} 
+                                        />
+                                      </td>
+                                      <td className="py-2 px-3 text-center">
+                                        <div className="flex justify-center items-center space-x-4">
+                                          <button className="text-gray-500 hover:text-blue-600 transition-colors cursor-pointer" onClick={() => setPreviewDocument(doc)} title="Previsualizar"><Eye className="w-3.5 h-3.5" /></button>
+                                          <button className="text-gray-500 hover:text-red-600 transition-colors cursor-pointer" onClick={() => deletePartnerDocument(doc.id)} title="Eliminar"><Trash2 className="w-3.5 h-3.5" /></button>
+                                        </div>
+                                      </td>
+                                    </tr>
+                                  ))
+                                )}
+                              </tbody>
+                            </table>
+                          </div>
+                        </div>
                       </div>
-                    </div>
-                    <div className="space-y-1">
-                      <label className="text-[10px] font-bold text-slate-700 uppercase">Dirección:</label>
-                      <input 
-                        type="text" 
-                        value={formData.address || ''} 
-                        onChange={e => setFormData({...formData, address: e.target.value})}
-                        className="win-input w-full" 
-                      />
-                    </div>
-                  </div>
-                )}
+                    )}
 
                 {activeFormTab === 'financial' && (
                   <div className="space-y-4">
-                    <div className={`grid ${isMobile ? 'grid-cols-1' : 'grid-cols-2'} gap-4 p-3 border border-white bg-slate-50/50 shadow-sm mb-4`}>
-                      <div className="space-y-1">
-                        <label className="text-[10px] font-bold text-slate-700 uppercase">IBAN:</label>
-                        <input 
-                          type="text" 
-                          value={formData.iban || ''} 
-                          onChange={e => setFormData({...formData, iban: e.target.value})}
-                          className="win-input w-full font-mono" 
-                          placeholder="ES00 0000 0000 0000 0000 0000"
-                        />
-                      </div>
-                      <div className="space-y-1">
-                        <label className="text-[10px] font-bold text-slate-700 uppercase">% Propiedad:</label>
-                        <input 
-                          type="text" 
-                          value={formData.ownership || ''} 
-                          onChange={e => setFormData({...formData, ownership: e.target.value})}
-                          className="win-input w-full" 
-                          placeholder="Ej: 50.00"
-                        />
-                      </div>
+                    <div className="flex justify-between items-center mb-3">
+                      <h3 className="text-[11px] font-bold text-[#333] italic uppercase tracking-wide">VISTA DE REPARTICIÓN</h3>
                     </div>
 
-                    <div className="flex justify-between items-center bg-slate-100 p-2 border border-[#808080]">
-                      <span className="text-[10px] font-bold uppercase text-slate-600 italic">Vista de Rentabilidad</span>
-                      <div className="flex bg-[#d4d0c8] p-0.5 border border-inset border-[#808080]">
-                        <button 
-                          className={`px-3 py-1 text-[9px] font-bold uppercase ${gainView === 'neta' ? 'bg-[#000080] text-white' : 'hover:bg-slate-200'}`}
-                          onClick={() => setGainView('neta')}
-                        >
-                          Neta
-                        </button>
-                        <button 
-                          className={`px-3 py-1 text-[9px] font-bold uppercase ${gainView === 'real' ? 'bg-[#000080] text-white' : 'hover:bg-slate-200'}`}
-                          onClick={() => setGainView('real')}
-                        >
-                          Real
-                        </button>
-                      </div>
+                    {/* Sub-tabs con diseño exacto de Foto 2 */}
+                    <div className="flex bg-[#f0f0f0] border-b border-[#a0a0a0] shrink-0 mb-4 mt-3">
+                      <button
+                        type="button"
+                        onClick={() => setGainView('neta')}
+                        className={`px-4 py-2 text-[11px] font-bold flex items-center gap-2 border-r border-[#a0a0a0] ${gainView === 'neta' ? 'bg-white text-slate-800 border-b-2 border-b-slate-800' : 'text-slate-600 hover:bg-[#e0e0e0]'}`}
+                      >
+                        <TrendingUp className="w-3.5 h-3.5" /> Rentabilidad Neta
+                      </button>
+                      <button
+                        type="button"
+                        onClick={() => setGainView('real')}
+                        className={`px-4 py-2 text-[11px] font-bold flex items-center gap-2 border-r border-[#a0a0a0] ${gainView === 'real' ? 'bg-white text-slate-800 border-b-2 border-b-slate-800' : 'text-slate-600 hover:bg-[#e0e0e0]'}`}
+                      >
+                        <PieChart className="w-3.5 h-3.5" /> Rentabilidad Real
+                      </button>
                     </div>
 
-                    <div className="overflow-x-auto border border-[#808080]">
-                      <table style={{ zoom: tableZoom }} className="win-table w-full">
+                    <div className="overflow-x-auto border border-gray-200 rounded-sm bg-white">
+                      <table style={{ zoom: tableZoom }} className="modern-table !table-auto w-full !border-0">
                         <thead>
                           <tr>
-                            <th>Inmueble</th>
-                            <th className="text-right">%</th>
-                            <th className="text-right">V. Actual</th>
-                            <th className="text-right text-blue-700">Cap. Aportado</th>
-                            {gainView === 'real' && <th className="text-right text-orange-700">Hipoteca</th>}
-                            <th className="text-right">Ganancia</th>
-                            <th className="text-right text-emerald-800">Ganancia + Aport.</th>
+                            <th className="text-left text-[10px] whitespace-nowrap !bg-[#fafafa]">INMUEBLE</th>
+                            <th className="w-24 text-right text-[10px] whitespace-nowrap !bg-[#fafafa]">%</th>
+                            <th className="w-28 text-right text-[10px] whitespace-nowrap !bg-[#fafafa]">V. ACTUAL</th>
+                            <th className="w-32 text-right text-[10px] whitespace-nowrap !bg-[#fafafa]">CAP. APORTADO</th>
+                            {gainView === 'real' && <th className="w-28 text-right text-[10px] whitespace-nowrap !bg-[#fafafa]">HIPOTECA</th>}
+                            <th className="w-32 text-right text-[10px] whitespace-nowrap !bg-[#fafafa]">GANANCIA</th>
+                            <th className="w-36 text-right text-[10px] whitespace-nowrap !bg-[#fafafa]">GANANCIA + APORT.</th>
                           </tr>
                         </thead>
                         <tbody>
@@ -702,17 +776,17 @@ export default function Partners() {
                               totalGananciaMasAportacionSum += totalGananciaMasAportacion;
 
                               return (
-                                <tr key={property.id}>
-                                  <td className="font-bold">{property.name}</td>
-                                  <td className="text-right">{owner.percentage}%</td>
-                                  <td className="text-right font-mono text-indigo-700">{currentVal.toLocaleString('de-DE', { minimumFractionDigits: 2 })} €</td>
-                                  <td className="text-right font-mono text-blue-700">{capitalAportado.toLocaleString('de-DE', { minimumFractionDigits: 2 })} €</td>
-                                  {gainView === 'real' && <td className="text-right font-mono text-orange-600">{hipoteca.toLocaleString('de-DE', { minimumFractionDigits: 2 })} €</td>}
-                                  <td className={`text-right font-mono font-bold ${displayGain >= 0 ? 'text-green-700' : 'text-red-700'}`}>
-                                    {displayGain.toLocaleString('de-DE', { minimumFractionDigits: 2 })} €
+                                <tr key={property.id} className="hover:bg-slate-50 transition-colors">
+                                  <td className="text-[9px] text-slate-800 whitespace-nowrap font-normal">{property.name}</td>
+                                  <td className="text-right text-[9px] text-black whitespace-nowrap font-normal">{(parseFloat(owner.percentage) || 0).toLocaleString('de-DE', { minimumFractionDigits: 2, maximumFractionDigits: 2 })} %</td>
+                                  <td className="text-right text-[9px] text-black whitespace-nowrap font-normal">{currentVal.toLocaleString('de-DE', { minimumFractionDigits: 2, maximumFractionDigits: 2 })} €</td>
+                                  <td className="text-right text-[9px] text-black whitespace-nowrap font-normal">{capitalAportado.toLocaleString('de-DE', { minimumFractionDigits: 2, maximumFractionDigits: 2 })} €</td>
+                                  {gainView === 'real' && <td className="text-right text-[9px] text-black whitespace-nowrap font-normal">{hipoteca.toLocaleString('de-DE', { minimumFractionDigits: 2, maximumFractionDigits: 2 })} €</td>}
+                                  <td className={`text-right text-[9px] whitespace-nowrap font-normal ${displayGain < 0 ? 'text-red-700' : 'text-black'}`}>
+                                    {displayGain.toLocaleString('de-DE', { minimumFractionDigits: 2, maximumFractionDigits: 2 })} €
                                   </td>
-                                  <td className={`text-right font-mono font-bold ${totalGananciaMasAportacion >= 0 ? 'text-emerald-800' : 'text-red-800'}`}>
-                                    {totalGananciaMasAportacion.toLocaleString('de-DE', { minimumFractionDigits: 2 })} €
+                                  <td className={`text-right text-[9px] whitespace-nowrap font-normal ${totalGananciaMasAportacion < 0 ? 'text-red-800' : 'text-black'}`}>
+                                    {totalGananciaMasAportacion.toLocaleString('de-DE', { minimumFractionDigits: 2, maximumFractionDigits: 2 })} €
                                   </td>
                                 </tr>
                               );
@@ -721,17 +795,17 @@ export default function Partners() {
                             return (
                               <>
                                 {rows}
-                                <tr className="bg-slate-100 font-bold border-t-2 border-[#808080]">
-                                  <td className="uppercase italic">Total</td>
-                                  <td className="text-right">{totalPercentage.toLocaleString('de-DE', { minimumFractionDigits: 2 })}%</td>
-                                  <td className="text-right font-mono text-indigo-700">{totalCurrentVal.toLocaleString('de-DE', { minimumFractionDigits: 2 })} €</td>
-                                  <td className="text-right font-mono text-blue-700">{totalCapitalAportado.toLocaleString('de-DE', { minimumFractionDigits: 2 })} €</td>
-                                  {gainView === 'real' && <td className="text-right font-mono text-orange-600">{totalHipoteca.toLocaleString('de-DE', { minimumFractionDigits: 2 })} €</td>}
-                                  <td className={`text-right font-mono ${totalDisplayGain >= 0 ? 'text-green-700' : 'text-red-700'}`}>
-                                    {totalDisplayGain.toLocaleString('de-DE', { minimumFractionDigits: 2 })} €
+                                <tr className="bg-[#f8f8f8] font-bold border-t-2 border-gray-300">
+                                  <td className="text-[11px] text-black uppercase whitespace-nowrap">TOTALES</td>
+                                  <td className="text-right text-[11px] text-black whitespace-nowrap">{totalPercentage.toLocaleString('de-DE', { minimumFractionDigits: 2, maximumFractionDigits: 2 })} %</td>
+                                  <td className="text-right text-[11px] text-black whitespace-nowrap">{totalCurrentVal.toLocaleString('de-DE', { minimumFractionDigits: 2, maximumFractionDigits: 2 })} €</td>
+                                  <td className="text-right text-[11px] text-black whitespace-nowrap">{totalCapitalAportado.toLocaleString('de-DE', { minimumFractionDigits: 2, maximumFractionDigits: 2 })} €</td>
+                                  {gainView === 'real' && <td className="text-right text-[11px] text-black whitespace-nowrap">{totalHipoteca.toLocaleString('de-DE', { minimumFractionDigits: 2, maximumFractionDigits: 2 })} €</td>}
+                                  <td className="text-right text-[11px] text-black whitespace-nowrap">
+                                    {totalDisplayGain.toLocaleString('de-DE', { minimumFractionDigits: 2, maximumFractionDigits: 2 })} €
                                   </td>
-                                  <td className={`text-right font-mono ${totalGananciaMasAportacionSum >= 0 ? 'text-emerald-800' : 'text-red-800'}`}>
-                                    {totalGananciaMasAportacionSum.toLocaleString('de-DE', { minimumFractionDigits: 2 })} €
+                                  <td className="text-right text-[11px] text-black whitespace-nowrap">
+                                    {totalGananciaMasAportacionSum.toLocaleString('de-DE', { minimumFractionDigits: 2, maximumFractionDigits: 2 })} €
                                   </td>
                                 </tr>
                               </>
@@ -743,81 +817,11 @@ export default function Partners() {
                   </div>
                 )}
 
-                {activeFormTab === 'docs' && (
-                  <div className="space-y-3">
-                    <div className="flex justify-between items-center">
-                      <p className="text-[10px] font-bold text-blue-800 uppercase italic">Expediente Digital</p>
-                      <input 
-                        type="file" 
-                        multiple 
-                        id="partner-doc-upload" 
-                        className="hidden" 
-                        onChange={handlePartnerFileUpload} 
-                        disabled={isUploading} 
-                      />
-                      <label 
-                        htmlFor="partner-doc-upload" 
-                        className={`btn-classic px-2 py-1 flex items-center text-[10px] cursor-pointer ${isUploading ? 'opacity-50 pointer-events-none' : ''}`}
-                      >
-                        {isUploading ? (
-                          <>
-                            <RefreshCw className="w-3 h-3 mr-1 animate-spin" /> Subiendo...
-                          </>
-                        ) : (
-                          <>
-                            <Plus className="w-3 h-3 mr-1" /> Adjuntar
-                          </>
-                        )}
-                      </label>
-                    </div>
-                    <div className="border border-[#808080] bg-white min-h-[150px]">
-                      <table style={{ zoom: tableZoom }} className="win-table w-full">
-                        <thead>
-                          <tr>
-                            <th>Documento</th>
-                            <th className="w-16">Acción</th>
-                          </tr>
-                        </thead>
-                        <tbody>
-                          {(formData.documents || []).length === 0 ? (
-                            <tr>
-                              <td colSpan="2" className="text-center py-10 text-slate-400 italic">No hay documentos</td>
-                            </tr>
-                          ) : (
-                            (formData.documents || []).map((doc) => (
-                              <tr key={doc.id}>
-                                <td className="text-[11px] text-slate-800">{doc.name}</td>
-                                <td>
-                                  <div className="flex items-center gap-1">
-                                    <button 
-                                      className="p-1 hover:bg-blue-50 text-blue-600 rounded" 
-                                      onClick={() => setPreviewDocument(doc)} 
-                                      title="Previsualizar"
-                                    >
-                                      <Eye className="w-3.5 h-3.5" />
-                                    </button>
-                                    <button 
-                                      className="p-1 hover:bg-red-50 text-red-600 rounded" 
-                                      onClick={() => deletePartnerDocument(doc.id)} 
-                                      title="Eliminar"
-                                    >
-                                      <Trash2 className="w-3.5 h-3.5" />
-                                    </button>
-                                  </div>
-                                </td>
-                              </tr>
-                            ))
-                          )}
-                        </tbody>
-                      </table>
-                    </div>
-                  </div>
-                )}
                   </div>
                 {/* Action Buttons */}
-                <div className="flex justify-end gap-2 shrink-0 pt-2 pb-1 pr-1 bg-[#f5f5f5] border-t border-[#ccc]">
-                  <button className="px-6 py-1 border border-gray-400 bg-gray-100 hover:bg-gray-200 shadow-sm text-[11px] font-bold uppercase" onClick={handleSave}>Aceptar</button>
-                  <button className="px-6 py-1 border border-gray-400 bg-gray-100 hover:bg-gray-200 shadow-sm text-[11px] font-bold uppercase" onClick={() => setShowForm(false)}>Cancelar</button>
+                <div className="flex justify-end gap-2 p-3 bg-[#f5f5f5] border-t border-[#ccc] shrink-0">
+                  <button className="w-[85px] py-[4px] border border-[#a0a0a0] bg-[#f5f5f5] hover:bg-[#e8e8e8] active:bg-[#d0d0d0] text-[12px] text-slate-800 shadow-xs font-normal select-none" onClick={handleSave}>Aceptar</button>
+                  <button className="w-[85px] py-[4px] border border-[#a0a0a0] bg-[#f5f5f5] hover:bg-[#e8e8e8] active:bg-[#d0d0d0] text-[12px] text-slate-800 shadow-xs font-normal select-none" onClick={() => setShowForm(false)}>Cancelar</button>
                 </div>
               </div>
             </div>

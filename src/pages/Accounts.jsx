@@ -607,7 +607,33 @@ export default function Accounts({ isModal = false, onAccountSelect = null }) {
   const rootGroups = accounts.length;
 
   return (
-    <div className={`w-full h-full relative p-0`}>
+    <div className="flex h-full bg-white relative font-sans">
+      {!isModal && (
+        <div className="absolute top-0 left-0 w-full h-8 bg-white border-b border-gray-200 flex items-center px-4 z-20">
+          <h2 className="text-sm font-normal text-gray-800 tracking-wide uppercase">
+            {activeTab === 'pgc' ? 'PLAN GENERAL DE CONTABILIDAD' : 'CONFIGURACION DE CUENTAS'}
+          </h2>
+          <div className="ml-auto flex items-center space-x-4">
+            <div className="relative">
+              <input 
+                type="text" 
+                placeholder="Buscar en el fichero (Alt+B)"
+                value={searchQuery}
+                onChange={(e) => setSearchQuery(e.target.value)}
+                className="pl-2 pr-8 py-1 border-b border-gray-400 text-[12px] w-64 outline-none focus:border-[#666] bg-transparent"
+              />
+              <Search className="w-4 h-4 absolute right-1 top-1/2 -translate-y-1/2 text-gray-500" />
+            </div>
+            <button 
+              onClick={() => setShowSidebar(!showSidebar)}
+              className="text-gray-500 hover:text-blue-600 p-1 rounded hover:bg-gray-100 transition-colors"
+              title={showSidebar ? 'Ocultar Filtros' : 'Mostrar Filtros'}
+            >
+              <PanelLeft className="w-4 h-4" />
+            </button>
+          </div>
+        </div>
+      )}
       {/* Delete Confirmation Dialog */}
       {deleteConfirm && (
         <div className="fixed inset-0 bg-black/40 backdrop-blur-sm z-[9999] flex items-center justify-center" onClick={() => setDeleteConfirm(null)}>
@@ -653,8 +679,8 @@ export default function Accounts({ isModal = false, onAccountSelect = null }) {
         </div>
       )}
 
-      <div className="w-full h-full flex flex-col bg-white p-3 overflow-hidden">
-        <div className="flex-1 flex flex-col min-h-0 bg-white border border-[#718096] rounded shadow-md overflow-hidden">
+      <div className={`flex w-full h-full flex-col bg-white overflow-hidden ${!isModal ? 'pt-8' : ''}`}>
+        <div className="flex-1 flex flex-col min-h-0 bg-white overflow-hidden">
 
 
           {/* Top Ribbon Toolbar */}
@@ -731,7 +757,7 @@ export default function Accounts({ isModal = false, onAccountSelect = null }) {
           </div>
 
           {/* Main Content Area: Sidebar + Table */}
-          <div className="flex-1 flex bg-white border-x border-b border-[#718096] overflow-hidden">
+          <div className="flex-1 flex bg-white overflow-hidden">
             
             {/* Left Sidebar */}
             {showSidebar && (
@@ -783,34 +809,36 @@ export default function Accounts({ isModal = false, onAccountSelect = null }) {
 
             {/* Main Table Area */}
             <div className="flex-1 flex flex-col bg-white overflow-hidden relative">
-              {/* Header with Title and Search */}
-              <div className="flex justify-between items-center px-4 py-2 border-b border-[#d1d5db]">
-                <div className="flex items-center space-x-3">
-                  <button 
-                    onClick={() => setShowSidebar(!showSidebar)}
-                    className="p-1.5 hover:bg-gray-100 rounded text-gray-500 border border-transparent hover:border-gray-300"
-                    title={showSidebar ? "Ocultar panel" : "Mostrar panel"}
-                  >
-                    <PanelLeft className="w-4 h-4" />
-                  </button>
+              {/* Header with Title and Search (Modal mode only) */}
+              {isModal && (
+                <div className="flex justify-between items-center px-4 py-2 border-b border-[#d1d5db]">
+                  <div className="flex items-center space-x-3">
+                    <button 
+                      onClick={() => setShowSidebar(!showSidebar)}
+                      className="p-1.5 hover:bg-gray-100 rounded text-gray-500 border border-transparent hover:border-gray-300"
+                      title={showSidebar ? "Ocultar panel" : "Mostrar panel"}
+                    >
+                      <PanelLeft className="w-4 h-4" />
+                    </button>
+                  </div>
+                  <div className="relative">
+                    <input 
+                      type="text" 
+                      placeholder="Buscar en el fichero (Alt+B)"
+                      value={searchQuery}
+                      onChange={(e) => setSearchQuery(e.target.value)}
+                      className="pl-2 pr-8 py-1 border-b border-gray-400 text-[12px] w-64 outline-none focus:border-[#666]"
+                    />
+                    <Search className="w-4 h-4 absolute right-1 top-1/2 -translate-y-1/2 text-gray-500" />
+                  </div>
                 </div>
-                <div className="relative">
-                  <input 
-                    type="text" 
-                    placeholder="Buscar en el fichero (Alt+B)"
-                    value={searchQuery}
-                    onChange={(e) => setSearchQuery(e.target.value)}
-                    className="pl-2 pr-8 py-1 border-b border-gray-400 text-[12px] w-64 outline-none focus:border-blue-500"
-                  />
-                  <Search className="w-4 h-4 absolute right-1 top-1/2 -translate-y-1/2 text-gray-500" />
-                </div>
-              </div>
+              )}
               
               {/* Table */}
               <div className="flex-1 flex overflow-hidden">
                 <div className="flex-1 overflow-auto">
                   <table style={{ zoom: tableZoom }} className="w-full text-left text-[11px] whitespace-nowrap">
-                    <thead className="sticky top-0 bg-white shadow-[0_1px_0_#d1d5db] z-10">
+                    <thead className="sticky top-0 bg-[#fafafa] shadow-[0_1px_0_#d1d5db] z-10">
                       <tr className="text-gray-700">
                         <th className="px-3 py-2 font-normal border-r border-[#d1d5db] uppercase">Cuenta</th>
                         <th className="px-3 py-2 font-normal uppercase">Descripción</th>
