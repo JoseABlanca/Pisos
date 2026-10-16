@@ -143,7 +143,7 @@ export default function ClienteTab({ formData, user, queryUserIds }) {
                         >
                           <td className="text-[11px]">
                             <span 
-                              className="font-bold underline text-[#4560a9] hover:text-blue-800 cursor-pointer" 
+                              className="underline text-[#4560a9] hover:text-blue-800 cursor-pointer" 
                               style={{ color: '#4560a9' }}
                             >
                               {client.name}
@@ -158,7 +158,7 @@ export default function ClienteTab({ formData, user, queryUserIds }) {
                                   e.stopPropagation();
                                   navigate(`/rentals?editId=${encodeURIComponent(rental.docId || rental.id || rental.reference)}`);
                                 }}
-                                className="font-bold underline text-[#4560a9] hover:text-blue-800 cursor-pointer"
+                                className="underline text-[#4560a9] hover:text-blue-800 cursor-pointer"
                                 style={{ color: '#4560a9' }}
                                 title="Abrir ventana de editar alquiler"
                               >

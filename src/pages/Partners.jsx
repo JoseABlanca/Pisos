@@ -50,50 +50,19 @@ export default function Partners() {
     return () => window.removeEventListener('resize', handleResize);
   }, []);
 
-  useEffect(() => {
-    const onNew = () => handleNew();
-    const onEdit = () => {
-      if (selectedPartner) handleEdit();
-      else alert('Por favor, seleccione un propietario primero.');
-    };
-    const onDelete = () => {
-      if (selectedPartner) handleDelete();
-      else alert('Por favor, seleccione un propietario primero.');
-    };
-    const onFilter = () => setIsFilterActive(true);
-    const onExport = (e) => {
-      const format = e.detail?.format || 'csv';
-      const filtered = applyTableFilters(filteredPartners, 'partners');
-      if (format === 'pdf') {
-        const allColumns = [
-          { header: 'ID', dataKey: 'id' },
-          { header: 'DNI/CIF', dataKey: 'dni' },
-          { header: 'Nombre', dataKey: 'name' },
-          { header: 'Email', dataKey: 'email' },
-          { header: 'Teléfono', dataKey: 'phone' },
-          { header: 'Estado', dataKey: 'status' }
-        ];
-        const colsToExport = allColumns.filter(c => visibleColumns.includes(c.dataKey));
-        exportToPDF(filtered, colsToExport, 'Reporte de Propietarios', 'propietarios.pdf');
-      } else {
-        handleExportFormat(filtered, 'Propietarios', format);
-      }
-    };
+  const [selectedIds, setSelectedIds] = useState([]);
 
-    window.addEventListener('partners:new', onNew);
-    window.addEventListener('partners:edit', onEdit);
-    window.addEventListener('partners:delete', onDelete);
-    window.addEventListener('partners:filter', onFilter);
-    window.addEventListener('partners:export', onExport);
+  const handleToggleSelect = (id) => {
+    setSelectedIds(prev => prev.includes(id) ? prev.filter(x => x !== id) : [...prev, id]);
+  };
 
-    return () => {
-      window.removeEventListener('partners:new', onNew);
-      window.removeEventListener('partners:edit', onEdit);
-      window.removeEventListener('partners:delete', onDelete);
-      window.removeEventListener('partners:filter', onFilter);
-      window.removeEventListener('partners:export', onExport);
-    };
-  }, [selectedPartner, filterColumn, filterOperator, filterValue]);
+  const handleToggleSelectAll = (displayedItems) => {
+    if (selectedIds.length === displayedItems.length && displayedItems.length > 0) {
+      setSelectedIds([]);
+    } else {
+      setSelectedIds(displayedItems.map(item => item.id));
+    }
+  };
 
   const [partners, setPartners] = useState([]);
 
@@ -235,20 +204,44 @@ export default function Partners() {
   };
 
   const handleEdit = (partner = null) => {
-    const target = partner && partner.id ? partner : selectedPartner;
-    if (!target) return;
+    if (selectedIds.length > 1) {
+      alert("No se puede modificar más de un elemento a la vez. Por favor, selecciona solo uno.");
+      return;
+    }
+    const target = (selectedIds.length === 1 ? partners.find(p => p.id === selectedIds[0]) : null) || (partner && partner.id ? partner : selectedPartner);
+    if (!target) {
+      alert('Por favor, seleccione un propietario primero.');
+      return;
+    }
     setFormData({ ...target });
     setIsEditing(true);
     setShowForm(true);
     setActiveFormTab('contact');
   };
 
-  const handleDelete = () => {
-    if (!selectedPartner) return;
-    if (window.confirm(`¿Seguro que desea eliminar al propietario ${selectedPartner.name}?`)) {
-      deletePartnerFromCloud(selectedPartner.id);
-      setPartners(partners.filter(p => p.id !== selectedPartner.id));
-      setSelectedPartner(null);
+  const handleDelete = async () => {
+    if (selectedIds.length > 1) {
+      if (!window.confirm(`¿Está seguro de que desea eliminar los ${selectedIds.length} propietarios seleccionados?`)) return;
+      for (const id of selectedIds) {
+        await deletePartnerFromCloud(id);
+      }
+      setPartners(prev => prev.filter(p => !selectedIds.includes(p.id)));
+      setSelectedIds([]);
+      if (selectedPartner && selectedIds.includes(selectedPartner.id)) {
+        setSelectedPartner(null);
+      }
+      return;
+    }
+    const target = (selectedIds.length === 1 ? partners.find(p => p.id === selectedIds[0]) : null) || selectedPartner;
+    if (!target) {
+      alert('Por favor, seleccione un propietario primero.');
+      return;
+    }
+    if (window.confirm(`¿Seguro que desea eliminar al propietario ${target.name}?`)) {
+      await deletePartnerFromCloud(target.id);
+      setPartners(prev => prev.filter(p => p.id !== target.id));
+      setSelectedIds(prev => prev.filter(id => id !== target.id));
+      if (selectedPartner?.id === target.id) setSelectedPartner(null);
     }
   };
 
@@ -351,6 +344,45 @@ export default function Partners() {
   });
 
   useEffect(() => {
+    const onNew = () => handleNew();
+    const onEdit = () => handleEdit();
+    const onDelete = () => handleDelete();
+    const onFilter = () => setIsFilterActive(true);
+    const onExport = (e) => {
+      const format = e.detail?.format || 'csv';
+      const filtered = applyTableFilters(filteredPartners, 'partners');
+      if (format === 'pdf') {
+        const allColumns = [
+          { header: 'ID', dataKey: 'id' },
+          { header: 'DNI/CIF', dataKey: 'dni' },
+          { header: 'Nombre', dataKey: 'name' },
+          { header: 'Email', dataKey: 'email' },
+          { header: 'Teléfono', dataKey: 'phone' },
+          { header: 'Estado', dataKey: 'status' }
+        ];
+        const colsToExport = allColumns.filter(c => visibleColumns.includes(c.dataKey));
+        exportToPDF(filtered, colsToExport, 'Reporte de Propietarios', 'propietarios.pdf');
+      } else {
+        handleExportFormat(filtered, 'Propietarios', format);
+      }
+    };
+
+    window.addEventListener('partners:new', onNew);
+    window.addEventListener('partners:edit', onEdit);
+    window.addEventListener('partners:delete', onDelete);
+    window.addEventListener('partners:filter', onFilter);
+    window.addEventListener('partners:export', onExport);
+
+    return () => {
+      window.removeEventListener('partners:new', onNew);
+      window.removeEventListener('partners:edit', onEdit);
+      window.removeEventListener('partners:delete', onDelete);
+      window.removeEventListener('partners:filter', onFilter);
+      window.removeEventListener('partners:export', onExport);
+    };
+  }, [selectedPartner, filterColumn, filterOperator, filterValue, selectedIds, partners, filteredPartners, visibleColumns]);
+
+  useEffect(() => {
     const handleKeyDown = (e) => {
       if (e.key === 'ArrowDown') {
         if (selectedPartner) {
@@ -403,77 +435,97 @@ export default function Partners() {
             onClick={(e) => e.stopPropagation()}
           >
             {renderFilterMenu()}
-            <table style={{ zoom: tableZoom }} className="clean-table">
-              <thead>
-                <tr className="sticky top-0 z-10">
-                  
-                  {visibleColumns.map(col => {
-                    switch(col) {
-                    case 'id': return (<TableHeaderWithFilter
- key="id" label="ID" columnKey="id" data={filteredPartners} tableId="partners" className="w-24" />);
-                    case 'dni': return (<TableHeaderWithFilter
- key="dni" label="DNI" columnKey="dni" data={filteredPartners} tableId="partners" className="w-24" />);
-                    case 'name': return (<TableHeaderWithFilter
- key="name" label="Nombre / Razón Social" columnKey="name" data={filteredPartners} tableId="partners" className="w-auto" />);
-                    case 'email': return (!isMobile && <TableHeaderWithFilter
- key="email" label="Email" columnKey="email" data={filteredPartners} tableId="partners" className="w-48" />);
-                    case 'phone': return (!isMobile && <TableHeaderWithFilter
- key="phone" label="Teléfono" columnKey="phone" data={filteredPartners} tableId="partners" className="w-32" />);
-                    case 'address': return (<TableHeaderWithFilter
- key="address" label="Dirección" columnKey="address" data={filteredPartners} tableId="partners" className="w-48" />);
-                    case 'iban': return (<TableHeaderWithFilter
- key="iban" label="IBAN" columnKey="iban" data={filteredPartners} tableId="partners" className="w-48" />);
-                    case 'ownership': return (<TableHeaderWithFilter
- key="ownership" label="% Propiedad" columnKey="ownership" data={filteredPartners} tableId="partners" className="w-24" />);
-                    case 'status': return (<TableHeaderWithFilter
- key="status" label="Estado" columnKey="status" data={filteredPartners} tableId="partners" className="w-24 text-center" />);
-                    default: return null;
-                    }
-                  })}
-    
-                </tr>
-              </thead>
-              <tbody>
-                {applyTableFilters(filteredPartners, 'partners').length === 0 ? (
-                  <tr>
-                    <td colSpan={visibleColumns.length} className="text-center py-20 italic text-slate-400">No se han encontrado propietarios</td>
-                  </tr>
-                ) : applyTableFilters(filteredPartners, 'partners').map((partner) => (
-                  <tr 
-                    key={partner.id} 
-                    className={selectedPartner?.id === partner.id ? 'selected' : ''}
-                    onClick={() => setSelectedPartner(partner)}
-                    onDoubleClick={() => handleEdit(partner)}
-                  >
-                    
-                  {visibleColumns.map(col => {
-                    switch(col) {
-                    case 'id': return (<td
- key="id" className="font-mono">{partner.id}</td>);
-                    case 'dni': return (<EditableCell
- key="dni" className="font-mono" value={partner.dni} onSave={(val) => handleSaveField(partner, 'dni', val)} />);
-                    case 'name': return (<EditableCell
- key="name" value={partner.name} onSave={(val) => handleSaveField(partner, 'name', val)} />);
-                    case 'email': return (!isMobile && <EditableCell
- key="email" className="lowercase normal-case" value={partner.email} onSave={(val) => handleSaveField(partner, 'email', val)} />);
-                    case 'phone': return (!isMobile && <EditableCell
- key="phone" value={partner.phone} onSave={(val) => handleSaveField(partner, 'phone', val)} />);
-                    case 'address': return (<EditableCell
- key="address" value={partner.address} onSave={(val) => handleSaveField(partner, 'address', val)} />);
-                    case 'iban': return (<EditableCell
- key="iban" value={partner.iban} onSave={(val) => handleSaveField(partner, 'iban', val)} />);
-                    case 'ownership': return (<EditableCell
- key="ownership" type="number" value={partner.ownership} onSave={(val) => handleSaveField(partner, 'ownership', val)} />);
-                    case 'status': return (<EditableCell
- key="status" className="text-center" value={partner.status} options={['activo', 'inactivo']} onSave={(val) => handleSaveField(partner, 'status', val)} />);
-                    default: return null;
-                    }
-                  })}
-    
-                  </tr>
-                ))}
-              </tbody>
-            </table>
+            {(() => {
+              const displayedPartners = applyTableFilters(filteredPartners, 'partners');
+              return (
+                <table style={{ zoom: tableZoom }} className="clean-table">
+                  <thead>
+                    <tr className="sticky top-0 z-10">
+                      <th className="w-8 !p-0 text-center bg-[#fafafa]">
+                        <input 
+                          type="checkbox" 
+                          className="cursor-pointer rounded-none accent-[#2b579a] w-3.5 h-3.5 align-middle" 
+                          checked={displayedPartners.length > 0 && selectedIds.length === displayedPartners.length} 
+                          onChange={() => handleToggleSelectAll(displayedPartners)} 
+                        />
+                      </th>
+                      {visibleColumns.map(col => {
+                        switch(col) {
+                        case 'id': return (<TableHeaderWithFilter
+     key="id" label="ID" columnKey="id" data={filteredPartners} tableId="partners" className="w-24" />);
+                        case 'dni': return (<TableHeaderWithFilter
+     key="dni" label="DNI" columnKey="dni" data={filteredPartners} tableId="partners" className="w-24" />);
+                        case 'name': return (<TableHeaderWithFilter
+     key="name" label="Nombre / Razón Social" columnKey="name" data={filteredPartners} tableId="partners" className="w-auto" />);
+                        case 'email': return (!isMobile && <TableHeaderWithFilter
+     key="email" label="Email" columnKey="email" data={filteredPartners} tableId="partners" className="w-48" />);
+                        case 'phone': return (!isMobile && <TableHeaderWithFilter
+     key="phone" label="Teléfono" columnKey="phone" data={filteredPartners} tableId="partners" className="w-32" />);
+                        case 'address': return (<TableHeaderWithFilter
+     key="address" label="Dirección" columnKey="address" data={filteredPartners} tableId="partners" className="w-48" />);
+                        case 'iban': return (<TableHeaderWithFilter
+     key="iban" label="IBAN" columnKey="iban" data={filteredPartners} tableId="partners" className="w-48" />);
+                        case 'ownership': return (<TableHeaderWithFilter
+     key="ownership" label="% Propiedad" columnKey="ownership" data={filteredPartners} tableId="partners" className="w-24" />);
+                        case 'status': return (<TableHeaderWithFilter
+     key="status" label="Estado" columnKey="status" data={filteredPartners} tableId="partners" className="w-24 text-center" />);
+                        default: return null;
+                        }
+                      })}
+        
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {displayedPartners.length === 0 ? (
+                      <tr>
+                        <td colSpan={visibleColumns.length + 1} className="text-center py-20 italic text-slate-400">No se han encontrado propietarios</td>
+                      </tr>
+                    ) : displayedPartners.map((partner) => (
+                      <tr 
+                        key={partner.id} 
+                        className={selectedPartner?.id === partner.id || selectedIds.includes(partner.id) ? 'selected' : ''}
+                        onClick={() => setSelectedPartner(partner)}
+                        onDoubleClick={() => handleEdit(partner)}
+                      >
+                        <td className="w-8 !p-0 text-center" onClick={(e) => e.stopPropagation()}>
+                          <input 
+                            type="checkbox" 
+                            className="cursor-pointer rounded-none accent-[#2b579a] w-3.5 h-3.5 align-middle" 
+                            checked={selectedIds.includes(partner.id)} 
+                            onChange={() => handleToggleSelect(partner.id)} 
+                          />
+                        </td>
+                        
+                      {visibleColumns.map(col => {
+                        switch(col) {
+                        case 'id': return (<td
+     key="id" className="font-mono">{partner.id}</td>);
+                        case 'dni': return (<EditableCell
+     key="dni" className="font-mono" value={partner.dni} onSave={(val) => handleSaveField(partner, 'dni', val)} />);
+                        case 'name': return (<EditableCell
+     key="name" value={partner.name} onSave={(val) => handleSaveField(partner, 'name', val)} />);
+                        case 'email': return (!isMobile && <EditableCell
+     key="email" className="lowercase normal-case" value={partner.email} onSave={(val) => handleSaveField(partner, 'email', val)} />);
+                        case 'phone': return (!isMobile && <EditableCell
+     key="phone" value={partner.phone} onSave={(val) => handleSaveField(partner, 'phone', val)} />);
+                        case 'address': return (<EditableCell
+     key="address" value={partner.address} onSave={(val) => handleSaveField(partner, 'address', val)} />);
+                        case 'iban': return (<EditableCell
+     key="iban" value={partner.iban} onSave={(val) => handleSaveField(partner, 'iban', val)} />);
+                        case 'ownership': return (<EditableCell
+     key="ownership" type="number" value={partner.ownership} onSave={(val) => handleSaveField(partner, 'ownership', val)} />);
+                        case 'status': return (<EditableCell
+     key="status" className="text-center" value={partner.status} options={['activo', 'inactivo']} onSave={(val) => handleSaveField(partner, 'status', val)} />);
+                        default: return null;
+                        }
+                      })}
+        
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              );
+            })()}
           </div>
         </div>
       </div>
@@ -548,17 +600,6 @@ export default function Partners() {
                               className="win-input w-full" 
                             />
                           </div>
-                          <div className="space-y-1">
-                            <label className="text-[10px] font-bold text-gray-700 uppercase">Estado:</label>
-                            <select 
-                              value={formData.status} 
-                              onChange={e => setFormData({...formData, status: e.target.value})}
-                              className="win-input w-full"
-                            >
-                              <option value="activo">Activo</option>
-                              <option value="inactivo">Inactivo</option>
-                            </select>
-                          </div>
                         </div>
 
                         <div className="space-y-3">
@@ -587,16 +628,6 @@ export default function Partners() {
                               value={formData.address || ''} 
                               onChange={e => setFormData({...formData, address: e.target.value})}
                               className="win-input w-full" 
-                            />
-                          </div>
-                          <div className="space-y-1">
-                            <label className="text-[10px] font-bold text-gray-700 uppercase">IBAN:</label>
-                            <input 
-                              type="text" 
-                              value={formData.iban || ''} 
-                              onChange={e => setFormData({...formData, iban: e.target.value})}
-                              className="win-input w-full font-mono" 
-                              placeholder="ES00 0000 0000 0000 0000 0000"
                             />
                           </div>
                         </div>
@@ -628,9 +659,9 @@ export default function Partners() {
                           <table style={{ zoom: tableZoom }} className="modern-table w-full !border-0">
                               <thead>
                                 <tr>
+                                  <th className="w-[20%] text-left text-[10px]">FECHA</th>
                                   <th className="w-[30%] text-left text-[10px]">DOCUMENTO</th>
                                   <th className="w-[35%] text-left text-[10px]">CONCEPTO</th>
-                                  <th className="w-[20%] text-left text-[10px]">FECHA</th>
                                   <th className="w-[15%] text-center text-[10px]">ACCIÓN</th>
                                 </tr>
                               </thead>
@@ -642,6 +673,14 @@ export default function Partners() {
                                 ) : (
                                   formData.documents.map((doc) => (
                                     <tr key={doc.id}>
+                                      <td className="py-1 px-2">
+                                        <input 
+                                          type="date" 
+                                          className="w-full bg-transparent border-transparent hover:border-gray-300 focus:bg-white focus:border-[#666] focus:shadow-[inset_0_1px_2px_rgba(0,0,0,0.12)] text-[11px] px-1 outline-none h-[24px] transition-colors rounded-sm" 
+                                          value={doc.date || ''} 
+                                          onChange={(e) => updatePartnerDocument(doc.id, 'date', e.target.value)} 
+                                        />
+                                      </td>
                                       <td className="py-2 px-3">
                                         <div className="flex items-center space-x-2 truncate">
                                           <FileText className="w-3.5 h-3.5 text-gray-500 shrink-0" />
@@ -655,14 +694,6 @@ export default function Partners() {
                                           value={doc.concept || ''} 
                                           onChange={(e) => updatePartnerDocument(doc.id, 'concept', e.target.value)} 
                                           placeholder="Añadir concepto..." 
-                                        />
-                                      </td>
-                                      <td className="py-1 px-2">
-                                        <input 
-                                          type="date" 
-                                          className="w-full bg-transparent border-transparent hover:border-gray-300 focus:bg-white focus:border-[#666] focus:shadow-[inset_0_1px_2px_rgba(0,0,0,0.12)] text-[11px] px-1 outline-none h-[24px] transition-colors rounded-sm" 
-                                          value={doc.date || ''} 
-                                          onChange={(e) => updatePartnerDocument(doc.id, 'date', e.target.value)} 
                                         />
                                       </td>
                                       <td className="py-2 px-3 text-center">

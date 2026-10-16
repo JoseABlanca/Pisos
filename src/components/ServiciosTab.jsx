@@ -299,9 +299,9 @@ export default function ServiciosTab({
 
               <div className="flex-1 border border-[#808080] bg-white overflow-hidden flex flex-col min-h-[250px]">
                 <div className="bg-[#fafafa] grid grid-cols-12 gap-2 p-2 text-[10px] font-bold uppercase text-[#333] border-b border-slate-100">
+                  <div className="col-span-2">Fecha</div>
                   <div className="col-span-4">Documento</div>
                   <div className="col-span-4">Concepto</div>
-                  <div className="col-span-2">Fecha</div>
                   <div className="col-span-2 text-center">Acción</div>
                 </div>
                 <div className="flex-1 overflow-auto p-2 space-y-2">
@@ -310,6 +310,14 @@ export default function ServiciosTab({
                   ) : (
                     selectedService.docs.map((doc) => (
                       <div key={doc.id} className="grid grid-cols-12 gap-2 items-center text-[11px] border-b border-slate-100 pb-2">
+                        <div className="col-span-2">
+                          <input
+                            type="date"
+                            className="win-input w-full text-[11px]"
+                            value={doc.date || ''}
+                            onChange={(e) => updateDocument(doc.id, 'date', e.target.value)}
+                          />
+                        </div>
                         <div className="col-span-4 flex items-center space-x-2 truncate">
                           <FileText className="w-4 h-4 text-slate-400 shrink-0" />
                           <span className="truncate" title={doc.name}>{doc.name}</span>
@@ -321,14 +329,6 @@ export default function ServiciosTab({
                             value={doc.concept || ''}
                             onChange={(e) => updateDocument(doc.id, 'concept', e.target.value)}
                             placeholder="Ej. Factura Enero, Contrato..."
-                          />
-                        </div>
-                        <div className="col-span-2">
-                          <input
-                            type="date"
-                            className="win-input w-full text-[11px]"
-                            value={doc.date || ''}
-                            onChange={(e) => updateDocument(doc.id, 'date', e.target.value)}
                           />
                         </div>
                         <div className="col-span-2 flex justify-center space-x-2">
@@ -366,19 +366,17 @@ export default function ServiciosTab({
             initialPos={{ x: isMobile ? 0 : 50, y: isMobile ? 0 : 20 }}
             onClose={() => setShowAccountsModal(false)}
           >
-            <div className="bg-[#d4d0c8] flex flex-col h-[600px]">
-              <div className="flex-1 overflow-auto p-1">
-                <div className="bg-white border border-[#808080] shadow-[1px_1px_0px_#000] min-h-full h-full relative">
-                  <Accounts 
-                    isModal={true} 
-                    onAccountSelect={(code) => {
-                      updateServiceField(selectedIndex, 'accountingAccount', code);
-                      setShowAccountsModal(false);
-                    }} 
-                  />
-                </div>
+            <div className="bg-white flex flex-col w-full h-[600px] relative overflow-hidden">
+              <div className="flex-1 overflow-hidden relative">
+                <Accounts 
+                  isModal={true} 
+                  onAccountSelect={(code) => {
+                    updateServiceField(selectedIndex, 'accountingAccount', code);
+                    setShowAccountsModal(false);
+                  }} 
+                />
               </div>
-              <div className="flex justify-end gap-2 shrink-0 pt-2 pb-1 pr-1 bg-[#d4d0c8] border-t border-[#808080]">
+              <div className="flex justify-end gap-2 shrink-0 px-3 py-1.5 bg-[#f0f0f0] border-t border-gray-300">
                 <button 
                   className="px-6 py-1 border border-gray-400 bg-gray-100 hover:bg-gray-200 shadow-sm text-[11px] font-bold uppercase" 
                   onClick={() => setShowAccountsModal(false)}

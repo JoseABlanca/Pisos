@@ -128,9 +128,23 @@ export default function CfEmpresas() {
   const { user, queryUserIds } = useAuth();
   const [platforms, setPlatforms] = useState([]);
   const [selectedPlatform, setSelectedPlatform] = useState(null);
+  const [selectedIds, setSelectedIds] = useState([]);
   const [showForm, setShowForm] = useState(false);
   const [isEditing, setIsEditing] = useState(false);
   const [formData, setFormData] = useState(EMPTY_FORM);
+
+  const handleToggleSelect = (id) => {
+    setSelectedIds(prev => prev.includes(id) ? prev.filter(x => x !== id) : [...prev, id]);
+  };
+
+  const handleToggleSelectAll = (displayedItems) => {
+    if (selectedIds.length === displayedItems.length && displayedItems.length > 0) {
+      setSelectedIds([]);
+    } else {
+      setSelectedIds(displayedItems.map(p => p.id));
+    }
+  };
+
   const [searchQuery, setSearchQuery] = useState('');
   const [typeFilter, setTypeFilter] = useState('todos');
   const [statusFilter, setStatusFilter] = useState('todos');
@@ -307,12 +321,10 @@ export default function CfEmpresas() {
   useEffect(() => {
     const onNew = () => handleNew();
     const onEdit = () => {
-      if (selectedPlatform) handleEdit(selectedPlatform);
-      else alert('Por favor, seleccione una plataforma de la lista primero.');
+      handleEdit();
     };
     const onDelete = () => {
-      if (selectedPlatform) handleDelete(selectedPlatform);
-      else alert('Por favor, seleccione una plataforma de la lista primero.');
+      handleDelete();
     };
     const onExport = (e) => {
       const format = e.detail?.format || 'csv';
@@ -341,7 +353,7 @@ export default function CfEmpresas() {
       window.removeEventListener('cf-empresa:delete', onDelete);
       window.removeEventListener('cf-empresa:export', onExport);
     };
-  }, [platforms, selectedPlatform, filteredPlatforms, visibleColumns]);
+  }, [platforms, selectedPlatform, selectedIds, filteredPlatforms, visibleColumns]);
 
   const handleNew = () => {
     setIsEditing(false);
@@ -355,17 +367,46 @@ export default function CfEmpresas() {
   };
 
   const handleEdit = (platform) => {
+    if (selectedIds.length > 1) {
+      alert("No se puede modificar más de un elemento a la vez. Por favor, selecciona solo uno.");
+      return;
+    }
+    const target = (selectedIds.length === 1 ? platforms.find(p => p.id === selectedIds[0]) : null) || platform || selectedPlatform;
+    if (!target) {
+      alert('Por favor, seleccione una plataforma de la lista primero.');
+      return;
+    }
     setIsEditing(true);
     setActiveFormTab('datos');
-    setFormData({ ...platform });
+    setFormData({ ...target });
+    setSelectedPlatform(target);
     setShowForm(true);
   };
 
   const handleDelete = async (platform) => {
-    if (window.confirm(`¿Está seguro de que desea eliminar la plataforma ${platform.name} (${platform.id})?`)) {
+    if (selectedIds.length > 1) {
+      if (!window.confirm(`¿Está seguro de que desea eliminar las ${selectedIds.length} plataformas seleccionadas?`)) return;
+      for (const id of selectedIds) {
+        try {
+          await deleteDoc(doc(db, 'cf_platforms', id));
+        } catch (error) {
+          console.error('Error deleting platform:', error);
+        }
+      }
+      setSelectedIds([]);
+      if (selectedPlatform && selectedIds.includes(selectedPlatform.id)) setSelectedPlatform(null);
+      return;
+    }
+    const target = (selectedIds.length === 1 ? platforms.find(p => p.id === selectedIds[0]) : null) || platform || selectedPlatform;
+    if (!target) {
+      alert('Por favor, seleccione una plataforma de la lista primero.');
+      return;
+    }
+    if (window.confirm(`¿Está seguro de que desea eliminar la plataforma ${target.name} (${target.id})?`)) {
       try {
-        await deleteDoc(doc(db, 'cf_platforms', platform.id));
-        setSelectedPlatform(null);
+        await deleteDoc(doc(db, 'cf_platforms', target.id));
+        setSelectedIds(prev => prev.filter(x => x !== target.id));
+        if (selectedPlatform?.id === target.id) setSelectedPlatform(null);
       } catch (error) {
         console.error('Error deleting platform:', error);
         alert('Error al eliminar la plataforma: ' + error.message);
@@ -494,43 +535,60 @@ export default function CfEmpresas() {
           </div>
 
           <div className="win-table-container">
-            <table style={{ zoom: tableZoom }} className="clean-table">
-              <thead>
-                <tr>
-                  
-                  {visibleColumns.map(col => {
-                    switch(col) {
-                    case 'id': return (<TableHeaderWithFilter key="id" label="ID" columnKey="id" data={filteredPlatforms} tableId="cf-empresas-main" />);
-                    case 'name': return (<TableHeaderWithFilter key="name" label="Nombre" columnKey="name" data={filteredPlatforms} tableId="cf-empresas-main" />);
-                    case 'type': return (<TableHeaderWithFilter key="type" label="Tipo" columnKey="type" data={filteredPlatforms} tableId="cf-empresas-main" />);
-                    case 'country': return (<TableHeaderWithFilter key="country" label="País" columnKey="country" data={filteredPlatforms} tableId="cf-empresas-main" />);
-                    case 'bankAccount': return (<TableHeaderWithFilter key="bankAccount" label="Cuenta corriente" columnKey="bankAccount" data={filteredPlatforms} tableId="cf-empresas-main" />);
-                    case 'ceco': return (<TableHeaderWithFilter key="ceco" label="CECO" columnKey="ceco" data={filteredPlatforms} tableId="cf-empresas-main" />);
-                    case 'cebe': return (<TableHeaderWithFilter key="cebe" label="CEBE" columnKey="cebe" data={filteredPlatforms} tableId="cf-empresas-main" />);
-                    case 'currency': return (<TableHeaderWithFilter key="currency" label="Divisa" columnKey="currency" data={filteredPlatforms} tableId="cf-empresas-main" />);
-                    case 'status': return (<TableHeaderWithFilter key="status" label="Estado" columnKey="status" data={filteredPlatforms} tableId="cf-empresas-main" />);
-                    default: return null;
-                    }
-                  })}
-    
-                </tr>
-              </thead>
-              <tbody>
-                {filteredPlatforms.length === 0 ? (
-                  <tr>
-                    <td colSpan={visibleColumns.length} className="text-center py-8 text-gray-400 font-medium">
-                      No se encontraron plataformas. Añade una nueva desde el menú superior.
-                    </td>
-                  </tr>
-                ) : (
-                  applyTableFilters(filteredPlatforms, 'cf-empresas-main').map((p) => (
-                    <tr
-                      key={p.id}
-                      onClick={() => setSelectedPlatform(selectedPlatform?.id === p.id ? null : p)}
-                      onDoubleClick={() => handleEdit(p)}
-                      className={selectedPlatform?.id === p.id ? 'selected' : ''}
-                    >
-                      
+            {(() => {
+              const displayedPlatforms = applyTableFilters(filteredPlatforms, 'cf-empresas-main');
+              return (
+                <table style={{ zoom: tableZoom }} className="clean-table">
+                  <thead>
+                    <tr>
+                      <th className="w-8 !p-0 text-center bg-[#fafafa]">
+                        <input 
+                          type="checkbox" 
+                          className="cursor-pointer rounded-none accent-[#2b579a] w-3.5 h-3.5 align-middle" 
+                          checked={displayedPlatforms.length > 0 && selectedIds.length === displayedPlatforms.length} 
+                          onChange={() => handleToggleSelectAll(displayedPlatforms)} 
+                        />
+                      </th>
+                      {visibleColumns.map(col => {
+                        switch(col) {
+                        case 'id': return (<TableHeaderWithFilter key="id" label="ID" columnKey="id" data={filteredPlatforms} tableId="cf-empresas-main" />);
+                        case 'name': return (<TableHeaderWithFilter key="name" label="Nombre" columnKey="name" data={filteredPlatforms} tableId="cf-empresas-main" />);
+                        case 'type': return (<TableHeaderWithFilter key="type" label="Tipo" columnKey="type" data={filteredPlatforms} tableId="cf-empresas-main" />);
+                        case 'country': return (<TableHeaderWithFilter key="country" label="País" columnKey="country" data={filteredPlatforms} tableId="cf-empresas-main" />);
+                        case 'bankAccount': return (<TableHeaderWithFilter key="bankAccount" label="Cuenta corriente" columnKey="bankAccount" data={filteredPlatforms} tableId="cf-empresas-main" />);
+                        case 'ceco': return (<TableHeaderWithFilter key="ceco" label="CECO" columnKey="ceco" data={filteredPlatforms} tableId="cf-empresas-main" />);
+                        case 'cebe': return (<TableHeaderWithFilter key="cebe" label="CEBE" columnKey="cebe" data={filteredPlatforms} tableId="cf-empresas-main" />);
+                        case 'currency': return (<TableHeaderWithFilter key="currency" label="Divisa" columnKey="currency" data={filteredPlatforms} tableId="cf-empresas-main" />);
+                        case 'status': return (<TableHeaderWithFilter key="status" label="Estado" columnKey="status" data={filteredPlatforms} tableId="cf-empresas-main" />);
+                        default: return null;
+                        }
+                      })}
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {displayedPlatforms.length === 0 ? (
+                      <tr>
+                        <td colSpan={visibleColumns.length + 1} className="text-center py-8 text-gray-400 font-medium">
+                          No se encontraron plataformas. Añade una nueva desde el menú superior.
+                        </td>
+                      </tr>
+                    ) : (
+                      displayedPlatforms.map((p) => (
+                        <tr
+                          key={p.id}
+                          onClick={() => setSelectedPlatform(selectedPlatform?.id === p.id ? null : p)}
+                          onDoubleClick={() => handleEdit(p)}
+                          className={selectedPlatform?.id === p.id || selectedIds.includes(p.id) ? 'selected' : ''}
+                        >
+                          <td className="w-8 !p-0 text-center" onClick={(e) => e.stopPropagation()}>
+                            <input 
+                              type="checkbox" 
+                              className="cursor-pointer rounded-none accent-[#2b579a] w-3.5 h-3.5 align-middle" 
+                              checked={selectedIds.includes(p.id)} 
+                              onChange={() => handleToggleSelect(p.id)} 
+                            />
+                          </td>
+
                   {visibleColumns.map(col => {
                     switch(col) {
                     case 'id': return (<td
@@ -595,6 +653,8 @@ export default function CfEmpresas() {
                 )}
               </tbody>
             </table>
+              );
+            })()}
           </div>
 
           {/* Status Bar */}

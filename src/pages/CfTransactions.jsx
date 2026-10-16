@@ -39,10 +39,24 @@ export default function CfTransactions() {
 
   // UI State
   const [selectedTx, setSelectedTx] = useState(null);
+  const [selectedIds, setSelectedIds] = useState([]);
   const [showForm, setShowForm] = useState(false);
   const [isEditing, setIsEditing] = useState(false);
   const [formData, setFormData] = useState(EMPTY_FORM);
   const [searchQuery, setSearchQuery] = useState('');
+
+  const handleToggleSelect = (id) => {
+    setSelectedIds(prev => prev.includes(id) ? prev.filter(x => x !== id) : [...prev, id]);
+  };
+
+  const handleToggleSelectAll = (displayedItems) => {
+    if (selectedIds.length === displayedItems.length && displayedItems.length > 0) {
+      setSelectedIds([]);
+    } else {
+      setSelectedIds(displayedItems.map(t => t.id));
+    }
+  };
+
 
   // Sidebar Filters
   const [platformFilter, setPlatformFilter] = useState('todos');
@@ -153,16 +167,45 @@ export default function CfTransactions() {
   };
 
   const handleEdit = (tx) => {
+    if (selectedIds.length > 1) {
+      alert("No se puede modificar más de un elemento a la vez. Por favor, selecciona solo uno.");
+      return;
+    }
+    const target = (selectedIds.length === 1 ? transactions.find(t => t.id === selectedIds[0]) : null) || tx || selectedTx;
+    if (!target) {
+      alert('Por favor, seleccione una transacción primero.');
+      return;
+    }
     setIsEditing(true);
-    setFormData({ ...EMPTY_FORM, ...tx });
+    setFormData({ ...EMPTY_FORM, ...target });
+    setSelectedTx(target);
     setShowForm(true);
   };
 
   const handleDelete = async (tx) => {
-    if (window.confirm(`¿Está seguro de que desea eliminar la transacción ${tx.id}?`)) {
+    if (selectedIds.length > 1) {
+      if (!window.confirm(`¿Está seguro de que desea eliminar las ${selectedIds.length} transacciones seleccionadas?`)) return;
+      for (const id of selectedIds) {
+        try {
+          await deleteDoc(doc(db, 'cf_transactions', id));
+        } catch (error) {
+          console.error('Error deleting transaction:', error);
+        }
+      }
+      setSelectedIds([]);
+      if (selectedTx && selectedIds.includes(selectedTx.id)) setSelectedTx(null);
+      return;
+    }
+    const target = (selectedIds.length === 1 ? transactions.find(t => t.id === selectedIds[0]) : null) || tx || selectedTx;
+    if (!target) {
+      alert('Por favor, seleccione una transacción primero.');
+      return;
+    }
+    if (window.confirm(`¿Está seguro de que desea eliminar la transacción ${target.id}?`)) {
       try {
-        await deleteDoc(doc(db, 'cf_transactions', tx.id));
-        setSelectedTx(null);
+        await deleteDoc(doc(db, 'cf_transactions', target.id));
+        setSelectedIds(prev => prev.filter(x => x !== target.id));
+        if (selectedTx?.id === target.id) setSelectedTx(null);
       } catch (error) {
         console.error('Error deleting transaction:', error);
         alert('Error al eliminar la transacción: ' + error.message);
@@ -200,12 +243,10 @@ export default function CfTransactions() {
   useEffect(() => {
     const onNew = () => handleNew();
     const onEdit = () => {
-      if (selectedTx) handleEdit(selectedTx);
-      else alert('Por favor, seleccione una transacción primero.');
+      handleEdit();
     };
     const onDelete = () => {
-      if (selectedTx) handleDelete(selectedTx);
-      else alert('Por favor, seleccione una transacción primero.');
+      handleDelete();
     };
     const onExport = (e) => {
       const format = e.detail?.format || 'csv';
@@ -236,7 +277,7 @@ export default function CfTransactions() {
       window.removeEventListener('cf-transactions-delete', onDelete);
       window.removeEventListener('cf-transactions-export', onExport);
     };
-  }, [selectedTx, filteredTransactions, visibleColumns]);
+  }, [selectedTx, selectedIds, filteredTransactions, visibleColumns, transactions]);
 
   return (
     <div className="w-full h-full flex flex-col overflow-hidden font-sans">
@@ -334,39 +375,56 @@ export default function CfTransactions() {
 
           {/* Table Container */}
           <div className="flex-1 overflow-auto border-b border-gray-200 bg-white relative">
-            <table style={{ zoom: tableZoom }} className="clean-table">
-              <thead>
-                <tr>
-                  
-                  {visibleColumns.map(col => {
-                    switch(col) {
-                    case 'id': return (<TableHeaderWithFilter key="id" label="ID" columnKey="id" data={filteredTransactions} tableId="cf-tx" />);
-                    case 'date': return (<TableHeaderWithFilter key="date" label="Fecha" columnKey="date" data={filteredTransactions} tableId="cf-tx" />);
-                    case 'projectName': return (<TableHeaderWithFilter key="projectName" label="Activo / Proyecto" columnKey="projectName" data={filteredTransactions} tableId="cf-tx" />);
-                    case 'platformName': return (<TableHeaderWithFilter key="platformName" label="Plataforma" columnKey="platformName" data={filteredTransactions} tableId="cf-tx" />);
-                    case 'type': return (<TableHeaderWithFilter key="type" label="Tipo" columnKey="type" data={filteredTransactions} tableId="cf-tx" />);
-                    case 'amount': return (<TableHeaderWithFilter key="amount" label="Importe (€)" columnKey="amount" data={filteredTransactions} tableId="cf-tx" className="text-right" />);
-                    case 'notes': return (<TableHeaderWithFilter key="notes" label="Notas" columnKey="notes" data={filteredTransactions} tableId="cf-tx" />);
-                    default: return null;
-                    }
-                  })}
-    
-                </tr>
-              </thead>
-              <tbody>
-                {filteredTransactions.length === 0 ? (
-                  <tr>
-                    <td colSpan={visibleColumns.length} className="text-center py-8 text-gray-400 font-medium">No se encontraron transacciones.</td>
-                  </tr>
-                ) : (
-                  applyTableFilters(filteredTransactions, "cf-tx").map((tx) => (
-                    <tr
-                      key={tx.id}
-                      onDoubleClick={() => handleEdit(tx)}
-                      onClick={() => setSelectedTx(selectedTx?.id === tx.id ? null : tx)}
-                      className={selectedTx?.id === tx.id ? 'selected' : ''}
-                    >
-                      
+            {(() => {
+              const displayedTx = applyTableFilters(filteredTransactions, "cf-tx");
+              return (
+                <table style={{ zoom: tableZoom }} className="clean-table">
+                  <thead>
+                    <tr>
+                      <th className="w-8 !p-0 text-center bg-[#fafafa]">
+                        <input 
+                          type="checkbox" 
+                          className="cursor-pointer rounded-none accent-[#2b579a] w-3.5 h-3.5 align-middle" 
+                          checked={displayedTx.length > 0 && selectedIds.length === displayedTx.length} 
+                          onChange={() => handleToggleSelectAll(displayedTx)} 
+                        />
+                      </th>
+                      {visibleColumns.map(col => {
+                        switch(col) {
+                        case 'id': return (<TableHeaderWithFilter key="id" label="ID" columnKey="id" data={filteredTransactions} tableId="cf-tx" />);
+                        case 'date': return (<TableHeaderWithFilter key="date" label="Fecha" columnKey="date" data={filteredTransactions} tableId="cf-tx" />);
+                        case 'projectName': return (<TableHeaderWithFilter key="projectName" label="Activo / Proyecto" columnKey="projectName" data={filteredTransactions} tableId="cf-tx" />);
+                        case 'platformName': return (<TableHeaderWithFilter key="platformName" label="Plataforma" columnKey="platformName" data={filteredTransactions} tableId="cf-tx" />);
+                        case 'type': return (<TableHeaderWithFilter key="type" label="Tipo" columnKey="type" data={filteredTransactions} tableId="cf-tx" />);
+                        case 'amount': return (<TableHeaderWithFilter key="amount" label="Importe (€)" columnKey="amount" data={filteredTransactions} tableId="cf-tx" className="text-right" />);
+                        case 'notes': return (<TableHeaderWithFilter key="notes" label="Notas" columnKey="notes" data={filteredTransactions} tableId="cf-tx" />);
+                        default: return null;
+                        }
+                      })}
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {displayedTx.length === 0 ? (
+                      <tr>
+                        <td colSpan={visibleColumns.length + 1} className="text-center py-8 text-gray-400 font-medium">No se encontraron transacciones.</td>
+                      </tr>
+                    ) : (
+                      displayedTx.map((tx) => (
+                        <tr
+                          key={tx.id}
+                          onDoubleClick={() => handleEdit(tx)}
+                          onClick={() => setSelectedTx(selectedTx?.id === tx.id ? null : tx)}
+                          className={selectedTx?.id === tx.id || selectedIds.includes(tx.id) ? 'selected' : ''}
+                        >
+                          <td className="w-8 !p-0 text-center" onClick={(e) => e.stopPropagation()}>
+                            <input 
+                              type="checkbox" 
+                              className="cursor-pointer rounded-none accent-[#2b579a] w-3.5 h-3.5 align-middle" 
+                              checked={selectedIds.includes(tx.id)} 
+                              onChange={() => handleToggleSelect(tx.id)} 
+                            />
+                          </td>
+
                   {visibleColumns.map(col => {
                     switch(col) {
                     case 'id': return (<td
@@ -418,6 +476,8 @@ export default function CfTransactions() {
                 )}
               </tbody>
             </table>
+              );
+            })()}
           </div>
 
           {/* Status Bar */}

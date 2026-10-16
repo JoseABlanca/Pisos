@@ -23,8 +23,22 @@ export default function Customers() {
   const { tableZoom } = useOutletContext() || { tableZoom: 1 };
   const [showForm, setShowForm] = useState(false);
   const [selectedCustomer, setSelectedCustomer] = useState(null);
+  const [selectedIds, setSelectedIds] = useState([]);
   const [isEditing, setIsEditing] = useState(false);
   const [isMobile, setIsMobile] = useState(window.innerWidth < 768);
+
+  const handleToggleSelect = (id) => {
+    setSelectedIds(prev => prev.includes(id) ? prev.filter(x => x !== id) : [...prev, id]);
+  };
+
+  const handleToggleSelectAll = (displayedItems) => {
+    if (selectedIds.length === displayedItems.length && displayedItems.length > 0) {
+      setSelectedIds([]);
+    } else {
+      setSelectedIds(displayedItems.map(c => c.id));
+    }
+  };
+
 
   useEffect(() => {
     const handleResize = () => setIsMobile(window.innerWidth < 768);
@@ -327,12 +341,21 @@ export default function Customers() {
   };
 
   const handleEdit = () => {
-    if (!selectedCustomer) return;
-    const floorList = selectedCustomer.floor ? selectedCustomer.floor.split(', ') : [];
+    if (selectedIds.length > 1) {
+      alert("No se puede modificar más de un elemento a la vez. Por favor, selecciona solo uno.");
+      return;
+    }
+    const target = (selectedIds.length === 1 ? customers.find(c => c.id === selectedIds[0]) : null) || selectedCustomer;
+    if (!target) {
+      alert('Por favor, seleccione un cliente primero.');
+      return;
+    }
+    const floorList = target.floor ? target.floor.split(', ') : [];
     setFormData({ 
-      ...selectedCustomer,
-      floors: selectedCustomer.floors || floorList
+      ...target,
+      floors: target.floors || floorList
     });
+    setSelectedCustomer(target);
     setIsEditing(true);
     setShowForm(true);
   };
@@ -368,13 +391,28 @@ export default function Customers() {
     }
   };
 
-  const handleDelete = () => {
-    if (!selectedCustomer) return;
-    if (window.confirm(`¿Está seguro de que desea eliminar al cliente ${selectedCustomer.name}?`)) {
-      const customerId = selectedCustomer.id;
+  const handleDelete = async () => {
+    if (selectedIds.length > 1) {
+      if (!window.confirm(`¿Está seguro de que desea eliminar los ${selectedIds.length} clientes seleccionados?`)) return;
+      for (const id of selectedIds) {
+        setCustomers(prev => prev.filter(c => c.id !== id));
+        await deleteCustomerFromCloud(id);
+      }
+      setSelectedIds([]);
+      if (selectedCustomer && selectedIds.includes(selectedCustomer.id)) setSelectedCustomer(null);
+      return;
+    }
+    const target = (selectedIds.length === 1 ? customers.find(c => c.id === selectedIds[0]) : null) || selectedCustomer;
+    if (!target) {
+      alert('Por favor, seleccione un cliente primero.');
+      return;
+    }
+    if (window.confirm(`¿Está seguro de que desea eliminar al cliente ${target.name}?`)) {
+      const customerId = target.id;
       setCustomers(customers.filter(c => c.id !== customerId));
-      deleteCustomerFromCloud(customerId);
-      setSelectedCustomer(null);
+      await deleteCustomerFromCloud(customerId);
+      setSelectedIds(prev => prev.filter(x => x !== customerId));
+      if (selectedCustomer?.id === customerId) setSelectedCustomer(null);
     }
   };
 
@@ -438,12 +476,10 @@ export default function Customers() {
   useEffect(() => {
     const onNew = () => handleNew();
     const onEdit = () => {
-      if (selectedCustomer) handleEdit();
-      else alert('Por favor, seleccione un cliente primero.');
+      handleEdit();
     };
     const onDelete = () => {
-      if (selectedCustomer) handleDelete();
-      else alert('Por favor, seleccione un cliente primero.');
+      handleDelete();
     };
     const onFilter = () => handleFilter();
     const onExport = (e) => {
@@ -476,7 +512,7 @@ export default function Customers() {
       window.removeEventListener('customer:filter', onFilter);
       window.removeEventListener('customer:export', onExport);
     };
-  }, [customers, selectedCustomer, filterColumn, filterOperator, filterValue]);
+  }, [customers, selectedCustomer, selectedIds, filterColumn, filterOperator, filterValue]);
 
   return (
     <div className="w-full h-full bg-[#d4d0c8] flex flex-col p-1 overflow-hidden font-sans">
@@ -600,77 +636,94 @@ export default function Customers() {
             onClick={(e) => e.stopPropagation()}
           >
             {renderFilterMenu()}
-            <table style={{ zoom: tableZoom }} className="clean-table">
-              <thead>
-                <tr className="sticky top-0 z-10">
-                  
-                  {visibleColumns.map(col => {
-                    switch(col) {
-                    case 'id': return (<TableHeaderWithFilter
- key="id" label="CUENTA" columnKey="id" data={filteredCustomers} tableId="customers" className="w-20" />);
-                    case 'name': return (<TableHeaderWithFilter
- key="name" label="DESCRIPCIÓN" columnKey="name" data={filteredCustomers} tableId="customers" className="w-48" />);
-                    case 'address': return (<TableHeaderWithFilter
- key="address" label="DIRECCIÓN" columnKey="address" data={filteredCustomers} tableId="customers" className="w-48" />);
-                    case 'dni': return (<TableHeaderWithFilter
- key="dni" label="DNI/NIF" columnKey="dni" data={filteredCustomers} tableId="customers" className="w-32" />);
-                    case 'phone': return (<TableHeaderWithFilter
- key="phone" label="TELÉFONO" columnKey="phone" data={filteredCustomers} tableId="customers" className="w-32" />);
-                    case 'email': return (<TableHeaderWithFilter
- key="email" label="EMAIL" columnKey="email" data={filteredCustomers} tableId="customers" className="w-48" />);
-                    case 'city': return (<TableHeaderWithFilter
- key="city" label="POBLACIÓN" columnKey="city" data={filteredCustomers} tableId="customers" className="w-32" />);
-                    case 'cp': return (<TableHeaderWithFilter
- key="cp" label="CP" columnKey="cp" data={filteredCustomers} tableId="customers" className="w-24" />);
-                    case 'status': return (<TableHeaderWithFilter
- key="status" label="ESTADO" columnKey="status" data={filteredCustomers} tableId="customers" className="w-24" />);
-                    case 'notes': return (<TableHeaderWithFilter
- key="notes" label="NOTAS" columnKey="notes" data={filteredCustomers} tableId="customers" className="w-48" />);
-                    default: return null;
-                    }
-                  })}
-    
-                </tr>
-              </thead>
-              <tbody>
-                {applyTableFilters(filteredCustomers, 'customers').map(c => (
-                  <tr 
-                    key={c.id} 
-                    className={selectedCustomer?.id === c.id ? 'selected' : ''}
-                    onClick={() => setSelectedCustomer(c)}
-                    onDoubleClick={handleEdit}
-                  >
-                    
-                  {visibleColumns.map(col => {
-                    switch(col) {
-                    case 'id': return (<td
- key="id">{c.id}</td>);
-                    case 'name': return (<EditableCell
- key="name" value={c.name} onSave={(val) => handleSaveField(c, 'name', val)} />);
-                    case 'address': return (<EditableCell
- key="address" value={c.address} onSave={(val) => handleSaveField(c, 'address', val)} />);
-                    case 'dni': return (<EditableCell
- key="dni" value={c.dni} onSave={(val) => handleSaveField(c, 'dni', val)} />);
-                    case 'phone': return (<EditableCell
- key="phone" value={c.phone} onSave={(val) => handleSaveField(c, 'phone', val)} />);
-                    case 'email': return (<EditableCell
- key="email" value={c.email} onSave={(val) => handleSaveField(c, 'email', val)} />);
-                    case 'city': return (<EditableCell
- key="city" value={c.city} onSave={(val) => handleSaveField(c, 'city', val)} />);
-                    case 'cp': return (<EditableCell
- key="cp" value={c.cp} onSave={(val) => handleSaveField(c, 'cp', val)} />);
-                    case 'status': return (<EditableCell
- key="status" value={c.status || 'activo'} options={['activo', 'inactivo']} onSave={(val) => handleSaveField(c, 'status', val)} />);
-                    case 'notes': return (<EditableCell
- key="notes" value={c.notes} onSave={(val) => handleSaveField(c, 'notes', val)} />);
-                    default: return null;
-                    }
-                  })}
-    
-                  </tr>
-                ))}
-              </tbody>
-            </table>
+            {(() => {
+              const displayedCustomers = applyTableFilters(filteredCustomers, 'customers');
+              return (
+                <table style={{ zoom: tableZoom }} className="clean-table">
+                  <thead>
+                    <tr className="sticky top-0 z-10">
+                      <th className="w-8 !p-0 text-center bg-[#fafafa]">
+                        <input 
+                          type="checkbox" 
+                          className="cursor-pointer rounded-none accent-[#2b579a] w-3.5 h-3.5 align-middle" 
+                          checked={displayedCustomers.length > 0 && selectedIds.length === displayedCustomers.length} 
+                          onChange={() => handleToggleSelectAll(displayedCustomers)} 
+                        />
+                      </th>
+                      {visibleColumns.map(col => {
+                        switch(col) {
+                        case 'id': return (<TableHeaderWithFilter
+     key="id" label="CUENTA" columnKey="id" data={filteredCustomers} tableId="customers" className="w-20" />);
+                        case 'name': return (<TableHeaderWithFilter
+     key="name" label="DESCRIPCIÓN" columnKey="name" data={filteredCustomers} tableId="customers" className="w-48" />);
+                        case 'address': return (<TableHeaderWithFilter
+     key="address" label="DIRECCIÓN" columnKey="address" data={filteredCustomers} tableId="customers" className="w-48" />);
+                        case 'dni': return (<TableHeaderWithFilter
+     key="dni" label="DNI/NIF" columnKey="dni" data={filteredCustomers} tableId="customers" className="w-32" />);
+                        case 'phone': return (<TableHeaderWithFilter
+     key="phone" label="TELÉFONO" columnKey="phone" data={filteredCustomers} tableId="customers" className="w-32" />);
+                        case 'email': return (<TableHeaderWithFilter
+     key="email" label="EMAIL" columnKey="email" data={filteredCustomers} tableId="customers" className="w-48" />);
+                        case 'city': return (<TableHeaderWithFilter
+     key="city" label="POBLACIÓN" columnKey="city" data={filteredCustomers} tableId="customers" className="w-32" />);
+                        case 'cp': return (<TableHeaderWithFilter
+     key="cp" label="CP" columnKey="cp" data={filteredCustomers} tableId="customers" className="w-24" />);
+                        case 'status': return (<TableHeaderWithFilter
+     key="status" label="ESTADO" columnKey="status" data={filteredCustomers} tableId="customers" className="w-24" />);
+                        case 'notes': return (<TableHeaderWithFilter
+     key="notes" label="NOTAS" columnKey="notes" data={filteredCustomers} tableId="customers" className="w-48" />);
+                        default: return null;
+                        }
+                      })}
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {displayedCustomers.map(c => (
+                      <tr 
+                        key={c.id} 
+                        className={selectedCustomer?.id === c.id || selectedIds.includes(c.id) ? 'selected' : ''}
+                        onClick={() => setSelectedCustomer(c)}
+                        onDoubleClick={handleEdit}
+                      >
+                        <td className="w-8 !p-0 text-center" onClick={(e) => e.stopPropagation()}>
+                          <input 
+                            type="checkbox" 
+                            className="cursor-pointer rounded-none accent-[#2b579a] w-3.5 h-3.5 align-middle" 
+                            checked={selectedIds.includes(c.id)} 
+                            onChange={() => handleToggleSelect(c.id)} 
+                          />
+                        </td>
+                      {visibleColumns.map(col => {
+                        switch(col) {
+                        case 'id': return (<td
+     key="id">{c.id}</td>);
+                        case 'name': return (<EditableCell
+     key="name" value={c.name} onSave={(val) => handleSaveField(c, 'name', val)} />);
+                        case 'address': return (<EditableCell
+     key="address" value={c.address} onSave={(val) => handleSaveField(c, 'address', val)} />);
+                        case 'dni': return (<EditableCell
+     key="dni" value={c.dni} onSave={(val) => handleSaveField(c, 'dni', val)} />);
+                        case 'phone': return (<EditableCell
+     key="phone" value={c.phone} onSave={(val) => handleSaveField(c, 'phone', val)} />);
+                        case 'email': return (<EditableCell
+     key="email" value={c.email} onSave={(val) => handleSaveField(c, 'email', val)} />);
+                        case 'city': return (<EditableCell
+     key="city" value={c.city} onSave={(val) => handleSaveField(c, 'city', val)} />);
+                        case 'cp': return (<EditableCell
+     key="cp" value={c.cp} onSave={(val) => handleSaveField(c, 'cp', val)} />);
+                        case 'status': return (<EditableCell
+     key="status" value={c.status || 'activo'} options={['activo', 'inactivo']} onSave={(val) => handleSaveField(c, 'status', val)} />);
+                        case 'notes': return (<EditableCell
+     key="notes" value={c.notes} onSave={(val) => handleSaveField(c, 'notes', val)} />);
+                        default: return null;
+                        }
+                      })}
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              );
+            })()}
           </div>
         </div>
       </div>
@@ -942,9 +995,9 @@ export default function Customers() {
                         <table style={{ zoom: tableZoom }} className="win-table min-w-full">
                         <thead>
                           <tr>
+                            <th>Fecha</th>
                             <th>Nombre del Archivo</th>
                             <th>Tipo</th>
-                            <th>Fecha</th>
                             <th>Tamaño</th>
                             <th className="w-8"></th>
                           </tr>
@@ -957,6 +1010,7 @@ export default function Customers() {
                           ) : (
                             (formData.documents || []).map((doc, idx) => (
                               <tr key={idx}>
+                                <td>{doc.date}</td>
                                 <td>
                                   {doc.url ? (
                                     <span 
@@ -970,7 +1024,6 @@ export default function Customers() {
                                   )}
                                 </td>
                                 <td>{doc.type}</td>
-                                <td>{doc.date}</td>
                                 <td>{doc.size}</td>
                                 <td className="text-center">
                                   <button 

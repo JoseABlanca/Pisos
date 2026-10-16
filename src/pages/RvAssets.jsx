@@ -18,8 +18,22 @@ export default function RvAssets() {
   const { user, queryUserIds } = useAuth();
   const [assets, setAssets] = useState([]);
   const [selectedAsset, setSelectedAsset] = useState(null);
+  const [selectedIds, setSelectedIds] = useState([]);
   const [showForm, setShowForm] = useState(false);
   const [isEditing, setIsEditing] = useState(false);
+
+  const handleToggleSelect = (id) => {
+    setSelectedIds(prev => prev.includes(id) ? prev.filter(x => x !== id) : [...prev, id]);
+  };
+
+  const handleToggleSelectAll = (displayedItems) => {
+    if (selectedIds.length === displayedItems.length && displayedItems.length > 0) {
+      setSelectedIds([]);
+    } else {
+      setSelectedIds(displayedItems.map(a => a.id));
+    }
+  };
+
   const [searchQuery, setSearchQuery] = useState('');
   const [typeFilter, setTypeFilter] = useState('todos');
   const [showSidebar, setShowSidebar] = useState(true);
@@ -465,12 +479,10 @@ export default function RvAssets() {
   useEffect(() => {
     const onNew = () => handleNew();
     const onEdit = () => {
-      if (selectedAsset) handleEdit(selectedAsset);
-      else alert('Por favor, seleccione un activo de la lista primero.');
+      handleEdit();
     };
     const onDelete = () => {
-      if (selectedAsset) handleDelete(selectedAsset);
-      else alert('Por favor, seleccione un activo de la lista primero.');
+      handleDelete();
     };
     const onExport = (e) => {
       const format = e.detail?.format || 'csv';
@@ -506,7 +518,7 @@ export default function RvAssets() {
       window.removeEventListener('rv-asset:export', onExport);
       window.removeEventListener('rv-asset:download-history', onDownloadHistory);
     };
-  }, [assets, selectedAsset, filteredAssets, visibleColumns]);
+  }, [assets, selectedAsset, selectedIds, filteredAssets, visibleColumns]);
 
   const handleNew = () => {
     setIsEditing(false);
@@ -530,24 +542,53 @@ export default function RvAssets() {
   };
 
   const handleEdit = (asset) => {
+    if (selectedIds.length > 1) {
+      alert("No se puede modificar más de un elemento a la vez. Por favor, selecciona solo uno.");
+      return;
+    }
+    const target = (selectedIds.length === 1 ? assets.find(a => a.id === selectedIds[0]) : null) || asset || selectedAsset;
+    if (!target) {
+      alert('Por favor, seleccione un activo de la lista primero.');
+      return;
+    }
     setIsEditing(true);
-    setOriginalId(asset.id); // track original doc ID for rename handling
+    setOriginalId(target.id); // track original doc ID for rename handling
     setActiveFormTab('datos');
     setTempHistory([]);
     setFormData({
-      ...asset,
-      apiSource: asset.apiSource || 'Yahoo Finance',
-      startDate: asset.startDate || '2024-01-01',
+      ...target,
+      apiSource: target.apiSource || 'Yahoo Finance',
+      startDate: target.startDate || '2024-01-01',
       endDate: new Date().toISOString().split('T')[0]
     });
+    setSelectedAsset(target);
     setShowForm(true);
   };
 
   const handleDelete = async (asset) => {
-    if (window.confirm(`¿Está seguro de que desea eliminar el activo ${asset.name} (${asset.id})?`)) {
+    if (selectedIds.length > 1) {
+      if (!window.confirm(`¿Está seguro de que desea eliminar los ${selectedIds.length} activos seleccionados?`)) return;
+      for (const id of selectedIds) {
+        try {
+          await deleteDoc(doc(db, 'rv_assets', id));
+        } catch (error) {
+          console.error('Error deleting asset:', error);
+        }
+      }
+      setSelectedIds([]);
+      if (selectedAsset && selectedIds.includes(selectedAsset.id)) setSelectedAsset(null);
+      return;
+    }
+    const target = (selectedIds.length === 1 ? assets.find(a => a.id === selectedIds[0]) : null) || asset || selectedAsset;
+    if (!target) {
+      alert('Por favor, seleccione un activo de la lista primero.');
+      return;
+    }
+    if (window.confirm(`¿Está seguro de que desea eliminar el activo ${target.name} (${target.id})?`)) {
       try {
-        await deleteDoc(doc(db, 'rv_assets', asset.id));
-        setSelectedAsset(null);
+        await deleteDoc(doc(db, 'rv_assets', target.id));
+        setSelectedIds(prev => prev.filter(x => x !== target.id));
+        if (selectedAsset?.id === target.id) setSelectedAsset(null);
       } catch (error) {
         console.error('Error deleting asset:', error);
         alert('Error al eliminar el activo: ' + error.message);
@@ -850,40 +891,58 @@ export default function RvAssets() {
           </div>
 
           <div className="win-table-container">
-            <table style={{ zoom: tableZoom }} className="clean-table">
-              <thead>
-                <tr>
-                  
-                  {visibleColumns.map(col => {
-                    switch(col) {
-                    case 'id': return (<TableHeaderWithFilter key="id" label="Ticker" columnKey="id" data={filteredAssets} tableId="rv-assets-main" />);
-                    case 'name': return (<TableHeaderWithFilter key="name" label="Nombre" columnKey="name" data={filteredAssets} tableId="rv-assets-main" />);
-                    case 'type': return (<TableHeaderWithFilter key="type" label="Tipo de activo" columnKey="type" data={filteredAssets} tableId="rv-assets-main" />);
-                    case 'sector': return (<TableHeaderWithFilter key="sector" label="Sector" columnKey="sector" data={filteredAssets} tableId="rv-assets-main" />);
-                    case 'currency': return (<TableHeaderWithFilter key="currency" label="Divisa" columnKey="currency" data={filteredAssets} tableId="rv-assets-main" />);
-                    case 'currentPrice': return (<TableHeaderWithFilter key="currentPrice" label="Precio actual" columnKey="currentPrice" data={filteredAssets} tableId="rv-assets-main" />);
-                    case 'apiSource': return (<TableHeaderWithFilter key="apiSource" label="Origen API" columnKey="apiSource" data={filteredAssets} tableId="rv-assets-main" />);
-                    default: return null;
-                    }
-                  })}
-    
-                </tr>
-              </thead>
-              <tbody>
-                {filteredAssets.length === 0 ? (
-                  <tr>
-                    <td colSpan={visibleColumns.length} className="text-center py-8 text-gray-400 font-medium">
-                      No se encontraron activos. Registra un nuevo activo en el menú superior.
-                    </td>
-                  </tr>
-                ) : (
-                  applyTableFilters(filteredAssets, 'rv-assets-main').map((asset) => (
-                    <tr
-                      key={asset.id}
-                      onClick={() => setSelectedAsset(selectedAsset?.id === asset.id ? null : asset)}
-                      className={selectedAsset?.id === asset.id ? 'selected' : ''}
-                    >
-                      
+            {(() => {
+              const displayedAssets = applyTableFilters(filteredAssets, 'rv-assets-main');
+              return (
+                <table style={{ zoom: tableZoom }} className="clean-table">
+                  <thead>
+                    <tr>
+                      <th className="w-8 !p-0 text-center bg-[#fafafa]">
+                        <input 
+                          type="checkbox" 
+                          className="cursor-pointer rounded-none accent-[#2b579a] w-3.5 h-3.5 align-middle" 
+                          checked={displayedAssets.length > 0 && selectedIds.length === displayedAssets.length} 
+                          onChange={() => handleToggleSelectAll(displayedAssets)} 
+                        />
+                      </th>
+                      {visibleColumns.map(col => {
+                        switch(col) {
+                        case 'id': return (<TableHeaderWithFilter key="id" label="Ticker" columnKey="id" data={filteredAssets} tableId="rv-assets-main" />);
+                        case 'name': return (<TableHeaderWithFilter key="name" label="Nombre" columnKey="name" data={filteredAssets} tableId="rv-assets-main" />);
+                        case 'type': return (<TableHeaderWithFilter key="type" label="Tipo de activo" columnKey="type" data={filteredAssets} tableId="rv-assets-main" />);
+                        case 'sector': return (<TableHeaderWithFilter key="sector" label="Sector" columnKey="sector" data={filteredAssets} tableId="rv-assets-main" />);
+                        case 'currency': return (<TableHeaderWithFilter key="currency" label="Divisa" columnKey="currency" data={filteredAssets} tableId="rv-assets-main" />);
+                        case 'currentPrice': return (<TableHeaderWithFilter key="currentPrice" label="Precio actual" columnKey="currentPrice" data={filteredAssets} tableId="rv-assets-main" />);
+                        case 'apiSource': return (<TableHeaderWithFilter key="apiSource" label="Origen API" columnKey="apiSource" data={filteredAssets} tableId="rv-assets-main" />);
+                        default: return null;
+                        }
+                      })}
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {displayedAssets.length === 0 ? (
+                      <tr>
+                        <td colSpan={visibleColumns.length + 1} className="text-center py-8 text-gray-400 font-medium">
+                          No se encontraron activos. Registra un nuevo activo en el menú superior.
+                        </td>
+                      </tr>
+                    ) : (
+                      displayedAssets.map((asset) => (
+                        <tr
+                          key={asset.id}
+                          onClick={() => setSelectedAsset(selectedAsset?.id === asset.id ? null : asset)}
+                          onDoubleClick={() => handleEdit(asset)}
+                          className={selectedAsset?.id === asset.id || selectedIds.includes(asset.id) ? 'selected' : ''}
+                        >
+                          <td className="w-8 !p-0 text-center" onClick={(e) => e.stopPropagation()}>
+                            <input 
+                              type="checkbox" 
+                              className="cursor-pointer rounded-none accent-[#2b579a] w-3.5 h-3.5 align-middle" 
+                              checked={selectedIds.includes(asset.id)} 
+                              onChange={() => handleToggleSelect(asset.id)} 
+                            />
+                          </td>
+
                   {visibleColumns.map(col => {
                     switch(col) {
                     case 'id': return (<td
@@ -909,6 +968,8 @@ export default function RvAssets() {
                 )}
               </tbody>
             </table>
+              );
+            })()}
           </div>
         </div>
       </div>

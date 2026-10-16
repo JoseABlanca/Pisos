@@ -49,6 +49,19 @@ export default function LaboralContratos() {
   const DEFAULT_COLUMNS = ['id', 'empresaId', 'puesto', 'fechaInicio', 'ingresoMensual'];
   const { visibleColumns, toggleColumn, columnWidths, updateColumnWidth } = useTableColumns('laboral-contratos', DEFAULT_COLUMNS);
   const { applyTableFilters, TableHeaderWithFilter, renderFilterMenu } = useTableFilters({ columnWidths, updateColumnWidth });
+  const [selectedIds, setSelectedIds] = useState([]);
+
+  const handleToggleSelect = (id) => {
+    setSelectedIds(prev => prev.includes(id) ? prev.filter(x => x !== id) : [...prev, id]);
+  };
+
+  const handleToggleSelectAll = (displayedItems) => {
+    if (selectedIds.length === displayedItems.length && displayedItems.length > 0) {
+      setSelectedIds([]);
+    } else {
+      setSelectedIds(displayedItems.map(item => item.id));
+    }
+  };
 
   const emptyForm = {
     id: '', empresaId: '', puesto: '', fechaInicio: '', fechaFin: '',
@@ -90,40 +103,6 @@ export default function LaboralContratos() {
     return () => { unsubC(); unsubE(); unsubCb(); unsubCo(); };
   }, [user, queryUserIds]);
 
-  useEffect(() => {
-    const onNew = () => handleNew();
-    const onEdit = () => { if (selectedContrato) handleEdit(selectedContrato); else alert('Selecciona un contrato primero.'); };
-    const onDelete = () => { if (selectedContrato) handleDelete(selectedContrato); else alert('Selecciona un contrato primero.'); };
-    const onExport = (e) => {
-      const format = e.detail?.format || 'csv';
-      if (format === 'pdf') {
-        const cols = [
-          { header: 'ID', dataKey: 'id' },
-          { header: 'Empresa', dataKey: 'empresaNombre' },
-          { header: 'Puesto', dataKey: 'puesto' },
-          { header: 'Fecha Inicio', dataKey: 'fechaInicio' },
-          { header: 'Ingreso Mensual', dataKey: 'ingresoMensual' },
-        ].filter(c => visibleColumns.includes(c.dataKey === 'empresaNombre' ? 'empresaId' : c.dataKey));
-        exportToPDF(contratosConNombre, cols, 'Contratos Laborales', 'laboral_contratos.pdf');
-      } else {
-        handleExportFormat(contratosConNombre, 'Contratos Laborales', format);
-      }
-    };
-    const onColumns = (e) => { const { columnId } = e.detail || {}; if (columnId) toggleColumn(columnId); };
-    window.addEventListener('laboral-contrato:new', onNew);
-    window.addEventListener('laboral-contrato:edit', onEdit);
-    window.addEventListener('laboral-contrato:delete', onDelete);
-    window.addEventListener('laboral-contrato:export', onExport);
-    window.addEventListener('laboral-contrato:columns', onColumns);
-    return () => {
-      window.removeEventListener('laboral-contrato:new', onNew);
-      window.removeEventListener('laboral-contrato:edit', onEdit);
-      window.removeEventListener('laboral-contrato:delete', onDelete);
-      window.removeEventListener('laboral-contrato:export', onExport);
-      window.removeEventListener('laboral-contrato:columns', onColumns);
-    };
-  }, [selectedContrato, visibleColumns]);
-
   const contratosConNombre = useMemo(() =>
     contratos.map(c => ({ ...c, empresaNombre: empresas.find(e => e.id === c.empresaId)?.nombre || c.empresaNombre || c.empresaId || '-' }))
   , [contratos, empresas]);
@@ -159,23 +138,87 @@ export default function LaboralContratos() {
   };
 
   const handleEdit = (c) => {
-    const cebeCode = c.cebe !== undefined && c.cebe !== '' ? c.cebe : (c.cebeId ? cebes.find(x => x.id === c.cebeId)?.code : '') || '';
-    const cecoCode = c.ceco !== undefined && c.ceco !== '' ? c.ceco : (c.cecoId ? cecos.find(x => x.id === c.cecoId)?.code : '') || '';
-    const cebeId = c.cebeId || (cebeCode ? cebes.find(x => x.code === cebeCode)?.id : '') || '';
-    const cecoId = c.cecoId || (cecoCode ? cecos.find(x => x.code === cecoCode)?.id : '') || '';
+    if (selectedIds.length > 1) {
+      alert("No se puede modificar más de un elemento a la vez. Por favor, selecciona solo uno.");
+      return;
+    }
+    const target = (selectedIds.length === 1 ? contratosConNombre.find(x => x.id === selectedIds[0]) : null) || c || selectedContrato;
+    if (!target) {
+      alert('Selecciona un contrato primero.');
+      return;
+    }
+    const cebeCode = target.cebe !== undefined && target.cebe !== '' ? target.cebe : (target.cebeId ? cebes.find(x => x.id === target.cebeId)?.code : '') || '';
+    const cecoCode = target.ceco !== undefined && target.ceco !== '' ? target.ceco : (target.cecoId ? cecos.find(x => x.id === target.cecoId)?.code : '') || '';
+    const cebeId = target.cebeId || (cebeCode ? cebes.find(x => x.code === cebeCode)?.id : '') || '';
+    const cecoId = target.cecoId || (cecoCode ? cecos.find(x => x.code === cecoCode)?.id : '') || '';
     setFormData({
       ...emptyForm,
-      ...c,
+      ...target,
       cebe: cebeCode,
       ceco: cecoCode,
       cebeId: cebeId,
       cecoId: cecoId,
-      descripcion: c.descripcion || ''
+      descripcion: target.descripcion || ''
     });
     setIsEditing(true);
     setActiveTab('Datos');
     setShowForm(true);
   };
+
+  const handleDelete = async (c) => {
+    if (selectedIds.length > 1) {
+      if (!window.confirm(`¿Está seguro de que desea eliminar los ${selectedIds.length} contratos seleccionados?`)) return;
+      for (const id of selectedIds) {
+        await deleteDoc(doc(db, 'laboral_contratos', id));
+      }
+      setSelectedIds([]);
+      if (selectedContrato && selectedIds.includes(selectedContrato.id)) setSelectedContrato(null);
+      return;
+    }
+    const target = (selectedIds.length === 1 ? contratosConNombre.find(x => x.id === selectedIds[0]) : null) || c || selectedContrato;
+    if (!target) {
+      alert('Selecciona un contrato primero.');
+      return;
+    }
+    if (!window.confirm(`¿Eliminar contrato "${target.puesto}"?`)) return;
+    await deleteDoc(doc(db, 'laboral_contratos', target.id));
+    setSelectedIds(prev => prev.filter(id => id !== target.id));
+    if (selectedContrato?.id === target.id) setSelectedContrato(null);
+  };
+
+  useEffect(() => {
+    const onNew = () => handleNew();
+    const onEdit = () => handleEdit();
+    const onDelete = () => handleDelete();
+    const onExport = (e) => {
+      const format = e.detail?.format || 'csv';
+      if (format === 'pdf') {
+        const cols = [
+          { header: 'ID', dataKey: 'id' },
+          { header: 'Empresa', dataKey: 'empresaNombre' },
+          { header: 'Puesto', dataKey: 'puesto' },
+          { header: 'Fecha Inicio', dataKey: 'fechaInicio' },
+          { header: 'Ingreso Mensual', dataKey: 'ingresoMensual' },
+        ].filter(c => visibleColumns.includes(c.dataKey === 'empresaNombre' ? 'empresaId' : c.dataKey));
+        exportToPDF(contratosConNombre, cols, 'Contratos Laborales', 'laboral_contratos.pdf');
+      } else {
+        handleExportFormat(contratosConNombre, 'Contratos Laborales', format);
+      }
+    };
+    const onColumns = (e) => { const { columnId } = e.detail || {}; if (columnId) toggleColumn(columnId); };
+    window.addEventListener('laboral-contrato:new', onNew);
+    window.addEventListener('laboral-contrato:edit', onEdit);
+    window.addEventListener('laboral-contrato:delete', onDelete);
+    window.addEventListener('laboral-contrato:export', onExport);
+    window.addEventListener('laboral-contrato:columns', onColumns);
+    return () => {
+      window.removeEventListener('laboral-contrato:new', onNew);
+      window.removeEventListener('laboral-contrato:edit', onEdit);
+      window.removeEventListener('laboral-contrato:delete', onDelete);
+      window.removeEventListener('laboral-contrato:export', onExport);
+      window.removeEventListener('laboral-contrato:columns', onColumns);
+    };
+  }, [selectedContrato, visibleColumns, selectedIds, contratos, contratosConNombre]);
 
   
   const matchingAccounts = useMemo(() => {
@@ -318,12 +361,6 @@ export default function LaboralContratos() {
       console.error('Error al guardar contrato:', err);
       alert('Error al guardar el contrato: ' + err.message);
     }
-  };
-
-  const handleDelete = async (c) => {
-    if (!window.confirm(`¿Eliminar contrato "${c.puesto}"?`)) return;
-    await deleteDoc(doc(db, 'laboral_contratos', c.id));
-    if (selectedContrato?.id === c.id) setSelectedContrato(null);
   };
 
   const handleSaveField = async (c, field, value) => {
@@ -655,7 +692,14 @@ if (activeTab === 'Documentos') return (
             <table style={{ zoom: tableZoom }} className="clean-table">
               <thead>
                 <tr className="sticky top-0 z-10">
-                  
+                  <th className="w-8 !p-0 text-center bg-[#fafafa]">
+                    <input 
+                      type="checkbox" 
+                      className="cursor-pointer rounded-none accent-[#2b579a] w-3.5 h-3.5 align-middle" 
+                      checked={filteredAndColumnFilteredContratos.length > 0 && selectedIds.length === filteredAndColumnFilteredContratos.length} 
+                      onChange={() => handleToggleSelectAll(filteredAndColumnFilteredContratos)} 
+                    />
+                  </th>
                   {visibleColumns.map(col => {
                     switch(col) {
                     case 'id': return (<TableHeaderWithFilter
@@ -682,12 +726,20 @@ if (activeTab === 'Documentos') return (
               </thead>
               <tbody>
                 {filteredAndColumnFilteredContratos.length === 0 ? (
-                  <tr><td colSpan={visibleColumns.length} className="text-center py-8 text-gray-400 font-medium">No hay contratos registrados.</td></tr>
+                  <tr><td colSpan={visibleColumns.length + 1} className="text-center py-8 text-gray-400 font-medium">No hay contratos registrados.</td></tr>
                 ) : (
                   filteredAndColumnFilteredContratos.map(c => (
-                    <tr key={c.id} className={selectedContrato?.id === c.id ? 'selected' : ''}
+                    <tr key={c.id} className={selectedContrato?.id === c.id || selectedIds.includes(c.id) ? 'selected' : ''}
                       onClick={e => { e.stopPropagation(); setSelectedContrato(c); }}
                       onDoubleClick={() => handleEdit(c)}>
+                      <td className="w-8 !p-0 text-center" onClick={e => e.stopPropagation()}>
+                        <input 
+                          type="checkbox" 
+                          className="cursor-pointer rounded-none accent-[#2b579a] w-3.5 h-3.5 align-middle" 
+                          checked={selectedIds.includes(c.id)} 
+                          onChange={() => handleToggleSelect(c.id)} 
+                        />
+                      </td>
                       
                   {visibleColumns.map(col => {
                     switch(col) {

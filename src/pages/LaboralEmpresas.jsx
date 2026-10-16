@@ -17,9 +17,22 @@ export default function LaboralEmpresas() {
   const { user, queryUserIds } = useAuth();
   const [empresas, setEmpresas] = useState([]);
   const [selectedEmpresa, setSelectedEmpresa] = useState(null);
+  const [selectedIds, setSelectedIds] = useState([]);
   const [showForm, setShowForm] = useState(false);
   const [isEditing, setIsEditing] = useState(false);
   const [filterValue, setFilterValue] = useState('');
+
+  const handleToggleSelect = (id) => {
+    setSelectedIds(prev => prev.includes(id) ? prev.filter(x => x !== id) : [...prev, id]);
+  };
+
+  const handleToggleSelectAll = (displayedItems) => {
+    if (selectedIds.length === displayedItems.length && displayedItems.length > 0) {
+      setSelectedIds([]);
+    } else {
+      setSelectedIds(displayedItems.map(item => item.id));
+    }
+  };
 
   const DEFAULT_COLUMNS = ['id', 'nombre', 'razonSocial', 'cif', 'sector'];
   const { visibleColumns, toggleColumn, columnWidths, updateColumnWidth } = useTableColumns('laboral-empresas', DEFAULT_COLUMNS);
@@ -43,10 +56,74 @@ export default function LaboralEmpresas() {
     return () => unsub();
   }, [user, queryUserIds]);
 
+  const filteredEmpresas = useMemo(() => {
+    if (!filterValue) return empresas;
+    const f = filterValue.toLowerCase();
+    return empresas.filter(e =>
+      (e.nombre || '').toLowerCase().includes(f) ||
+      (e.razonSocial || '').toLowerCase().includes(f) ||
+      (e.cif || '').toLowerCase().includes(f) ||
+      (e.sector || '').toLowerCase().includes(f)
+    );
+  }, [empresas, filterValue]);
+
+  const filteredAndColumnFilteredEmpresas = useMemo(() => {
+    return applyTableFilters(filteredEmpresas, 'laboral-empresas');
+  }, [filteredEmpresas, applyTableFilters]);
+
+  const handleNew = () => {
+    setFormData({ id: Date.now().toString(36).toUpperCase(), nombre: '', razonSocial: '', cif: '', sector: '', telefono: '', email: '', direccion: '', ciudad: '', web: '', notas: '' });
+    setIsEditing(false);
+    setShowForm(true);
+  };
+
+  const handleEdit = (emp) => {
+    if (selectedIds.length > 1) {
+      alert("No se puede modificar más de un elemento a la vez. Por favor, selecciona solo uno.");
+      return;
+    }
+    const target = (selectedIds.length === 1 ? empresas.find(e => e.id === selectedIds[0]) : null) || emp || selectedEmpresa;
+    if (!target) {
+      alert('Selecciona una empresa primero.');
+      return;
+    }
+    setFormData({ ...target });
+    setIsEditing(true);
+    setShowForm(true);
+  };
+
+  const handleSave = async () => {
+    if (!formData.nombre) { alert('El nombre es obligatorio'); return; }
+    const docRef = doc(db, 'laboral_empresas', formData.id);
+    await setDoc(docRef, { ...formData, userId: user.uid }, { merge: true });
+    setShowForm(false);
+  };
+
+  const handleDelete = async (emp) => {
+    if (selectedIds.length > 1) {
+      if (!window.confirm(`¿Está seguro de que desea eliminar las ${selectedIds.length} empresas seleccionadas?`)) return;
+      for (const id of selectedIds) {
+        await deleteDoc(doc(db, 'laboral_empresas', id));
+      }
+      setSelectedIds([]);
+      if (selectedEmpresa && selectedIds.includes(selectedEmpresa.id)) setSelectedEmpresa(null);
+      return;
+    }
+    const target = (selectedIds.length === 1 ? empresas.find(e => e.id === selectedIds[0]) : null) || emp || selectedEmpresa;
+    if (!target) {
+      alert('Selecciona una empresa primero.');
+      return;
+    }
+    if (!window.confirm(`¿Eliminar empresa "${target.nombre}"?`)) return;
+    await deleteDoc(doc(db, 'laboral_empresas', target.id));
+    setSelectedIds(prev => prev.filter(id => id !== target.id));
+    if (selectedEmpresa?.id === target.id) setSelectedEmpresa(null);
+  };
+
   useEffect(() => {
     const onNew = () => handleNew();
-    const onEdit = () => { if (selectedEmpresa) handleEdit(selectedEmpresa); else alert('Selecciona una empresa primero.'); };
-    const onDelete = () => { if (selectedEmpresa) handleDelete(selectedEmpresa); else alert('Selecciona una empresa primero.'); };
+    const onEdit = () => handleEdit();
+    const onDelete = () => handleDelete();
     const onExport = (e) => {
       const format = e.detail?.format || 'csv';
       if (format === 'pdf') {
@@ -78,47 +155,7 @@ export default function LaboralEmpresas() {
       window.removeEventListener('laboral-empresa:export', onExport);
       window.removeEventListener('laboral-empresa:columns', onColumns);
     };
-  }, [selectedEmpresa, visibleColumns]);
-
-  const filteredEmpresas = useMemo(() => {
-    if (!filterValue) return empresas;
-    const f = filterValue.toLowerCase();
-    return empresas.filter(e =>
-      (e.nombre || '').toLowerCase().includes(f) ||
-      (e.razonSocial || '').toLowerCase().includes(f) ||
-      (e.cif || '').toLowerCase().includes(f) ||
-      (e.sector || '').toLowerCase().includes(f)
-    );
-  }, [empresas, filterValue]);
-
-  const filteredAndColumnFilteredEmpresas = useMemo(() => {
-    return applyTableFilters(filteredEmpresas, 'laboral-empresas');
-  }, [filteredEmpresas, applyTableFilters]);
-
-  const handleNew = () => {
-    setFormData({ id: Date.now().toString(36).toUpperCase(), nombre: '', razonSocial: '', cif: '', sector: '', telefono: '', email: '', direccion: '', ciudad: '', web: '', notas: '' });
-    setIsEditing(false);
-    setShowForm(true);
-  };
-
-  const handleEdit = (emp) => {
-    setFormData({ ...emp });
-    setIsEditing(true);
-    setShowForm(true);
-  };
-
-  const handleSave = async () => {
-    if (!formData.nombre) { alert('El nombre es obligatorio'); return; }
-    const docRef = doc(db, 'laboral_empresas', formData.id);
-    await setDoc(docRef, { ...formData, userId: user.uid }, { merge: true });
-    setShowForm(false);
-  };
-
-  const handleDelete = async (emp) => {
-    if (!window.confirm(`¿Eliminar empresa "${emp.nombre}"?`)) return;
-    await deleteDoc(doc(db, 'laboral_empresas', emp.id));
-    if (selectedEmpresa?.id === emp.id) setSelectedEmpresa(null);
-  };
+  }, [selectedEmpresa, visibleColumns, selectedIds, empresas, filteredEmpresas]);
 
   const handleSaveField = async (emp, field, value) => {
     const docRef = doc(db, 'laboral_empresas', emp.id);
@@ -141,7 +178,14 @@ export default function LaboralEmpresas() {
             <table style={{ zoom: tableZoom }} className="clean-table">
               <thead>
                 <tr className="sticky top-0 z-10">
-                  
+                  <th className="w-8 !p-0 text-center bg-[#fafafa]">
+                    <input 
+                      type="checkbox" 
+                      className="cursor-pointer rounded-none accent-[#2b579a] w-3.5 h-3.5 align-middle" 
+                      checked={filteredAndColumnFilteredEmpresas.length > 0 && selectedIds.length === filteredAndColumnFilteredEmpresas.length} 
+                      onChange={() => handleToggleSelectAll(filteredAndColumnFilteredEmpresas)} 
+                    />
+                  </th>
                   {visibleColumns.map(col => {
                     switch(col) {
                     case 'id': return (<TableHeaderWithFilter
@@ -172,12 +216,20 @@ export default function LaboralEmpresas() {
               </thead>
               <tbody>
                 {filteredAndColumnFilteredEmpresas.length === 0 ? (
-                  <tr><td colSpan={visibleColumns.length} className="text-center py-8 text-gray-400 font-medium">No hay empresas registradas.</td></tr>
+                  <tr><td colSpan={visibleColumns.length + 1} className="text-center py-8 text-gray-400 font-medium">No hay empresas registradas.</td></tr>
                 ) : (
                   filteredAndColumnFilteredEmpresas.map(emp => (
-                    <tr key={emp.id} className={selectedEmpresa?.id === emp.id ? 'selected' : ''}
+                    <tr key={emp.id} className={selectedEmpresa?.id === emp.id || selectedIds.includes(emp.id) ? 'selected' : ''}
                       onClick={e => { e.stopPropagation(); setSelectedEmpresa(emp); }}
                       onDoubleClick={() => handleEdit(emp)}>
+                      <td className="w-8 !p-0 text-center" onClick={e => e.stopPropagation()}>
+                        <input 
+                          type="checkbox" 
+                          className="cursor-pointer rounded-none accent-[#2b579a] w-3.5 h-3.5 align-middle" 
+                          checked={selectedIds.includes(emp.id)} 
+                          onChange={() => handleToggleSelect(emp.id)} 
+                        />
+                      </td>
                       
                   {visibleColumns.map(col => {
                     switch(col) {

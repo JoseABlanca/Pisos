@@ -94,12 +94,25 @@ export default function RealEstate() {
     };
   }, [user, refreshKey]);
   const [selectedProperty, setSelectedProperty] = useState(null);
+  const [selectedIds, setSelectedIds] = useState([]);
   const [isEditing, setIsEditing] = useState(false);
   const [activeTab, setActiveTab] = useState('Datos');
   const [availableAccounts, setAvailableAccounts] = useState([]);
   const [showAccountsModal, setShowAccountsModal] = useState(false);
   const [cebes, setCebes] = useState([]);
   const [cecos, setCecos] = useState([]);
+
+  const handleToggleSelect = (id) => {
+    setSelectedIds(prev => prev.includes(id) ? prev.filter(x => x !== id) : [...prev, id]);
+  };
+
+  const handleToggleSelectAll = (displayedItems) => {
+    if (selectedIds.length === displayedItems.length && displayedItems.length > 0) {
+      setSelectedIds([]);
+    } else {
+      setSelectedIds(displayedItems.map(item => item.id));
+    }
+  };
 
   const [selectedTenantIndex, setSelectedTenantIndex] = useState(null);
   const [previewDocument, setPreviewDocument] = useState(null);
@@ -409,7 +422,16 @@ export default function RealEstate() {
   };
 
   const handleEdit = (prop) => {
-    const target = prop || selectedProperty;
+    if (selectedIds.length > 1) {
+      alert("No se puede modificar más de un elemento a la vez. Por favor, selecciona solo uno.");
+      return;
+    }
+    const targetId = selectedIds.length === 1 ? selectedIds[0] : (prop?.id || selectedProperty?.id);
+    if (!targetId) {
+      alert("Por favor, selecciona un activo para modificar.");
+      return;
+    }
+    const target = properties.find(p => p.id === targetId) || prop || selectedProperty;
     if (!target) return;
     setSelectedTenantIndex(null);
     setSelectedServiceIndex(null);
@@ -549,12 +571,30 @@ export default function RealEstate() {
     }
   };
 
-  const handleDelete = () => {
-    if (!selectedProperty) return;
-    if (window.confirm(`¿Está seguro de que desea eliminar la propiedad ${selectedProperty.name}?`)) {
-      setProperties(properties.filter(p => p.id !== selectedProperty.id));
-      deletePropertyFromCloud(selectedProperty.id);
-      setSelectedProperty(null);
+  const handleDelete = async () => {
+    if (selectedIds.length > 1) {
+      if (window.confirm(`¿Está seguro de que desea eliminar los ${selectedIds.length} activos seleccionados?`)) {
+        for (const id of selectedIds) {
+          await deletePropertyFromCloud(id);
+        }
+        setProperties(prev => prev.filter(p => !selectedIds.includes(p.id)));
+        setSelectedIds([]);
+        if (selectedProperty && selectedIds.includes(selectedProperty.id)) {
+          setSelectedProperty(null);
+        }
+      }
+      return;
+    }
+    const target = (selectedIds.length === 1 ? properties.find(p => p.id === selectedIds[0]) : null) || selectedProperty;
+    if (!target) {
+      alert("Por favor, selecciona un activo para eliminar.");
+      return;
+    }
+    if (window.confirm(`¿Está seguro de que desea eliminar la propiedad ${target.name}?`)) {
+      setProperties(prev => prev.filter(p => p.id !== target.id));
+      await deletePropertyFromCloud(target.id);
+      setSelectedIds(prev => prev.filter(id => id !== target.id));
+      if (selectedProperty?.id === target.id) setSelectedProperty(null);
     }
   };
 
@@ -571,7 +611,7 @@ export default function RealEstate() {
       window.removeEventListener('real-estate:edit', onEdit);
       window.removeEventListener('real-estate:delete', onDelete);
     };
-  }, [selectedProperty, properties]);
+  }, [selectedProperty, properties, selectedIds]);
 
   const [filterColumn, setFilterColumn] = useState('name');
   const [filterOperator, setFilterOperator] = useState('contains');
@@ -855,9 +895,9 @@ export default function RealEstate() {
                 <table style={{ zoom: tableZoom }} className="modern-table w-full border-0">
                   <thead>
                     <tr>
+                      <th className="w-[20%] text-left text-[10px]">Fecha</th>
                       <th className="w-[30%] text-left text-[10px]">Documento</th>
                       <th className="w-[35%] text-left text-[10px]">Concepto</th>
-                      <th className="w-[20%] text-left text-[10px]">Fecha</th>
                       <th className="w-[15%] text-center text-[10px]">Acción</th>
                     </tr>
                   </thead>
@@ -869,6 +909,9 @@ export default function RealEstate() {
                     ) : (
                       applyTableFilters(formData.docs, 'realestate-docs').map((doc) => (
                         <tr key={doc.id}>
+                          <td className="py-1 px-2">
+                            <input type="date" className="w-full bg-transparent border-transparent hover:border-gray-300 focus:bg-white focus:border-[#666] focus:shadow-[inset_0_1px_2px_rgba(0,0,0,0.12)] text-[11px] px-1 outline-none h-[24px] transition-colors rounded-sm" value={doc.date || ''} onChange={(e) => updateAssetDocument(doc.id, 'date', e.target.value)} />
+                          </td>
                           <td className="py-2 px-3">
                             <div className="flex items-center space-x-2 truncate">
                               <FileText className="w-3.5 h-3.5 text-gray-500 shrink-0" />
@@ -877,9 +920,6 @@ export default function RealEstate() {
                           </td>
                           <td className="py-1 px-2">
                             <input type="text" className="w-full bg-transparent border-transparent hover:border-gray-300 focus:bg-white focus:border-[#666] focus:shadow-[inset_0_1px_2px_rgba(0,0,0,0.12)] text-[11px] px-1 outline-none h-[24px] transition-colors rounded-sm" value={doc.concept || ''} onChange={(e) => updateAssetDocument(doc.id, 'concept', e.target.value)} placeholder="Añadir concepto..." />
-                          </td>
-                          <td className="py-1 px-2">
-                            <input type="date" className="w-full bg-transparent border-transparent hover:border-gray-300 focus:bg-white focus:border-[#666] focus:shadow-[inset_0_1px_2px_rgba(0,0,0,0.12)] text-[11px] px-1 outline-none h-[24px] transition-colors rounded-sm" value={doc.date || ''} onChange={(e) => updateAssetDocument(doc.id, 'date', e.target.value)} />
                           </td>
                           <td className="py-2 px-3 text-center">
                             <div className="flex justify-center items-center space-x-4">
@@ -969,10 +1009,21 @@ export default function RealEstate() {
           </div>
           <div className="flex-1 overflow-y-auto overflow-x-hidden">
             {renderFilterMenu()}
-            <table style={{ zoom: tableZoom }} className="clean-table">
-              <thead>
-                <tr className="sticky top-0 z-10">
-                  {visibleColumns.includes('id') && <TableHeaderWithFilter label="ID" columnKey="id" data={propertiesWithCalculatedRentals} tableId="properties" className="w-16 md:w-20" />}
+            {(() => {
+              const displayedProperties = applyTableFilters(propertiesWithCalculatedRentals, 'properties');
+              return (
+                <table style={{ zoom: tableZoom }} className="clean-table">
+                  <thead>
+                    <tr className="sticky top-0 z-10">
+                      <th className="w-8 !p-0 text-center bg-[#fafafa]">
+                        <input 
+                          type="checkbox" 
+                          className="cursor-pointer rounded-none accent-[#2b579a] w-3.5 h-3.5 align-middle" 
+                          checked={displayedProperties.length > 0 && selectedIds.length === displayedProperties.length} 
+                          onChange={() => handleToggleSelectAll(displayedProperties)} 
+                        />
+                      </th>
+                      {visibleColumns.includes('id') && <TableHeaderWithFilter label="ID" columnKey="id" data={propertiesWithCalculatedRentals} tableId="properties" className="w-16 md:w-20" />}
                   {visibleColumns.includes('name') && <TableHeaderWithFilter label="Nombre" columnKey="name" data={propertiesWithCalculatedRentals} tableId="properties" className="w-32 md:w-48" />}
                   {visibleColumns.includes('address') && <TableHeaderWithFilter label="Dirección" columnKey="address" data={propertiesWithCalculatedRentals} tableId="properties" className="hidden md:table-cell md:w-64" />}
                   {visibleColumns.includes('country') && <TableHeaderWithFilter label="País" columnKey="country" data={propertiesWithCalculatedRentals} tableId="properties" className="hidden md:table-cell" />}
@@ -1011,8 +1062,16 @@ export default function RealEstate() {
                 </tr>
               </thead>
               <tbody>
-                {applyTableFilters(propertiesWithCalculatedRentals, 'properties').map(p => (
-                  <tr key={p.id} className={selectedProperty?.id === p.id ? 'selected' : ''} onClick={(e) => { e.stopPropagation(); setSelectedProperty(p); }} onDoubleClick={() => handleEdit(p)}>
+                {displayedProperties.map(p => (
+                  <tr key={p.id} className={selectedProperty?.id === p.id || selectedIds.includes(p.id) ? 'selected' : ''} onClick={(e) => { e.stopPropagation(); setSelectedProperty(p); }} onDoubleClick={() => handleEdit(p)}>
+                    <td className="w-8 !p-0 text-center" onClick={(e) => e.stopPropagation()}>
+                      <input 
+                        type="checkbox" 
+                        className="cursor-pointer rounded-none accent-[#2b579a] w-3.5 h-3.5 align-middle" 
+                        checked={selectedIds.includes(p.id)} 
+                        onChange={() => handleToggleSelect(p.id)} 
+                      />
+                    </td>
                     {visibleColumns.includes('id') && <td>{p.id}</td>}
                     {visibleColumns.includes('name') && <EditableCell value={p.name} onSave={(val) => handleSaveField(p, 'name', val)} />}
                     {visibleColumns.includes('address') && <EditableCell className="hidden md:table-cell" value={p.address} onSave={(val) => handleSaveField(p, 'address', val)} />}
@@ -1053,6 +1112,8 @@ export default function RealEstate() {
                 ))}
               </tbody>
             </table>
+              );
+            })()}
           </div>
         </div>
       </div>
@@ -1120,19 +1181,17 @@ export default function RealEstate() {
             initialPos={{ x: isMobile ? 0 : 50, y: isMobile ? 0 : 20 }}
             onClose={() => setShowAccountsModal(false)}
           >
-            <div className="bg-[#d4d0c8] flex flex-col h-[600px]">
-              <div className="flex-1 overflow-auto p-1">
-                <div className="bg-white border border-[#808080] shadow-[1px_1px_0px_#000] min-h-full h-full relative">
-                  <Accounts 
-                    isModal={true} 
-                    onAccountSelect={(code) => {
-                      setFormData(prev => ({ ...prev, accountingAccount: code }));
-                      setShowAccountsModal(false);
-                    }} 
-                  />
-                </div>
+            <div className="bg-white flex flex-col w-full h-[600px] relative overflow-hidden">
+              <div className="flex-1 overflow-hidden relative">
+                <Accounts 
+                  isModal={true} 
+                  onAccountSelect={(code) => {
+                    setFormData(prev => ({ ...prev, accountingAccount: code }));
+                    setShowAccountsModal(false);
+                  }} 
+                />
               </div>
-              <div className="flex justify-end gap-2 shrink-0 pt-2 pb-1 pr-1 bg-[#d4d0c8] border-t border-[#808080]">
+              <div className="flex justify-end gap-2 shrink-0 px-3 py-1.5 bg-[#f0f0f0] border-t border-gray-300">
                 <button 
                   className="px-6 py-1 border border-gray-400 bg-gray-100 hover:bg-gray-200 shadow-sm text-[11px] font-bold uppercase" 
                   onClick={() => setShowAccountsModal(false)}

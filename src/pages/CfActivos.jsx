@@ -52,9 +52,23 @@ export default function CfActivos() {
   const [projects, setProjects] = useState([]);
   const [platforms, setPlatforms] = useState([]);
   const [selectedProject, setSelectedProject] = useState(null);
+  const [selectedIds, setSelectedIds] = useState([]);
   const [showForm, setShowForm] = useState(false);
   const [isEditing, setIsEditing] = useState(false);
   const [formData, setFormData] = useState(EMPTY_FORM);
+
+  const handleToggleSelect = (id) => {
+    setSelectedIds(prev => prev.includes(id) ? prev.filter(x => x !== id) : [...prev, id]);
+  };
+
+  const handleToggleSelectAll = (displayedItems) => {
+    if (selectedIds.length === displayedItems.length && displayedItems.length > 0) {
+      setSelectedIds([]);
+    } else {
+      setSelectedIds(displayedItems.map(p => p.id));
+    }
+  };
+
   const [searchQuery, setSearchQuery] = useState('');
   const [typeFilter, setTypeFilter] = useState('todos');
   const [statusFilter, setStatusFilter] = useState('todos');
@@ -315,12 +329,10 @@ export default function CfActivos() {
   useEffect(() => {
     const onNew = () => handleNew();
     const onEdit = () => {
-      if (selectedProject) handleEdit(selectedProject);
-      else alert('Por favor, seleccione un proyecto de la lista primero.');
+      handleEdit();
     };
     const onDelete = () => {
-      if (selectedProject) handleDelete(selectedProject);
-      else alert('Por favor, seleccione un proyecto de la lista primero.');
+      handleDelete();
     };
     const onExport = (e) => {
       const format = e.detail?.format || 'csv';
@@ -350,7 +362,7 @@ export default function CfActivos() {
       window.removeEventListener('cf-activo:delete', onDelete);
       window.removeEventListener('cf-activo:export', onExport);
     };
-  }, [projects, selectedProject, filteredProjects, visibleColumns]);
+  }, [projects, selectedProject, selectedIds, filteredProjects, visibleColumns]);
 
   const handleNew = () => {
     setIsEditing(false);
@@ -364,17 +376,46 @@ export default function CfActivos() {
   };
 
   const handleEdit = (project) => {
+    if (selectedIds.length > 1) {
+      alert("No se puede modificar más de un elemento a la vez. Por favor, selecciona solo uno.");
+      return;
+    }
+    const target = (selectedIds.length === 1 ? projects.find(p => p.id === selectedIds[0]) : null) || project || selectedProject;
+    if (!target) {
+      alert('Por favor, seleccione un proyecto de la lista primero.');
+      return;
+    }
     setIsEditing(true);
     setActiveFormTab('datos');
-    setFormData({ ...EMPTY_FORM, ...project });
+    setFormData({ ...EMPTY_FORM, ...target });
+    setSelectedProject(target);
     setShowForm(true);
   };
 
   const handleDelete = async (project) => {
-    if (window.confirm(`¿Está seguro de que desea eliminar el proyecto ${project.name} (${project.id})?`)) {
+    if (selectedIds.length > 1) {
+      if (!window.confirm(`¿Está seguro de que desea eliminar los ${selectedIds.length} proyectos seleccionados?`)) return;
+      for (const id of selectedIds) {
+        try {
+          await deleteDoc(doc(db, 'cf_projects', id));
+        } catch (error) {
+          console.error('Error deleting project:', error);
+        }
+      }
+      setSelectedIds([]);
+      if (selectedProject && selectedIds.includes(selectedProject.id)) setSelectedProject(null);
+      return;
+    }
+    const target = (selectedIds.length === 1 ? projects.find(p => p.id === selectedIds[0]) : null) || project || selectedProject;
+    if (!target) {
+      alert('Por favor, seleccione un proyecto de la lista primero.');
+      return;
+    }
+    if (window.confirm(`¿Está seguro de que desea eliminar el proyecto ${target.name} (${target.id})?`)) {
       try {
-        await deleteDoc(doc(db, 'cf_projects', project.id));
-        setSelectedProject(null);
+        await deleteDoc(doc(db, 'cf_projects', target.id));
+        setSelectedIds(prev => prev.filter(x => x !== target.id));
+        if (selectedProject?.id === target.id) setSelectedProject(null);
       } catch (error) {
         console.error('Error deleting project:', error);
         alert('Error al eliminar el proyecto: ' + error.message);
@@ -521,42 +562,59 @@ export default function CfActivos() {
           </div>
 
           <div className="win-table-container">
-            <table style={{ zoom: tableZoom }} className="clean-table">
-              <thead>
-                <tr>
-                  
-                  {visibleColumns.map(col => {
-                    switch(col) {
-                    case 'id': return (<TableHeaderWithFilter key="id" label="ID" columnKey="id" data={filteredProjects} tableId="cf-activos-main" />);
-                    case 'name': return (<TableHeaderWithFilter key="name" label="Nombre" columnKey="name" data={filteredProjects} tableId="cf-activos-main" />);
-                    case 'platformName': return (<TableHeaderWithFilter key="platformName" label="Plataforma" columnKey="platformName" data={filteredProjects} tableId="cf-activos-main" />);
-                    case 'type': return (<TableHeaderWithFilter key="type" label="Tipo" columnKey="type" data={filteredProjects} tableId="cf-activos-main" />);
-                    case 'targetAmount': return (<TableHeaderWithFilter key="targetAmount" label="Objetivo (€)" columnKey="targetAmount" data={filteredProjects} tableId="cf-activos-main" className="text-right" />);
-                    case 'annualRate': return (<TableHeaderWithFilter key="annualRate" label="Tasa anual (%)" columnKey="annualRate" data={filteredProjects} tableId="cf-activos-main" className="text-right" />);
-                    case 'term': return (<TableHeaderWithFilter key="term" label="Plazo (m)" columnKey="term" data={filteredProjects} tableId="cf-activos-main" className="text-right" />);
-                    case 'status': return (<TableHeaderWithFilter key="status" label="Estado" columnKey="status" data={filteredProjects} tableId="cf-activos-main" />);
-                    default: return null;
-                    }
-                  })}
-    
-                </tr>
-              </thead>
-              <tbody>
-                {filteredProjects.length === 0 ? (
-                  <tr>
-                    <td colSpan={visibleColumns.length} className="text-center py-8 text-gray-400 font-medium">
-                      No se encontraron proyectos. Añade uno nuevo desde el menú superior.
-                    </td>
-                  </tr>
-                ) : (
-                  applyTableFilters(filteredProjects, 'cf-activos-main').map((proj) => (
-                    <tr
-                      key={proj.id}
-                      onClick={() => setSelectedProject(selectedProject?.id === proj.id ? null : proj)}
-                      onDoubleClick={() => handleEdit(proj)}
-                      className={selectedProject?.id === proj.id ? 'selected' : ''}
-                    >
-                      
+            {(() => {
+              const displayedProjects = applyTableFilters(filteredProjects, 'cf-activos-main');
+              return (
+                <table style={{ zoom: tableZoom }} className="clean-table">
+                  <thead>
+                    <tr>
+                      <th className="w-8 !p-0 text-center bg-[#fafafa]">
+                        <input 
+                          type="checkbox" 
+                          className="cursor-pointer rounded-none accent-[#2b579a] w-3.5 h-3.5 align-middle" 
+                          checked={displayedProjects.length > 0 && selectedIds.length === displayedProjects.length} 
+                          onChange={() => handleToggleSelectAll(displayedProjects)} 
+                        />
+                      </th>
+                      {visibleColumns.map(col => {
+                        switch(col) {
+                        case 'id': return (<TableHeaderWithFilter key="id" label="ID" columnKey="id" data={filteredProjects} tableId="cf-activos-main" />);
+                        case 'name': return (<TableHeaderWithFilter key="name" label="Nombre" columnKey="name" data={filteredProjects} tableId="cf-activos-main" />);
+                        case 'platformName': return (<TableHeaderWithFilter key="platformName" label="Plataforma" columnKey="platformName" data={filteredProjects} tableId="cf-activos-main" />);
+                        case 'type': return (<TableHeaderWithFilter key="type" label="Tipo" columnKey="type" data={filteredProjects} tableId="cf-activos-main" />);
+                        case 'targetAmount': return (<TableHeaderWithFilter key="targetAmount" label="Objetivo (€)" columnKey="targetAmount" data={filteredProjects} tableId="cf-activos-main" className="text-right" />);
+                        case 'annualRate': return (<TableHeaderWithFilter key="annualRate" label="Tasa anual (%)" columnKey="annualRate" data={filteredProjects} tableId="cf-activos-main" className="text-right" />);
+                        case 'term': return (<TableHeaderWithFilter key="term" label="Plazo (m)" columnKey="term" data={filteredProjects} tableId="cf-activos-main" className="text-right" />);
+                        case 'status': return (<TableHeaderWithFilter key="status" label="Estado" columnKey="status" data={filteredProjects} tableId="cf-activos-main" />);
+                        default: return null;
+                        }
+                      })}
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {displayedProjects.length === 0 ? (
+                      <tr>
+                        <td colSpan={visibleColumns.length + 1} className="text-center py-8 text-gray-400 font-medium">
+                          No se encontraron proyectos. Añade uno nuevo desde el menú superior.
+                        </td>
+                      </tr>
+                    ) : (
+                      displayedProjects.map((proj) => (
+                        <tr
+                          key={proj.id}
+                          onClick={() => setSelectedProject(selectedProject?.id === proj.id ? null : proj)}
+                          onDoubleClick={() => handleEdit(proj)}
+                          className={selectedProject?.id === proj.id || selectedIds.includes(proj.id) ? 'selected' : ''}
+                        >
+                          <td className="w-8 !p-0 text-center" onClick={(e) => e.stopPropagation()}>
+                            <input 
+                              type="checkbox" 
+                              className="cursor-pointer rounded-none accent-[#2b579a] w-3.5 h-3.5 align-middle" 
+                              checked={selectedIds.includes(proj.id)} 
+                              onChange={() => handleToggleSelect(proj.id)} 
+                            />
+                          </td>
+
                   {visibleColumns.map(col => {
                     switch(col) {
                     case 'id': return (<td
@@ -622,6 +680,8 @@ export default function CfActivos() {
                 )}
               </tbody>
             </table>
+              );
+            })()}
           </div>
 
           {/* Status Bar */}

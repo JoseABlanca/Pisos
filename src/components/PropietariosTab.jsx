@@ -154,7 +154,7 @@ export default function PropietariosTab({ formData, setFormData, user, queryUser
                   ) : (
                     owners.map((owner, idx) => (
                       <tr key={owner.partnerId}>
-                        <td className="font-bold text-[11px]">{owner.name}</td>
+                        <td className="text-[11px] text-black">{owner.name}</td>
                         <td className="text-center text-[11px]">{owner.nif || '-'}</td>
                         <td className="p-2 w-24">
                           <input 
@@ -213,7 +213,7 @@ export default function PropietariosTab({ formData, setFormData, user, queryUser
                   ) : (
                     owners.map((owner) => (
                       <tr key={`metrics-${owner.partnerId}`}>
-                        <td className="font-bold text-[11px]">{owner.name}</td>
+                        <td className="text-[11px] text-black">{owner.name}</td>
                         <td className="text-right text-[11px] text-black">{(parseFloat(owner.percentage) || 0).toLocaleString('de-DE', { minimumFractionDigits: 2, maximumFractionDigits: 2 })} %</td>
                         <td className="text-right text-[11px] text-black">{(totalCapitalAndExpenses * ((parseFloat(owner.percentage) || 0) / 100)).toLocaleString('de-DE', { minimumFractionDigits: 2, maximumFractionDigits: 2 })} €</td>
                         <td className="text-right text-[11px] text-black">{(theoreticalSalePrice * ((parseFloat(owner.percentage) || 0) / 100)).toLocaleString('de-DE', { minimumFractionDigits: 2, maximumFractionDigits: 2 })} €</td>

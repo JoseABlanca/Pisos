@@ -385,22 +385,30 @@ export default function ComunidadTab({
             <table className="modern-table w-full">
               <thead>
                 <tr>
+                  <th className="w-28 text-center">Fecha</th>
                   <th className="w-[40%]">Documento</th>
                   <th className="w-[30%]">Concepto</th>
-                  <th className="w-24 text-center">Fecha</th>
                   <th className="w-20 text-center">Acción</th>
                 </tr>
               </thead>
                 <tbody>
                   {documents.length === 0 ? (
                     <tr>
-                      <td colSpan="5" className="text-center text-slate-500 py-4 italic text-[11px]">
+                      <td colSpan="4" className="text-center text-slate-500 py-4 italic text-[11px]">
                         No hay documentos guardados
                       </td>
                     </tr>
                   ) : (
                     documents.map((doc, idx) => (
                       <tr key={doc.id || idx}>
+                        <td className="text-center p-2">
+                          <input 
+                            type="date" 
+                            value={doc.date ? doc.date.split('T')[0] : ''}
+                            onChange={(e) => updateDocument(doc.id, 'date', e.target.value)}
+                            className="w-full bg-transparent border-transparent hover:border-gray-300 focus:bg-white focus:border-[#666] focus:shadow-[inset_0_1px_2px_rgba(0,0,0,0.12)] text-[11px] px-1 outline-none h-[24px] text-center"
+                          />
+                        </td>
                         <td className="p-2 flex items-center text-[11px] text-gray-700">
                           <FileText className="w-4 h-4 text-slate-400 mr-2 shrink-0" />
                           <span className="truncate" title={doc.name || 'Sin archivo'}>{doc.name || 'Sin archivo'}</span>
@@ -411,14 +419,6 @@ export default function ComunidadTab({
                             value={doc.concept || ''}
                             onChange={(e) => updateDocument(doc.id, 'concept', e.target.value)}
                             className="w-full bg-transparent border-transparent hover:border-gray-300 focus:bg-white focus:border-[#666] focus:shadow-[inset_0_1px_2px_rgba(0,0,0,0.12)] text-[11px] px-1 outline-none h-[24px]"
-                          />
-                        </td>
-                        <td className="text-center p-2">
-                          <input 
-                            type="date"
-                            value={doc.date ? doc.date.split('T')[0] : ''}
-                            onChange={(e) => updateDocument(doc.id, 'date', e.target.value)}
-                            className="w-full bg-transparent border-transparent hover:border-gray-300 focus:bg-white focus:border-[#666] focus:shadow-[inset_0_1px_2px_rgba(0,0,0,0.12)] text-[11px] px-1 outline-none h-[24px] text-center"
                           />
                         </td>
                         <td className="text-center p-2">
@@ -476,24 +476,22 @@ export default function ComunidadTab({
             initialPos={{ x: isMobile ? 0 : 50, y: isMobile ? 0 : 20 }}
             onClose={() => setShowAccountsModal(false)}
           >
-            <div className="bg-[#fafafa] flex flex-col h-[600px]">
-              <div className="flex-1 overflow-auto p-1">
-                <div className="bg-white border border-[#808080] shadow-[1px_1px_0px_#000] min-h-full h-full relative">
-                  <Accounts 
-                    isModal={true} 
-                    onAccountSelect={(code) => {
-                      if (activeAccountField === 'communityAccount') {
-                        updateCommunityField('accountingAccount', code);
-                      } else if (activeAccountField.startsWith('derrama_')) {
-                        const idx = parseInt(activeAccountField.split('_')[1]);
-                        updateDerrama(idx, 'accountingAccount', code);
-                      }
-                      setShowAccountsModal(false);
-                    }} 
-                  />
-                </div>
+            <div className="bg-white flex flex-col w-full h-[600px] relative overflow-hidden">
+              <div className="flex-1 overflow-hidden relative">
+                <Accounts 
+                  isModal={true} 
+                  onAccountSelect={(code) => {
+                    if (activeAccountField === 'communityAccount') {
+                      updateCommunityField('accountingAccount', code);
+                    } else if (activeAccountField.startsWith('derrama_')) {
+                      const idx = parseInt(activeAccountField.split('_')[1]);
+                      updateDerrama(idx, 'accountingAccount', code);
+                    }
+                    setShowAccountsModal(false);
+                  }} 
+                />
               </div>
-              <div className="flex justify-end gap-2 shrink-0 pt-2 pb-1 pr-1 bg-[#fafafa] border-t border-[#808080]">
+              <div className="flex justify-end gap-2 shrink-0 px-3 py-1.5 bg-[#f0f0f0] border-t border-gray-300">
                 <button 
                   className="px-6 py-1 border border-gray-400 bg-gray-100 hover:bg-gray-200 shadow-sm text-[11px] font-bold uppercase" 
                   onClick={() => setShowAccountsModal(false)}

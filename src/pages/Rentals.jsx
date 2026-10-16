@@ -39,9 +39,22 @@ export default function Rentals() {
   const [isMobile, setIsMobile] = useState(window.innerWidth < 768);
   const [searchQuery, setSearchQuery] = useState('');
   const [selectedRental, setSelectedRental] = useState(null);
+  const [selectedIds, setSelectedIds] = useState([]);
   const [previewDocument, setPreviewDocument] = useState(null);
   const [dragOverZone, setDragOverZone] = useState(null);
   const [isUploading, setIsUploading] = useState(false);
+
+  const handleToggleSelect = (id) => {
+    setSelectedIds(prev => prev.includes(id) ? prev.filter(x => x !== id) : [...prev, id]);
+  };
+
+  const handleToggleSelectAll = (displayedItems) => {
+    if (selectedIds.length === displayedItems.length && displayedItems.length > 0) {
+      setSelectedIds([]);
+    } else {
+      setSelectedIds(displayedItems.map(item => item.docId || item.id));
+    }
+  };
 
   const handleRentalFileUpload = async (files) => {
     if (!files.length || !user || !formData.docId) return;
@@ -185,12 +198,10 @@ export default function Rentals() {
       setActiveFormTab('general');
     };
     const onEdit = () => {
-      if (selectedRental) handleEdit(selectedRental);
-      else alert('Por favor, seleccione un alquiler primero.');
+      handleEdit();
     };
     const onDelete = () => {
-      if (selectedRental) handleDelete(selectedRental.id || selectedRental.docId);
-      else alert('Por favor, seleccione un alquiler primero.');
+      handleDelete();
     };
 
     window.addEventListener('rentals:new', onNew);
@@ -201,7 +212,7 @@ export default function Rentals() {
       window.removeEventListener('rentals:edit', onEdit);
       window.removeEventListener('rentals:delete', onDelete);
     };
-  }, [initialFormState, selectedRental]);
+  }, [initialFormState, selectedRental, selectedIds, rentals]);
 
   const handleSave = async () => {
     if (!formData.propertyId) {
@@ -238,10 +249,35 @@ export default function Rentals() {
   };
 
   const handleDelete = async (id) => {
+    if (selectedIds.length > 1) {
+      if (!window.confirm(`¿Está seguro de que desea eliminar los ${selectedIds.length} alquileres seleccionados?`)) return;
+      for (const selId of selectedIds) {
+        try {
+          await deleteDoc(doc(db, 'rentals', selId));
+        } catch (error) {
+          console.error('Error deleting rental:', error);
+        }
+      }
+      setSelectedIds([]);
+      if (selectedRental && selectedIds.includes(selectedRental.docId || selectedRental.id)) {
+        setSelectedRental(null);
+      }
+      return;
+    }
+    const target = (selectedIds.length === 1 ? rentals.find(r => (r.docId || r.id) === selectedIds[0]) : null) || (id ? rentals.find(r => (r.docId || r.id) === id) : selectedRental);
+    if (!target) {
+      alert('Por favor, seleccione un alquiler primero.');
+      return;
+    }
+    const targetDocId = target.docId || target.id;
     if (window.confirm('¿Eliminar este alquiler?')) {
       try {
-        await deleteDoc(doc(db, 'rentals', id));
-        if (isEditing && formData.docId === id) setShowForm(false);
+        await deleteDoc(doc(db, 'rentals', targetDocId));
+        setSelectedIds(prev => prev.filter(x => x !== targetDocId));
+        if (selectedRental && (selectedRental.docId || selectedRental.id) === targetDocId) {
+          setSelectedRental(null);
+        }
+        if (isEditing && formData.docId === targetDocId) setShowForm(false);
       } catch (error) {
         console.error('Error deleting rental:', error);
       }
@@ -301,7 +337,16 @@ export default function Rentals() {
 
 
   const handleEdit = (rental) => {
-    setFormData(rental);
+    if (selectedIds.length > 1) {
+      alert("No se puede modificar más de un elemento a la vez. Por favor, selecciona solo uno.");
+      return;
+    }
+    const target = (selectedIds.length === 1 ? rentals.find(r => (r.docId || r.id) === selectedIds[0]) : null) || rental || selectedRental;
+    if (!target) {
+      alert('Por favor, seleccione un alquiler primero.');
+      return;
+    }
+    setFormData(target);
     setIsEditing(true);
     setShowForm(true);
     setActiveFormTab('general');
@@ -575,11 +620,50 @@ export default function Rentals() {
 
           <div className="flex-1 overflow-auto bg-white relative" onClick={(e) => e.stopPropagation()}>
             {renderFilterMenu()}
-            <table style={{ zoom: tableZoom }} className="clean-table">
-              <thead>
-                <tr className="sticky top-0 z-10">
-                  
-                  {visibleColumns.map(col => {
+            {(() => {
+              const displayedRentals = applyTableFilters(filteredRentals.filter(r => {
+                if (!searchQuery) return true;
+                const sq = searchQuery.toLowerCase();
+                const prop = properties.find(p => p.id === r.propertyId);
+                const propName = prop ? prop.name : r.propertyName || '';
+                const cust = customers.find(c => c.id === r.tenantId);
+                const custName = cust ? cust.name : '';
+                const ref = r.reference || r._originalId || '';
+                
+                return propName.toLowerCase().includes(sq) || 
+                       custName.toLowerCase().includes(sq) ||
+                       ref.toLowerCase().includes(sq);
+              }).map(rental => {
+                const prop = properties.find(p => p.id === rental.propertyId);
+                const cust = customers.find(c => c.id === rental.tenantId);
+                return {
+                  ...rental,
+                  id: rental._originalId || rental.id || '',
+                  propertyDisplay: prop ? prop.name : rental.propertyName || rental.propertyId || 'Desconocido',
+                  tenantDisplay: rental.rentalType === 'alquiler por habitaciones' && rental.rooms?.length > 0 
+                    ? rental.rooms.filter(rm => rm.status === 'ocupada').map(rm => {
+                        const c = customers.find(c => c.id === rm.tenantId);
+                        return c ? c.name : null;
+                      }).filter(Boolean).join(', ') || 'Ninguno'
+                    : (rental.tenants?.length > 0 ? rental.tenants.map(t => t.name).join(', ') : (cust ? cust.name : 'Ninguno')),
+                  deposit: Number(rental.depositAmount || 0).toLocaleString('es-ES', { minimumFractionDigits: 2 }),
+                  rent: Number(rental.rentAmount || 0).toLocaleString('es-ES', { minimumFractionDigits: 2 })
+                };
+              }), 'rentals');
+
+              return (
+                <table style={{ zoom: tableZoom }} className="clean-table">
+                  <thead>
+                    <tr className="sticky top-0 z-10">
+                      <th className="w-8 !p-0 text-center bg-[#fafafa]">
+                        <input 
+                          type="checkbox" 
+                          className="cursor-pointer rounded-none accent-[#2b579a] w-3.5 h-3.5 align-middle" 
+                          checked={displayedRentals.length > 0 && selectedIds.length === displayedRentals.length} 
+                          onChange={() => handleToggleSelectAll(displayedRentals)} 
+                        />
+                      </th>
+                      {visibleColumns.map(col => {
                     switch(col) {
                     case 'id': return (<TableHeaderWithFilter
  key="id" label="ID" columnKey="id" data={rentals.map(r => ({ ...r, id: r._originalId || r.id || '' }))} tableId="rentals" className="w-24" />);
@@ -623,41 +707,21 @@ export default function Rentals() {
                 </tr>
               </thead>
               <tbody>
-                {applyTableFilters(filteredRentals.filter(r => {
-                  if (!searchQuery) return true;
-                  const sq = searchQuery.toLowerCase();
-                  const prop = properties.find(p => p.id === r.propertyId);
-                  const propName = prop ? prop.name : r.propertyName || '';
-                  const cust = customers.find(c => c.id === r.tenantId);
-                  const custName = cust ? cust.name : '';
-                  const ref = r.reference || r._originalId || '';
-                  
-                  return propName.toLowerCase().includes(sq) || 
-                         custName.toLowerCase().includes(sq) ||
-                         ref.toLowerCase().includes(sq);
-                }).map(rental => {
-                  const prop = properties.find(p => p.id === rental.propertyId);
-                  const cust = customers.find(c => c.id === rental.tenantId);
-                  return {
-                    ...rental,
-                    id: rental._originalId || rental.id || '',
-                    propertyDisplay: prop ? prop.name : rental.propertyName || rental.propertyId || 'Desconocido',
-                    tenantDisplay: rental.rentalType === 'alquiler por habitaciones' && rental.rooms?.length > 0 
-                      ? rental.rooms.filter(rm => rm.status === 'ocupada').map(rm => {
-                          const c = customers.find(c => c.id === rm.tenantId);
-                          return c ? c.name : null;
-                        }).filter(Boolean).join(', ') || 'Ninguno'
-                      : (rental.tenants?.length > 0 ? rental.tenants.map(t => t.name).join(', ') : (cust ? cust.name : 'Ninguno')),
-                    deposit: Number(rental.depositAmount || 0).toLocaleString('es-ES', { minimumFractionDigits: 2 }),
-                    rent: Number(rental.rentAmount || 0).toLocaleString('es-ES', { minimumFractionDigits: 2 })
-                  };
-                }), 'rentals').map((rental) => (
+                {displayedRentals.map((rental) => (
                 <tr 
                   key={rental.docId} 
-                  className={selectedRental?.docId === rental.docId ? 'selected' : ''}
+                  className={selectedRental?.docId === rental.docId || selectedIds.includes(rental.docId) ? 'selected' : ''}
                   onClick={(e) => { e.stopPropagation(); setSelectedRental(rental); }}
                   onDoubleClick={() => handleEdit(rental)}
                 >
+                  <td className="w-8 !p-0 text-center" onClick={(e) => e.stopPropagation()}>
+                    <input 
+                      type="checkbox" 
+                      className="cursor-pointer rounded-none accent-[#2b579a] w-3.5 h-3.5 align-middle" 
+                      checked={selectedIds.includes(rental.docId)} 
+                      onChange={() => handleToggleSelect(rental.docId)} 
+                    />
+                  </td>
                   
                   {visibleColumns.map(col => {
                     switch(col) {
@@ -743,13 +807,15 @@ export default function Rentals() {
     
                 </tr>
                 ))}
-            {rentals.length === 0 && (
+            {displayedRentals.length === 0 && (
               <tr>
-                <td colSpan={visibleColumns.length} className="text-center py-20 text-slate-400 italic">No hay alquileres registrados</td>
+                <td colSpan={visibleColumns.length + 1} className="text-center py-20 text-slate-400 italic">No hay alquileres registrados</td>
               </tr>
             )}
           </tbody>
         </table>
+              );
+            })()}
       </div>
     </div>
   </div>
@@ -1450,9 +1516,9 @@ export default function Rentals() {
                           <table style={{ zoom: tableZoom }} className="win-table min-w-full">
                           <thead className="sticky top-0 bg-[#fafafa]">
                             <tr>
+                              <TableHeaderWithFilter key="createdAt" label="Fecha" columnKey="createdAt" data={formData.documents} tableId="rentals-docs" />
                               <TableHeaderWithFilter key="name" label="Nombre del Archivo" columnKey="name" data={formData.documents} tableId="rentals-docs" />
                               <TableHeaderWithFilter key="type" label="Tipo" columnKey="type" data={formData.documents} tableId="rentals-docs" />
-                              <TableHeaderWithFilter key="createdAt" label="Fecha" columnKey="createdAt" data={formData.documents} tableId="rentals-docs" />
                               <TableHeaderWithFilter key="size" label="Tamaño" columnKey="size" data={formData.documents} tableId="rentals-docs" />
                               <th className="w-8"></th>
                             </tr>
@@ -1465,6 +1531,7 @@ export default function Rentals() {
                             ) : (
                               applyTableFilters(formData.documents || [], 'rentals-docs').map((doc, idx) => (
                                 <tr key={idx}>
+                                  <td>{doc.date}</td>
                                   <td>
                                     {doc.url ? (
                                       <span 
@@ -1478,7 +1545,6 @@ export default function Rentals() {
                                     )}
                                   </td>
                                   <td>{doc.type}</td>
-                                  <td>{doc.date}</td>
                                   <td>{doc.size}</td>
                                   <td className="text-center">
                                     <button 

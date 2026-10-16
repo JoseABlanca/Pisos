@@ -694,9 +694,9 @@ export default function HipotecaTab({
                 <table className="modern-table w-full border-0">
                   <thead>
                     <tr>
+                      <th className="w-[20%] text-left text-[10px]">Fecha</th>
                       <th className="w-[30%] text-left text-[10px]">Documento</th>
                       <th className="w-[35%] text-left text-[10px]">Concepto</th>
-                      <th className="w-[20%] text-left text-[10px]">Fecha</th>
                       <th className="w-[15%] text-center text-[10px]">Acción</th>
                     </tr>
                   </thead>
@@ -708,6 +708,14 @@ export default function HipotecaTab({
                     ) : (
                       formData.mortgageDocs.map((doc) => (
                         <tr key={doc.id}>
+                          <td className="py-1 px-2">
+                            <input
+                              type="date"
+                              className="w-full bg-transparent border-transparent hover:border-gray-300 focus:bg-white focus:border-[#666] focus:shadow-[inset_0_1px_2px_rgba(0,0,0,0.12)] text-[11px] px-1 outline-none h-[24px] transition-colors rounded-sm"
+                              value={doc.date || ''}
+                              onChange={(e) => updateDocument(doc.id, 'date', e.target.value)}
+                            />
+                          </td>
                           <td className="py-2 px-3">
                             <div className="flex items-center space-x-2 truncate">
                               <FileText className="w-3.5 h-3.5 text-gray-500 shrink-0" />
@@ -721,14 +729,6 @@ export default function HipotecaTab({
                               value={doc.concept || ''}
                               onChange={(e) => updateDocument(doc.id, 'concept', e.target.value)}
                               placeholder="Ej. Escritura, Recibo..."
-                            />
-                          </td>
-                          <td className="py-1 px-2">
-                            <input
-                              type="date"
-                              className="w-full bg-transparent border-transparent hover:border-gray-300 focus:bg-white focus:border-[#666] focus:shadow-[inset_0_1px_2px_rgba(0,0,0,0.12)] text-[11px] px-1 outline-none h-[24px] transition-colors rounded-sm"
-                              value={doc.date || ''}
-                              onChange={(e) => updateDocument(doc.id, 'date', e.target.value)}
                             />
                           </td>
                           <td className="py-2 px-3 text-center">
@@ -861,19 +861,17 @@ export default function HipotecaTab({
             initialPos={{ x: isMobile ? 0 : 50, y: isMobile ? 0 : 20 }}
             onClose={() => setShowAccountsModal(false)}
           >
-            <div className="bg-[#d4d0c8] flex flex-col h-[600px]">
-              <div className="flex-1 overflow-auto p-1">
-                <div className="bg-white border border-[#808080] shadow-[1px_1px_0px_#000] min-h-full h-full relative">
-                  <Accounts 
-                    isModal={true} 
-                    onAccountSelect={(code) => {
-                      setFormData(prev => ({ ...prev, mortgageAccount: code }));
-                      setShowAccountsModal(false);
-                    }} 
-                  />
-                </div>
+            <div className="bg-white flex flex-col w-full h-[600px] relative overflow-hidden">
+              <div className="flex-1 overflow-hidden relative">
+                <Accounts 
+                  isModal={true} 
+                  onAccountSelect={(code) => {
+                    setFormData(prev => ({ ...prev, mortgageAccount: code }));
+                    setShowAccountsModal(false);
+                  }} 
+                />
               </div>
-              <div className="flex justify-end gap-2 shrink-0 pt-2 pb-1 pr-1 bg-[#d4d0c8] border-t border-[#808080]">
+              <div className="flex justify-end gap-2 shrink-0 px-3 py-1.5 bg-[#f0f0f0] border-t border-gray-300">
                 <button 
                   className="px-6 py-1 border border-gray-400 bg-gray-100 hover:bg-gray-200 shadow-sm text-[11px] font-bold uppercase" 
                   onClick={() => setShowAccountsModal(false)}

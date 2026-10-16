@@ -19,8 +19,22 @@ export default function Broker() {
   const [brokers, setBrokers] = useState([]);
   const [transactions, setTransactions] = useState([]); // to show ledger in Extractos tab
   const [selectedBroker, setSelectedBroker] = useState(null);
+  const [selectedIds, setSelectedIds] = useState([]);
   const [showForm, setShowForm] = useState(false);
   const [isEditing, setIsEditing] = useState(false);
+
+  const handleToggleSelect = (id) => {
+    setSelectedIds(prev => prev.includes(id) ? prev.filter(x => x !== id) : [...prev, id]);
+  };
+
+  const handleToggleSelectAll = (displayedItems) => {
+    if (selectedIds.length === displayedItems.length && displayedItems.length > 0) {
+      setSelectedIds([]);
+    } else {
+      setSelectedIds(displayedItems.map(b => b.id));
+    }
+  };
+
   const [searchQuery, setSearchQuery] = useState('');
   const [statusFilter, setStatusFilter] = useState('todos');
   const [showSidebar, setShowSidebar] = useState(true);
@@ -176,12 +190,10 @@ export default function Broker() {
   useEffect(() => {
     const onNew = () => handleNew();
     const onEdit = () => {
-      if (selectedBroker) handleEdit(selectedBroker);
-      else alert('Por favor, seleccione un broker de la lista primero.');
+      handleEdit();
     };
     const onDelete = () => {
-      if (selectedBroker) handleDelete(selectedBroker);
-      else alert('Por favor, seleccione un broker de la lista primero.');
+      handleDelete();
     };
     const onExport = (e) => {
       const format = e.detail?.format || 'csv';
@@ -212,7 +224,7 @@ export default function Broker() {
       window.removeEventListener('rv-broker:delete', onDelete);
       window.removeEventListener('rv-broker:export', onExport);
     };
-  }, [brokers, selectedBroker, filteredBrokers, visibleColumns]);
+  }, [brokers, selectedBroker, selectedIds, filteredBrokers, visibleColumns]);
 
   const handleNew = () => {
     setIsEditing(false);
@@ -237,21 +249,50 @@ export default function Broker() {
   };
 
   const handleEdit = (broker) => {
+    if (selectedIds.length > 1) {
+      alert("No se puede modificar más de un elemento a la vez. Por favor, selecciona solo uno.");
+      return;
+    }
+    const target = (selectedIds.length === 1 ? brokers.find(b => b.id === selectedIds[0]) : null) || broker || selectedBroker;
+    if (!target) {
+      alert('Por favor, seleccione un broker de la lista primero.');
+      return;
+    }
     setIsEditing(true);
     setActiveFormTab('datos');
     setFormData({
-      ...broker,
-      accountNumber: broker.accountNumber || '',
-      accountingAccount: broker.accountingAccount || ''
+      ...target,
+      accountNumber: target.accountNumber || '',
+      accountingAccount: target.accountingAccount || ''
     });
+    setSelectedBroker(target);
     setShowForm(true);
   };
 
   const handleDelete = async (broker) => {
-    if (window.confirm(`¿Está seguro de que desea eliminar el broker ${broker.name} (${broker.id})?`)) {
+    if (selectedIds.length > 1) {
+      if (!window.confirm(`¿Está seguro de que desea eliminar los ${selectedIds.length} brokers seleccionados?`)) return;
+      for (const id of selectedIds) {
+        try {
+          await deleteDoc(doc(db, 'rv_brokers', id));
+        } catch (error) {
+          console.error('Error deleting broker:', error);
+        }
+      }
+      setSelectedIds([]);
+      if (selectedBroker && selectedIds.includes(selectedBroker.id)) setSelectedBroker(null);
+      return;
+    }
+    const target = (selectedIds.length === 1 ? brokers.find(b => b.id === selectedIds[0]) : null) || broker || selectedBroker;
+    if (!target) {
+      alert('Por favor, seleccione un broker de la lista primero.');
+      return;
+    }
+    if (window.confirm(`¿Está seguro de que desea eliminar el broker ${target.name} (${target.id})?`)) {
       try {
-        await deleteDoc(doc(db, 'rv_brokers', broker.id));
-        setSelectedBroker(null);
+        await deleteDoc(doc(db, 'rv_brokers', target.id));
+        setSelectedIds(prev => prev.filter(x => x !== target.id));
+        if (selectedBroker?.id === target.id) setSelectedBroker(null);
       } catch (error) {
         console.error('Error deleting broker:', error);
         alert('Error al eliminar el broker: ' + error.message);
@@ -371,38 +412,56 @@ export default function Broker() {
           </div>
 
           <div className="win-table-container">
-            <table style={{ zoom: tableZoom }} className="clean-table">
-              <thead>
-                <tr>
-                  
-                  {visibleColumns.map(col => {
-                    switch(col) {
-                    case 'id': return (<TableHeaderWithFilter key="id" label="ID Broker" columnKey="id" data={filteredBrokers} tableId="brokers-main" />);
-                    case 'name': return (<TableHeaderWithFilter key="name" label="Nombre Broker" columnKey="name" data={filteredBrokers} tableId="brokers-main" />);
-                    case 'accountNumber': return (<TableHeaderWithFilter key="accountNumber" label="Número de cuenta" columnKey="accountNumber" data={filteredBrokers} tableId="brokers-main" />);
-                    case 'currency': return (<TableHeaderWithFilter key="currency" label="Tipo de divisa" columnKey="currency" data={filteredBrokers} tableId="brokers-main" />);
-                    case 'status': return (<TableHeaderWithFilter key="status" label="Estado" columnKey="status" data={filteredBrokers} tableId="brokers-main" />);
-                    default: return null;
-                    }
-                  })}
-    
-                </tr>
-              </thead>
-              <tbody>
-                {filteredBrokers.length === 0 ? (
-                  <tr>
-                    <td colSpan={visibleColumns.length} className="text-center py-8 text-gray-400 font-medium">
-                      No se encontraron brokers. Añade uno nuevo desde el menú superior.
-                    </td>
-                  </tr>
-                ) : (
-                  applyTableFilters(filteredBrokers, 'brokers-main').map((broker) => (
-                    <tr
-                      key={broker.id}
-                      onClick={() => setSelectedBroker(selectedBroker?.id === broker.id ? null : broker)}
-                      className={selectedBroker?.id === broker.id ? 'selected' : ''}
-                    >
-                      
+            {(() => {
+              const displayedBrokers = applyTableFilters(filteredBrokers, 'brokers-main');
+              return (
+                <table style={{ zoom: tableZoom }} className="clean-table">
+                  <thead>
+                    <tr>
+                      <th className="w-8 !p-0 text-center bg-[#fafafa]">
+                        <input 
+                          type="checkbox" 
+                          className="cursor-pointer rounded-none accent-[#2b579a] w-3.5 h-3.5 align-middle" 
+                          checked={displayedBrokers.length > 0 && selectedIds.length === displayedBrokers.length} 
+                          onChange={() => handleToggleSelectAll(displayedBrokers)} 
+                        />
+                      </th>
+                      {visibleColumns.map(col => {
+                        switch(col) {
+                        case 'id': return (<TableHeaderWithFilter key="id" label="ID Broker" columnKey="id" data={filteredBrokers} tableId="brokers-main" />);
+                        case 'name': return (<TableHeaderWithFilter key="name" label="Nombre Broker" columnKey="name" data={filteredBrokers} tableId="brokers-main" />);
+                        case 'accountNumber': return (<TableHeaderWithFilter key="accountNumber" label="Número de cuenta" columnKey="accountNumber" data={filteredBrokers} tableId="brokers-main" />);
+                        case 'currency': return (<TableHeaderWithFilter key="currency" label="Tipo de divisa" columnKey="currency" data={filteredBrokers} tableId="brokers-main" />);
+                        case 'status': return (<TableHeaderWithFilter key="status" label="Estado" columnKey="status" data={filteredBrokers} tableId="brokers-main" />);
+                        default: return null;
+                        }
+                      })}
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {displayedBrokers.length === 0 ? (
+                      <tr>
+                        <td colSpan={visibleColumns.length + 1} className="text-center py-8 text-gray-400 font-medium">
+                          No se encontraron brokers. Añade uno nuevo desde el menú superior.
+                        </td>
+                      </tr>
+                    ) : (
+                      displayedBrokers.map((broker) => (
+                        <tr
+                          key={broker.id}
+                          onClick={() => setSelectedBroker(selectedBroker?.id === broker.id ? null : broker)}
+                          onDoubleClick={() => handleEdit(broker)}
+                          className={selectedBroker?.id === broker.id || selectedIds.includes(broker.id) ? 'selected' : ''}
+                        >
+                          <td className="w-8 !p-0 text-center" onClick={(e) => e.stopPropagation()}>
+                            <input 
+                              type="checkbox" 
+                              className="cursor-pointer rounded-none accent-[#2b579a] w-3.5 h-3.5 align-middle" 
+                              checked={selectedIds.includes(broker.id)} 
+                              onChange={() => handleToggleSelect(broker.id)} 
+                            />
+                          </td>
+
                   {visibleColumns.map(col => {
                     switch(col) {
                     case 'id': return (<td
@@ -424,6 +483,8 @@ export default function Broker() {
                 )}
               </tbody>
             </table>
+              );
+            })()}
           </div>
         </div>
       </div>

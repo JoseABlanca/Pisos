@@ -24,9 +24,23 @@ export default function RvTransactions() {
   
   // UI State
   const [selectedTx, setSelectedTx] = useState(null);
+  const [selectedIds, setSelectedIds] = useState([]);
   const [showForm, setShowForm] = useState(false);
   const [isEditing, setIsEditing] = useState(false);
   const [searchQuery, setSearchQuery] = useState('');
+
+  const handleToggleSelect = (id) => {
+    setSelectedIds(prev => prev.includes(id) ? prev.filter(x => x !== id) : [...prev, id]);
+  };
+
+  const handleToggleSelectAll = (displayedItems) => {
+    if (selectedIds.length === displayedItems.length && displayedItems.length > 0) {
+      setSelectedIds([]);
+    } else {
+      setSelectedIds(displayedItems.map(t => t.id));
+    }
+  };
+
   
   // Sidebar Filters
   const [brokerFilter, setBrokerFilter] = useState('todos');
@@ -270,12 +284,10 @@ export default function RvTransactions() {
   useEffect(() => {
     const onNew = () => handleNew();
     const onEdit = () => {
-      if (selectedTx) handleEdit(selectedTx);
-      else alert('Por favor, seleccione una transacción primero.');
+      handleEdit();
     };
     const onDelete = () => {
-      if (selectedTx) handleDelete(selectedTx);
-      else alert('Por favor, seleccione una transacción primero.');
+      handleDelete();
     };
     const onExport = (e) => {
       const format = e.detail?.format || 'csv';
@@ -310,7 +322,7 @@ export default function RvTransactions() {
       window.removeEventListener('rv-transaction:delete', onDelete);
       window.removeEventListener('rv-transaction:export', onExport);
     };
-  }, [filteredTransactions, selectedTx]);
+  }, [filteredTransactions, selectedTx, selectedIds, transactions]);
 
   const handleNew = () => {
     setIsEditing(false);
@@ -340,16 +352,45 @@ export default function RvTransactions() {
   };
 
   const handleEdit = (tx) => {
+    if (selectedIds.length > 1) {
+      alert("No se puede modificar más de un elemento a la vez. Por favor, selecciona solo uno.");
+      return;
+    }
+    const target = (selectedIds.length === 1 ? transactions.find(t => t.id === selectedIds[0]) : null) || tx || selectedTx;
+    if (!target) {
+      alert('Por favor, seleccione una transacción primero.');
+      return;
+    }
     setIsEditing(true);
-    setFormData({ ...tx });
+    setFormData({ ...target });
+    setSelectedTx(target);
     setShowForm(true);
   };
 
   const handleDelete = async (tx) => {
-    if (window.confirm(`¿Está seguro de que desea eliminar la transacción ${tx.id}?`)) {
+    if (selectedIds.length > 1) {
+      if (!window.confirm(`¿Está seguro de que desea eliminar las ${selectedIds.length} transacciones seleccionadas?`)) return;
+      for (const id of selectedIds) {
+        try {
+          await deleteDoc(doc(db, 'rv_transactions', id));
+        } catch (error) {
+          console.error('Error deleting transaction:', error);
+        }
+      }
+      setSelectedIds([]);
+      if (selectedTx && selectedIds.includes(selectedTx.id)) setSelectedTx(null);
+      return;
+    }
+    const target = (selectedIds.length === 1 ? transactions.find(t => t.id === selectedIds[0]) : null) || tx || selectedTx;
+    if (!target) {
+      alert('Por favor, seleccione una transacción primero.');
+      return;
+    }
+    if (window.confirm(`¿Está seguro de que desea eliminar la transacción ${target.id}?`)) {
       try {
-        await deleteDoc(doc(db, 'rv_transactions', tx.id));
-        setSelectedTx(null);
+        await deleteDoc(doc(db, 'rv_transactions', target.id));
+        setSelectedIds(prev => prev.filter(x => x !== target.id));
+        if (selectedTx?.id === target.id) setSelectedTx(null);
       } catch (error) {
         console.error('Error deleting transaction:', error);
         alert('Error al eliminar transacción: ' + error.message);
@@ -488,45 +529,62 @@ export default function RvTransactions() {
           </div>
 
           <div className="win-table-container">
-            <table style={{ zoom: tableZoom }} className="clean-table">
-              <thead>
-                <tr>
-                  
-                  {visibleColumns.map(col => {
-                    switch(col) {
-                    case 'id': return (<TableHeaderWithFilter key="id" label="ID Transacción" columnKey="id" data={filteredTransactions} tableId="rv-tx-main" />);
-                    case 'date': return (<TableHeaderWithFilter key="date" label="Fecha" columnKey="date" data={filteredTransactions} tableId="rv-tx-main" />);
-                    case 'assetId': return (<TableHeaderWithFilter key="assetId" label="Activo (Ticker)" columnKey="assetId" data={filteredTransactions} tableId="rv-tx-main" />);
-                    case 'brokerName': return (<TableHeaderWithFilter key="brokerName" label="Broker" columnKey="brokerName" data={filteredTransactions} tableId="rv-tx-main" />);
-                    case 'type': return (<TableHeaderWithFilter key="type" label="Tipo" columnKey="type" data={filteredTransactions} tableId="rv-tx-main" />);
-                    case 'quantity': return (<TableHeaderWithFilter key="quantity" label="Cantidad" columnKey="quantity" data={filteredTransactions} tableId="rv-tx-main" className="text-right" />);
-                    case 'price': return (<TableHeaderWithFilter key="price" label="Precio Unit." columnKey="price" data={filteredTransactions} tableId="rv-tx-main" className="text-right" />);
-                    case 'fee': return (<TableHeaderWithFilter key="fee" label="Comisiones" columnKey="fee" data={filteredTransactions} tableId="rv-tx-main" className="text-right" />);
-                    case 'currency': return (<TableHeaderWithFilter key="currency" label="Divisa" columnKey="currency" data={filteredTransactions} tableId="rv-tx-main" />);
-                    case 'exchangeRate': return (<TableHeaderWithFilter key="exchangeRate" label="Cambio" columnKey="exchangeRate" data={filteredTransactions} tableId="rv-tx-main" className="text-right" />);
-                    case 'totalAmount': return (<TableHeaderWithFilter key="totalAmount" label="Total" columnKey="totalAmount" data={filteredTransactions} tableId="rv-tx-main" className="text-right" />);
-                    default: return null;
-                    }
-                  })}
-    
-                </tr>
-              </thead>
-              <tbody>
-                {filteredTransactions.length === 0 ? (
-                  <tr>
-                    <td colSpan={visibleColumns.length} className="text-center py-8 text-gray-400 font-medium">
-                      No se encontraron transacciones. Añada una nueva desde el menú superior.
-                    </td>
-                  </tr>
-                ) : (
-                  applyTableFilters(filteredTransactions, 'rv-tx-main').map((tx) => (
-                    <tr
-                      key={tx.id}
-                      onClick={() => setSelectedTx(selectedTx?.id === tx.id ? null : tx)}
-                      onDoubleClick={() => handleEdit(tx)}
-                      className={selectedTx?.id === tx.id ? 'selected' : ''}
-                    >
-                      
+            {(() => {
+              const displayedTx = applyTableFilters(filteredTransactions, 'rv-tx-main');
+              return (
+                <table style={{ zoom: tableZoom }} className="clean-table">
+                  <thead>
+                    <tr>
+                      <th className="w-8 !p-0 text-center bg-[#fafafa]">
+                        <input 
+                          type="checkbox" 
+                          className="cursor-pointer rounded-none accent-[#2b579a] w-3.5 h-3.5 align-middle" 
+                          checked={displayedTx.length > 0 && selectedIds.length === displayedTx.length} 
+                          onChange={() => handleToggleSelectAll(displayedTx)} 
+                        />
+                      </th>
+                      {visibleColumns.map(col => {
+                        switch(col) {
+                        case 'id': return (<TableHeaderWithFilter key="id" label="ID Transacción" columnKey="id" data={filteredTransactions} tableId="rv-tx-main" />);
+                        case 'date': return (<TableHeaderWithFilter key="date" label="Fecha" columnKey="date" data={filteredTransactions} tableId="rv-tx-main" />);
+                        case 'assetId': return (<TableHeaderWithFilter key="assetId" label="Activo (Ticker)" columnKey="assetId" data={filteredTransactions} tableId="rv-tx-main" />);
+                        case 'brokerName': return (<TableHeaderWithFilter key="brokerName" label="Broker" columnKey="brokerName" data={filteredTransactions} tableId="rv-tx-main" />);
+                        case 'type': return (<TableHeaderWithFilter key="type" label="Tipo" columnKey="type" data={filteredTransactions} tableId="rv-tx-main" />);
+                        case 'quantity': return (<TableHeaderWithFilter key="quantity" label="Cantidad" columnKey="quantity" data={filteredTransactions} tableId="rv-tx-main" className="text-right" />);
+                        case 'price': return (<TableHeaderWithFilter key="price" label="Precio Unit." columnKey="price" data={filteredTransactions} tableId="rv-tx-main" className="text-right" />);
+                        case 'fee': return (<TableHeaderWithFilter key="fee" label="Comisiones" columnKey="fee" data={filteredTransactions} tableId="rv-tx-main" className="text-right" />);
+                        case 'currency': return (<TableHeaderWithFilter key="currency" label="Divisa" columnKey="currency" data={filteredTransactions} tableId="rv-tx-main" />);
+                        case 'exchangeRate': return (<TableHeaderWithFilter key="exchangeRate" label="Cambio" columnKey="exchangeRate" data={filteredTransactions} tableId="rv-tx-main" className="text-right" />);
+                        case 'totalAmount': return (<TableHeaderWithFilter key="totalAmount" label="Total" columnKey="totalAmount" data={filteredTransactions} tableId="rv-tx-main" className="text-right" />);
+                        default: return null;
+                        }
+                      })}
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {displayedTx.length === 0 ? (
+                      <tr>
+                        <td colSpan={visibleColumns.length + 1} className="text-center py-8 text-gray-400 font-medium">
+                          No se encontraron transacciones. Añada una nueva desde el menú superior.
+                        </td>
+                      </tr>
+                    ) : (
+                      displayedTx.map((tx) => (
+                        <tr
+                          key={tx.id}
+                          onClick={() => setSelectedTx(selectedTx?.id === tx.id ? null : tx)}
+                          onDoubleClick={() => handleEdit(tx)}
+                          className={selectedTx?.id === tx.id || selectedIds.includes(tx.id) ? 'selected' : ''}
+                        >
+                          <td className="w-8 !p-0 text-center" onClick={(e) => e.stopPropagation()}>
+                            <input 
+                              type="checkbox" 
+                              className="cursor-pointer rounded-none accent-[#2b579a] w-3.5 h-3.5 align-middle" 
+                              checked={selectedIds.includes(tx.id)} 
+                              onChange={() => handleToggleSelect(tx.id)} 
+                            />
+                          </td>
+
                   {visibleColumns.map(col => {
                     switch(col) {
                     case 'id': return (<td
@@ -612,6 +670,8 @@ export default function RvTransactions() {
                 )}
               </tbody>
             </table>
+              );
+            })()}
           </div>
         </div>
       </div>
