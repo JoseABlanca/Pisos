@@ -610,9 +610,7 @@ export default function Accounts({ isModal = false, onAccountSelect = null }) {
     <div className="flex h-full bg-white relative font-sans">
       {!isModal && (
         <div className="absolute top-0 left-0 w-full h-8 bg-white border-b border-gray-200 flex items-center px-4 z-20">
-          <h2 className="text-sm font-normal text-gray-800 tracking-wide uppercase">
-            {activeTab === 'pgc' ? 'PLAN GENERAL DE CONTABILIDAD' : 'CONFIGURACION DE CUENTAS'}
-          </h2>
+          <h2 className="text-sm font-normal text-gray-800 tracking-wide uppercase"></h2>
           <div className="ml-auto flex items-center space-x-4">
             <div className="relative">
               <input 
@@ -762,7 +760,7 @@ export default function Accounts({ isModal = false, onAccountSelect = null }) {
             {/* Left Sidebar */}
             {showSidebar && (
               <ResizableSidebar className=" bg-[#f8f9fa] border-r border-[#d1d5db] flex flex-col shrink-0">
-              <div className="bg-[#e9ecef] font-bold text-[12px] px-3 py-1.5 border-b border-[#d1d5db] text-gray-700">Lista actual</div>
+              <div className="h-[34px] flex items-center bg-[#e9ecef] font-bold text-[12px] px-3 border-b border-[#d1d5db] text-gray-700 shrink-0" style={{ height: '34px' }}>Lista actual</div>
               <div className="p-3 space-y-1.5 flex-1 overflow-y-auto text-[11px] text-gray-800">
                 <label className="flex items-center space-x-2 cursor-pointer mb-2">
                   <input type="radio" name="group" checked={selectedGroup === 'all'} onChange={() => setSelectedGroup('all')} />
@@ -838,10 +836,10 @@ export default function Accounts({ isModal = false, onAccountSelect = null }) {
               <div className="flex-1 flex overflow-hidden">
                 <div className="flex-1 overflow-auto">
                   <table style={{ zoom: tableZoom }} className="w-full text-left text-[11px] whitespace-nowrap">
-                    <thead className="sticky top-0 bg-[#fafafa] shadow-[0_1px_0_#d1d5db] z-10">
-                      <tr className="text-gray-700">
-                        <th className="px-3 py-2 font-normal border-r border-[#d1d5db] uppercase">Cuenta</th>
-                        <th className="px-3 py-2 font-normal uppercase">Descripción</th>
+                    <thead className="sticky top-0 bg-[#fafafa] z-10">
+                      <tr className="text-gray-700 h-[33px]">
+                        <th className="h-[33px] px-3 font-normal border-r border-b border-[#d1d5db] uppercase text-[11px] align-middle">Cuenta</th>
+                        <th className="h-[33px] px-3 font-normal border-b border-[#d1d5db] uppercase text-[11px] align-middle">Descripción</th>
                       </tr>
                     </thead>
                     <tbody>

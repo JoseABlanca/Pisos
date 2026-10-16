@@ -707,11 +707,11 @@ export default function HipotecaTab({
                       </tr>
                     ) : (
                       formData.mortgageDocs.map((doc) => (
-                        <tr key={doc.id}>
+                        <tr key={doc.id} className="hover:bg-slate-50 transition-colors">
                           <td className="py-1 px-2">
                             <input
                               type="date"
-                              className="w-full bg-transparent border-transparent hover:border-gray-300 focus:bg-white focus:border-[#666] focus:shadow-[inset_0_1px_2px_rgba(0,0,0,0.12)] text-[11px] px-1 outline-none h-[24px] transition-colors rounded-sm"
+                              className="w-full bg-transparent border-0 border-none outline-none ring-0 shadow-none focus:outline-none focus:ring-0 focus:border-0 focus:shadow-none focus:bg-transparent text-[11px] font-mono px-1 h-[24px] text-gray-800"
                               value={doc.date || ''}
                               onChange={(e) => updateDocument(doc.id, 'date', e.target.value)}
                             />
@@ -725,7 +725,7 @@ export default function HipotecaTab({
                           <td className="py-1 px-2">
                             <input
                               type="text"
-                              className="w-full bg-transparent border-transparent hover:border-gray-300 focus:bg-white focus:border-[#666] focus:shadow-[inset_0_1px_2px_rgba(0,0,0,0.12)] text-[11px] px-1 outline-none h-[24px] transition-colors rounded-sm"
+                              className="w-full bg-transparent border-0 border-none outline-none ring-0 shadow-none focus:outline-none focus:ring-0 focus:border-0 focus:shadow-none focus:bg-transparent text-[11px] px-1 h-[24px] text-gray-800"
                               value={doc.concept || ''}
                               onChange={(e) => updateDocument(doc.id, 'concept', e.target.value)}
                               placeholder="Ej. Escritura, Recibo..."

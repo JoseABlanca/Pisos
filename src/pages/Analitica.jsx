@@ -1352,7 +1352,7 @@ export default function Analitica() {
   return (
     <div className="flex h-full bg-white relative font-sans text-[12px] text-[#333] select-none">
       <div className="absolute top-0 left-0 w-full h-8 bg-white border-b border-gray-200 flex items-center px-4 z-20">
-        <h2 className="text-sm font-normal text-gray-800 tracking-wide uppercase">CONTROL DE GESTION</h2>
+        <h2 className="text-sm font-normal text-gray-800 tracking-wide uppercase"></h2>
         <div className="ml-auto flex items-center space-x-4">
           <div className="relative" onClick={e => e.stopPropagation()}>
             <input 

@@ -2,6 +2,9 @@ import React, { useState, useEffect } from 'react';
 import { Filter, X } from 'lucide-react';
 import { useAuth } from '../context/AuthContext';
 
+let globalDraggedColumnKey = null;
+let isDraggingColumn = false;
+
 export const useTableFilters = ({ columnWidths = {}, updateColumnWidth = null } = {}) => {
   const { userPreferences, updatePreferences } = useAuth() || {};
   const [activeTableFilters, setActiveTableFilters] = useState({});
@@ -52,28 +55,176 @@ export const useTableFilters = ({ columnWidths = {}, updateColumnWidth = null } 
     });
   };
 
+  const [sortConfigs, setSortConfigs] = useState(() => {
+    try {
+      const saved = localStorage.getItem('app_table_sort_configs');
+      if (saved) return JSON.parse(saved);
+    } catch (e) {
+      console.warn('Error reading sort configs from localStorage', e);
+    }
+    return {};
+  });
+
+  const [sortConfig, setSortConfig] = useState({ tableId: null, columnKey: null, direction: null });
+
+  useEffect(() => {
+    if (userPreferences?.tableSortConfigs && typeof userPreferences.tableSortConfigs === 'object') {
+      setSortConfigs(prev => {
+        const merged = { ...userPreferences.tableSortConfigs, ...prev };
+        try {
+          localStorage.setItem('app_table_sort_configs', JSON.stringify(merged));
+        } catch (e) {}
+        return merged;
+      });
+    }
+  }, [userPreferences]);
+
+  const handleSort = (tableId, columnKey) => {
+    setSortConfigs(prev => {
+      const current = prev[tableId] || { columnKey: null, direction: null };
+      let newDirection = 'asc';
+      if (current.columnKey === columnKey) {
+        if (current.direction === 'asc') newDirection = 'desc';
+        else if (current.direction === 'desc') newDirection = null;
+        else newDirection = 'asc';
+      }
+      
+      const updated = {
+        ...prev,
+        [tableId]: newDirection ? { columnKey, direction: newDirection } : null
+      };
+
+      try {
+        localStorage.setItem('app_table_sort_configs', JSON.stringify(updated));
+      } catch (err) {
+        console.warn('Failed to save sort configs to localStorage', err);
+      }
+
+      if (updatePreferences) {
+        updatePreferences({
+          ...(userPreferences || {}),
+          tableSortConfigs: updated
+        });
+      }
+
+      setSortConfig(newDirection ? { tableId, columnKey, direction: newDirection } : { tableId: null, columnKey: null, direction: null });
+
+      return updated;
+    });
+  };
+
+  const parseSortValue = (val, columnKey = '') => {
+    if (val === undefined || val === null) {
+      return { type: 'empty', val: null };
+    }
+
+    if (typeof val === 'number') {
+      if (isNaN(val)) return { type: 'empty', val: null };
+      return { type: 'number', val };
+    }
+
+    if (typeof val === 'boolean') {
+      return { type: 'number', val: val ? 1 : 0 };
+    }
+
+    const str = String(val).trim();
+    if (str === '' || str === '-' || str === '—' || str === 'N/A' || str === 'n/a' || str === '(Sin inquilino)' || str === 'Ninguno' || str === 'Sin cuenta') {
+      return { type: 'empty', val: null };
+    }
+
+    const colLower = columnKey.toLowerCase();
+    const isDateCol = colLower.includes('date') || colLower.includes('fecha') || colLower.includes('expiry') || colLower.includes('vencimiento') || colLower.includes('createdat') || colLower.includes('inicio') || colLower.includes('fin');
+
+    if (isDateCol) {
+      const dmyMatch = str.match(/^(\d{1,2})[\/\-](\d{1,2})[\/\-](\d{4})$/);
+      if (dmyMatch) {
+        const d = new Date(`${dmyMatch[3]}-${dmyMatch[2].padStart(2, '0')}-${dmyMatch[1].padStart(2, '0')}`);
+        if (!isNaN(d.getTime())) return { type: 'date', val: d.getTime() };
+      }
+      const ymdMatch = str.match(/^(\d{4})[\/\-](\d{1,2})[\/\-](\d{1,2})/);
+      if (ymdMatch) {
+        const d = new Date(str);
+        if (!isNaN(d.getTime())) return { type: 'date', val: d.getTime() };
+      }
+      const parsed = Date.parse(str);
+      if (!isNaN(parsed)) return { type: 'date', val: parsed };
+    }
+
+    // Number or formatted number/currency (e.g. "1.250,50 €", "1250 €", "15 %", "-25.00")
+    const cleanNum = str.replace(/[€$£%]/g, '').trim();
+    if (/^[+-]?[\d\s.,]+$/.test(cleanNum)) {
+      let numStr = cleanNum.replace(/\s+/g, '');
+      const hasComma = numStr.includes(',');
+      const hasDot = numStr.includes('.');
+
+      if (hasComma && hasDot) {
+        if (numStr.lastIndexOf(',') > numStr.lastIndexOf('.')) {
+          numStr = numStr.replace(/\./g, '').replace(',', '.');
+        } else {
+          numStr = numStr.replace(/,/g, '');
+        }
+      } else if (hasComma) {
+        numStr = numStr.replace(',', '.');
+      }
+      const num = Number(numStr);
+      if (!isNaN(num)) {
+        return { type: 'number', val: num };
+      }
+    }
+
+    return { type: 'string', val: str };
+  };
+
+  const applyTableSort = (data, tableId) => {
+    if (!data || !Array.isArray(data) || data.length === 0) return data;
+    const tableSort = sortConfigs[tableId] || (sortConfig.tableId === tableId ? sortConfig : null);
+    if (!tableSort || !tableSort.columnKey || !tableSort.direction) return data;
+
+    const { columnKey, direction } = tableSort;
+    const mult = direction === 'asc' ? 1 : -1;
+
+    return [...data].sort((a, b) => {
+      const parsedA = parseSortValue(a[columnKey], columnKey);
+      const parsedB = parseSortValue(b[columnKey], columnKey);
+
+      // Empty values placed at bottom
+      if (parsedA.type === 'empty' && parsedB.type === 'empty') return 0;
+      if (parsedA.type === 'empty') return 1;
+      if (parsedB.type === 'empty') return -1;
+
+      if ((parsedA.type === 'number' && parsedB.type === 'number') || 
+          (parsedA.type === 'date' && parsedB.type === 'date')) {
+        return (parsedA.val - parsedB.val) * mult;
+      }
+
+      return String(parsedA.val).localeCompare(String(parsedB.val), 'es', { numeric: true, sensitivity: 'base' }) * mult;
+    });
+  };
+
   const applyTableFilters = (data, tableId) => {
     if (!data || !Array.isArray(data)) return [];
     const filters = activeTableFilters[tableId];
-    if (!filters) return data;
+    let result = data;
+    if (filters) {
+      result = data.filter(item => {
+        return Object.entries(filters).every(([columnKey, selectedValues]) => {
+          // If selectedValues is undefined, it means "no filter" (show all).
+          // If selectedValues is [], it means "nothing selected" (show none).
+          if (selectedValues === undefined) return true;
+          if (selectedValues.length === 0) return false;
 
-    return data.filter(item => {
-      return Object.entries(filters).every(([columnKey, selectedValues]) => {
-        // If selectedValues is undefined, it means "no filter" (show all).
-        // If selectedValues is [], it means "nothing selected" (show none).
-        if (selectedValues === undefined) return true;
-        if (selectedValues.length === 0) return false;
-
-        let val = item[columnKey];
-        if (typeof val === 'number') {
-          val = !Number.isInteger(val) ? Number(val.toFixed(2)).toString() : val.toString();
-        } else if (typeof val === 'object' && val !== null) {
-          val = JSON.stringify(val);
-        }
-        val = val?.toString() || '';
-        return selectedValues.includes(val);
+          let val = item[columnKey];
+          if (typeof val === 'number') {
+            val = !Number.isInteger(val) ? Number(val.toFixed(2)).toString() : val.toString();
+          } else if (typeof val === 'object' && val !== null) {
+            val = JSON.stringify(val);
+          }
+          val = val?.toString() || '';
+          return selectedValues.includes(val);
+        });
       });
-    });
+    }
+    return applyTableSort(result, tableId);
   };
 
   const handleToggleFilterValue = (tableId, columnKey, value, allValues) => {
@@ -132,71 +283,14 @@ export const useTableFilters = ({ columnWidths = {}, updateColumnWidth = null } 
     persistFilters({});
   };
 
-  const [sortConfig, setSortConfig] = useState({ tableId: null, columnKey: null, direction: null });
-
-  const handleSort = (tableId, columnKey) => {
-    setSortConfig(prev => {
-      if (prev.tableId === tableId && prev.columnKey === columnKey) {
-        if (prev.direction === 'asc') return { tableId, columnKey, direction: 'desc' };
-        if (prev.direction === 'desc') return { tableId: null, columnKey: null, direction: null };
-      }
-      return { tableId, columnKey, direction: 'asc' };
-    });
-  };
-
-  const applyTableSort = (data, tableId) => {
-    if (!data || !Array.isArray(data) || data.length === 0) return data;
-    if (sortConfig.tableId !== tableId || !sortConfig.columnKey || !sortConfig.direction) return data;
-
-    const { columnKey, direction } = sortConfig;
-    const mult = direction === 'asc' ? 1 : -1;
-
-    return [...data].sort((a, b) => {
-      let valA = a[columnKey];
-      let valB = b[columnKey];
-
-      if (valA === undefined || valA === null) valA = '';
-      if (valB === undefined || valB === null) valB = '';
-
-      if (typeof valA === 'number' && typeof valB === 'number') {
-        return (valA - valB) * mult;
-      }
-
-      if (typeof valA === 'string' && typeof valB === 'string' && (columnKey.toLowerCase().includes('date') || columnKey.toLowerCase().includes('fecha'))) {
-        let dateA = Date.parse(valA);
-        let dateB = Date.parse(valB);
-
-        if (valA.includes('/')) {
-          const parts = valA.split('/');
-          if (parts.length === 3) dateA = new Date(`${parts[2]}-${parts[1]}-${parts[0]}`).getTime();
-        }
-        if (valB.includes('/')) {
-          const parts = valB.split('/');
-          if (parts.length === 3) dateB = new Date(`${parts[2]}-${parts[1]}-${parts[0]}`).getTime();
-        }
-
-        if (!isNaN(dateA) && !isNaN(dateB)) {
-          return (dateA - dateB) * mult;
-        }
-      }
-
-      const numA = Number(valA);
-      const numB = Number(valB);
-      if (!isNaN(numA) && !isNaN(numB) && typeof valA !== 'boolean' && typeof valB !== 'boolean' && String(valA).trim() !== '' && String(valB).trim() !== '') {
-        return (numA - numB) * mult;
-      }
-
-      return String(valA).localeCompare(String(valB), 'es', { numeric: true, sensitivity: 'base' }) * mult;
-    });
-  };
-
   const TableHeaderWithFilter = ({ label, columnKey, data, tableId, className = "", sortable = true }) => {
     const filterState = (activeTableFilters[tableId] || {})[columnKey];
     // It's active if it's NOT undefined (meaning some specific selection or empty array)
     const isActive = filterState !== undefined;
     
-    const isSorted = sortConfig.tableId === tableId && sortConfig.columnKey === columnKey;
-    const sortDirection = isSorted ? sortConfig.direction : null;
+    const tableSort = sortConfigs[tableId] || (sortConfig.tableId === tableId ? sortConfig : null);
+    const isSorted = tableSort && tableSort.columnKey === columnKey && Boolean(tableSort.direction);
+    const sortDirection = isSorted ? tableSort.direction : null;
 
     const width = columnWidths[columnKey] || null;
     const style = width ? { width: `${width}px`, minWidth: `${width}px` } : {};
@@ -253,21 +347,27 @@ export const useTableFilters = ({ columnWidths = {}, updateColumnWidth = null } 
         className={`${className} group relative hover:bg-slate-200/70 cursor-pointer select-none bg-inherit`} 
         style={style}
         onClick={() => {
+          if (isDraggingColumn) return;
           if (sortable) {
             handleSort(tableId, columnKey);
           }
         }}
+        title={sortable ? "Haz clic para ordenar" : ""}
       >
         <div
           className="w-full h-full"
           draggable
           onDragStart={(e) => {
+            isDraggingColumn = true;
             globalDraggedColumnKey = columnKey;
             e.dataTransfer.setData('text/plain', columnKey);
             e.dataTransfer.effectAllowed = 'move';
           }}
           onDragEnter={(e) => e.preventDefault()}
-          onDragEnd={() => { globalDraggedColumnKey = null; }}
+          onDragEnd={() => {
+            globalDraggedColumnKey = null;
+            setTimeout(() => { isDraggingColumn = false; }, 100);
+          }}
           onDragOver={(e) => {
             e.preventDefault();
             e.dataTransfer.dropEffect = 'move';
@@ -286,7 +386,7 @@ export const useTableFilters = ({ columnWidths = {}, updateColumnWidth = null } 
             <div className="flex items-center gap-1 min-w-0 flex-1 pr-1">
               <span className="truncate min-w-0 block pointer-events-none">{label}</span>
               {sortable && (
-                <span className="text-[9px] font-bold shrink-0 text-blue-700">
+                <span className="text-[10px] font-bold shrink-0 text-blue-700 ml-0.5">
                   {sortDirection === 'asc' ? '▲' : sortDirection === 'desc' ? '▼' : <span className="opacity-0 group-hover:opacity-40 text-slate-500">↕</span>}
                 </span>
               )}
@@ -315,6 +415,7 @@ export const useTableFilters = ({ columnWidths = {}, updateColumnWidth = null } 
           <div 
             className="absolute right-[-6px] top-0 bottom-0 w-3 cursor-col-resize hover:bg-slate-400/30 active:bg-slate-500/50 z-20"
             onMouseDown={handleMouseDown}
+            onClick={(e) => e.stopPropagation()}
           />
         </div>
       </th>
@@ -448,9 +549,14 @@ export const useTableFilters = ({ columnWidths = {}, updateColumnWidth = null } 
     applyTableFilters,
     applyTableSort,
     sortConfig,
+    sortConfigs,
     handleSort,
     clearAllFilters,
     TableHeaderWithFilter,
-    renderFilterMenu
+    renderFilterMenu,
+    openFilterMenu,
+    setOpenFilterMenu,
+    handleToggleFilterValue,
+    handleSelectAllFilters
   };
 };

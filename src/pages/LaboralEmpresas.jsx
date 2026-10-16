@@ -163,7 +163,7 @@ export default function LaboralEmpresas() {
   };
 
   return (
-    <div className="w-full h-full bg-[#d4d0c8] flex flex-col p-1 overflow-hidden font-sans">
+    <div className="w-full h-full bg-white flex flex-col overflow-hidden font-sans">
       <div className="flex flex-row flex-1 overflow-hidden bg-white relative">
         <div className="flex-1 flex flex-col bg-white overflow-hidden relative" onClick={() => setSelectedEmpresa(null)}>
           <div className="flex justify-between items-center px-4 py-2 border-b border-gray-200">

@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import { useNavigate, useSearchParams, useOutletContext } from 'react-router-dom';
 import { db } from '../firebase/config';
 import { collection, query, where, onSnapshot, doc, setDoc, deleteDoc } from 'firebase/firestore';
@@ -8,9 +8,9 @@ import {
   Check, X, Search, Plus, Trash2, Edit, Save, 
   Building2, User, Landmark, Zap, Users as UsersIcon,
   Download, Filter, ChevronLeft, ChevronRight, PanelLeft,
-  RefreshCw
+  RefreshCw, ChevronDown, FileText
 } from 'lucide-react';
-import { handleExportFormat } from '../utils/exportUtils';
+import { handleExportFormat, exportToCSV } from '../utils/exportUtils';
 import ZoomControl from '../components/ZoomControl';
 import { uploadFileToStorage } from '../utils/storageUtils';
 import { useTableColumns } from '../hooks/useTableColumns';
@@ -18,7 +18,6 @@ import { useTableFilters } from '../hooks/useTableFilters';
 import { exportToPDF } from '../utils/pdfExport';
 import EditableCell from '../components/EditableCell';
 import ResizableSidebar from '../components/ResizableSidebar';
-
 export default function Customers() {
   const { tableZoom } = useOutletContext() || { tableZoom: 1 };
   const [showForm, setShowForm] = useState(false);
@@ -49,8 +48,7 @@ export default function Customers() {
   const [activeFormTab, setActiveFormTab] = useState('general');
   const [showModalSidebar, setShowModalSidebar] = useState(true);
   const formTabs = [
-    { id: 'general', name: 'Detalles Generales' },
-    { id: 'docs', name: 'Documentos' },
+    { id: 'general', name: 'Datos' },
     { id: 'trans', name: 'Transacciones' }
   ];
   const [filterColumn, setFilterColumn] = useState('name');
@@ -514,8 +512,35 @@ export default function Customers() {
     };
   }, [customers, selectedCustomer, selectedIds, filterColumn, filterOperator, filterValue]);
 
+  const propertyOptions = [
+    ...availableProperties.map(p => ({
+      value: p.name || p.address || p.id,
+      label: p.name ? `${p.name}${p.address ? ` (${p.address})` : ''}` : (p.address || p.id)
+    })),
+    ...(formData.floor && !availableProperties.some(p => (p.name || p.address || p.id) === formData.floor) 
+      ? [{ value: formData.floor, label: formData.floor }] 
+      : [])
+  ];
+
+  const rentalOptions = [
+    ...rentals.map(r => {
+      const prop = availableProperties.find(p => p.id === r.propertyId);
+      const propName = prop ? (prop.name || prop.address) : '';
+      const label = r.reference 
+        ? (propName ? `${r.reference} - ${propName}` : r.reference)
+        : (propName || r.id);
+      return {
+        value: r.reference || r.id,
+        label: label
+      };
+    }),
+    ...(formData.rentalReference && !rentals.some(r => (r.reference || r.id) === formData.rentalReference)
+      ? [{ value: formData.rentalReference, label: formData.rentalReference }]
+      : [])
+  ];
+
   return (
-    <div className="w-full h-full bg-[#d4d0c8] flex flex-col p-1 overflow-hidden font-sans">
+    <div className="w-full h-full bg-white flex flex-col overflow-hidden font-sans">
 
       <div className={`flex flex-row flex-1 overflow-hidden bg-white relative`}>
         {/* Left Sidebar (Lista actual) - Photo 2 */}
@@ -775,477 +800,477 @@ export default function Customers() {
               {/* Main Content Area */}
               <div className="flex-1 bg-white flex flex-col relative overflow-hidden">
                 <div className="flex-1 overflow-auto bg-white p-5 space-y-4">
-                      
-              {/* Header Fields (Photo 1) */}
-              {/* Header Fields (Photo 1) - Aligned to the left in a single column */}
-              <div className="space-y-1.5 max-w-xl">
-                <div className="win-form-row">
-                  <label className="win-form-label">Nombre:</label>
-                  <input 
-                    type="text" 
-                    className="win-input flex-1" 
-                    value={formData.name}
-                    onChange={(e) => setFormData({...formData, name: e.target.value})}
-                  />
-                </div>
-                <div className="win-form-row">
-                  <label className="win-form-label">Estado:</label>
-                  <div className="flex items-center space-x-4">
-                    <label className="flex items-center space-x-1 text-[11px]">
-                      <input 
-                        type="radio" 
-                        name="customer-status" 
-                        checked={formData.status === 'activo'} 
-                        onChange={() => setFormData({...formData, status: 'activo'})}
-                      />
-                      <span>Activo</span>
-                    </label>
-                    <label className="flex items-center space-x-1 text-[11px]">
-                      <input 
-                        type="radio" 
-                        name="customer-status" 
-                        checked={formData.status === 'inactivo'} 
-                        onChange={() => setFormData({...formData, status: 'inactivo'})}
-                      />
-                      <span>Inactivo</span>
-                    </label>
-                  </div>
-                </div>
-                <div className="win-form-row">
-                  <label className="win-form-label">Dirección:</label>
-                  <input 
-                    type="text" 
-                    className="win-input flex-1"
-                    value={formData.address}
-                    onChange={(e) => setFormData({...formData, address: e.target.value})}
-                  />
-                </div>
-                <div className="win-form-row">
-                  <label className="win-form-label">DNI / NIF:</label>
-                  <input 
-                    type="text" 
-                    className="win-input flex-1"
-                    value={formData.dni}
-                    onChange={(e) => setFormData({...formData, dni: e.target.value})}
-                  />
-                </div>
-                <div className="win-form-row">
-                  <label className="win-form-label">Email:</label>
-                  <input 
-                    type="email" 
-                    className="win-input flex-1"
-                    value={formData.email || ''}
-                    onChange={(e) => setFormData({...formData, email: e.target.value})}
-                  />
-                </div>
-                <div className="win-form-row">
-                  <label className="win-form-label">Teléfono:</label>
-                  <input 
-                    type="text" 
-                    className="win-input flex-1"
-                    value={formData.phone}
-                    onChange={(e) => setFormData({...formData, phone: e.target.value})}
-                  />
-                </div>
-                <div className="win-form-row">
-                  <label className="win-form-label">Código Postal:</label>
-                  <input 
-                    type="text" 
-                    className="win-input flex-1"
-                    value={formData.cp}
-                    onChange={(e) => setFormData({...formData, cp: e.target.value})}
-                  />
-                </div>
-                <div className="win-form-row">
-                  <label className="win-form-label">Población:</label>
-                  <input 
-                    type="text" 
-                    className="win-input flex-1"
-                    value={formData.city || ''}
-                    onChange={(e) => setFormData({...formData, city: e.target.value})}
-                  />
-                </div>
-                
-                <div className="win-form-row flex flex-col items-start gap-1 w-full pt-1">
-                  <label className="win-form-label font-bold text-slate-700 uppercase">Pisos/Propiedades Asociadas:</label>
-                  <div className="w-full bg-white border border-[#808080] p-1.5 win-bevel max-h-[100px] overflow-auto">
-                    {availableProperties.map(p => {
-                      const propKey = p.name || p.address;
-                      const isChecked = Array.isArray(formData.floors) 
-                        ? formData.floors.includes(propKey)
-                        : formData.floor === propKey || (formData.floor || '').split(', ').includes(propKey);
-                      
-                      return (
-                        <label key={p.id} className="flex items-center gap-1.5 text-[10px] p-0.5 hover:bg-slate-100 cursor-pointer w-full">
-                          <input 
-                            type="checkbox" 
-                            checked={isChecked}
-                            className="w-3.5 h-3.5 cursor-pointer"
-                            onChange={(e) => {
-                              let updatedFloors = Array.isArray(formData.floors) ? [...formData.floors] : (formData.floor ? formData.floor.split(', ') : []);
-                              if (e.target.checked) {
-                                if (!updatedFloors.includes(propKey)) updatedFloors.push(propKey);
-                              } else {
-                                updatedFloors = updatedFloors.filter(f => f !== propKey);
-                              }
-                              setFormData({
-                                ...formData,
-                                floors: updatedFloors,
-                                floor: updatedFloors.join(', ')
-                              });
-                            }}
-                          />
-                          <span>{p.name || p.address}</span>
-                        </label>
-                      );
-                    })}
-                  </div>
-                </div>
-              </div>
-
-              {/* Submenu Tabs Content */}
-              <div className="flex-1 flex flex-col mt-4 min-h-[200px] overflow-hidden">
-                <div className="flex-1 bg-white border border-[#808080] p-4 win-bevel overflow-auto">
                   {activeFormTab === 'general' && (
-                    <div className="text-[11px] space-y-2">
-                      <p className="font-bold text-blue-800">Información adicional del cliente</p>
-                      <div className="grid grid-cols-2 gap-4">
-                        <div className="p-2 border border-slate-200">
-                          <label className="block mb-1">Referencia de alquiler:</label>
-                          <select 
-                            className="win-input w-full"
-                            value={formData.rentalReference || ''}
-                            onChange={(e) => setFormData({...formData, rentalReference: e.target.value})}
-                          >
-                            <option value="">-- Seleccionar Referencia --</option>
-                            {rentals.map(r => (
-                              <option key={r.id} value={r.reference || r.id}>
-                                {r.reference || '(Sin ref)'} - {availableProperties.find(p => p.id === r.propertyId)?.name || 'Propiedad desconocida'}
-                              </option>
-                            ))}
-                          </select>
-                        </div>
-                      </div>
-                      
-                      <div className="space-y-1 mt-4">
-                        <label className="text-[10px] font-bold text-slate-700 uppercase">Notas:</label>
-                        <textarea 
-                          className="win-input w-full h-24 p-1.5 resize-none" 
-                          value={formData.notes || ''} 
-                          onChange={(e) => setFormData({...formData, notes: e.target.value})}
-                          placeholder="Notas o comentarios sobre el inquilino..."
-                        />
-                      </div>
-                    </div>
-                  )}
-                  {activeFormTab === 'docs' && (
-                    <div className="flex flex-col h-full">
-                      <div className="flex justify-end mb-2 relative">
-                        <input 
-                          type="file" 
-                          id="file-upload" 
-                          multiple 
-                          accept=".pdf,.doc,.docx,.xls,.xlsx,.jpg,.jpeg,.png"
-                          className="hidden"
-                          disabled={isUploading}
-                          onChange={(e) => {
-                            if (e.target.files && e.target.files.length > 0) {
-                              handleCustomerFileUpload(e.target.files);
-                            }
-                            e.target.value = null; // reset input
-                          }}
-                        />
-                        <button 
-                          className="btn-classic px-3 h-5 text-[10px] flex items-center cursor-pointer mr-1"
-                          onClick={() => exportToCSV(formData.documents || [], 'Documentos_Cliente')}
-                          title="Exportar a Excel (CSV)"
-                          disabled={isUploading}
-                        >
-                          <Download className="w-3 h-3 mr-1 text-green-800" /> Exportar
-                        </button>
-                        <label 
-                          htmlFor="file-upload" 
-                          className={`btn-classic px-3 h-5 text-[10px] flex items-center cursor-pointer ${isUploading ? 'opacity-50 cursor-not-allowed' : ''}`}
-                        >
-                          {isUploading ? (
-                            <>
-                              <RefreshCw className="w-3 h-3 mr-1 animate-spin" /> Subiendo...
-                            </>
-                          ) : (
-                            <>
-                              <Plus className="w-3 h-3 mr-1" /> Adjuntar
-                            </>
-                          )}
-                        </label>
-                      </div>
-                      <div 
-                        className={`flex-1 overflow-auto border border-[#808080] transition-colors duration-200 ${dragOverZone === 'customerDocs' ? 'bg-blue-50 border-blue-400 ring-2 ring-blue-200 ring-inset' : ''}`}
-                        onDragOver={(e) => { e.preventDefault(); if (!isUploading) setDragOverZone('customerDocs'); }}
-                        onDragLeave={() => setDragOverZone(null)}
-                        onDrop={(e) => {
-                          e.preventDefault();
-                          setDragOverZone(null);
-                          if (isUploading) return;
-                          const files = Array.from(e.dataTransfer.files);
-                          if (files.length > 0) {
-                            handleCustomerFileUpload(files);
-                          }
-                        }}
-                      >
-                        <table style={{ zoom: tableZoom }} className="win-table min-w-full">
-                        <thead>
-                          <tr>
-                            <th>Fecha</th>
-                            <th>Nombre del Archivo</th>
-                            <th>Tipo</th>
-                            <th>Tamaño</th>
-                            <th className="w-8"></th>
-                          </tr>
-                        </thead>
-                        <tbody>
-                          {(formData.documents || []).length === 0 ? (
-                            <tr>
-                              <td colSpan="5" className="text-center text-slate-500 italic py-4">No hay documentos adjuntos</td>
-                            </tr>
-                          ) : (
-                            (formData.documents || []).map((doc, idx) => (
-                              <tr key={idx}>
-                                <td>{doc.date}</td>
-                                <td>
-                                  {doc.url ? (
-                                    <span 
-                                      className="text-blue-600 underline cursor-pointer hover:text-blue-800"
-                                      onClick={() => setPreviewDocument(doc)}
-                                    >
-                                      {doc.name}
-                                    </span>
-                                  ) : (
-                                    doc.name
-                                  )}
-                                </td>
-                                <td>{doc.type}</td>
-                                <td>{doc.size}</td>
-                                <td className="text-center">
-                                  <button 
-                                    className="p-0.5 hover:bg-slate-200"
-                                    onClick={() => {
-                                      const newDocs = [...formData.documents];
-                                      newDocs.splice(idx, 1);
-                                      setFormData({...formData, documents: newDocs});
-                                    }}
-                                  >
-                                    <Trash2 className="w-3 h-3 text-gray-500" />
-                                  </button>
-                                </td>
-                              </tr>
-                            ))
-                          )}
-                        </tbody>
-                      </table>
-                    </div>
-                  </div>
-                )}
-                  {activeFormTab === 'trans' && (
-                    <div className="flex flex-col h-full">
-                      <div className="flex justify-end mb-2">
-                        <button 
-                          className="btn-classic px-3 h-5 text-[10px] flex items-center mr-1"
-                          onClick={() => exportToCSV(formData.transactions || [], 'Transacciones_Cliente')}
-                          title="Exportar a Excel (CSV)"
-                        >
-                          <Download className="w-3 h-3 mr-1 text-green-800" /> Exportar
-                        </button>
-                        <button 
-                          className="btn-classic px-3 h-5 text-[10px] flex items-center"
-                          onClick={() => {
-                            setFormData({
-                              ...formData,
-                              transactions: [...(formData.transactions || []), { date: '', reference: '', concept: '', amount: '', status: '', doc: null }]
-                            });
-                          }}
-                        >
-                          <Plus className="w-3 h-3 mr-1" /> Añadir Transacción
-                        </button>
-                      </div>
-                      <table style={{ zoom: tableZoom }} className="win-table">
-                        <thead>
-                          <tr>
-                            <th className="w-24">Fecha</th>
-                            <th className="w-24">Referencia</th>
-                            <th>Concepto</th>
-                            <th className="w-24 text-right">Importe</th>
-                            <th className="w-28">Estado</th>
-                            <th className="w-24 text-center">Documento</th>
-                            <th className="w-8"></th>
-                          </tr>
-                        </thead>
-                        <tbody>
-                          {(formData.transactions || []).length === 0 ? (
-                            <tr>
-                              <td colSpan="7" className="text-center text-slate-500 italic py-4">No hay transacciones asociadas</td>
-                            </tr>
-                          ) : (
-                            (formData.transactions || []).map((tr, idx) => (
-                              <tr 
-                                key={idx}
-                                className={`transition-colors duration-200 ${dragOverZone === `trans-${idx}` ? 'bg-blue-50 ring-1 ring-blue-400 ring-inset' : ''}`}
-                                onDragOver={(e) => { e.preventDefault(); setDragOverZone(`trans-${idx}`); }}
-                                onDragLeave={() => setDragOverZone(null)}
-                                onDrop={(e) => {
-                                  e.preventDefault();
-                                  setDragOverZone(null);
-                                  if (isUploading) return;
-                                  const file = e.dataTransfer.files[0];
-                                  if (file) {
-                                    handleTransactionFileUpload(file, idx);
-                                  }
+                    <div className="space-y-6">
+                      {/* DATOS Section */}
+                      <div>
+                        <h3 className="text-[11px] font-bold text-[#333] italic uppercase tracking-wide mb-3">
+                          Datos
+                        </h3>
+                        <div className={`grid ${isMobile ? 'grid-cols-1' : 'grid-cols-2'} gap-5`}>
+                          <div className="space-y-2.5">
+                            <div className="space-y-1">
+                              <label className="text-[10px] font-bold text-[#444] uppercase tracking-wide block text-left">Nombre:</label>
+                              <input 
+                                type="text" 
+                                className="win-input w-full" 
+                                value={formData.name || ''}
+                                onChange={(e) => setFormData({...formData, name: e.target.value})}
+                              />
+                            </div>
+                            <div className="space-y-1">
+                              <label className="text-[10px] font-bold text-[#444] uppercase tracking-wide block text-left">DNI / NIF:</label>
+                              <input 
+                                type="text" 
+                                className="win-input w-full" 
+                                value={formData.dni || ''}
+                                onChange={(e) => setFormData({...formData, dni: e.target.value})}
+                              />
+                            </div>
+                            <div className="space-y-1">
+                              <label className="text-[10px] font-bold text-[#444] uppercase tracking-wide block text-left">Teléfono:</label>
+                              <input 
+                                type="text" 
+                                className="win-input w-full" 
+                                value={formData.phone || ''}
+                                onChange={(e) => setFormData({...formData, phone: e.target.value})}
+                              />
+                            </div>
+                            <div className="space-y-1">
+                              <label className="text-[10px] font-bold text-[#444] uppercase tracking-wide block text-left">Email:</label>
+                              <input 
+                                type="email" 
+                                className="win-input w-full" 
+                                value={formData.email || ''}
+                                onChange={(e) => setFormData({...formData, email: e.target.value})}
+                              />
+                            </div>
+                            <div className="space-y-1">
+                              <label className="text-[10px] font-bold text-[#444] uppercase tracking-wide block text-left">Piso / Propiedad:</label>
+                              <select 
+                                className="win-input w-full cursor-pointer"
+                                value={formData.floor || (Array.isArray(formData.floors) && formData.floors[0]) || ''}
+                                onChange={(e) => {
+                                  const val = e.target.value;
+                                  setFormData({
+                                    ...formData,
+                                    floor: val,
+                                    floors: val ? [val] : []
+                                  });
                                 }}
                               >
-                                <td className="p-0 border-r border-[#d4d0c8]">
+                                <option value="">-- Ninguno --</option>
+                                {availableProperties.map(p => {
+                                  const val = p.name || p.address || p.id;
+                                  const label = p.name ? `${p.name}${p.address ? ` - ${p.address}` : ''}` : (p.address || p.id);
+                                  return (
+                                    <option key={p.id} value={val}>{label}</option>
+                                  );
+                                })}
+                              </select>
+                            </div>
+                          </div>
+
+                          <div className="space-y-2.5">
+                            <div className="space-y-1">
+                              <label className="text-[10px] font-bold text-[#444] uppercase tracking-wide block text-left">Estado:</label>
+                              <div className="flex items-center space-x-4 h-[30px] px-1">
+                                <label className="flex items-center space-x-1.5 text-[11px] cursor-pointer">
                                   <input 
-                                    type="date" 
-                                    className="w-full h-full text-[10px] px-1 outline-none border-none bg-transparent"
-                                    value={tr.date}
-                                    onChange={(e) => {
-                                      const newTrs = [...formData.transactions];
-                                      newTrs[idx].date = e.target.value;
-                                      setFormData({...formData, transactions: newTrs});
-                                    }}
+                                    type="radio" 
+                                    name="customer-status" 
+                                    checked={formData.status === 'activo'} 
+                                    onChange={() => setFormData({...formData, status: 'activo'})}
                                   />
-                                </td>
-                                <td className="p-0 border-r border-[#d4d0c8]">
+                                  <span>Activo</span>
+                                </label>
+                                <label className="flex items-center space-x-1.5 text-[11px] cursor-pointer">
                                   <input 
-                                    type="text" 
-                                    className="w-full h-full text-[10px] px-1 outline-none border-none bg-transparent"
-                                    value={tr.reference}
-                                    onChange={(e) => {
-                                      const newTrs = [...formData.transactions];
-                                      newTrs[idx].reference = e.target.value;
-                                      setFormData({...formData, transactions: newTrs});
-                                    }}
+                                    type="radio" 
+                                    name="customer-status" 
+                                    checked={formData.status === 'inactivo'} 
+                                    onChange={() => setFormData({...formData, status: 'inactivo'})}
                                   />
-                                </td>
-                                <td className="p-0 border-r border-[#d4d0c8]">
-                                  <input 
-                                    type="text" 
-                                    className="w-full h-full text-[10px] px-1 outline-none border-none bg-transparent"
-                                    value={tr.concept}
-                                    onChange={(e) => {
-                                      const newTrs = [...formData.transactions];
-                                      newTrs[idx].concept = e.target.value;
-                                      setFormData({...formData, transactions: newTrs});
-                                    }}
-                                  />
-                                </td>
-                                <td className="p-0 border-r border-[#d4d0c8]">
-                                  <input 
-                                    type="number" 
-                                    step="0.01"
-                                    className="w-full h-full text-[10px] px-1 outline-none border-none bg-transparent text-right font-bold text-blue-800"
-                                    value={tr.amount}
-                                    onChange={(e) => {
-                                      const newTrs = [...formData.transactions];
-                                      newTrs[idx].amount = e.target.value;
-                                      setFormData({...formData, transactions: newTrs});
-                                    }}
-                                  />
-                                </td>
-                                <td className="p-0 border-r border-[#d4d0c8]">
-                                  <select 
-                                    className="w-full h-full text-[10px] px-1 outline-none border-none bg-transparent"
-                                    value={tr.status}
-                                    onChange={(e) => {
-                                      const newTrs = [...formData.transactions];
-                                      newTrs[idx].status = e.target.value;
-                                      setFormData({...formData, transactions: newTrs});
-                                    }}
-                                  >
-                                    <option value=""></option>
-                                    <option value="Pendiente">Pendiente</option>
-                                    <option value="Cobrado">Cobrado</option>
-                                    <option value="Devuelto">Devuelto</option>
-                                    <option value="Depositado">Depositado</option>
-                                  </select>
-                                </td>
-                                <td className="p-1 text-center relative">
-                                  {tr.doc ? (
-                                    <div className="flex items-center justify-between px-1 bg-blue-50 text-blue-700 whitespace-nowrap overflow-hidden text-ellipsis w-full max-w-[80px]">
-                                      {tr.docUrl ? (
+                                  <span>Inactivo</span>
+                                </label>
+                              </div>
+                            </div>
+                            <div className="space-y-1">
+                              <label className="text-[10px] font-bold text-[#444] uppercase tracking-wide block text-left">Dirección:</label>
+                              <input 
+                                type="text" 
+                                className="win-input w-full" 
+                                value={formData.address || ''}
+                                onChange={(e) => setFormData({...formData, address: e.target.value})}
+                              />
+                            </div>
+                            <div className="space-y-1">
+                              <label className="text-[10px] font-bold text-[#444] uppercase tracking-wide block text-left">Población:</label>
+                              <input 
+                                type="text" 
+                                className="win-input w-full" 
+                                value={formData.city || ''}
+                                onChange={(e) => setFormData({...formData, city: e.target.value})}
+                              />
+                            </div>
+                            <div className="space-y-1">
+                              <label className="text-[10px] font-bold text-[#444] uppercase tracking-wide block text-left">Código Postal:</label>
+                              <input 
+                                type="text" 
+                                className="win-input w-full" 
+                                value={formData.cp || ''}
+                                onChange={(e) => setFormData({...formData, cp: e.target.value})}
+                              />
+                            </div>
+                            <div className="space-y-1">
+                              <label className="text-[10px] font-bold text-[#444] uppercase tracking-wide block text-left">Alquiler:</label>
+                              <select 
+                                className="win-input w-full cursor-pointer"
+                                value={formData.rentalReference || ''}
+                                onChange={(e) => setFormData({...formData, rentalReference: e.target.value})}
+                              >
+                                <option value="">-- Ninguno --</option>
+                                {rentals.map(r => {
+                                  const prop = availableProperties.find(p => p.id === r.propertyId);
+                                  const propName = prop ? (prop.name || prop.address) : '';
+                                  const label = r.reference 
+                                    ? (propName ? `${r.reference} - ${propName}` : r.reference)
+                                    : (propName || r.id);
+                                  return (
+                                    <option key={r.id} value={r.reference || r.id}>{label}</option>
+                                  );
+                                })}
+                              </select>
+                            </div>
+                          </div>
+                        </div>
+                      </div>
+
+                      {/* DOCUMENTOS Section */}
+                      <div className="pt-2">
+                        <div className="flex justify-between items-end mb-2">
+                          <h3 className="text-[11px] font-bold text-[#333] italic uppercase tracking-wide">
+                            Documentos
+                          </h3>
+                          <div className="flex items-center gap-1.5">
+                            <input 
+                              type="file" 
+                              id="file-upload" 
+                              multiple 
+                              accept=".pdf,.doc,.docx,.xls,.xlsx,.jpg,.jpeg,.png"
+                              className="hidden"
+                              disabled={isUploading}
+                              onChange={(e) => {
+                                if (e.target.files && e.target.files.length > 0) {
+                                  handleCustomerFileUpload(e.target.files);
+                                }
+                                e.target.value = null;
+                              }}
+                            />
+                            <button 
+                              type="button"
+                              className="btn-classic px-3 h-6 text-[11px] flex items-center cursor-pointer"
+                              onClick={() => exportToCSV(formData.documents || [], 'Documentos_Cliente')}
+                              title="Exportar a Excel (CSV)"
+                              disabled={isUploading}
+                            >
+                              <Download className="w-3.5 h-3.5 mr-1 text-green-800" /> Exportar
+                            </button>
+                            <label 
+                              htmlFor="file-upload" 
+                              className={`btn-classic px-3 h-6 text-[11px] flex items-center cursor-pointer ${isUploading ? 'opacity-50 cursor-not-allowed' : ''}`}
+                            >
+                              {isUploading ? (
+                                <>
+                                  <RefreshCw className="w-3.5 h-3.5 mr-1 animate-spin" /> Subiendo...
+                                </>
+                              ) : (
+                                <>
+                                  <Plus className="w-3.5 h-3.5 mr-1" /> Adjuntar
+                                </>
+                              )}
+                            </label>
+                          </div>
+                        </div>
+
+                        <div 
+                          className={`border border-[#808080] win-bevel transition-colors duration-200 min-h-[140px] max-h-[260px] overflow-auto ${dragOverZone === 'customerDocs' ? 'bg-blue-50 border-blue-400 ring-2 ring-blue-200 ring-inset' : 'bg-white'}`}
+                          onDragOver={(e) => { e.preventDefault(); if (!isUploading) setDragOverZone('customerDocs'); }}
+                          onDragLeave={() => setDragOverZone(null)}
+                          onDrop={(e) => {
+                            e.preventDefault();
+                            setDragOverZone(null);
+                            if (isUploading) return;
+                            const files = Array.from(e.dataTransfer.files);
+                            if (files.length > 0) {
+                              handleCustomerFileUpload(files);
+                            }
+                          }}
+                        >
+                          <table style={{ zoom: tableZoom }} className="win-table min-w-full [&_td]:border-r-0">
+                            <thead>
+                              <tr>
+                                <th className="w-28">Fecha</th>
+                                <th>Nombre del Archivo</th>
+                                <th className="w-36">Tipo</th>
+                                <th className="w-24">Tamaño</th>
+                                <th className="w-8 text-center"></th>
+                              </tr>
+                            </thead>
+                            <tbody>
+                              {(formData.documents || []).length === 0 ? (
+                                <tr>
+                                  <td colSpan="5" className="text-center text-slate-500 italic py-6">No hay documentos adjuntos</td>
+                                </tr>
+                              ) : (
+                                (formData.documents || []).map((doc, idx) => (
+                                  <tr key={idx} className="hover:bg-slate-50">
+                                    <td className="text-[11px]">{doc.date}</td>
+                                    <td className="text-[11px]">
+                                      {doc.url ? (
                                         <span 
-                                          className="text-[9px] truncate cursor-pointer underline hover:text-gray-500" 
-                                          title={`Ver ${tr.doc}`}
-                                          onClick={() => setPreviewDocument({ name: tr.doc, url: tr.docUrl, type: tr.docUrl.includes('image') ? 'image/jpeg' : 'application/pdf' })}
+                                          className="text-blue-600 underline cursor-pointer hover:text-blue-800"
+                                          onClick={() => setPreviewDocument(doc)}
                                         >
-                                          {tr.doc}
+                                          {doc.name}
                                         </span>
                                       ) : (
-                                        <span className="text-[9px] truncate" title={tr.doc}>{tr.doc}</span>
+                                        doc.name
                                       )}
+                                    </td>
+                                    <td className="text-[11px]">{doc.type}</td>
+                                    <td className="text-[11px]">{doc.size}</td>
+                                    <td className="text-center">
                                       <button 
-                                        className="ml-1 text-gray-500 hover:text-gray-500 shrink-0"
-                                        title="Eliminar adjunto"
+                                        type="button"
+                                        className="p-1 hover:bg-slate-200 rounded"
+                                        title="Eliminar documento"
                                         onClick={() => {
-                                          const newTrs = [...formData.transactions];
-                                          newTrs[idx].doc = null;
-                                          setFormData({...formData, transactions: newTrs});
+                                          const newDocs = [...formData.documents];
+                                          newDocs.splice(idx, 1);
+                                          setFormData({...formData, documents: newDocs});
                                         }}
                                       >
-                                        <X className="w-3 h-3" />
+                                        <Trash2 className="w-3.5 h-3.5 text-gray-500" />
                                       </button>
-                                    </div>
-                                  ) : (
-                                    <>
-                                      <input 
-                                        type="file" 
-                                        id={`trans-file-${idx}`} 
-                                        className="hidden"
-                                        accept=".pdf,.doc,.docx,.xls,.xlsx,.jpg,.jpeg,.png"
-                                        disabled={isUploading}
-                                        onChange={(e) => {
-                                          if (e.target.files && e.target.files.length > 0) {
-                                            handleTransactionFileUpload(e.target.files[0], idx);
-                                          }
-                                        }}
-                                      />
-                                      <label 
-                                        htmlFor={`trans-file-${idx}`} 
-                                        className={`btn-classic px-1 py-0.5 text-[9px] flex items-center justify-center cursor-pointer mx-auto w-16 ${isUploading ? 'opacity-50 cursor-not-allowed' : ''}`}
-                                        title="Adjuntar Documento"
-                                      >
-                                        {isUploading ? (
-                                          <RefreshCw className="w-3 h-3 mr-1 animate-spin" />
-                                        ) : (
-                                          <FileText className="w-3 h-3 mr-1" />
-                                        )}
-                                        PDF
-                                      </label>
-                                    </>
-                                  )}
-                                </td>
-                                <td className="text-center p-0">
-                                  <button 
-                                    className="p-1 hover:bg-slate-200"
-                                    title="Eliminar fila"
-                                    onClick={() => {
-                                      const newTrs = [...formData.transactions];
-                                      newTrs.splice(idx, 1);
-                                      setFormData({...formData, transactions: newTrs});
-                                    }}
-                                  >
-                                    <Trash2 className="w-3 h-3 text-gray-500" />
-                                  </button>
-                                </td>
-                              </tr>
-                            ))
-                          )}
-                        </tbody>
-                      </table>
+                                    </td>
+                                  </tr>
+                                ))
+                              )}
+                            </tbody>
+                          </table>
+                        </div>
+                      </div>
                     </div>
                   )}
-                    </div>
-                  </div>
 
-                  </div>
+                  {activeFormTab === 'trans' && (
+                    <div className="flex flex-col h-full space-y-3">
+                      <div className="flex justify-between items-end mb-2">
+                        <h3 className="text-[11px] font-bold text-[#333] italic uppercase tracking-wide">Transacciones</h3>
+                        <div className="flex items-center gap-1.5">
+                          <button 
+                            type="button"
+                            className="btn-classic px-3 h-6 text-[11px] flex items-center"
+                            onClick={() => exportToCSV(formData.transactions || [], 'Transacciones_Cliente')}
+                            title="Exportar a Excel (CSV)"
+                          >
+                            <Download className="w-3.5 h-3.5 mr-1 text-green-800" /> Exportar
+                          </button>
+                          <button 
+                            type="button"
+                            className="btn-classic px-3 h-6 text-[11px] flex items-center"
+                            onClick={() => {
+                              setFormData({
+                                ...formData,
+                                transactions: [...(formData.transactions || []), { date: '', reference: '', concept: '', amount: '', status: '', doc: null }]
+                              });
+                            }}
+                          >
+                            <Plus className="w-3.5 h-3.5 mr-1" /> Añadir Transacción
+                          </button>
+                        </div>
+                      </div>
+                      <div className="border border-[#808080] win-bevel overflow-auto">
+                        <table style={{ zoom: tableZoom }} className="win-table min-w-full">
+                          <thead>
+                            <tr>
+                              <th className="w-24">Fecha</th>
+                              <th className="w-24">Referencia</th>
+                              <th>Concepto</th>
+                              <th className="w-24 text-right">Importe</th>
+                              <th className="w-28">Estado</th>
+                              <th className="w-24 text-center">Documento</th>
+                              <th className="w-8"></th>
+                            </tr>
+                          </thead>
+                          <tbody>
+                            {(formData.transactions || []).length === 0 ? (
+                              <tr>
+                                <td colSpan="7" className="text-center text-slate-500 italic py-6">No hay transacciones asociadas</td>
+                              </tr>
+                            ) : (
+                              (formData.transactions || []).map((tr, idx) => (
+                                <tr 
+                                  key={idx}
+                                  className={`transition-colors duration-200 ${dragOverZone === `trans-${idx}` ? 'bg-blue-50 ring-1 ring-blue-400 ring-inset' : ''}`}
+                                  onDragOver={(e) => { e.preventDefault(); setDragOverZone(`trans-${idx}`); }}
+                                  onDragLeave={() => setDragOverZone(null)}
+                                  onDrop={(e) => {
+                                    e.preventDefault();
+                                    setDragOverZone(null);
+                                    if (isUploading) return;
+                                    const file = e.dataTransfer.files[0];
+                                    if (file) {
+                                      handleTransactionFileUpload(file, idx);
+                                    }
+                                  }}
+                                >
+                                  <td className="p-0 border-r border-[#d4d0c8]">
+                                    <input 
+                                      type="date" 
+                                      className="w-full h-full text-[10px] px-1 outline-none border-none bg-transparent"
+                                      value={tr.date}
+                                      onChange={(e) => {
+                                        const newTrs = [...formData.transactions];
+                                        newTrs[idx].date = e.target.value;
+                                        setFormData({...formData, transactions: newTrs});
+                                      }}
+                                    />
+                                  </td>
+                                  <td className="p-0 border-r border-[#d4d0c8]">
+                                    <input 
+                                      type="text" 
+                                      className="w-full h-full text-[10px] px-1 outline-none border-none bg-transparent"
+                                      value={tr.reference}
+                                      onChange={(e) => {
+                                        const newTrs = [...formData.transactions];
+                                        newTrs[idx].reference = e.target.value;
+                                        setFormData({...formData, transactions: newTrs});
+                                      }}
+                                    />
+                                  </td>
+                                  <td className="p-0 border-r border-[#d4d0c8]">
+                                    <input 
+                                      type="text" 
+                                      className="w-full h-full text-[10px] px-1 outline-none border-none bg-transparent"
+                                      value={tr.concept}
+                                      onChange={(e) => {
+                                        const newTrs = [...formData.transactions];
+                                        newTrs[idx].concept = e.target.value;
+                                        setFormData({...formData, transactions: newTrs});
+                                      }}
+                                    />
+                                  </td>
+                                  <td className="p-0 border-r border-[#d4d0c8]">
+                                    <input 
+                                      type="number" 
+                                      step="0.01"
+                                      className="w-full h-full text-[10px] px-1 outline-none border-none bg-transparent text-right font-bold text-blue-800"
+                                      value={tr.amount}
+                                      onChange={(e) => {
+                                        const newTrs = [...formData.transactions];
+                                        newTrs[idx].amount = e.target.value;
+                                        setFormData({...formData, transactions: newTrs});
+                                      }}
+                                    />
+                                  </td>
+                                  <td className="p-0 border-r border-[#d4d0c8]">
+                                    <select 
+                                      className="w-full h-full text-[10px] px-1 outline-none border-none bg-transparent"
+                                      value={tr.status}
+                                      onChange={(e) => {
+                                        const newTrs = [...formData.transactions];
+                                        newTrs[idx].status = e.target.value;
+                                        setFormData({...formData, transactions: newTrs});
+                                      }}
+                                    >
+                                      <option value=""></option>
+                                      <option value="Pendiente">Pendiente</option>
+                                      <option value="Cobrado">Cobrado</option>
+                                      <option value="Devuelto">Devuelto</option>
+                                      <option value="Depositado">Depositado</option>
+                                    </select>
+                                  </td>
+                                  <td className="p-1 text-center relative">
+                                    {tr.doc ? (
+                                      <div className="flex items-center justify-between px-1 bg-blue-50 text-blue-700 whitespace-nowrap overflow-hidden text-ellipsis w-full max-w-[80px]">
+                                        {tr.docUrl ? (
+                                          <span 
+                                            className="text-[9px] truncate cursor-pointer underline hover:text-gray-500" 
+                                            title={`Ver ${tr.doc}`}
+                                            onClick={() => setPreviewDocument({ name: tr.doc, url: tr.docUrl, type: tr.docUrl.includes('image') ? 'image/jpeg' : 'application/pdf' })}
+                                          >
+                                            {tr.doc}
+                                          </span>
+                                        ) : (
+                                          <span className="text-[9px] truncate" title={tr.doc}>{tr.doc}</span>
+                                        )}
+                                        <button 
+                                          type="button"
+                                          className="ml-1 text-gray-500 hover:text-gray-500 shrink-0"
+                                          title="Eliminar adjunto"
+                                          onClick={() => {
+                                            const newTrs = [...formData.transactions];
+                                            newTrs[idx].doc = null;
+                                            setFormData({...formData, transactions: newTrs});
+                                          }}
+                                        >
+                                          <X className="w-3 h-3" />
+                                        </button>
+                                      </div>
+                                    ) : (
+                                      <>
+                                        <input 
+                                          type="file" 
+                                          id={`trans-file-${idx}`} 
+                                          className="hidden"
+                                          accept=".pdf,.doc,.docx,.xls,.xlsx,.jpg,.jpeg,.png"
+                                          disabled={isUploading}
+                                          onChange={(e) => {
+                                            if (e.target.files && e.target.files.length > 0) {
+                                              handleTransactionFileUpload(e.target.files[0], idx);
+                                            }
+                                          }}
+                                        />
+                                        <label 
+                                          htmlFor={`trans-file-${idx}`} 
+                                          className={`btn-classic px-1 py-0.5 text-[9px] flex items-center justify-center cursor-pointer mx-auto w-16 ${isUploading ? 'opacity-50 cursor-not-allowed' : ''}`}
+                                          title="Adjuntar Documento"
+                                        >
+                                          {isUploading ? (
+                                            <RefreshCw className="w-3 h-3 mr-1 animate-spin" />
+                                          ) : (
+                                            <FileText className="w-3 h-3 mr-1" />
+                                          )}
+                                          PDF
+                                        </label>
+                                      </>
+                                    )}
+                                  </td>
+                                  <td className="text-center p-0">
+                                    <button 
+                                      type="button"
+                                      className="p-1 hover:bg-slate-200"
+                                      title="Eliminar fila"
+                                      onClick={() => {
+                                        const newTrs = [...formData.transactions];
+                                        newTrs.splice(idx, 1);
+                                        setFormData({...formData, transactions: newTrs});
+                                      }}
+                                    >
+                                      <Trash2 className="w-3 h-3 text-gray-500" />
+                                    </button>
+                                  </td>
+                                </tr>
+                              ))
+                            )}
+                          </tbody>
+                        </table>
+                      </div>
+                    </div>
+                  )}
+                </div>
                 {/* Action Buttons */}
                 <div className="flex justify-end gap-2 p-3 bg-[#f5f5f5] border-t border-[#ccc] shrink-0">
                   <button className="w-[85px] py-[4px] border border-[#a0a0a0] bg-[#f5f5f5] hover:bg-[#e8e8e8] active:bg-[#d0d0d0] text-[12px] text-slate-800 shadow-xs font-normal select-none" onClick={handleSave}>Aceptar</button>

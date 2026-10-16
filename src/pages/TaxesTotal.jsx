@@ -200,7 +200,7 @@ export default function TaxesTotal() {
               </tr>
             </thead>
             <tbody>
-              {computedYears.rows.map(r => (
+              {applyTableFilters(computedYears.rows, 'taxesTotal').map(r => (
                   <tr key={r.year} className="border-b border-gray-100 hover:bg-blue-50/50 transition-colors">
                     
                   {visibleColumns.map(col => {
@@ -241,6 +241,9 @@ export default function TaxesTotal() {
           </table>
         </div>
       </div>
+
+      {renderFilterMenu()}
+
       <div className="flex justify-between items-center bg-[#f0f0f0] p-1 border-t border-[#808080] text-[10px]">
         <div>{computedYears.rows.length} años listados</div>
         <ZoomControl />

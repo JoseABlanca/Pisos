@@ -493,7 +493,7 @@ export default function Journal() {
     <div className="flex h-full bg-white relative font-sans uppercase">
       {/* Header title inside the view */}
       <div className="absolute top-0 left-0 w-full h-8 bg-white border-b border-gray-200 flex items-center px-4 z-20">
-        <h2 className="text-sm font-bold text-[#2a3042]">CONSULTA DE DIARIO</h2>
+        <h2 className="text-sm font-bold text-[#2a3042]"></h2>
         <div className="ml-auto flex items-center space-x-4">
           <div className="flex items-center border-b border-gray-300 px-1 w-64">
             <input 

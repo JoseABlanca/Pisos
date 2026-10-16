@@ -20,7 +20,7 @@ export default function EditableCell({ value, onSave, className = '', type = 'te
 
   const handleBlur = () => {
     setIsEditing(false);
-    if (val !== value) {
+    if (val !== value && onSave) {
       onSave(val);
     }
   };
@@ -28,7 +28,7 @@ export default function EditableCell({ value, onSave, className = '', type = 'te
   const handleKeyDown = (e) => {
     if (e.key === 'Enter') {
       setIsEditing(false);
-      if (val !== value) {
+      if (val !== value && onSave) {
         onSave(val);
       }
     } else if (e.key === 'Escape') {
@@ -40,14 +40,14 @@ export default function EditableCell({ value, onSave, className = '', type = 'te
   if (isEditing) {
     if (options) {
       return (
-        <td className={className} onClick={(e) => e.stopPropagation()}>
+        <td className={`${className} !p-0`} onClick={(e) => e.stopPropagation()}>
           <select
             ref={inputRef}
             value={val}
             onChange={(e) => setVal(e.target.value)}
             onBlur={handleBlur}
             onKeyDown={handleKeyDown}
-            className="w-full bg-white border border-[#000080] text-[11px] font-sans px-1 outline-none cursor-pointer h-5"
+            className="w-full h-full bg-transparent border-0 border-none outline-none ring-0 shadow-none focus:outline-none focus:ring-0 focus:border-0 focus:bg-transparent focus:shadow-none text-[11px] font-sans px-1 cursor-pointer"
           >
             {options.map((o) => {
               if (typeof o === 'object' && o !== null) {
@@ -69,15 +69,15 @@ export default function EditableCell({ value, onSave, className = '', type = 'te
     }
 
     return (
-      <td className={className} onClick={(e) => e.stopPropagation()}>
+      <td className={`${className} !p-0`} onClick={(e) => e.stopPropagation()}>
         <input
           ref={inputRef}
           type={type}
-          value={val}
+          value={val ?? ''}
           onChange={(e) => setVal(e.target.value)}
           onBlur={handleBlur}
           onKeyDown={handleKeyDown}
-          className="w-full bg-white border border-[#000080] text-[11px] font-mono px-1 py-0.5 outline-none h-5"
+          className="w-full h-full bg-transparent border-0 border-none outline-none ring-0 shadow-none focus:outline-none focus:ring-0 focus:border-0 focus:bg-transparent focus:shadow-none text-[11px] font-mono px-1 py-0.5"
         />
       </td>
     );
@@ -88,7 +88,6 @@ export default function EditableCell({ value, onSave, className = '', type = 'te
   if (value === null || value === undefined || value === '') {
     displayVal = '---';
   } else if (options) {
-    // If it's a dropdown, look up the label for display
     const matched = options.find((o) => typeof o === 'object' && o !== null && (o.id === value || o.value === value));
     if (matched) {
       displayVal = matched.label || matched.name;
@@ -99,8 +98,10 @@ export default function EditableCell({ value, onSave, className = '', type = 'te
     <td
       className={`${className} cursor-pointer select-none`}
       onDoubleClick={(e) => {
-        e.stopPropagation();
-        setIsEditing(true);
+        if (onSave) {
+          e.stopPropagation();
+          setIsEditing(true);
+        }
       }}
     >
       {children !== undefined ? children : String(displayVal)}

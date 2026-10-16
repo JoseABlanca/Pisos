@@ -313,7 +313,7 @@ export default function ComunidadTab({
                           <td className="p-2 text-center">
                             <input 
                               type="date" 
-                              className="w-full bg-transparent border-transparent hover:border-gray-300 focus:bg-white focus:border-[#666] focus:shadow-[inset_0_1px_2px_rgba(0,0,0,0.12)] text-[11px] px-1 outline-none h-[24px] text-center text-black transition-colors rounded-sm" 
+                              className="w-full bg-transparent border-none outline-none focus:outline-none focus:ring-0 focus:bg-transparent focus:shadow-none text-[11px] px-1 h-[24px] text-center text-black" 
                               value={derrama.endDate || ''} 
                               onChange={e => updateDerrama(idx, 'endDate', e.target.value)} 
                             />
@@ -325,7 +325,7 @@ export default function ComunidadTab({
                             <input 
                               type="number" 
                               step="0.01"
-                              className="w-full bg-transparent border-transparent hover:border-gray-300 focus:bg-white focus:border-[#666] focus:shadow-[inset_0_1px_2px_rgba(0,0,0,0.12)] text-[11px] px-1 outline-none h-[24px] text-right font-bold text-black transition-colors rounded-sm" 
+                              className="w-full bg-transparent border-none outline-none focus:outline-none focus:ring-0 focus:bg-transparent focus:shadow-none text-[11px] px-1 h-[24px] text-right font-bold text-black" 
                               value={derrama.amount || ''} 
                               onChange={e => updateDerrama(idx, 'amount', e.target.value)} 
                               placeholder="0.00"
@@ -400,25 +400,26 @@ export default function ComunidadTab({
                     </tr>
                   ) : (
                     documents.map((doc, idx) => (
-                      <tr key={doc.id || idx}>
-                        <td className="text-center p-2">
+                      <tr key={doc.id || idx} className="hover:bg-slate-50 transition-colors">
+                        <td className="text-center p-1">
                           <input 
                             type="date" 
                             value={doc.date ? doc.date.split('T')[0] : ''}
                             onChange={(e) => updateDocument(doc.id, 'date', e.target.value)}
-                            className="w-full bg-transparent border-transparent hover:border-gray-300 focus:bg-white focus:border-[#666] focus:shadow-[inset_0_1px_2px_rgba(0,0,0,0.12)] text-[11px] px-1 outline-none h-[24px] text-center"
+                            className="w-full bg-transparent border-0 border-none outline-none ring-0 shadow-none focus:outline-none focus:ring-0 focus:border-0 focus:shadow-none focus:bg-transparent text-[11px] font-mono px-1 h-[24px] text-center text-gray-800"
                           />
                         </td>
                         <td className="p-2 flex items-center text-[11px] text-gray-700">
                           <FileText className="w-4 h-4 text-slate-400 mr-2 shrink-0" />
                           <span className="truncate" title={doc.name || 'Sin archivo'}>{doc.name || 'Sin archivo'}</span>
                         </td>
-                        <td className="p-2">
+                        <td className="p-1">
                           <input 
                             type="text"
                             value={doc.concept || ''}
                             onChange={(e) => updateDocument(doc.id, 'concept', e.target.value)}
-                            className="w-full bg-transparent border-transparent hover:border-gray-300 focus:bg-white focus:border-[#666] focus:shadow-[inset_0_1px_2px_rgba(0,0,0,0.12)] text-[11px] px-1 outline-none h-[24px]"
+                            placeholder="Añadir concepto..."
+                            className="w-full bg-transparent border-0 border-none outline-none ring-0 shadow-none focus:outline-none focus:ring-0 focus:border-0 focus:shadow-none focus:bg-transparent text-[11px] px-1 h-[24px] text-gray-800"
                           />
                         </td>
                         <td className="text-center p-2">

@@ -509,7 +509,7 @@ export default function Rentals() {
   }, [filteredRentals, visibleColumns, applyTableFilters]);
 
   return (
-    <div className="w-full h-full bg-[#d4d0c8] flex flex-col p-1 overflow-hidden font-sans">
+    <div className="w-full h-full bg-white flex flex-col overflow-hidden font-sans">
       <div className="flex flex-row flex-1 overflow-hidden bg-white relative">
         {/* Left Sidebar (Lista actual) */}
         {showSidebar && (

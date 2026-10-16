@@ -500,26 +500,15 @@ export default function CfPortfolio() {
                   
                   {visibleColumns.map(col => {
                     switch(col) {
-                    case 'groupName': return (<th
- key="groupName" style={{ width: columnWidths['groupName'] || '250px' }}>
-                      {groupBy === 'plataforma' ? 'Plataforma' : 'Activo / Proyecto'}
-                    </th>);
-                    case 'investment': return (<th
- key="investment" style={{ width: columnWidths['investment'] || '120px' }} className="text-right">Inversión</th>);
-                    case 'grossRents': return (<th
- key="grossRents" style={{ width: columnWidths['grossRents'] || '120px' }} className="text-right">Rentas Brutas</th>);
-                    case 'expenses': return (<th
- key="expenses" style={{ width: columnWidths['expenses'] || '110px' }} className="text-right">Gastos</th>);
-                    case 'netRents': return (<th
- key="netRents" style={{ width: columnWidths['netRents'] || '120px' }} className="text-right">Rentas Netas</th>);
-                    case 'totalGross': return (<th
- key="totalGross" style={{ width: columnWidths['totalGross'] || '135px' }} className="text-right">Importe Total</th>);
-                    case 'totalNet': return (<th
- key="totalNet" style={{ width: columnWidths['totalNet'] || '145px' }} className="text-right">Imp. Total Neto</th>);
-                    case 'yieldGross': return (<th
- key="yieldGross" style={{ width: columnWidths['yieldGross'] || '110px' }} className="text-right">Rent. Bruta</th>);
-                    case 'yieldNet': return (<th
- key="yieldNet" style={{ width: columnWidths['yieldNet'] || '110px' }} className="text-right">Rent. Neta</th>);
+                    case 'groupName': return (<TableHeaderWithFilter key="groupName" label={groupBy === 'plataforma' ? 'Plataforma' : 'Activo / Proyecto'} columnKey="groupName" data={rows} tableId="cf-portfolio" />);
+                    case 'investment': return (<TableHeaderWithFilter key="investment" label="Inversión" columnKey="investment" data={rows} tableId="cf-portfolio" className="text-right" />);
+                    case 'grossRents': return (<TableHeaderWithFilter key="grossRents" label="Rentas Brutas" columnKey="grossRents" data={rows} tableId="cf-portfolio" className="text-right" />);
+                    case 'expenses': return (<TableHeaderWithFilter key="expenses" label="Gastos" columnKey="expenses" data={rows} tableId="cf-portfolio" className="text-right" />);
+                    case 'netRents': return (<TableHeaderWithFilter key="netRents" label="Rentas Netas" columnKey="netRents" data={rows} tableId="cf-portfolio" className="text-right" />);
+                    case 'totalGross': return (<TableHeaderWithFilter key="totalGross" label="Importe Total" columnKey="totalGross" data={rows} tableId="cf-portfolio" className="text-right" />);
+                    case 'totalNet': return (<TableHeaderWithFilter key="totalNet" label="Imp. Total Neto" columnKey="totalNet" data={rows} tableId="cf-portfolio" className="text-right" />);
+                    case 'yieldGross': return (<TableHeaderWithFilter key="yieldGross" label="Rent. Bruta" columnKey="yieldGross" data={rows} tableId="cf-portfolio" className="text-right" />);
+                    case 'yieldNet': return (<TableHeaderWithFilter key="yieldNet" label="Rent. Neta" columnKey="yieldNet" data={rows} tableId="cf-portfolio" className="text-right" />);
                     default: return null;
                     }
                   })}
@@ -534,7 +523,7 @@ export default function CfPortfolio() {
                     </td>
                   </tr>
                 ) : (
-                  rows.map((row) => (
+                  applyTableFilters(rows, 'cf-portfolio').map((row) => (
                     <tr key={row.id}>
                       
                   {visibleColumns.map(col => {

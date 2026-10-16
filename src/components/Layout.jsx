@@ -922,7 +922,7 @@ export default function Layout() {
       {
         group: 'Presupuestos',
         items: [
-          { name: 'Asignación', path: '/analitica?view=asignacion', customIcon: 'Asignacion' },
+          { name: 'Asignación\npresupuestaria', path: '/analitica?view=asignacion', customIcon: 'Asignacion' },
           { name: 'Desviación', action: 'analitica:open-desviacion-modal', customIcon: 'Desviacion' }
         ]
       }

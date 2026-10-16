@@ -421,7 +421,7 @@ export default function TaxesRealEstate() {
               </tr>
             </thead>
             <tbody>
-              {computedProperties.map(p => {
+              {applyTableFilters(computedProperties, 'taxesRealEstate').map(p => {
                 const isSelected = selectedProperty?.id === p.id;
                 return (
                   <tr 
@@ -472,7 +472,7 @@ export default function TaxesRealEstate() {
         </div>
       </div>
 
-
+      {renderFilterMenu()}
 
       <div className="flex justify-between items-center bg-[#f0f0f0] p-1 border-t border-[#808080] text-[10px] shrink-0">
         <div>{computedProperties.length} activos encontrados</div>

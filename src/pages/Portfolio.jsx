@@ -53,7 +53,7 @@ export default function Portfolio() {
 
   const DEFAULT_COLUMNS_PORTFOLIO = ['symbol', 'name', 'type', 'brokerName', 'quantity', 'pmc', 'currentPrice', 'totalCost', 'currentValue', 'pnl', 'pnlPercent'];
   const { visibleColumns: visColsPortfolio, toggleColumn: toggleColPortfolio , columnWidths, updateColumnWidth} = useTableColumns('rv-portfolio', DEFAULT_COLUMNS_PORTFOLIO);
-  const { applyTableFilters, TableHeaderWithFilter, renderFilterMenu } = useTableFilters({ columnWidths, updateColumnWidth });
+  const { applyTableFilters, applyTableSort, TableHeaderWithFilter, renderFilterMenu } = useTableFilters({ columnWidths, updateColumnWidth });
 
   const DEFAULT_COLUMNS_TX = ['id', 'date', 'assetId', 'brokerName', 'type', 'quantity', 'price', 'fee', 'currency', 'exchangeRate', 'totalAmount'];
   const { visibleColumns: visColsTx, toggleColumn: toggleColTx } = useTableColumns('rv-transactions-grid', DEFAULT_COLUMNS_TX);
@@ -572,7 +572,7 @@ export default function Portfolio() {
               Broker: <span className="underline">{brokerName}</span> (Cuenta: {accNum})
             </td>
           </tr>
-          {items.map(h => renderRow(h))}
+          {applyTableSort(items, 'portfolio').map(h => renderRow(h))}
           <tr className="bg-slate-50 font-bold border-b border-gray-300 text-slate-700">
             
                   {visColsPortfolio.map(col => {
@@ -642,7 +642,7 @@ export default function Portfolio() {
               Activo: <span className="underline">{sym}</span> - {assetName}
             </td>
           </tr>
-          {items.map(h => renderRow(h))}
+          {applyTableSort(items, 'portfolio').map(h => renderRow(h))}
           <tr className="bg-slate-50 font-bold border-b border-gray-300 text-slate-700">
             
                   {visColsPortfolio.map(col => {

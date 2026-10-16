@@ -908,9 +908,14 @@ export default function RealEstate() {
                       </tr>
                     ) : (
                       applyTableFilters(formData.docs, 'realestate-docs').map((doc) => (
-                        <tr key={doc.id}>
+                        <tr key={doc.id} className="hover:bg-slate-50 transition-colors">
                           <td className="py-1 px-2">
-                            <input type="date" className="w-full bg-transparent border-transparent hover:border-gray-300 focus:bg-white focus:border-[#666] focus:shadow-[inset_0_1px_2px_rgba(0,0,0,0.12)] text-[11px] px-1 outline-none h-[24px] transition-colors rounded-sm" value={doc.date || ''} onChange={(e) => updateAssetDocument(doc.id, 'date', e.target.value)} />
+                            <input 
+                              type="date" 
+                              className="w-full bg-transparent border-0 border-none outline-none ring-0 shadow-none focus:outline-none focus:ring-0 focus:border-0 focus:shadow-none focus:bg-transparent text-[11px] font-mono px-1 h-[24px] text-gray-800" 
+                              value={doc.date || ''} 
+                              onChange={(e) => updateAssetDocument(doc.id, 'date', e.target.value)} 
+                            />
                           </td>
                           <td className="py-2 px-3">
                             <div className="flex items-center space-x-2 truncate">
@@ -919,7 +924,13 @@ export default function RealEstate() {
                             </div>
                           </td>
                           <td className="py-1 px-2">
-                            <input type="text" className="w-full bg-transparent border-transparent hover:border-gray-300 focus:bg-white focus:border-[#666] focus:shadow-[inset_0_1px_2px_rgba(0,0,0,0.12)] text-[11px] px-1 outline-none h-[24px] transition-colors rounded-sm" value={doc.concept || ''} onChange={(e) => updateAssetDocument(doc.id, 'concept', e.target.value)} placeholder="Añadir concepto..." />
+                            <input 
+                              type="text" 
+                              className="w-full bg-transparent border-0 border-none outline-none ring-0 shadow-none focus:outline-none focus:ring-0 focus:border-0 focus:shadow-none focus:bg-transparent text-[11px] px-1 h-[24px] text-gray-800" 
+                              value={doc.concept || ''} 
+                              onChange={(e) => updateAssetDocument(doc.id, 'concept', e.target.value)} 
+                              placeholder="Añadir concepto..." 
+                            />
                           </td>
                           <td className="py-2 px-3 text-center">
                             <div className="flex justify-center items-center space-x-4">
@@ -993,7 +1004,7 @@ export default function RealEstate() {
   }, [propertiesWithCalculatedRentals, visibleColumns, applyTableFilters]);
 
   return (
-    <div className="w-full h-full bg-[#d4d0c8] flex flex-col p-1 overflow-hidden font-sans">
+    <div className="w-full h-full bg-white flex flex-col overflow-hidden font-sans">
       <div className="flex flex-row flex-1 overflow-hidden bg-white relative">
         <div className="flex-1 flex flex-col bg-white overflow-hidden relative" onClick={() => { setSelectedProperty(null); setSelectedTenantIndex(null); setSelectedServiceIndex(null); }}>
           <div className="flex justify-between items-center px-4 py-2 border-b border-gray-200">

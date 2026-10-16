@@ -156,13 +156,16 @@ export default function PropietariosTab({ formData, setFormData, user, queryUser
                       <tr key={owner.partnerId}>
                         <td className="text-[11px] text-black">{owner.name}</td>
                         <td className="text-center text-[11px]">{owner.nif || '-'}</td>
-                        <td className="p-2 w-24">
-                          <input 
-                            type="number"
-                            value={owner.percentage || ''}
-                            onChange={(e) => updateOwnerPercentage(idx, e.target.value)}
-                            className="w-full border border-gray-400 px-2 py-1 text-[11px] text-right focus:outline-none focus:border-[#666] focus:shadow-[inset_0_1px_2px_rgba(0,0,0,0.12)] font-bold text-black"
-                          />
+                        <td className="p-1 w-24">
+                          <div className="flex items-center justify-end">
+                            <input 
+                              type="number"
+                              value={owner.percentage || ''}
+                              onChange={(e) => updateOwnerPercentage(idx, e.target.value)}
+                              className="w-full bg-transparent border-0 border-none outline-none ring-0 shadow-none focus:outline-none focus:ring-0 focus:border-0 focus:shadow-none focus:bg-transparent text-right font-mono font-bold text-[11px] text-black pr-1"
+                            />
+                            <span className="font-mono font-bold text-[11px] text-black">%</span>
+                          </div>
                         </td>
                         <td className="text-center">
                           <button 

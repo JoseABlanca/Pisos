@@ -309,23 +309,23 @@ export default function ServiciosTab({
                     <div className="text-center text-slate-400 italic py-8 text-[11px]">No hay documentos asociados a este servicio.</div>
                   ) : (
                     selectedService.docs.map((doc) => (
-                      <div key={doc.id} className="grid grid-cols-12 gap-2 items-center text-[11px] border-b border-slate-100 pb-2">
+                      <div key={doc.id} className="grid grid-cols-12 gap-2 items-center text-[11px] border-b border-slate-100 pb-2 hover:bg-slate-50 transition-colors">
                         <div className="col-span-2">
                           <input
                             type="date"
-                            className="win-input w-full text-[11px]"
+                            className="w-full bg-transparent border-0 border-none outline-none ring-0 shadow-none focus:outline-none focus:ring-0 focus:border-0 focus:shadow-none focus:bg-transparent text-[11px] font-mono px-1 h-[24px] text-gray-800"
                             value={doc.date || ''}
                             onChange={(e) => updateDocument(doc.id, 'date', e.target.value)}
                           />
                         </div>
                         <div className="col-span-4 flex items-center space-x-2 truncate">
                           <FileText className="w-4 h-4 text-slate-400 shrink-0" />
-                          <span className="truncate" title={doc.name}>{doc.name}</span>
+                          <span className="truncate text-gray-700" title={doc.name}>{doc.name}</span>
                         </div>
                         <div className="col-span-4">
                           <input
                             type="text"
-                            className="win-input w-full text-[11px]"
+                            className="w-full bg-transparent border-0 border-none outline-none ring-0 shadow-none focus:outline-none focus:ring-0 focus:border-0 focus:shadow-none focus:bg-transparent text-[11px] px-1 h-[24px] text-gray-800"
                             value={doc.concept || ''}
                             onChange={(e) => updateDocument(doc.id, 'concept', e.target.value)}
                             placeholder="Ej. Factura Enero, Contrato..."
