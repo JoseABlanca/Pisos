@@ -384,7 +384,7 @@ export default function CfTransactions() {
                       <th className="w-8 !p-0 text-center bg-[#fafafa]">
                         <input 
                           type="checkbox" 
-                          className="cursor-pointer rounded-none accent-[#2b579a] w-3.5 h-3.5 align-middle" 
+                          className="cursor-pointer w-3.5 h-3.5 align-middle" 
                           checked={displayedTx.length > 0 && selectedIds.length === displayedTx.length} 
                           onChange={() => handleToggleSelectAll(displayedTx)} 
                         />
@@ -419,7 +419,7 @@ export default function CfTransactions() {
                           <td className="w-8 !p-0 text-center" onClick={(e) => e.stopPropagation()}>
                             <input 
                               type="checkbox" 
-                              className="cursor-pointer rounded-none accent-[#2b579a] w-3.5 h-3.5 align-middle" 
+                              className="cursor-pointer w-3.5 h-3.5 align-middle" 
                               checked={selectedIds.includes(tx.id)} 
                               onChange={() => handleToggleSelect(tx.id)} 
                             />

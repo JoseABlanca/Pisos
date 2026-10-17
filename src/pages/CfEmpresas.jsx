@@ -544,7 +544,7 @@ export default function CfEmpresas() {
                       <th className="w-8 !p-0 text-center bg-[#fafafa]">
                         <input 
                           type="checkbox" 
-                          className="cursor-pointer rounded-none accent-[#2b579a] w-3.5 h-3.5 align-middle" 
+                          className="cursor-pointer w-3.5 h-3.5 align-middle" 
                           checked={displayedPlatforms.length > 0 && selectedIds.length === displayedPlatforms.length} 
                           onChange={() => handleToggleSelectAll(displayedPlatforms)} 
                         />
@@ -583,7 +583,7 @@ export default function CfEmpresas() {
                           <td className="w-8 !p-0 text-center" onClick={(e) => e.stopPropagation()}>
                             <input 
                               type="checkbox" 
-                              className="cursor-pointer rounded-none accent-[#2b579a] w-3.5 h-3.5 align-middle" 
+                              className="cursor-pointer w-3.5 h-3.5 align-middle" 
                               checked={selectedIds.includes(p.id)} 
                               onChange={() => handleToggleSelect(p.id)} 
                             />

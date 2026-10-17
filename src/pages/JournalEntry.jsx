@@ -2,8 +2,8 @@ import React, { useState, useEffect, useRef, useMemo } from 'react';
 import { useLocation, useNavigate } from 'react-router-dom';
 import { useAuth } from '../context/AuthContext';
 import { db } from '../firebase/config';
-import { collection, query, where, onSnapshot, doc, getDoc, setDoc, addDoc, serverTimestamp, writeBatch, increment } from 'firebase/firestore';
-import { Save, Plus, Trash2, X, Search, Edit2, Minus, FilePlus, RefreshCw, Copy, PanelLeft } from 'lucide-react';
+import { collection, query, where, onSnapshot, doc, getDoc, setDoc, addDoc, serverTimestamp, writeBatch, increment, updateDoc } from 'firebase/firestore';
+import { Save, Plus, Trash2, X, Search, Edit2, Minus, FilePlus, RefreshCw, Copy, PanelLeft, FileText, Eye, Upload } from 'lucide-react';
 import { collection as fbCollection, query as fbQuery, where as fbWhere, onSnapshot as fbOnSnapshot } from 'firebase/firestore';
 import Accounts from './Accounts'; // Import Accounts to use as modal
 import AnalyticalCenters from './AnalyticalCenters'; // Import AnalyticalCenters to use as modal
@@ -269,6 +269,17 @@ export default function JournalEntry({ isModal, initialEntry, onClose }) {
   const [documentUrl, setDocumentUrl] = useState(null);
   const [documentName, setDocumentName] = useState(null);
   const [isUploading, setIsUploading] = useState(false);
+  const [activeDocMenuIndex, setActiveDocMenuIndex] = useState(null);
+
+  useEffect(() => {
+    const handleClickOutside = (e) => {
+      if (activeDocMenuIndex !== null && !e.target.closest('.doc-action-menu-container')) {
+        setActiveDocMenuIndex(null);
+      }
+    };
+    window.addEventListener('mousedown', handleClickOutside);
+    return () => window.removeEventListener('mousedown', handleClickOutside);
+  }, [activeDocMenuIndex]);
 
   useEffect(() => {
     if (!isEditing && !entryId) {
@@ -278,24 +289,72 @@ export default function JournalEntry({ isModal, initialEntry, onClose }) {
 
   const handleFileUpload = async (e) => {
     const file = e.target.files?.[0];
-    if (!file || !user || !entryId) return;
+    if (!file || !user) return;
+    const currentId = entryId || doc(collection(db, 'journal_entries')).id;
+    if (!entryId) setEntryId(currentId);
+
     setIsUploading(true);
     try {
-      const url = await uploadFileToStorage(file, user.uid, 'journal_entries', entryId, 'docs');
+      const url = await uploadFileToStorage(file, user.uid, 'journal_entries', currentId, 'docs');
       setDocumentUrl(url);
       setDocumentName(file.name);
+
+      if (isEditing && currentId) {
+        try {
+          await updateDoc(doc(db, 'journal_entries', currentId), {
+            documentUrl: url,
+            documentName: file.name
+          });
+        } catch (dbErr) {
+          console.warn("Could not immediately update doc in firestore:", dbErr);
+        }
+      }
+
+      setLines(prevLines => {
+        const next = [...prevLines];
+        if (next.length > 0) {
+          next[0] = {
+            ...next[0],
+            documentUrl: url,
+            documentName: file.name
+          };
+        }
+        return next;
+      });
     } catch (err) {
       console.error(err);
       alert('Error al subir el documento: ' + err.message);
     } finally {
       setIsUploading(false);
+      if (e.target) e.target.value = '';
     }
   };
 
-  const handleDeleteDoc = () => {
+  const handleDeleteDoc = async () => {
     if (window.confirm('¿Eliminar el documento asociado a este asiento?')) {
       setDocumentUrl(null);
       setDocumentName(null);
+      if (isEditing && entryId) {
+        try {
+          await updateDoc(doc(db, 'journal_entries', entryId), {
+            documentUrl: null,
+            documentName: null
+          });
+        } catch (dbErr) {
+          console.warn(dbErr);
+        }
+      }
+      setLines(prevLines => {
+        const next = [...prevLines];
+        if (next.length > 0) {
+          next[0] = {
+            ...next[0],
+            documentUrl: null,
+            documentName: null
+          };
+        }
+        return next;
+      });
     }
   };
   
@@ -895,12 +954,12 @@ export default function JournalEntry({ isModal, initialEntry, onClose }) {
           </div>
         </button>
         <div className="w-px h-5 bg-gray-300 mx-1"></div>
-        <button onClick={addLine} className="p-1 hover:bg-gray-200 rounded text-gray-600" title="Añadir línea">
+        <button onClick={addLine} className="p-1 hover:bg-gray-200 rounded text-gray-600 cursor-pointer" title="Añadir línea">
           <Plus className="w-5 h-5" />
         </button>
         <button 
           onClick={() => removeLine(selectedLineIndex !== null ? selectedLineIndex : lines.length - 1)} 
-          className="p-1 hover:bg-gray-200 rounded text-gray-600" 
+          className="p-1 hover:bg-gray-200 rounded text-gray-600 cursor-pointer" 
           title="Quitar fila seleccionada"
         >
           <Minus className="w-5 h-5" />
@@ -1016,7 +1075,7 @@ export default function JournalEntry({ isModal, initialEntry, onClose }) {
                     />
                   </td>
                   <td className="p-0">
-                    <div className="flex items-center w-full h-full pr-1 gap-1">
+                    <div className="flex items-center w-full h-full pr-1 gap-1 relative">
                       <input 
                         id={`document-${idx}`}
                         type="text" 
@@ -1027,37 +1086,103 @@ export default function JournalEntry({ isModal, initialEntry, onClose }) {
                         placeholder="Ref..."
                       />
                       {line.documentUrl ? (
-                        <div className="flex items-center bg-blue-50 text-blue-700 px-1 py-0.5 border border-blue-200 rounded text-[9px] shrink-0 max-w-[90px]" title={line.documentName}>
-                          <span className="truncate">{line.documentName}</span>
+                        <div className="relative doc-action-menu-container shrink-0">
                           <button 
                             type="button"
-                            onClick={() => {
-                              if (window.confirm('¿Quitar documento de esta línea?')) {
-                                updateLine(idx, 'documentUrl', null);
-                                updateLine(idx, 'documentName', null);
-                              }
+                            onClick={(e) => {
+                              e.stopPropagation();
+                              setActiveDocMenuIndex(activeDocMenuIndex === idx ? null : idx);
                             }}
-                            className="ml-1 text-red-500 hover:text-red-700 shrink-0"
+                            className={`p-1 rounded cursor-pointer transition-colors flex items-center justify-center ${
+                              activeDocMenuIndex === idx 
+                                ? 'bg-blue-600 text-white' 
+                                : 'text-blue-600 hover:text-blue-800 bg-blue-50 hover:bg-blue-100 border border-blue-200'
+                            }`}
+                            title={line.documentName ? `Documento: ${line.documentName} (clic para opciones)` : 'Documento adjunto (clic para opciones)'}
                           >
-                            <X className="w-2.5 h-2.5" />
+                            <FileText className="w-3.5 h-3.5" />
                           </button>
+
+                          {activeDocMenuIndex === idx && (
+                            <div 
+                              className="absolute right-0 top-full mt-1 z-50 bg-white border border-gray-300 rounded shadow-lg p-2 min-w-[170px] flex flex-col gap-1 text-left"
+                              onClick={(e) => e.stopPropagation()}
+                            >
+                              <div className="text-[10px] font-semibold text-gray-700 border-b border-gray-100 pb-1.5 truncate max-w-[160px]" title={line.documentName || 'Documento adjunto'}>
+                                {line.documentName || 'Documento adjunto'}
+                              </div>
+                              <button
+                                type="button"
+                                onClick={() => {
+                                  if (line.documentUrl) {
+                                    window.open(line.documentUrl, '_blank');
+                                  }
+                                  setActiveDocMenuIndex(null);
+                                }}
+                                className="flex items-center gap-2 px-2 py-1.5 text-[11px] text-blue-700 hover:bg-blue-50 rounded text-left transition-colors font-medium cursor-pointer"
+                              >
+                                <Eye className="w-3.5 h-3.5 text-blue-600" />
+                                Visualizar
+                              </button>
+                              <button
+                                type="button"
+                                onClick={() => {
+                                  if (window.confirm('¿Desea borrar este documento adjunto?')) {
+                                    updateLine(idx, 'documentUrl', null);
+                                    updateLine(idx, 'documentName', null);
+                                    setActiveDocMenuIndex(null);
+                                    if (isEditing && entryId) {
+                                      try {
+                                        updateDoc(doc(db, 'journal_entries', entryId), {
+                                          documentUrl: null,
+                                          documentName: null
+                                        }).catch(console.warn);
+                                      } catch (e) {
+                                        console.warn(e);
+                                      }
+                                    }
+                                  }
+                                }}
+                                className="flex items-center gap-2 px-2 py-1.5 text-[11px] text-red-600 hover:bg-red-50 rounded text-left transition-colors font-medium cursor-pointer"
+                              >
+                                <Trash2 className="w-3.5 h-3.5 text-red-500" />
+                                Borrar
+                              </button>
+                            </div>
+                          )}
                         </div>
                       ) : (
-                        <label className="p-1 hover:bg-slate-100 rounded text-slate-500 cursor-pointer shrink-0" title="Adjuntar documento">
+                        <label className="p-1 hover:bg-slate-100 rounded text-slate-400 hover:text-slate-600 cursor-pointer shrink-0" title="Adjuntar documento">
                           <FilePlus className="w-3.5 h-3.5" />
                           <input 
                             type="file" 
                             className="hidden" 
                             onChange={async (e) => {
                               const file = e.target.files?.[0];
-                              if (!file || !user || !entryId) return;
+                              if (!file || !user) return;
+                              const currentId = entryId || doc(collection(db, 'journal_entries')).id;
+                              if (!entryId) setEntryId(currentId);
                               try {
-                                const url = await uploadFileToStorage(file, user.uid, 'journal_entries', `${entryId}_line_${idx}`, 'docs');
+                                const url = await uploadFileToStorage(file, user.uid, 'journal_entries', `${currentId}_line_${idx}`, 'docs');
                                 updateLine(idx, 'documentUrl', url);
                                 updateLine(idx, 'documentName', file.name);
+                                setDocumentUrl(url);
+                                setDocumentName(file.name);
+                                if (isEditing && currentId) {
+                                  try {
+                                    await updateDoc(doc(db, 'journal_entries', currentId), {
+                                      documentUrl: url,
+                                      documentName: file.name
+                                    });
+                                  } catch (errDb) {
+                                    console.warn(errDb);
+                                  }
+                                }
                               } catch (err) {
                                 console.error(err);
                                 alert('Error al subir: ' + err.message);
+                              } finally {
+                                if (e.target) e.target.value = '';
                               }
                             }}
                             accept=".pdf,.doc,.docx,.xls,.xlsx,.jpg,.jpeg,.png"

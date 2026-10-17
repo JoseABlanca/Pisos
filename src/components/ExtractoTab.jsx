@@ -605,14 +605,14 @@ export default function ExtractoTab({ formData, setFormData, rentals }) {
       <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
         <div className="p-3 bg-slate-50 border border-slate-200 rounded shadow-sm">
           <div className="text-[9px] font-bold text-slate-600 uppercase mb-1">Total Ingresos Filtrado</div>
-          <div className="font-mono text-[16px] font-bold text-slate-800">
+          <div className="text-[16px] font-bold text-slate-800">
             {metrics.incomes.toLocaleString('de-DE', { minimumFractionDigits: 2 })} €
           </div>
         </div>
 
         <div className="p-3 bg-slate-50 border border-slate-200 rounded shadow-sm">
           <div className="text-[9px] font-bold text-slate-600 uppercase mb-1">Total Gastos Filtrado</div>
-          <div className="font-mono text-[16px] font-bold text-slate-850">
+          <div className="text-[16px] font-bold text-slate-850">
             -{metrics.expenses.toLocaleString('de-DE', { minimumFractionDigits: 2 })} €
           </div>
         </div>
@@ -621,7 +621,7 @@ export default function ExtractoTab({ formData, setFormData, rentals }) {
           <div className={`text-[9px] font-bold uppercase mb-1 ${metrics.net >= 0 ? 'text-blue-700' : 'text-slate-600'}`}>
             Balance Neto Filtrado
           </div>
-          <div className={`font-mono text-[16px] font-bold ${metrics.net >= 0 ? 'text-blue-950' : 'text-slate-900'}`}>
+          <div className={`text-[16px] font-bold ${metrics.net >= 0 ? 'text-blue-950' : 'text-slate-900'}`}>
             {metrics.net.toLocaleString('de-DE', { minimumFractionDigits: 2 })} €
           </div>
         </div>
@@ -882,7 +882,7 @@ export default function ExtractoTab({ formData, setFormData, rentals }) {
                               type="number" 
                               value={entry.debit}
                               onChange={(e) => updateJournalEntryRow(idx, 'debit', e.target.value)}
-                              className="w-full bg-transparent border-none outline-none p-1 text-[10px] text-right font-mono"
+                              className="w-full bg-transparent border-none outline-none p-1 text-[10px] text-right"
                               placeholder="0.00"
                             />
                           </td>
@@ -891,7 +891,7 @@ export default function ExtractoTab({ formData, setFormData, rentals }) {
                               type="number" 
                               value={entry.credit}
                               onChange={(e) => updateJournalEntryRow(idx, 'credit', e.target.value)}
-                              className="w-full bg-transparent border-none outline-none p-1 text-[10px] text-right font-mono"
+                              className="w-full bg-transparent border-none outline-none p-1 text-[10px] text-right"
                               placeholder="0.00"
                             />
                           </td>
@@ -901,10 +901,10 @@ export default function ExtractoTab({ formData, setFormData, rentals }) {
                       {/* Totals Row */}
                       <tr className="bg-[#e7e1d3] border-t-2 border-[#808080]">
                         <td className="p-1 text-[9px] font-bold text-right uppercase">Total Asiento:</td>
-                        <td className="p-1 text-right font-mono text-[10px] font-bold text-slate-800 bg-white/40 border-l border-[#808080]">
+                        <td className="p-1 text-right text-[10px] font-bold text-slate-800 bg-white/40 border-l border-[#808080]">
                           {totalDebit.toLocaleString('es-ES', { minimumFractionDigits: 2 })} €
                         </td>
-                        <td className="p-1 text-right font-mono text-[10px] font-bold text-slate-800 bg-white/40 border-l border-[#808080]">
+                        <td className="p-1 text-right text-[10px] font-bold text-slate-800 bg-white/40 border-l border-[#808080]">
                           {totalCredit.toLocaleString('es-ES', { minimumFractionDigits: 2 })} €
                         </td>
                       </tr>
@@ -912,7 +912,7 @@ export default function ExtractoTab({ formData, setFormData, rentals }) {
                       {totalDebit - totalCredit !== 0 && (
                         <tr className="bg-red-50 text-[9px] text-red-700 font-bold">
                           <td className="p-1 text-right">⚠️ Diferencia Descuadrada:</td>
-                          <td colSpan="2" className="p-1 text-right font-mono text-[10px] font-black bg-red-600 text-white border-l border-[#808080]">
+                          <td colSpan="2" className="p-1 text-right text-[10px] font-black bg-red-600 text-white border-l border-[#808080]">
                             {Math.abs(totalDebit - totalCredit).toLocaleString('es-ES', { minimumFractionDigits: 2 })} €
                           </td>
                         </tr>
@@ -1022,7 +1022,7 @@ export default function ExtractoTab({ formData, setFormData, rentals }) {
                     </td>
 
                     {/* Amount */}
-                    <td className="p-1.5 border-r border-[#d4d0c8] text-right font-mono font-bold text-[11px] text-slate-800">
+                    <td className="p-1.5 border-r border-[#d4d0c8] text-right font-bold text-[11px] text-slate-800">
                       {isIncome ? '+' : '-'}{t.amount.toLocaleString('de-DE', { minimumFractionDigits: 2 })} €
                     </td>
 

@@ -421,7 +421,7 @@ export default function Broker() {
                       <th className="w-8 !p-0 text-center bg-[#fafafa]">
                         <input 
                           type="checkbox" 
-                          className="cursor-pointer rounded-none accent-[#2b579a] w-3.5 h-3.5 align-middle" 
+                          className="cursor-pointer w-3.5 h-3.5 align-middle" 
                           checked={displayedBrokers.length > 0 && selectedIds.length === displayedBrokers.length} 
                           onChange={() => handleToggleSelectAll(displayedBrokers)} 
                         />
@@ -456,7 +456,7 @@ export default function Broker() {
                           <td className="w-8 !p-0 text-center" onClick={(e) => e.stopPropagation()}>
                             <input 
                               type="checkbox" 
-                              className="cursor-pointer rounded-none accent-[#2b579a] w-3.5 h-3.5 align-middle" 
+                              className="cursor-pointer w-3.5 h-3.5 align-middle" 
                               checked={selectedIds.includes(broker.id)} 
                               onChange={() => handleToggleSelect(broker.id)} 
                             />

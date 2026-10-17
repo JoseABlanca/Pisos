@@ -536,46 +536,8 @@ export default function ExtractoContableTab({
   return (
     <div className="flex flex-col h-full overflow-hidden min-h-0 gap-4 text-xs font-sans text-slate-800">
       {/* Filtros: CEBE + Desde/Hasta (estilo Analítica > Desviación) */}
-      {/* Filtros: CEBE, Desde/Hasta e Invertir Signo (Estilo formulario de la foto) */}
       <div className="flex flex-col gap-2 select-none">
         <div className="flex items-end gap-3 flex-wrap">
-          {/* CEBE */}
-          <div className="space-y-1 min-w-[200px] flex-1 max-w-[260px]">
-            <label
-              onClick={() => setShowCebeSel(true)}
-              className="text-[10px] font-bold text-[#444] uppercase tracking-wide block cursor-pointer hover:text-black"
-              title="Abrir selector de CEBE (F3)"
-            >
-              CEBE:
-            </label>
-            <div className="flex gap-1">
-              <input
-                type="text"
-                readOnly
-                value={cebeInput || ''}
-                onClick={() => setShowCebeSel(true)}
-                onKeyDown={e => {
-                  if (e.key === 'Enter' || e.key === ' ' || e.key === 'F3') {
-                    e.preventDefault();
-                    setShowCebeSel(true);
-                  }
-                }}
-                className="win-input flex-1 font-mono text-[11px] h-[30px] cursor-pointer hover:border-[#666]"
-                placeholder="-- Seleccionar CEBE --"
-              />
-              <button 
-                type="button" 
-                className="btn-classic px-2.5 text-red-600 font-bold flex items-center justify-center shrink-0 cursor-pointer text-xs h-[30px]" 
-                onClick={() => {
-                  setCebeInput('');
-                  handleCebeChange({ target: { value: '' } });
-                }}
-                title="Quitar CEBE"
-              >
-                X
-              </button>
-            </div>
-          </div>
 
           {/* Desde */}
           <div className="space-y-1 w-[140px]">
@@ -584,7 +546,7 @@ export default function ExtractoContableTab({
             </label>
             <input
               type="date"
-              className="win-input w-full font-mono text-[11px] h-[30px]"
+              className="win-input w-full text-[11px] h-[30px]"
               value={startDate}
               onChange={e => setStartDate(e.target.value)}
             />
@@ -597,7 +559,7 @@ export default function ExtractoContableTab({
             </label>
             <input
               type="date"
-              className="win-input w-full font-mono text-[11px] h-[30px]"
+              className="win-input w-full text-[11px] h-[30px]"
               value={endDate}
               onChange={e => setEndDate(e.target.value)}
             />
@@ -703,12 +665,12 @@ export default function ExtractoContableTab({
 
         {mode === 'rentals' && formData?.reference && (
           <div className="text-[10px] text-slate-500 font-semibold uppercase">
-            Filtro por Referencia Alquiler (en Documento): <span className="font-mono bg-white px-1.5 py-0.5 border border-slate-300 rounded font-bold text-slate-700">{formData.reference}</span>
+            Filtro por Referencia Alquiler (en Documento): <span className="bg-white px-1.5 py-0.5 border border-slate-300 rounded font-bold text-slate-700">{formData.reference}</span>
           </div>
         )}
         {!currentCebe && (
           <div className="text-[11px] text-[#555] font-bold">
-            Selecciona un CEBE para ver el extracto.
+            {mode === 'properties' ? 'Asigna un CEBE en la pestaña Datos para ver el extracto de este activo.' : 'Selecciona un CEBE para ver el extracto.'}
           </div>
         )}
       </div>
@@ -717,21 +679,21 @@ export default function ExtractoContableTab({
       <div className="flex flex-wrap items-center gap-x-6 gap-y-2 py-1 bg-white text-xs font-bold text-gray-700 select-none shrink-0">
         <div className="flex items-center gap-1.5">
           <span className="text-gray-500 uppercase text-[9px]">Ingresos:</span>
-          <span className="font-mono text-black text-sm">
+          <span className="text-black text-sm font-semibold">
             {totals.cebe.toLocaleString('es-ES', { minimumFractionDigits: 2 })} €
           </span>
         </div>
         <div className="w-px h-4 bg-gray-300" />
         <div className="flex items-center gap-1.5">
           <span className="text-gray-500 uppercase text-[9px]">Gastos:</span>
-          <span className="font-mono text-black text-sm">
+          <span className="text-black text-sm font-semibold">
             -{totals.ceco.toLocaleString('es-ES', { minimumFractionDigits: 2 })} €
           </span>
         </div>
         <div className="w-px h-4 bg-gray-300" />
         <div className="flex items-center gap-1.5">
           <span className="text-gray-500 uppercase text-[9px]">Total:</span>
-          <span className={`font-mono text-sm ${totals.balance >= 0 ? 'text-black' : 'text-amber-800'}`}>
+          <span className={`text-sm font-semibold ${totals.balance >= 0 ? 'text-black' : 'text-amber-800'}`}>
             {totals.balance.toLocaleString('es-ES', { minimumFractionDigits: 2 })} €
           </span>
         </div>
@@ -775,8 +737,8 @@ export default function ExtractoContableTab({
 
                   return (
                     <tr key={entry.id} className="hover:bg-slate-50">
-                      <td className="font-mono text-[10px]">{entry.dateFormatted}</td>
-                      <td className="font-mono text-[10px] text-center">
+                      <td className="text-[10px]">{entry.dateFormatted}</td>
+                      <td className="text-[10px] text-center">
                         <button
                           type="button"
                           onClick={() => setSelectedJournalEntry(entry.parentEntry || entry)}
@@ -788,7 +750,7 @@ export default function ExtractoContableTab({
                         </button>
                       </td>
                       <td className="truncate max-w-[200px]" title={entry.description}>{entry.description}</td>
-                      <td className="font-mono text-[10px]">
+                      <td className="text-[10px]">
                         <div className="flex items-center gap-1.5 flex-wrap">
                           <span>{displayCenter}</span>
                           {entry.isNegativeCeco && (
@@ -798,7 +760,7 @@ export default function ExtractoContableTab({
                           )}
                         </div>
                       </td>
-                      <td className={`text-right font-mono ${amountColor}`}>
+                      <td className={`text-right ${amountColor}`}>
                         {signedAmount > 0 ? '+' : ''}{signedAmount.toLocaleString('es-ES', { minimumFractionDigits: 2 })} €
                       </td>
                       <td className="p-1">

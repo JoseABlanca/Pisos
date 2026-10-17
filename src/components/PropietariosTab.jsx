@@ -140,7 +140,7 @@ export default function PropietariosTab({ formData, setFormData, user, queryUser
                   <tr>
                     <th className="!bg-[#fafafa]">Nombre del Propietario / Sociedad</th>
                     <th className="w-32 text-center !bg-[#fafafa]">NIF/CIF</th>
-                    <th className="w-24 text-right !bg-[#fafafa]">%</th>
+                    <th className="w-24 text-right !bg-[#fafafa]">Porcentaje</th>
                     <th className="w-10 !bg-[#fafafa]"></th>
                   </tr>
                 </thead>
@@ -200,7 +200,7 @@ export default function PropietariosTab({ formData, setFormData, user, queryUser
                 <thead>
                   <tr>
                     <th className="!bg-[#fafafa]">Propietario</th>
-                    <th className="w-24 text-right !bg-[#fafafa]">%</th>
+                    <th className="w-24 text-right !bg-[#fafafa]">Porcentaje</th>
                     <th className="w-32 text-right !bg-[#fafafa]">Aportación</th>
                     <th className="w-32 text-right !bg-[#fafafa]">Precio Teórico</th>
                     <th className="w-32 text-right !bg-[#fafafa]">Neto</th>

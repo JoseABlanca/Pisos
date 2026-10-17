@@ -444,7 +444,7 @@ export default function Partners() {
                       <th className="w-8 !p-0 text-center bg-[#fafafa]">
                         <input 
                           type="checkbox" 
-                          className="cursor-pointer rounded-none accent-[#2b579a] w-3.5 h-3.5 align-middle" 
+                          className="cursor-pointer w-3.5 h-3.5 align-middle" 
                           checked={displayedPartners.length > 0 && selectedIds.length === displayedPartners.length} 
                           onChange={() => handleToggleSelectAll(displayedPartners)} 
                         />
@@ -490,7 +490,7 @@ export default function Partners() {
                         <td className="w-8 !p-0 text-center" onClick={(e) => e.stopPropagation()}>
                           <input 
                             type="checkbox" 
-                            className="cursor-pointer rounded-none accent-[#2b579a] w-3.5 h-3.5 align-middle" 
+                            className="cursor-pointer w-3.5 h-3.5 align-middle" 
                             checked={selectedIds.includes(partner.id)} 
                             onChange={() => handleToggleSelect(partner.id)} 
                           />
@@ -741,7 +741,7 @@ export default function Partners() {
                         <thead>
                           <tr>
                             <th className="text-left text-[10px] whitespace-nowrap !bg-[#fafafa]">INMUEBLE</th>
-                            <th className="w-24 text-right text-[10px] whitespace-nowrap !bg-[#fafafa]">%</th>
+                            <th className="w-24 text-right text-[10px] whitespace-nowrap !bg-[#fafafa]">PORCENTAJE</th>
                             <th className="w-28 text-right text-[10px] whitespace-nowrap !bg-[#fafafa]">V. ACTUAL</th>
                             <th className="w-32 text-right text-[10px] whitespace-nowrap !bg-[#fafafa]">CAP. APORTADO</th>
                             {gainView === 'real' && <th className="w-28 text-right text-[10px] whitespace-nowrap !bg-[#fafafa]">HIPOTECA</th>}

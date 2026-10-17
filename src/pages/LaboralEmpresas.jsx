@@ -181,7 +181,7 @@ export default function LaboralEmpresas() {
                   <th className="w-8 !p-0 text-center bg-[#fafafa]">
                     <input 
                       type="checkbox" 
-                      className="cursor-pointer rounded-none accent-[#2b579a] w-3.5 h-3.5 align-middle" 
+                      className="cursor-pointer w-3.5 h-3.5 align-middle" 
                       checked={filteredAndColumnFilteredEmpresas.length > 0 && selectedIds.length === filteredAndColumnFilteredEmpresas.length} 
                       onChange={() => handleToggleSelectAll(filteredAndColumnFilteredEmpresas)} 
                     />
@@ -225,7 +225,7 @@ export default function LaboralEmpresas() {
                       <td className="w-8 !p-0 text-center" onClick={e => e.stopPropagation()}>
                         <input 
                           type="checkbox" 
-                          className="cursor-pointer rounded-none accent-[#2b579a] w-3.5 h-3.5 align-middle" 
+                          className="cursor-pointer w-3.5 h-3.5 align-middle" 
                           checked={selectedIds.includes(emp.id)} 
                           onChange={() => handleToggleSelect(emp.id)} 
                         />

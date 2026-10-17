@@ -17,6 +17,7 @@ import ReformasTab from '../components/ReformasTab';
 import { ErrorBoundary } from '../components/ErrorBoundary';
 import { uploadFileToStorage } from '../utils/storageUtils';
 import { useTableColumns } from '../hooks/useTableColumns';
+import AnalyticalCenters from './AnalyticalCenters';
 import { useTableFilters } from '../hooks/useTableFilters';
 import { exportToPDF } from '../utils/pdfExport';
 import EditableCell from '../components/EditableCell';
@@ -99,6 +100,7 @@ export default function RealEstate() {
   const [activeTab, setActiveTab] = useState('Datos');
   const [availableAccounts, setAvailableAccounts] = useState([]);
   const [showAccountsModal, setShowAccountsModal] = useState(false);
+  const [showCebeModal, setShowCebeModal] = useState(false);
   const [cebes, setCebes] = useState([]);
   const [cecos, setCecos] = useState([]);
 
@@ -877,6 +879,30 @@ export default function RealEstate() {
                   )}
                 </div>
               </div>
+              <div className="space-y-1">
+                <label className="text-[10px] font-bold text-[#444] uppercase tracking-wide block">CEBE:</label>
+                <div className="flex gap-1">
+                  <input 
+                    type="text" 
+                    className="win-input flex-1 bg-white cursor-pointer" 
+                    placeholder="Haga clic para seleccionar CEBE..." 
+                    value={formData.cebe ? (cebes.find(c => c.code === formData.cebe)?.name ? `${formData.cebe} - ${cebes.find(c => c.code === formData.cebe).name}` : formData.cebe) : ''} 
+                    readOnly 
+                    onClick={() => setShowCebeModal(true)} 
+                    title="Haga clic para abrir la ventana de CEBEs"
+                  />
+                  {formData.cebe && (
+                    <button 
+                      type="button" 
+                      className="btn-classic px-2 text-red-600 font-bold" 
+                      onClick={() => setFormData({ ...formData, cebe: '' })}
+                      title="Quitar CEBE"
+                    >
+                      X
+                    </button>
+                  )}
+                </div>
+              </div>
             </div>
           </div>
           <div className="flex-1 flex flex-col mt-4">
@@ -951,8 +977,8 @@ export default function RealEstate() {
     }
 
     if (activeTab === 'Hipoteca') return <HipotecaTab formData={formData} setFormData={setFormData} user={user} isMobile={isMobile} setPreviewDocument={setPreviewDocument} isUploading={isUploading} setIsUploading={setIsUploading} availableAccounts={availableAccounts} cecos={cecos} queryUserIds={queryUserIds} />;
-    if (activeTab === 'Servicios') return <ServiciosTab formData={formData} setFormData={setFormData} user={user} isMobile={isMobile} setPreviewDocument={setPreviewDocument} isUploading={isUploading} setIsUploading={setIsUploading} availableAccounts={availableAccounts} />;
-    if (activeTab === 'Comunidad') return <ComunidadTab formData={formData} setFormData={setFormData} user={user} isMobile={isMobile} setPreviewDocument={setPreviewDocument} isUploading={isUploading} setIsUploading={setIsUploading} availableAccounts={availableAccounts} />;
+    if (activeTab === 'Servicios') return <ServiciosTab formData={formData} setFormData={setFormData} user={user} isMobile={isMobile} setPreviewDocument={setPreviewDocument} isUploading={isUploading} setIsUploading={setIsUploading} availableAccounts={availableAccounts} cecos={cecos} cebes={cebes} queryUserIds={queryUserIds} />;
+    if (activeTab === 'Comunidad') return <ComunidadTab formData={formData} setFormData={setFormData} user={user} isMobile={isMobile} setPreviewDocument={setPreviewDocument} isUploading={isUploading} setIsUploading={setIsUploading} availableAccounts={availableAccounts} cecos={cecos} cebes={cebes} queryUserIds={queryUserIds} />;
     if (activeTab === 'Cliente') return <ClienteTab formData={formData} user={user} queryUserIds={queryUserIds} />;
     if (activeTab === 'Propietarios') return <PropietariosTab formData={accessoryFormData ? combinedFormData : formData} setFormData={setFormData} user={user} queryUserIds={queryUserIds} />;
     if (activeTab === 'Finanzas') {
@@ -1029,7 +1055,7 @@ export default function RealEstate() {
                       <th className="w-8 !p-0 text-center bg-[#fafafa]">
                         <input 
                           type="checkbox" 
-                          className="cursor-pointer rounded-none accent-[#2b579a] w-3.5 h-3.5 align-middle" 
+                          className="cursor-pointer w-3.5 h-3.5 align-middle" 
                           checked={displayedProperties.length > 0 && selectedIds.length === displayedProperties.length} 
                           onChange={() => handleToggleSelectAll(displayedProperties)} 
                         />
@@ -1078,7 +1104,7 @@ export default function RealEstate() {
                     <td className="w-8 !p-0 text-center" onClick={(e) => e.stopPropagation()}>
                       <input 
                         type="checkbox" 
-                        className="cursor-pointer rounded-none accent-[#2b579a] w-3.5 h-3.5 align-middle" 
+                        className="cursor-pointer w-3.5 h-3.5 align-middle" 
                         checked={selectedIds.includes(p.id)} 
                         onChange={() => handleToggleSelect(p.id)} 
                       />
@@ -1206,6 +1232,39 @@ export default function RealEstate() {
                 <button 
                   className="px-6 py-1 border border-gray-400 bg-gray-100 hover:bg-gray-200 shadow-sm text-[11px] font-bold uppercase" 
                   onClick={() => setShowAccountsModal(false)}
+                >
+                  Cerrar
+                </button>
+              </div>
+            </div>
+          </Window>
+        </div>
+      )}
+
+      {/* CEBE Modal */}
+      {showCebeModal && (
+        <div className="fixed inset-0 bg-black/40 backdrop-blur-sm flex items-center justify-center z-[70]">
+          <Window 
+            title="Selección de Centro de Beneficio (CEBE)"
+            width={isMobile ? "100%" : "900px"}
+            initialPos={{ x: isMobile ? 0 : 50, y: isMobile ? 0 : 20 }}
+            onClose={() => setShowCebeModal(false)}
+          >
+            <div className="bg-white flex flex-col w-full h-[600px] relative overflow-hidden">
+              <div className="flex-1 overflow-hidden relative">
+                <AnalyticalCenters 
+                  type="cebe" 
+                  isModal={true} 
+                  onSelect={(code) => {
+                    setFormData(prev => ({ ...prev, cebe: code }));
+                    setShowCebeModal(false);
+                  }} 
+                />
+              </div>
+              <div className="flex justify-end gap-2 shrink-0 px-3 py-1.5 bg-[#f0f0f0] border-t border-gray-300">
+                <button 
+                  className="px-6 py-1 border border-gray-400 bg-gray-100 hover:bg-gray-200 shadow-sm text-[11px] font-bold uppercase" 
+                  onClick={() => setShowCebeModal(false)}
                 >
                   Cerrar
                 </button>

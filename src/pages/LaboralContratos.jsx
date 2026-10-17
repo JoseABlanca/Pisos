@@ -695,7 +695,7 @@ if (activeTab === 'Documentos') return (
                   <th className="w-8 !p-0 text-center bg-[#fafafa]">
                     <input 
                       type="checkbox" 
-                      className="cursor-pointer rounded-none accent-[#2b579a] w-3.5 h-3.5 align-middle" 
+                      className="cursor-pointer w-3.5 h-3.5 align-middle" 
                       checked={filteredAndColumnFilteredContratos.length > 0 && selectedIds.length === filteredAndColumnFilteredContratos.length} 
                       onChange={() => handleToggleSelectAll(filteredAndColumnFilteredContratos)} 
                     />
@@ -735,7 +735,7 @@ if (activeTab === 'Documentos') return (
                       <td className="w-8 !p-0 text-center" onClick={e => e.stopPropagation()}>
                         <input 
                           type="checkbox" 
-                          className="cursor-pointer rounded-none accent-[#2b579a] w-3.5 h-3.5 align-middle" 
+                          className="cursor-pointer w-3.5 h-3.5 align-middle" 
                           checked={selectedIds.includes(c.id)} 
                           onChange={() => handleToggleSelect(c.id)} 
                         />

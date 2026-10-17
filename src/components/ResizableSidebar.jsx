@@ -1,16 +1,16 @@
 import React, { useState, useEffect, useRef } from 'react';
 
-export default function ResizableSidebar({ children, defaultWidth = 256, minWidth = 150, maxWidth = 500, className = "", position = "left" }) {
+export default function ResizableSidebar({ children, defaultWidth = 256, minWidth = 150, maxWidth = 500, className = "", position = "left", storageKey = 'sidebar_width' }) {
   const [width, setWidth] = useState(() => {
-    const saved = localStorage.getItem('sidebar_width');
+    const saved = localStorage.getItem(storageKey);
     return saved ? parseInt(saved, 10) : defaultWidth;
   });
   
   const resizeState = useRef({ isResizing: false, startX: 0, startWidth: 0 });
 
   useEffect(() => {
-    localStorage.setItem('sidebar_width', width);
-  }, [width]);
+    localStorage.setItem(storageKey, width);
+  }, [width, storageKey]);
 
   useEffect(() => {
     const handleMouseMove = (e) => {
